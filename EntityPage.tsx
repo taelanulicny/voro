@@ -231,7 +231,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   const currentXPosition = Math.min(1, Math.max(0, currentTimeDecimal)) * 100; // Convert to percentage
                   
                   // Generate data points up to current time
-                  const dataPoints = Math.floor(currentXPosition * 2); // More points for better resolution
+                  const dataPoints = Math.max(10, Math.floor(currentXPosition * 2)); // Ensure minimum points
                   const points = [];
                   
                   for (let i = 0; i < dataPoints; i++) {
@@ -287,7 +287,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                       
                       {/* Current price marker */}
                       <circle
-                        cx="100"
+                        cx={currentXPosition}
                         cy={currentY}
                         r="2"
                         fill="#3B82F6"
@@ -335,7 +335,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   {/* Current price label */}
                   <div className="absolute text-xs font-semibold text-green-600" 
                        style={{ 
-                         left: `${currentXPosition}%`, 
+                         left: '56%', 
                          top: '45%' 
                        }}>
                     ${entity.price.toFixed(2)}
