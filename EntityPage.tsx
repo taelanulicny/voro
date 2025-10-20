@@ -208,7 +208,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
       </div>
 
       {/* Main Content - Always Visible */}
-      <div className="px-4 py-6 space-y-6">
+      <div className="py-6 space-y-6">
         {/* 1. CHART SECTION - Always Visible */}
         <div className="space-y-4">
 
@@ -232,8 +232,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
 
           {/* Sentiment Chart */}
           <div className="bg-white">
-            <div className="h-80 p-4">
-              <div className="h-full bg-gray-50 rounded-lg relative">
+            <div className="h-80">
+              <div className="h-full bg-gray-50 relative">
                 {/* Y-axis labels */}
                 <div className="absolute left-2 top-2 text-xs text-gray-500">100</div>
                 <div className="absolute left-2 top-1/2 text-xs text-gray-500">50</div>
@@ -279,7 +279,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
         </div>
 
         {/* 2. FEED SECTION - Always Visible */}
-        <div className="space-y-4">
+        <div className="space-y-4 px-4">
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Live Feed</h3>
