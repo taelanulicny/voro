@@ -185,7 +185,7 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
   };
 
   return (
-    <div className="bg-gray-50" style={{ minHeight: '100vh', paddingBottom: '8rem' }}>
+    <div className="bg-gray-50" style={{ minHeight: '100vh', paddingBottom: '5rem' }}>
       {/* Header */}
       <div className="bg-white px-4 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
