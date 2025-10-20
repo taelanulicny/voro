@@ -302,10 +302,10 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   );
                 })()}
                 
-                {/* Right-side price labels aligned with high/low points */}
+                {/* Right-side price labels aligned with blue line positions */}
                 <div className="absolute right-2 text-right">
-                  {/* High price (449.01) - aligned with peak at y=20 */}
-                  <div className="absolute text-xs text-gray-600" style={{ top: '20%', transform: 'translateY(-50%)' }}>
+                  {/* High price (449.01) - at very top like blue line */}
+                  <div className="absolute text-xs text-gray-600" style={{ top: '5%', transform: 'translateY(-50%)' }}>
                     <div className="font-semibold">449.01</div>
                     <div className="text-green-600">+2.21%</div>
                   </div>
@@ -316,8 +316,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                     <div className="text-green-600">+0.27%</div>
                   </div>
                   
-                  {/* Low price (440.49) - aligned with low at y=85 */}
-                  <div className="absolute text-xs text-gray-600" style={{ top: '85%', transform: 'translateY(-50%)' }}>
+                  {/* Low price (440.49) - at very bottom like blue line */}
+                  <div className="absolute text-xs text-gray-600" style={{ top: '95%', transform: 'translateY(-50%)' }}>
                     <div className="font-semibold">440.49</div>
                     <div className="text-gray-500">-1.2%</div>
                   </div>
