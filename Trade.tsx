@@ -51,11 +51,25 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
         const change = 0;
         const changePercent = 0;
 
-        // Generate line graph data (simplified) - shows volume trend
+        // Seeded random for consistent category patterns
+        const categorySeed = categoryName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + rank;
+        const seededRandom = (index: number) => {
+          const x = Math.sin(categorySeed + index * 0.1) * 10000;
+          return x - Math.floor(x);
+        };
+        
+        // Generate unique line graph for each category
+        const volatility = 10000 + (seededRandom(0) * 20000); // Volume volatility
+        const trendDirection = seededRandom(1) > 0.5 ? 1 : -1;
+        
         const lineGraph = Array.from({ length: 20 }, (_, index) => {
+          const progress = index / 19;
           const baseValue = volume;
-          const variation = (Math.random() - 0.5) * 50000;
-          return Math.max(baseValue + variation - (index * 1000), 10000);
+          const trend = trendDirection * 5000 * progress;
+          const oscillation = Math.sin(progress * Math.PI * 3) * volatility * seededRandom(5 + index);
+          const noise = (seededRandom(100 + index) - 0.5) * 10000;
+          
+          return Math.max(10000, baseValue + trend + oscillation + noise);
         });
 
         entities.push({
@@ -113,11 +127,28 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
       const change = 0;
       const changePercent = 0;
 
-      // Generate line graph data (simplified)
+      // Seeded random for consistent entity patterns
+      const entitySeed = rank + category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const seededRandom = (index: number) => {
+        const x = Math.sin(entitySeed + index * 0.1) * 10000;
+        return x - Math.floor(x);
+      };
+      
+      // Generate unique line graph matching CategoryPage and EntityPage
+      const volatility = 10 + (seededRandom(0) * 30);
+      const trendDirection = seededRandom(1) > 0.5 ? 1 : -1;
+      const trendStrength = seededRandom(2) * 15;
+      const numPeaks = Math.floor(2 + seededRandom(3) * 4);
+      
       const lineGraph = Array.from({ length: 20 }, (_, index) => {
-        const baseValue = price;
-        const variation = (Math.random() - 0.5) * 20;
-        return Math.max(baseValue + variation - (index * 2), 5);
+        const progress = index / 19;
+        const startY = 40 + seededRandom(4) * 20;
+        const baseY = startY + (trendDirection * trendStrength * progress);
+        const oscillation = Math.sin(progress * Math.PI * numPeaks) * volatility * seededRandom(5 + index);
+        const noise = (seededRandom(100 + index) - 0.5) * 5;
+        
+        const sentiment = Math.max(0, Math.min(100, baseY + oscillation + noise));
+        return sentiment;
       });
 
       entities.push({

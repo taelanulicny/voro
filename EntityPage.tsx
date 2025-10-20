@@ -214,7 +214,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
           <div className="bg-white">
             <div className="relative" style={{ height: '30vh' }}>
               <div className="h-full bg-white relative">
-                {/* Generate exact chart pattern from screenshot */}
+                {/* Generate unique chart pattern for each entity */}
                 {(() => {
                   // Trading day: 8:00 AM EST to 2:00 AM EST next day (18 hours)
                   const tradingStartHour = 8; // 8:00 AM EST
@@ -229,22 +229,41 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   const currentTimeDecimal = ((currentHour - tradingStartHour) + (currentMinute / 60)) / tradingDuration;
                   const currentXPosition = Math.min(1, Math.max(0, currentTimeDecimal)) * 100; // Convert to percentage
                   
-                  // Generate exact pattern from screenshot
+                  // Seeded random number generator for consistent patterns per entity
+                  const seed = parseInt(entityId) + categoryName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                  const seededRandom = (index: number) => {
+                    const x = Math.sin(seed + index * 0.1) * 10000;
+                    return x - Math.floor(x);
+                  };
+                  
+                  // Generate unique pattern for this entity
                   const points = [];
                   
-                  // Define key points based on the screenshot pattern
-                  const keyPoints = [
-                    { x: 0, y: 60 },      // 8:00 AM - Start around 443-444
-                    { x: 5, y: 65 },      // Slight dip to ~442
-                    { x: 15, y: 20 },     // Skyrocket to peak ~449 (around 10:51)
-                    { x: 20, y: 85 },     // Sharp decline to low ~440
-                    { x: 30, y: 70 },     // Recovery
-                    { x: 40, y: 50 },     // Oscillation
-                    { x: 50, y: 75 },     // Another dip
-                    { x: 60, y: 45 },     // Recovery
-                    { x: 70, y: 65 },     // More oscillation
-                    { x: currentXPosition, y: 55 } // Current price ~444.21
-                  ];
+                  // Create entity-specific chart characteristics
+                  const volatility = 10 + (seededRandom(0) * 30); // How much the price swings (10-40)
+                  const trendDirection = seededRandom(1) > 0.5 ? 1 : -1; // Overall trend up or down
+                  const trendStrength = seededRandom(2) * 15; // How strong the trend is (0-15)
+                  const numPeaks = Math.floor(2 + seededRandom(3) * 4); // Number of peaks/valleys (2-6)
+                  
+                  // Generate key turning points
+                  const keyPoints = [];
+                  
+                  // Starting point
+                  const startY = 40 + seededRandom(4) * 20; // Start between 40-60
+                  keyPoints.push({ x: 0, y: startY });
+                  
+                  // Generate peaks and valleys throughout the day
+                  for (let i = 1; i <= numPeaks; i++) {
+                    const x = (i / numPeaks) * currentXPosition;
+                    const baseY = startY + (trendDirection * trendStrength * i / numPeaks);
+                    const oscillation = Math.sin(i * Math.PI / 2) * volatility * seededRandom(5 + i);
+                    const y = Math.max(10, Math.min(90, baseY + oscillation));
+                    keyPoints.push({ x, y });
+                  }
+                  
+                  // Current position
+                  const currentY = keyPoints[keyPoints.length - 1].y + (seededRandom(20) - 0.5) * 5;
+                  keyPoints.push({ x: currentXPosition, y: Math.max(10, Math.min(90, currentY)) });
                   
                   // Interpolate between key points for smooth line
                   for (let i = 0; i < keyPoints.length - 1; i++) {
@@ -257,8 +276,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                       const x = start.x + (end.x - start.x) * progress;
                       const y = start.y + (end.y - start.y) * progress;
                       
-                      // Add some realistic noise
-                      const noise = (Math.random() - 0.5) * 3;
+                      // Add some realistic noise (consistent per entity)
+                      const noise = (seededRandom(100 + i * steps + j) - 0.5) * 3;
                       points.push(`${x},${Math.max(10, Math.min(90, y + noise))}`);
                     }
                   }

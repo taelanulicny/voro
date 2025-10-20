@@ -63,21 +63,32 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
       const change = 0;
       const changePercent = 0;
 
+      // Seeded random number generator for consistent patterns per entity
+      const seed = rank + category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const seededRandom = (index: number) => {
+        const x = Math.sin(seed + index * 0.1) * 10000;
+        return x - Math.floor(x);
+      };
+      
       // Generate sentiment score for this entity (based on rank)
       // Higher rank = higher base sentiment
       const baseSentiment = 100 - (rank - 1) * 1.5; // Rank 1 = ~100%, Rank 50 = ~26%
       
-      // Generate line graph data - daily sentiment movement (same algorithm as EntityPage)
+      // Generate line graph data - matches EntityPage algorithm for consistency
+      const volatility = 10 + (seededRandom(0) * 30); // How much the price swings (10-40)
+      const trendDirection = seededRandom(1) > 0.5 ? 1 : -1; // Overall trend up or down
+      const trendStrength = seededRandom(2) * 15; // How strong the trend is (0-15)
+      const numPeaks = Math.floor(2 + seededRandom(3) * 4); // Number of peaks/valleys (2-6)
+      
       const lineGraph = Array.from({ length: 20 }, (_, index) => {
-        // Add realistic sentiment fluctuations over time (same as EntityPage full chart)
-        const timeVariation = Math.sin(index * 0.1) * 10; // Cyclical sentiment changes
-        const randomVariation = (Math.random() - 0.5) * 15; // Random sentiment spikes/dips
-        const trendVariation = (index * 0.05); // Slight upward trend over time
+        // Create the same pattern as the full chart but simplified
+        const progress = index / 19;
+        const startY = 40 + seededRandom(4) * 20;
+        const baseY = startY + (trendDirection * trendStrength * progress);
+        const oscillation = Math.sin(progress * Math.PI * numPeaks) * volatility * seededRandom(5 + index);
+        const noise = (seededRandom(100 + index) - 0.5) * 5;
         
-        const sentiment = Math.max(0, Math.min(100, 
-          baseSentiment + timeVariation + randomVariation + trendVariation
-        ));
-        
+        const sentiment = Math.max(0, Math.min(100, baseY + oscillation + noise));
         return sentiment;
       });
 
