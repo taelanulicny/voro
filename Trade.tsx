@@ -170,21 +170,67 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
 
       const entityName = getEntityName(category, rank);
       
-      // Generate realistic ticker based on entity name
-      const getEntityTicker = (name: string, category: string) => {
-        // Extract meaningful parts of the name for ticker
-        const words = name.split(' ');
-        if (words.length === 1) {
-          // Single word - take first 3-4 letters
-          return words[0].substring(0, 4).toUpperCase();
+      // Generate 4-letter ticker that's recognizable from the entity name
+      const getEntityTicker = (name: string, rank: number) => {
+        const words = name.split(' ').filter(w => w.length > 0);
+        const cleanName = name.toUpperCase().replace(/[^A-Z]/g, '');
+        
+        let ticker = '';
+        const usedLetters = new Set<string>();
+        
+        // Helper function to add a letter if not already used
+        const addLetter = (letter: string) => {
+          if (letter && !usedLetters.has(letter) && ticker.length < 4) {
+            ticker += letter;
+            usedLetters.add(letter);
+            return true;
+          }
+          return false;
+        };
+        
+        if (words.length >= 2) {
+          // Multi-word name: use initials of first words
+          for (let i = 0; i < Math.min(words.length, 2); i++) {
+            addLetter(words[i].charAt(0).toUpperCase());
+          }
+          
+          // Fill remaining spots with consonants from last word
+          const lastWord = words[words.length - 1].toUpperCase();
+          for (let char of lastWord) {
+            if (ticker.length >= 4) break;
+            if (!'AEIOU'.includes(char)) {
+              addLetter(char);
+            }
+          }
+          
+          // If still need more, use any remaining unique letters from the name
+          for (let char of cleanName) {
+            if (ticker.length >= 4) break;
+            addLetter(char);
+          }
         } else {
-          // Multiple words - take first letter of each word, max 4 chars
-          const initials = words.map(word => word.charAt(0)).join('').substring(0, 4);
-          return initials.toUpperCase();
+          // Single word: use first letter + consonants
+          addLetter(cleanName.charAt(0));
+          
+          // Add unique consonants
+          for (let char of cleanName) {
+            if (ticker.length >= 4) break;
+            if (!'AEIOU'.includes(char)) {
+              addLetter(char);
+            }
+          }
+          
+          // Fill with any remaining unique letters
+          for (let char of cleanName) {
+            if (ticker.length >= 4) break;
+            addLetter(char);
+          }
         }
+        
+        return ticker.padEnd(4, 'X').substring(0, 4);
       };
       
-      const ticker = getEntityTicker(entityName, category);
+      const ticker = getEntityTicker(entityName, rank);
       
       entities.push({
         id: i + 1,
