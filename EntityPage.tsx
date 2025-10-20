@@ -275,7 +275,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                         points={points.join(' ')}
                         fill="none"
                         stroke="#10B981" // Green line like screenshot
-                        strokeWidth="1.5"
+                        strokeWidth="0.5" // Extremely thin line
                       />
                       
                       {/* Fill area under the line (light teal) */}
@@ -305,70 +305,26 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                         fill="#10B981"
                       />
                       
-                      {/* High point marker (peak at ~449) */}
-                      <circle
-                        cx="15"
-                        cy="20"
-                        r="2"
-                        fill="#000"
-                      />
-                      
-                      {/* Low point marker (low at ~440) */}
-                      <circle
-                        cx="20"
-                        cy="85"
-                        r="2"
-                        fill="#000"
-                      />
                     </svg>
                   );
                 })()}
                 
-                {/* Right-side price panel */}
-                <div className="absolute right-2 top-2 bottom-2 flex flex-col justify-between text-right">
+                {/* Left-side price labels aligned with high/low points */}
+                <div className="absolute left-2 top-0 bottom-0 flex flex-col justify-between text-left">
                   <div className="text-xs text-gray-600">
-                    <div className="font-semibold">${(entity.price * 1.05).toFixed(2)}</div>
-                    <div className="text-green-600">+0.87%</div>
+                    <div className="font-semibold">449.01</div>
+                    <div className="text-green-600">+2.21%</div>
                   </div>
                   <div className="text-xs text-gray-600">
-                    <div className="font-semibold">${entity.price.toFixed(2)}</div>
-                    <div className="text-red-600">-0.43%</div>
+                    <div className="font-semibold">444.21</div>
+                    <div className="text-green-600">+0.27%</div>
                   </div>
                   <div className="text-xs text-gray-600">
-                    <div className="font-semibold">${(entity.price * 0.95).toFixed(2)}</div>
+                    <div className="font-semibold">440.49</div>
                     <div className="text-gray-500">-1.2%</div>
                   </div>
                 </div>
                 
-                {/* Price labels on graph */}
-                <div className="absolute inset-0 pointer-events-none">
-                  {/* High price label */}
-                  <div className="absolute text-xs font-semibold text-gray-800" 
-                       style={{ 
-                         left: '20%', 
-                         top: '15%' 
-                       }}>
-                    ${(entity.price * 1.08).toFixed(2)}
-                  </div>
-                  
-                  {/* Low price label */}
-                  <div className="absolute text-xs font-semibold text-gray-800" 
-                       style={{ 
-                         left: '70%', 
-                         top: '80%' 
-                       }}>
-                    ${(entity.price * 0.92).toFixed(2)}
-                  </div>
-                  
-                  {/* Current price label */}
-                  <div className="absolute text-xs font-semibold text-green-600" 
-                       style={{ 
-                         left: '56%', 
-                         top: '45%' 
-                       }}>
-                    ${entity.price.toFixed(2)}
-                  </div>
-                </div>
                 
                 {/* Time labels at bottom - matching screenshot */}
                 <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2 pb-1">
