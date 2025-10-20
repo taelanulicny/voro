@@ -166,7 +166,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
 
               {/* Middle Section - Line Graph */}
               <div className="flex-1 flex justify-center">
-                <div className="relative border border-gray-200 rounded" style={{ width: '6rem', height: '3rem' }}>
+                <div className="relative" style={{ width: '6rem', height: '3rem' }}>
                   <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                     {/* Line Graph - looks like mini version of entity page chart */}
                     {entity.lineGraph && entity.lineGraph.length > 0 ? (
