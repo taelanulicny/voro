@@ -164,8 +164,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <div className="bg-white px-4 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="bg-white py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-4">
           <button 
             onClick={onBack}
             className="flex items-center text-gray-600"
@@ -191,7 +191,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
         </div>
 
         {/* Price and Change - Top Left */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 px-4">
           <div>
             <div className="text-3xl font-bold text-gray-900">${entity.price.toFixed(2)}</div>
             <div className={`text-lg ${getChangeColor(entity.change)}`}>
@@ -200,7 +200,6 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
             <div className="text-sm text-gray-500">Open, {new Date().toLocaleTimeString()} ET</div>
           </div>
           <div className="text-right">
-            <div className="text-sm text-gray-600">H/L {entity.price + 5}-{entity.price - 5}</div>
             <div className="text-sm text-gray-600">Volume {formatNumber(entity.volume)}</div>
             <div className="text-sm text-gray-600">Mkt Cap {formatNumber(entity.marketCap)}</div>
           </div>
@@ -302,26 +301,6 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   );
                 })()}
                 
-                {/* Right-side price labels aligned with blue line positions */}
-                <div className="absolute right-2 text-right">
-                  {/* High price (449.01) - at very top like blue line */}
-                  <div className="absolute text-xs text-gray-600" style={{ top: '5%', transform: 'translateY(-50%)' }}>
-                    <div className="font-semibold">449.01</div>
-                    <div className="text-green-600">+2.21%</div>
-                  </div>
-                  
-                  {/* Current price (444.21) - aligned with current position */}
-                  <div className="absolute text-xs text-gray-600" style={{ top: '55%', transform: 'translateY(-50%)' }}>
-                    <div className="font-semibold">444.21</div>
-                    <div className="text-green-600">+0.27%</div>
-                  </div>
-                  
-                  {/* Low price (440.49) - at very bottom like blue line */}
-                  <div className="absolute text-xs text-gray-600" style={{ top: '95%', transform: 'translateY(-50%)' }}>
-                    <div className="font-semibold">440.49</div>
-                    <div className="text-gray-500">-1.2%</div>
-                  </div>
-                </div>
                 
                 
                 {/* Time labels at bottom - matching screenshot */}
@@ -335,8 +314,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
             </div>
             
             {/* Time Options - Matching screenshot */}
-            <div className="bg-white px-4 py-3 border-t border-gray-200">
-              <div className="flex items-center justify-between">
+            <div className="bg-white py-3 border-t border-gray-200">
+              <div className="flex items-center justify-between px-4">
                 <div className="flex items-center space-x-2">
                   {['24H', '5D', '1M', '3M', '1Y', '5Y', 'Max'].map((timeframe) => (
                     <button
