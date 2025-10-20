@@ -244,6 +244,14 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                     points.push(`${x},${Math.max(5, Math.min(95, y))}`);
                   }
                   
+                  // Ensure the last point is exactly at the current time position
+                  if (points.length > 0) {
+                    const lastPoint = points[points.length - 1];
+                    const lastX = parseFloat(lastPoint.split(',')[0]);
+                    const lastY = parseFloat(lastPoint.split(',')[1]);
+                    points[points.length - 1] = `${currentXPosition},${lastY}`;
+                  }
+                  
                   const minY = Math.min(...points.map(p => parseFloat(p.split(',')[1])));
                   const maxY = Math.max(...points.map(p => parseFloat(p.split(',')[1])));
                   const currentY = parseFloat(points[points.length - 1].split(',')[1]);
@@ -345,7 +353,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                 {/* Time labels at bottom */}
                 <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2 pb-1">
                   <div className="text-xs text-gray-500">8:00 AM</div>
-                  <div className="text-xs text-gray-500">6:00 PM</div>
+                  <div className="text-xs text-gray-500 font-semibold">6:00 PM (Now)</div>
                   <div className="text-xs text-gray-500">2:00 AM</div>
                 </div>
               </div>
