@@ -110,7 +110,9 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
   };
 
   useEffect(() => {
-    setEntities(generateEntities(categoryName));
+    const generatedEntities = generateEntities(categoryName);
+    console.log(`Generated ${generatedEntities.length} entities for ${categoryName}:`, generatedEntities[0]);
+    setEntities(generatedEntities);
   }, [categoryName]);
 
   const getChangeColor = (change: number) => {
@@ -164,19 +166,24 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
 
               {/* Middle Section - Line Graph */}
               <div className="flex-1 flex justify-center">
-                <div className="relative" style={{ width: '6rem', height: '3rem' }}>
+                <div className="relative border border-gray-200 rounded" style={{ width: '6rem', height: '3rem' }}>
                   <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                     {/* Line Graph - looks like mini version of entity page chart */}
-                    <polyline
-                      points={entity.lineGraph.map((sentiment, index) => {
-                        const x = (index / (entity.lineGraph.length - 1)) * 100;
-                        const y = 100 - sentiment; // Invert Y so higher sentiment = higher on chart
-                        return `${x},${y}`;
-                      }).join(' ')}
-                      fill="none"
-                      stroke={entity.lineGraph[entity.lineGraph.length - 1] >= 50 ? '#10B981' : '#EF4444'} // Green if sentiment >= 50%, red if < 50%
-                      strokeWidth="1"
-                    />
+                    {entity.lineGraph && entity.lineGraph.length > 0 ? (
+                      <polyline
+                        points={entity.lineGraph.map((sentiment, index) => {
+                          const x = (index / (entity.lineGraph.length - 1)) * 100;
+                          const y = 100 - sentiment; // Invert Y so higher sentiment = higher on chart
+                          return `${x},${y}`;
+                        }).join(' ')}
+                        fill="none"
+                        stroke={entity.lineGraph[entity.lineGraph.length - 1] >= 50 ? '#10B981' : '#EF4444'} // Green if sentiment >= 50%, red if < 50%
+                        strokeWidth="1"
+                      />
+                    ) : (
+                      // Fallback line if no data
+                      <line x1="0" y1="50" x2="100" y2="50" stroke="#10B981" strokeWidth="1" />
+                    )}
                   </svg>
                 </div>
               </div>
