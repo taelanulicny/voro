@@ -239,11 +239,11 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   // Generate unique pattern for this entity
                   const points = [];
                   
-                  // Create entity-specific chart characteristics
-                  const volatility = 10 + (seededRandom(0) * 30); // How much the price swings (10-40)
+                  // Create entity-specific chart characteristics - HIGH VOLATILITY
+                  const volatility = 20 + (seededRandom(0) * 50); // How much the price swings (20-70) - MUCH MORE VOLATILE
                   const trendDirection = seededRandom(1) > 0.5 ? 1 : -1; // Overall trend up or down
-                  const trendStrength = seededRandom(2) * 15; // How strong the trend is (0-15)
-                  const numPeaks = Math.floor(2 + seededRandom(3) * 4); // Number of peaks/valleys (2-6)
+                  const trendStrength = seededRandom(2) * 25; // How strong the trend is (0-25) - STRONGER TRENDS
+                  const numPeaks = Math.floor(4 + seededRandom(3) * 6); // Number of peaks/valleys (4-10) - MORE SWINGS
                   
                   // Generate key turning points
                   const keyPoints = [];
@@ -276,8 +276,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                       const x = start.x + (end.x - start.x) * progress;
                       const y = start.y + (end.y - start.y) * progress;
                       
-                      // Add some realistic noise (consistent per entity)
-                      const noise = (seededRandom(100 + i * steps + j) - 0.5) * 3;
+                      // Add some realistic noise (consistent per entity) - INCREASED NOISE
+                      const noise = (seededRandom(100 + i * steps + j) - 0.5) * 8;
                       points.push(`${x},${Math.max(10, Math.min(90, y + noise))}`);
                     }
                   }

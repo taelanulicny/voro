@@ -74,11 +74,11 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
       // Higher rank = higher base sentiment
       const baseSentiment = 100 - (rank - 1) * 1.5; // Rank 1 = ~100%, Rank 50 = ~26%
       
-      // Generate line graph data - matches EntityPage algorithm for consistency
-      const volatility = 10 + (seededRandom(0) * 30); // How much the price swings (10-40)
+      // Generate line graph data - matches EntityPage algorithm for consistency - HIGH VOLATILITY
+      const volatility = 20 + (seededRandom(0) * 50); // How much the price swings (20-70) - MUCH MORE VOLATILE
       const trendDirection = seededRandom(1) > 0.5 ? 1 : -1; // Overall trend up or down
-      const trendStrength = seededRandom(2) * 15; // How strong the trend is (0-15)
-      const numPeaks = Math.floor(2 + seededRandom(3) * 4); // Number of peaks/valleys (2-6)
+      const trendStrength = seededRandom(2) * 25; // How strong the trend is (0-25) - STRONGER TRENDS
+      const numPeaks = Math.floor(4 + seededRandom(3) * 6); // Number of peaks/valleys (4-10) - MORE SWINGS
       
       const lineGraph = Array.from({ length: 20 }, (_, index) => {
         // Create the same pattern as the full chart but simplified
@@ -86,7 +86,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
         const startY = 40 + seededRandom(4) * 20;
         const baseY = startY + (trendDirection * trendStrength * progress);
         const oscillation = Math.sin(progress * Math.PI * numPeaks) * volatility * seededRandom(5 + index);
-        const noise = (seededRandom(100 + index) - 0.5) * 5;
+        const noise = (seededRandom(100 + index) - 0.5) * 8; // INCREASED NOISE
         
         const sentiment = Math.max(0, Math.min(100, baseY + oscillation + noise));
         return sentiment;

@@ -58,16 +58,16 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
           return x - Math.floor(x);
         };
         
-        // Generate unique line graph for each category
-        const volatility = 10000 + (seededRandom(0) * 20000); // Volume volatility
+        // Generate unique line graph for each category - HIGH VOLATILITY
+        const volatility = 20000 + (seededRandom(0) * 40000); // Volume volatility - DOUBLED
         const trendDirection = seededRandom(1) > 0.5 ? 1 : -1;
         
         const lineGraph = Array.from({ length: 20 }, (_, index) => {
           const progress = index / 19;
           const baseValue = volume;
-          const trend = trendDirection * 5000 * progress;
+          const trend = trendDirection * 10000 * progress; // DOUBLED TREND STRENGTH
           const oscillation = Math.sin(progress * Math.PI * 3) * volatility * seededRandom(5 + index);
-          const noise = (seededRandom(100 + index) - 0.5) * 10000;
+          const noise = (seededRandom(100 + index) - 0.5) * 20000; // DOUBLED NOISE
           
           return Math.max(10000, baseValue + trend + oscillation + noise);
         });
@@ -134,18 +134,18 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
         return x - Math.floor(x);
       };
       
-      // Generate unique line graph matching CategoryPage and EntityPage
-      const volatility = 10 + (seededRandom(0) * 30);
+      // Generate unique line graph matching CategoryPage and EntityPage - HIGH VOLATILITY
+      const volatility = 20 + (seededRandom(0) * 50); // MUCH MORE VOLATILE
       const trendDirection = seededRandom(1) > 0.5 ? 1 : -1;
-      const trendStrength = seededRandom(2) * 15;
-      const numPeaks = Math.floor(2 + seededRandom(3) * 4);
+      const trendStrength = seededRandom(2) * 25; // STRONGER TRENDS
+      const numPeaks = Math.floor(4 + seededRandom(3) * 6); // MORE SWINGS
       
       const lineGraph = Array.from({ length: 20 }, (_, index) => {
         const progress = index / 19;
         const startY = 40 + seededRandom(4) * 20;
         const baseY = startY + (trendDirection * trendStrength * progress);
         const oscillation = Math.sin(progress * Math.PI * numPeaks) * volatility * seededRandom(5 + index);
-        const noise = (seededRandom(100 + index) - 0.5) * 5;
+        const noise = (seededRandom(100 + index) - 0.5) * 8; // INCREASED NOISE
         
         const sentiment = Math.max(0, Math.min(100, baseY + oscillation + noise));
         return sentiment;
