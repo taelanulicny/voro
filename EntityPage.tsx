@@ -278,13 +278,6 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                         strokeWidth="0.5" // Extremely thin line
                       />
                       
-                      {/* Fill area under the line (light teal) */}
-                      <polyline
-                        points={`0,100 ${points.join(' ')} 100,100`}
-                        fill="#10B981"
-                        fillOpacity="0.1"
-                        stroke="none"
-                      />
                       
                       {/* Current price horizontal line */}
                       <line
