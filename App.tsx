@@ -76,7 +76,7 @@ const App: React.FC = () => {
         return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} />;
       case 'watchlist':
         return (
-          <div className="min-h-screen bg-gray-50 p-6 pb-20">
+          <div className="bg-gray-50 p-6" style={{ minHeight: '100vh', paddingBottom: '5rem' }}>
             <div className="max-w-4xl mx-auto">
               <h1 className="text-4xl font-bold text-gray-900 mb-6">Watchlist</h1>
               <div className="bg-white rounded-lg shadow-md p-8">
@@ -87,7 +87,7 @@ const App: React.FC = () => {
         );
       case 'feeds':
         return (
-          <div className="min-h-screen bg-gray-50 p-6 pb-20">
+          <div className="bg-gray-50 p-6" style={{ minHeight: '100vh', paddingBottom: '5rem' }}>
             <div className="max-w-4xl mx-auto">
               <h1 className="text-4xl font-bold text-gray-900 mb-6">Feeds</h1>
               <div className="bg-white rounded-lg shadow-md p-8">
@@ -98,7 +98,7 @@ const App: React.FC = () => {
         );
       case 'news':
         return (
-          <div className="min-h-screen bg-gray-50 p-6 pb-20">
+          <div className="bg-gray-50 p-6" style={{ minHeight: '100vh', paddingBottom: '5rem' }}>
             <div className="max-w-4xl mx-auto">
               <h1 className="text-4xl font-bold text-gray-900 mb-6">News</h1>
               <div className="bg-white rounded-lg shadow-md p-8">

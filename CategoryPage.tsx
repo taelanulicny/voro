@@ -107,7 +107,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="bg-gray-50" style={{ minHeight: '100vh', paddingBottom: '5rem' }}>
       {/* Header */}
       <div className="bg-white px-4 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -153,7 +153,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
 
               {/* Middle Section - Line Graph */}
               <div className="flex-1 flex justify-center">
-                <div className="w-24 h-12 relative">
+                <div className="relative" style={{ width: '6rem', height: '3rem' }}>
                   <svg className="w-full h-full" viewBox="0 0 100 40">
                     {/* Baseline */}
                     <line 

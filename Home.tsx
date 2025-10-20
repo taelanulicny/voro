@@ -7,7 +7,7 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick }) => {
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="bg-gray-50" style={{ minHeight: '100vh', paddingBottom: '5rem' }}>
       {/* Profile Section - Top 40% */}
       <div className="bg-white px-4 py-6">
         {/* Profile Header */}
