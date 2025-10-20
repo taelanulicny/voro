@@ -165,24 +165,17 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
               {/* Middle Section - Line Graph */}
               <div className="flex-1 flex justify-center">
                 <div className="relative" style={{ width: '6rem', height: '3rem' }}>
-                  <svg className="w-full h-full" viewBox="0 0 100 40">
-                    {/* Baseline */}
-                    <line 
-                      x1="0" y1="35" x2="100" y2="35" 
-                      stroke="#E5E7EB" 
-                      strokeWidth="1" 
-                      strokeDasharray="2,2"
-                    />
-                    {/* Line Graph */}
+                  <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    {/* Line Graph - looks like mini version of entity page chart */}
                     <polyline
                       points={entity.lineGraph.map((sentiment, index) => {
                         const x = (index / (entity.lineGraph.length - 1)) * 100;
-                        const y = 35 - (sentiment / 100) * 30; // Convert sentiment (0-100) to chart position
+                        const y = 100 - sentiment; // Invert Y so higher sentiment = higher on chart
                         return `${x},${y}`;
                       }).join(' ')}
                       fill="none"
                       stroke={entity.lineGraph[entity.lineGraph.length - 1] >= 50 ? '#10B981' : '#EF4444'} // Green if sentiment >= 50%, red if < 50%
-                      strokeWidth="2"
+                      strokeWidth="1"
                     />
                   </svg>
                 </div>

@@ -231,24 +231,21 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
               {/* Middle Section - Line Graph */}
               <div className="flex-1 flex justify-center">
                 <div className="relative" style={{ width: '6rem', height: '3rem' }}>
-                  <svg className="w-full h-full" viewBox="0 0 100 40">
-                    {/* Baseline */}
-                    <line 
-                      x1="0" y1="35" x2="100" y2="35" 
-                      stroke="#E5E7EB" 
-                      strokeWidth="1" 
-                      strokeDasharray="2,2"
-                    />
-                    {/* Line Graph */}
+                  <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    {/* Line Graph - looks like mini version of entity page chart */}
                     <polyline
                       points={entity.lineGraph.map((value, index) => {
                         const x = (index / (entity.lineGraph.length - 1)) * 100;
-                        const y = 35 - ((value - Math.min(...entity.lineGraph)) / (Math.max(...entity.lineGraph) - Math.min(...entity.lineGraph))) * 30;
+                        // For "All Categories" volume data, normalize it. For entity sentiment data (0-100), use directly
+                        const isVolume = currentCategory === 'All Categories';
+                        const y = isVolume 
+                          ? 100 - ((value - Math.min(...entity.lineGraph)) / (Math.max(...entity.lineGraph) - Math.min(...entity.lineGraph))) * 100
+                          : 100 - value; // Invert Y so higher = higher on chart
                         return `${x},${y}`;
                       }).join(' ')}
                       fill="none"
                       stroke={getLineColor(entity.change)}
-                      strokeWidth="2"
+                      strokeWidth="1"
                     />
                   </svg>
                 </div>
