@@ -110,7 +110,9 @@ const App: React.FC = () => {
       case 'tradeable-categories':
         return <Trade selectedCategory={selectedCategory} onBack={handleBackToHome} onCategorySelect={handleCategoryClick} />;
       case 'category':
-        return selectedCategory ? <CategoryPage categoryName={selectedCategory} onBack={handleBackToTradeableCategories} /> : <Home onCategoryClick={handleCategoryClick} />;
+        return selectedCategory ? <CategoryPage categoryName={selectedCategory} onBack={handleBackToTradeableCategories} onEntityClick={handleEntityClick} /> : <Home onCategoryClick={handleCategoryClick} />;
+      case 'entity':
+        return selectedEntity && selectedCategory ? <EntityPage entityId={selectedEntity} categoryName={selectedCategory} onBack={handleBackToCategory} /> : <Home onCategoryClick={handleCategoryClick} />;
       default:
         return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} />;
     }
