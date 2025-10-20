@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// Force rebuild
 import Home from './Home';
 import BottomNavBar from './BottomNavBar';
 import Trade from './Trade';
