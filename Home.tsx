@@ -2,9 +2,10 @@ import React from 'react';
 
 interface HomeProps {
   onCategoryClick: (category: string) => void;
+  onTradeableCategoriesClick?: () => void;
 }
 
-const Home: React.FC<HomeProps> = ({ onCategoryClick }) => {
+const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick }) => {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Profile Section - Top 40% */}
@@ -105,7 +106,7 @@ const Home: React.FC<HomeProps> = ({ onCategoryClick }) => {
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-gray-900">Top Categories</h3>
           <button 
-            onClick={() => onCategoryClick('All Categories')}
+            onClick={() => onTradeableCategoriesClick ? onTradeableCategoriesClick() : onCategoryClick('Tradeable Categories')}
             className="text-sm text-gray-600 hover:text-gray-800"
           >
             See More &gt;

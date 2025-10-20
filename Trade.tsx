@@ -167,7 +167,7 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
             </svg>
             Back
           </button>
-          <h1 className="text-lg font-bold text-gray-900">Trade</h1>
+          <h1 className="text-lg font-bold text-gray-900">Tradeable Categories</h1>
           <div className="w-8"></div>
         </div>
       </div>

@@ -5,7 +5,7 @@ import Trade from './Trade';
 import CategoryPage from './CategoryPage';
 
 const App: React.FC = () => {
-  const [activeItem, setActiveItem] = useState<'home' | 'watchlist' | 'feeds' | 'news' | 'trade' | 'category'>('home');
+  const [activeItem, setActiveItem] = useState<'home' | 'watchlist' | 'feeds' | 'news' | 'tradeable-categories' | 'category'>('home');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
   const handleNavClick = (item: string) => {
@@ -27,7 +27,7 @@ const App: React.FC = () => {
         setSelectedCategory(undefined);
         break;
       case 'center':
-        setActiveItem('trade');
+        setActiveItem('tradeable-categories');
         setSelectedCategory(undefined);
         break;
       default:
@@ -45,15 +45,20 @@ const App: React.FC = () => {
     setSelectedCategory(undefined);
   };
 
-  const handleBackToTrade = () => {
-    setActiveItem('trade');
+  const handleBackToTradeableCategories = () => {
+    setActiveItem('tradeable-categories');
+    setSelectedCategory(undefined);
+  };
+
+  const handleTradeableCategoriesClick = () => {
+    setActiveItem('tradeable-categories');
     setSelectedCategory(undefined);
   };
 
   const renderCurrentPage = () => {
     switch (activeItem) {
       case 'home':
-        return <Home onCategoryClick={handleCategoryClick} />;
+        return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} />;
       case 'watchlist':
         return (
           <div className="min-h-screen bg-gray-50 p-6 pb-20">
@@ -87,12 +92,12 @@ const App: React.FC = () => {
             </div>
           </div>
         );
-      case 'trade':
+      case 'tradeable-categories':
         return <Trade selectedCategory={selectedCategory} onBack={handleBackToHome} onCategorySelect={handleCategoryClick} />;
       case 'category':
-        return selectedCategory ? <CategoryPage categoryName={selectedCategory} onBack={handleBackToTrade} /> : <Home onCategoryClick={handleCategoryClick} />;
+        return selectedCategory ? <CategoryPage categoryName={selectedCategory} onBack={handleBackToTradeableCategories} /> : <Home onCategoryClick={handleCategoryClick} />;
       default:
-        return <Home onCategoryClick={handleCategoryClick} />;
+        return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} />;
     }
   };
 
