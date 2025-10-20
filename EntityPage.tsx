@@ -162,7 +162,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20" style={{ minHeight: '100vh' }}>
       {/* Header */}
       <div className="bg-white py-4 border-b border-gray-200">
         <div className="flex items-center justify-between px-4">
@@ -212,7 +212,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
         <div>
           {/* Price Chart */}
           <div className="bg-white">
-            <div className="h-80 relative">
+            <div className="relative" style={{ height: '50vh' }}>
               <div className="h-full bg-white relative">
                 {/* Generate exact chart pattern from screenshot */}
                 {(() => {
