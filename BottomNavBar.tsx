@@ -16,7 +16,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-black z-50" style={{ width: '100vw' }}>
+    <div className="fixed bottom-0 left-0 right-0 bg-white z-50" style={{ width: '100vw' }}>
       <div className="flex items-center justify-between px-4" style={{ paddingTop: '0.75rem', paddingBottom: '0.75rem' }}>
         {/* Home */}
         <button
