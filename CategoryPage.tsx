@@ -110,7 +110,22 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
       });
 
       const entityName = getEntityName(category, rank);
-      const ticker = `${categoryPrefix}${rank}`;
+      
+      // Generate realistic ticker based on entity name
+      const getEntityTicker = (name: string, category: string) => {
+        // Extract meaningful parts of the name for ticker
+        const words = name.split(' ');
+        if (words.length === 1) {
+          // Single word - take first 3-4 letters
+          return words[0].substring(0, 4).toUpperCase();
+        } else {
+          // Multiple words - take first letter of each word, max 4 chars
+          const initials = words.map(word => word.charAt(0)).join('').substring(0, 4);
+          return initials.toUpperCase();
+        }
+      };
+      
+      const ticker = getEntityTicker(entityName, category);
       
       entities.push({
         id: i + 1,

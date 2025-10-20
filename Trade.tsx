@@ -170,10 +170,26 @@ const Trade: React.FC<TradeProps> = ({ selectedCategory, onBack, onCategorySelec
 
       const entityName = getEntityName(category, rank);
       
+      // Generate realistic ticker based on entity name
+      const getEntityTicker = (name: string, category: string) => {
+        // Extract meaningful parts of the name for ticker
+        const words = name.split(' ');
+        if (words.length === 1) {
+          // Single word - take first 3-4 letters
+          return words[0].substring(0, 4).toUpperCase();
+        } else {
+          // Multiple words - take first letter of each word, max 4 chars
+          const initials = words.map(word => word.charAt(0)).join('').substring(0, 4);
+          return initials.toUpperCase();
+        }
+      };
+      
+      const ticker = getEntityTicker(entityName, category);
+      
       entities.push({
         id: i + 1,
         name: entityName,
-        ticker: `${categoryPrefix}${rank}`,
+        ticker: ticker,
         price: Math.round(price * 100) / 100,
         change: Math.round(change * 100) / 100,
         changePercent: Math.round(changePercent * 100) / 100,
