@@ -22,19 +22,6 @@ const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick
               <p className="text-sm text-gray-600">Portfolio Value: $2,082.99</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1">
-              <span className="text-sm text-gray-600">Lite</span>
-              <div className="w-8 h-4 bg-blue-500 rounded-full relative">
-                <div className="w-3 h-3 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-              </div>
-            </div>
-            <div className="w-6 h-6 flex items-center justify-center">
-              <div className="w-1 h-1 bg-gray-400 rounded-full mb-1"></div>
-              <div className="w-1 h-1 bg-gray-400 rounded-full mb-1"></div>
-              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-            </div>
-          </div>
         </div>
 
         {/* Season Competition Card */}
