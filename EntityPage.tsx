@@ -336,11 +336,11 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
             <div className="bg-white px-4 py-3 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  {['1 min', 'Daily', 'Weekly', 'Monthly', 'Quarterly'].map((timeframe) => (
+                  {['Today', 'Weekly', 'Monthly', 'Quarterly'].map((timeframe) => (
                     <button
                       key={timeframe}
                       className={`px-3 py-1 text-sm rounded ${
-                        timeframe === '1 min' 
+                        timeframe === 'Today' 
                           ? 'bg-blue-500 text-white' 
                           : 'text-gray-600 hover:text-gray-800'
                       }`}
