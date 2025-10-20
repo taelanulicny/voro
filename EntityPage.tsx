@@ -212,7 +212,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
         <div>
           {/* Price Chart */}
           <div className="bg-white">
-            <div className="relative" style={{ height: '30vh' }}>
+            <div className="relative border border-gray-200 rounded" style={{ height: '30vh' }}>
               <div className="h-full bg-white relative">
                 {/* Generate unique chart pattern for each entity */}
                 {(() => {
@@ -244,6 +244,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   const trendDirection = seededRandom(1) > 0.5 ? 1 : -1; // Overall trend up or down
                   const trendStrength = seededRandom(2) * 18; // How strong the trend is (0-18) - MODERATE TRENDS
                   const numPeaks = Math.floor(3 + seededRandom(3) * 5); // Number of peaks/valleys (3-8) - GOOD MOVEMENT
+                  
+                  console.log(`EntityPage Chart for ${entityId}:`, { volatility, trendDirection, trendStrength, numPeaks });
                   
                   // Generate key turning points
                   const keyPoints = [];
@@ -285,6 +287,17 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   const minY = Math.min(...points.map(p => parseFloat(p.split(',')[1])));
                   const maxY = Math.max(...points.map(p => parseFloat(p.split(',')[1])));
                   
+                  // Ensure we have valid data
+                  if (!points || points.length === 0) {
+                    console.error('No chart points generated for entity:', entityId);
+                    return (
+                      <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <line x1="0" y1="50" x2="100" y2="50" stroke="#10B981" strokeWidth="0.5" />
+                        <text x="50" y="50" textAnchor="middle" fontSize="8" fill="#666">Chart Loading...</text>
+                      </svg>
+                    );
+                  }
+
                   return (
                     <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                       {/* Main price line - exact pattern from screenshot */}
