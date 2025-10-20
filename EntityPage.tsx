@@ -211,17 +211,6 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
       <div className="px-4 py-6 space-y-6">
         {/* 1. CHART SECTION - Always Visible */}
         <div className="space-y-4">
-          {/* Sentiment Indicators */}
-          <div className="bg-white px-4 py-3 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">Sentiment Indicators</div>
-              <div className="flex items-center space-x-4 text-sm">
-                <span className="text-blue-600">Sentiment: {entity.sentiment.toFixed(0)}%</span>
-                <span className="text-green-600">Rank: #{entity.rank}</span>
-                <span className="text-purple-600">Volume: {formatNumber(entity.volume)}</span>
-              </div>
-            </div>
-          </div>
 
           {/* Time Options */}
           <div className="bg-white px-4 py-3 border-b border-gray-200">
