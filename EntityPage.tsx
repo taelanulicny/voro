@@ -217,16 +217,28 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
               <div className="h-full bg-white relative">
                 {/* Generate more volatile price data */}
                 {(() => {
-                  const dataPoints = 50;
-                  const basePrice = entity.price;
-                  const volatility = 15; // More movement
+                  // Trading day: 8:00 AM EST to 2:00 AM EST next day (18 hours)
+                  const tradingStartHour = 8; // 8:00 AM EST
+                  const tradingEndHour = 26; // 2:00 AM EST next day (24 + 2)
+                  const tradingDuration = tradingEndHour - tradingStartHour; // 18 hours
+                  
+                  // Current time (example: 6:00 PM EST = 18:00)
+                  const currentHour = 18; // This would be dynamic in real app
+                  const currentMinute = 0; // This would be dynamic in real app
+                  
+                  // Calculate how far through the trading day we are (0 to 1)
+                  const currentTimeDecimal = ((currentHour - tradingStartHour) + (currentMinute / 60)) / tradingDuration;
+                  const currentXPosition = Math.min(1, Math.max(0, currentTimeDecimal)) * 100; // Convert to percentage
+                  
+                  // Generate data points up to current time
+                  const dataPoints = Math.floor(currentXPosition * 2); // More points for better resolution
                   const points = [];
                   
                   for (let i = 0; i < dataPoints; i++) {
-                    const x = (i / (dataPoints - 1)) * 100;
+                    const x = (i / Math.max(1, dataPoints - 1)) * currentXPosition * 100; // Scale to current time
                     // Create more realistic price movement with trends and reversals
                     const trend = Math.sin(i * 0.3) * 20; // Main trend
-                    const noise = (Math.random() - 0.5) * volatility; // Random noise
+                    const noise = (Math.random() - 0.5) * 15; // Random noise
                     const reversal = Math.sin(i * 0.1) * 10; // Smaller reversals
                     const y = 50 + trend + noise + reversal; // Center around 50, scale to 0-100
                     points.push(`${x},${Math.max(5, Math.min(95, y))}`);
@@ -323,11 +335,18 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   {/* Current price label */}
                   <div className="absolute text-xs font-semibold text-green-600" 
                        style={{ 
-                         left: '85%', 
+                         left: `${currentXPosition}%`, 
                          top: '45%' 
                        }}>
                     ${entity.price.toFixed(2)}
                   </div>
+                </div>
+                
+                {/* Time labels at bottom */}
+                <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2 pb-1">
+                  <div className="text-xs text-gray-500">8:00 AM</div>
+                  <div className="text-xs text-gray-500">6:00 PM</div>
+                  <div className="text-xs text-gray-500">2:00 AM</div>
                 </div>
               </div>
             </div>
