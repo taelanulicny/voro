@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface BottomNavBarProps {
-  activeItem?: 'home' | 'watchlist' | 'news' | 'settings';
+  activeItem?: 'home' | 'watchlist' | 'feeds' | 'news';
   onItemClick?: (item: string) => void;
 }
 
@@ -50,6 +50,17 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({
           </div>
         </button>
 
+        {/* Feeds */}
+        <button
+          onClick={() => handleItemClick('feeds')}
+          className="flex flex-col items-center space-y-1"
+        >
+          <span className="text-gray-700 text-sm font-medium">Feeds</span>
+          {activeItem === 'feeds' && (
+            <div className="w-8 h-0.5 bg-gray-700"></div>
+          )}
+        </button>
+
         {/* News */}
         <button
           onClick={() => handleItemClick('news')}
@@ -57,17 +68,6 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({
         >
           <span className="text-gray-700 text-sm font-medium">News</span>
           {activeItem === 'news' && (
-            <div className="w-8 h-0.5 bg-gray-700"></div>
-          )}
-        </button>
-
-        {/* Settings */}
-        <button
-          onClick={() => handleItemClick('settings')}
-          className="flex flex-col items-center space-y-1"
-        >
-          <span className="text-gray-700 text-sm font-medium">Settings</span>
-          {activeItem === 'settings' && (
             <div className="w-8 h-0.5 bg-gray-700"></div>
           )}
         </button>
