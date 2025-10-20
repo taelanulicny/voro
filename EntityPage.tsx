@@ -297,11 +297,11 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                         strokeWidth="0.5"
                       />
                       
-                      {/* Current price marker (teal dot) */}
+                      {/* Current price marker (tiny teal dot) */}
                       <circle
                         cx={currentXPosition}
                         cy={currentY}
-                        r="3"
+                        r="1"
                         fill="#10B981"
                       />
                       
