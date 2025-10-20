@@ -8,16 +8,18 @@ interface Entity {
   change: number;
   changePercent: number;
   rank: number;
-  lineGraph: number[];
+  sentiment: number; // Base sentiment score (0-100)
+  lineGraph: number[]; // Daily sentiment data points
   is24H: boolean;
 }
 
 interface CategoryPageProps {
   categoryName: string;
   onBack: () => void;
+  onEntityClick?: (entityId: string, categoryName: string) => void;
 }
 
-const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack }) => {
+const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEntityClick }) => {
   const [entities, setEntities] = useState<Entity[]>([]);
 
   // Generate category-specific ticker prefix
@@ -61,11 +63,22 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack }) => 
       const change = 0;
       const changePercent = 0;
 
-      // Generate line graph data (simplified)
+      // Generate sentiment score for this entity (based on rank)
+      // Higher rank = higher base sentiment
+      const baseSentiment = 100 - (rank - 1) * 1.5; // Rank 1 = ~100%, Rank 50 = ~26%
+      
+      // Generate line graph data - daily sentiment movement (same algorithm as EntityPage)
       const lineGraph = Array.from({ length: 20 }, (_, index) => {
-        const baseValue = price;
-        const variation = (Math.random() - 0.5) * 20;
-        return Math.max(baseValue + variation - (index * 2), 5);
+        // Add realistic sentiment fluctuations over time (same as EntityPage full chart)
+        const timeVariation = Math.sin(index * 0.1) * 10; // Cyclical sentiment changes
+        const randomVariation = (Math.random() - 0.5) * 15; // Random sentiment spikes/dips
+        const trendVariation = (index * 0.05); // Slight upward trend over time
+        
+        const sentiment = Math.max(0, Math.min(100, 
+          baseSentiment + timeVariation + randomVariation + trendVariation
+        ));
+        
+        return sentiment;
       });
 
       entities.push({
@@ -76,6 +89,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack }) => 
         change: change,
         changePercent: changePercent,
         rank: rank,
+        sentiment: baseSentiment, // Store base sentiment for EntityPage
         lineGraph: lineGraph,
         is24H: Math.random() > 0.5
       });
@@ -90,14 +104,6 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack }) => 
 
   const getChangeColor = (change: number) => {
     return change >= 0 ? 'text-green-600' : 'text-red-600';
-  };
-
-  const getChangeBgColor = (change: number) => {
-    return change >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
-  };
-
-  const getLineColor = (change: number) => {
-    return change >= 0 ? '#10B981' : '#EF4444';
   };
 
   return (
@@ -133,7 +139,11 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack }) => 
       {/* Entity List */}
       <div className="px-4 py-4">
         {entities.map((entity) => (
-          <div key={entity.id} className="bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-100">
+          <div 
+            key={entity.id} 
+            className="bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
+            onClick={() => onEntityClick ? onEntityClick(entity.id.toString(), categoryName) : null}
+          >
             <div className="flex items-center justify-between">
               {/* Left Side - Ticker and Name */}
               <div className="flex-1">
@@ -154,13 +164,13 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack }) => 
                     />
                     {/* Line Graph */}
                     <polyline
-                      points={entity.lineGraph.map((value, index) => {
+                      points={entity.lineGraph.map((sentiment, index) => {
                         const x = (index / (entity.lineGraph.length - 1)) * 100;
-                        const y = 35 - ((value - Math.min(...entity.lineGraph)) / (Math.max(...entity.lineGraph) - Math.min(...entity.lineGraph))) * 30;
+                        const y = 35 - (sentiment / 100) * 30; // Convert sentiment (0-100) to chart position
                         return `${x},${y}`;
                       }).join(' ')}
                       fill="none"
-                      stroke={getLineColor(entity.change)}
+                      stroke={entity.lineGraph[entity.lineGraph.length - 1] >= 50 ? '#10B981' : '#EF4444'} // Green if sentiment >= 50%, red if < 50%
                       strokeWidth="2"
                     />
                   </svg>

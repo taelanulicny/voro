@@ -3,10 +3,12 @@ import Home from './Home';
 import BottomNavBar from './BottomNavBar';
 import Trade from './Trade';
 import CategoryPage from './CategoryPage';
+import EntityPage from './EntityPage';
 
 const App: React.FC = () => {
-  const [activeItem, setActiveItem] = useState<'home' | 'watchlist' | 'feeds' | 'news' | 'tradeable-categories' | 'category'>('home');
+  const [activeItem, setActiveItem] = useState<'home' | 'watchlist' | 'feeds' | 'news' | 'tradeable-categories' | 'category' | 'entity'>('home');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const [selectedEntity, setSelectedEntity] = useState<{id: string, category: string} | undefined>(undefined);
 
   const handleNavClick = (item: string) => {
     switch (item) {
@@ -38,16 +40,29 @@ const App: React.FC = () => {
   const handleCategoryClick = (category: string) => {
     setActiveItem('category');
     setSelectedCategory(category);
+    setSelectedEntity(undefined);
+  };
+
+  const handleEntityClick = (entityId: string, categoryName: string) => {
+    setActiveItem('entity');
+    setSelectedEntity({ id: entityId, category: categoryName });
   };
 
   const handleBackToHome = () => {
     setActiveItem('home');
     setSelectedCategory(undefined);
+    setSelectedEntity(undefined);
   };
 
   const handleBackToTradeableCategories = () => {
     setActiveItem('tradeable-categories');
     setSelectedCategory(undefined);
+    setSelectedEntity(undefined);
+  };
+
+  const handleBackToCategory = () => {
+    setActiveItem('category');
+    setSelectedEntity(undefined);
   };
 
   const handleTradeableCategoriesClick = () => {
