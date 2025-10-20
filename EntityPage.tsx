@@ -239,11 +239,11 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   // Generate unique pattern for this entity
                   const points = [];
                   
-                  // Create entity-specific chart characteristics - HIGH VOLATILITY
-                  const volatility = 20 + (seededRandom(0) * 50); // How much the price swings (20-70) - MUCH MORE VOLATILE
+                  // Create entity-specific chart characteristics - BALANCED VOLATILITY
+                  const volatility = 15 + (seededRandom(0) * 35); // How much the price swings (15-50) - REALISTIC
                   const trendDirection = seededRandom(1) > 0.5 ? 1 : -1; // Overall trend up or down
-                  const trendStrength = seededRandom(2) * 25; // How strong the trend is (0-25) - STRONGER TRENDS
-                  const numPeaks = Math.floor(4 + seededRandom(3) * 6); // Number of peaks/valleys (4-10) - MORE SWINGS
+                  const trendStrength = seededRandom(2) * 18; // How strong the trend is (0-18) - MODERATE TRENDS
+                  const numPeaks = Math.floor(3 + seededRandom(3) * 5); // Number of peaks/valleys (3-8) - GOOD MOVEMENT
                   
                   // Generate key turning points
                   const keyPoints = [];
@@ -276,8 +276,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                       const x = start.x + (end.x - start.x) * progress;
                       const y = start.y + (end.y - start.y) * progress;
                       
-                      // Add some realistic noise (consistent per entity) - INCREASED NOISE
-                      const noise = (seededRandom(100 + i * steps + j) - 0.5) * 8;
+                      // Add some realistic noise (consistent per entity) - BALANCED NOISE
+                      const noise = (seededRandom(100 + i * steps + j) - 0.5) * 5;
                       points.push(`${x},${Math.max(10, Math.min(90, y + noise))}`);
                     }
                   }
