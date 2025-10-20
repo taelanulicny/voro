@@ -242,8 +242,8 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                       <polyline
                         points={points.join(' ')}
                         fill="none"
-                        stroke="#3B82F6" // Blue color like screenshot
-                        strokeWidth="1.5" // Thinner line
+                        stroke={entity.change >= 0 ? "#10B981" : "#EF4444"} // Green if positive, red if negative
+                        strokeWidth="1" // Even thinner line
                       />
                       
                       {/* Current price horizontal line */}
@@ -357,63 +357,74 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
           </div>
         </div>
 
-        {/* 2. FEED SECTION - Always Visible */}
-        <div className="space-y-4 px-4">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Live Feed</h3>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-green-600">Live</span>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              {entity.socialFeed.slice(0, 5).map((post) => (
-                <div key={post.id} className="border-b border-gray-100 pb-4 last:border-b-0">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-gray-600">
-                        {post.author.charAt(1).toUpperCase()}
+        {/* 2. FEED SECTION - Always Visible - Full Width */}
+        <div className="space-y-0">
+          {entity.socialFeed.slice(0, 5).map((post) => (
+            <div key={post.id} className="bg-white border-b border-gray-100 p-4">
+              <div className="flex items-start space-x-3">
+                {/* Profile Picture */}
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-medium text-gray-600">
+                    {post.author.charAt(1).toUpperCase()}
+                  </span>
+                </div>
+                
+                {/* Post Content */}
+                <div className="flex-1 min-w-0">
+                  {/* User Info and Actions */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-gray-900">{post.author}</span>
+                      <span className="text-sm text-gray-500">
+                        {Math.floor(Math.random() * 60) + 1}m ago
                       </span>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="font-medium text-gray-900">{post.author}</span>
-                        <span className="text-sm text-gray-500">{post.platform}</span>
-                        <span className="text-sm text-gray-500">•</span>
-                        <span className="text-sm text-gray-500">
-                          {new Date(post.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <p className="text-gray-800 mb-2">{post.content}</p>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        <button className="flex items-center space-x-1 hover:text-red-500">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
-                          <span>{post.likes}</span>
-                        </button>
-                        <button className="flex items-center space-x-1 hover:text-blue-500">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span>{post.shares}</span>
-                        </button>
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          post.sentiment === 'positive' ? 'bg-green-100 text-green-800' :
-                          post.sentiment === 'negative' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {post.sentiment}
-                        </span>
-                      </div>
+                    <div className="flex items-center space-x-2">
+                      <button className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium hover:bg-blue-600">
+                        + Follow
+                      </button>
+                      <button className="text-gray-400 hover:text-gray-600">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
+                  
+                  {/* Post Content */}
+                  <div className="mb-3">
+                    <p className="text-gray-800">
+                      <span className="text-blue-600 font-semibold">${entity.ticker}</span> {post.content}
+                    </p>
+                  </div>
+                  
+                  {/* Interaction Buttons */}
+                  <div className="flex items-center space-x-6">
+                    <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-500">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <span className="text-sm">Comment</span>
+                    </button>
+                    
+                    <button className="flex items-center space-x-1 text-gray-500 hover:text-green-500">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span className="text-sm">Share</span>
+                    </button>
+                    
+                    <button className="flex items-center space-x-1 text-gray-500 hover:text-red-500">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      <span className="text-sm">Like {post.likes > 0 ? post.likes : ''}</span>
+                    </button>
+                  </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
