@@ -60,9 +60,11 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
 
   // Generate comprehensive entity data
   const generateEntityData = (id: string, category: string): EntityData => {
-    const entityIdNum = parseInt(id);
+    const entityIdNum = parseInt(id) || 1; // Default to 1 if parsing fails
     const basePrice = 400 - (entityIdNum - 1) * 7.6;
     const price = Math.max(basePrice + (Math.random() - 0.5) * 2, 20);
+    
+    console.log(`EntityPage: Generating data for entityId="${id}", parsed=${entityIdNum}, category="${category}"`);
     
     // Generate sentiment score (SAME algorithm as CategoryPage)
     // Higher rank = higher base sentiment

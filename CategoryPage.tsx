@@ -43,11 +43,28 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
     }
   };
 
-  // Generate fake entity data for this specific category
+  // Generate realistic fake entity data for this specific category
   const generateEntities = (category: string) => {
     const entities: Entity[] = [];
     const basePrice = 400; // Starting price for rank 1
     const categoryPrefix = getCategoryPrefix(category);
+
+    // Realistic entity names for each category
+    const getEntityName = (category: string, rank: number) => {
+      const names: { [key: string]: string[] } = {
+        'Male Athletes': ['LeBron James', 'Tom Brady', 'Lionel Messi', 'Cristiano Ronaldo', 'Tiger Woods', 'Roger Federer', 'Usain Bolt', 'Michael Phelps', 'Kobe Bryant', 'Serena Williams', 'Aaron Rodgers', 'Patrick Mahomes', 'Stephen Curry', 'Kevin Durant', 'Mike Trout', 'Connor McDavid', 'Lewis Hamilton', 'Rafael Nadal', 'Novak Djokovic', 'Virat Kohli', 'Neymar Jr', 'Kylian Mbappé', 'Luka Dončić', 'Giannis Antetokounmpo', 'Jayson Tatum', 'Luka Modrić', 'Robert Lewandowski', 'Mohamed Salah', 'Sadio Mané', 'Erling Haaland', 'Kylian Mbappé', 'Jadon Sancho', 'Phil Foden', 'Mason Mount', 'Declan Rice', 'Bukayo Saka', 'Jude Bellingham', 'Pedri', 'Gavi', 'Ansu Fati', 'Frenkie de Jong', 'Matthijs de Ligt', 'Ryan Gravenberch', 'Xavi Simons', 'Timothy Weah', 'Christian Pulisic', 'Weston McKennie', 'Tyler Adams', 'Gio Reyna'],
+        'Startups': ['OpenAI', 'Stripe', 'Canva', 'Figma', 'Notion', 'Linear', 'Vercel', 'Supabase', 'PlanetScale', 'Railway', 'Render', 'Netlify', 'Vercel', 'Prisma', 'tRPC', 'Next.js', 'Remix', 'SvelteKit', 'Nuxt', 'Vue', 'React', 'Angular', 'Svelte', 'Solid', 'Qwik', 'Astro', 'SvelteKit', 'Nuxt', 'Vue', 'React', 'Angular', 'Svelte', 'Solid', 'Qwik', 'Astro', 'SvelteKit', 'Nuxt', 'Vue', 'React', 'Angular', 'Svelte', 'Solid', 'Qwik', 'Astro', 'SvelteKit', 'Nuxt', 'Vue', 'React', 'Angular'],
+        'Influencers': ['MrBeast', 'PewDiePie', 'T-Series', 'Cocomelon', 'SET India', '5-Minute Crafts', 'WWE', 'Like Nastya', 'Vlad and Niki', 'Dude Perfect', 'Markiplier', 'Jacksepticeye', 'DanTDM', 'VanossGaming', 'PrestonPlayz', 'SSundee', 'PopularMMOs', 'TheDiamondMinecart', 'CaptainSparklez', 'Skeppy', 'BadBoyHalo', 'GeorgeNotFound', 'Dream', 'Sapnap', 'TommyInnit', 'Tubbo', 'Ranboo', 'Wilbur Soot', 'Philza', 'Technoblade', 'Quackity', 'Karl Jacobs', 'Foolish Gamers', 'Slimecicle', 'ConnorEatsPants', 'Fundy', 'Nihachu', 'Jack Manifold', 'Tubbo', 'Ranboo', 'Wilbur Soot', 'Philza', 'Technoblade', 'Quackity', 'Karl Jacobs', 'Foolish Gamers', 'Slimecicle', 'ConnorEatsPants', 'Fundy', 'Nihachu'],
+        'Clothing Brands': ['Nike', 'Adidas', 'Supreme', 'Off-White', 'Balenciaga', 'Gucci', 'Louis Vuitton', 'Chanel', 'Dior', 'Prada', 'Versace', 'Armani', 'Tom Ford', 'Saint Laurent', 'Givenchy', 'Celine', 'Loewe', 'Bottega Veneta', 'Fendi', 'Valentino', 'Burberry', 'Alexander McQueen', 'Rick Owens', 'Raf Simons', 'Vivienne Westwood', 'Comme des Garçons', 'Issey Miyake', 'Yohji Yamamoto', 'Junya Watanabe', 'Undercover', 'A Bathing Ape', 'Stüssy', 'Champion', 'Carhartt', 'Dickies', 'Levi\'s', 'Wrangler', 'Lee', 'Gap', 'Old Navy', 'Banana Republic', 'J.Crew', 'Uniqlo', 'Zara', 'H&M', 'Forever 21', 'Urban Outfitters', 'American Eagle', 'Hollister', 'Abercrombie & Fitch'],
+        'Cities': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose', 'Austin', 'Jacksonville', 'Fort Worth', 'Columbus', 'Charlotte', 'San Francisco', 'Indianapolis', 'Seattle', 'Denver', 'Washington', 'Boston', 'El Paso', 'Nashville', 'Detroit', 'Oklahoma City', 'Portland', 'Las Vegas', 'Memphis', 'Louisville', 'Baltimore', 'Milwaukee', 'Albuquerque', 'Tucson', 'Fresno', 'Sacramento', 'Mesa', 'Kansas City', 'Atlanta', 'Long Beach', 'Colorado Springs', 'Raleigh', 'Miami', 'Virginia Beach', 'Omaha', 'Oakland', 'Minneapolis', 'Tulsa', 'Arlington', 'Tampa', 'New Orleans'],
+        'Universities': ['Harvard', 'Stanford', 'MIT', 'Yale', 'Princeton', 'Columbia', 'University of Chicago', 'Penn', 'Caltech', 'Duke', 'Northwestern', 'Johns Hopkins', 'Dartmouth', 'Brown', 'Vanderbilt', 'Rice', 'Washington University', 'Cornell', 'Emory', 'Georgetown', 'Carnegie Mellon', 'UCLA', 'UC Berkeley', 'USC', 'NYU', 'University of Michigan', 'University of Virginia', 'UNC Chapel Hill', 'Wake Forest', 'Tufts', 'Boston University', 'Northeastern', 'Tulane', 'University of Florida', 'University of Texas', 'University of Georgia', 'University of North Carolina', 'University of Wisconsin', 'University of Illinois', 'Ohio State', 'Purdue', 'Indiana University', 'University of Minnesota', 'University of Iowa', 'University of Missouri', 'University of Kansas', 'University of Nebraska', 'University of Colorado', 'Arizona State', 'University of Arizona'],
+        'Tech Companies': ['Apple', 'Microsoft', 'Google', 'Amazon', 'Meta', 'Tesla', 'Netflix', 'Nvidia', 'Oracle', 'Salesforce', 'Adobe', 'Intel', 'Cisco', 'IBM', 'Qualcomm', 'Broadcom', 'ServiceNow', 'Workday', 'Snowflake', 'CrowdStrike', 'Okta', 'Zscaler', 'Palo Alto Networks', 'Fortinet', 'Splunk', 'MongoDB', 'Elastic', 'Datadog', 'New Relic', 'Atlassian', 'Slack', 'Zoom', 'DocuSign', 'Square', 'PayPal', 'Stripe', 'Shopify', 'Twilio', 'SendGrid', 'Mailchimp', 'HubSpot', 'Salesforce', 'Zendesk', 'Intercom', 'Freshworks', 'Monday.com', 'Asana', 'Notion', 'Airtable', 'Figma'],
+        'Movies': ['Avatar', 'Avengers: Endgame', 'Titanic', 'Star Wars', 'Jurassic World', 'The Lion King', 'The Avengers', 'Furious 7', 'Frozen II', 'Avengers: Infinity War', 'Top Gun: Maverick', 'Black Panther', 'Harry Potter', 'Spider-Man', 'Transformers', 'The Dark Knight', 'Pirates of the Caribbean', 'Toy Story', 'Finding Nemo', 'Incredibles', 'Shrek', 'Despicable Me', 'Minions', 'Frozen', 'Moana', 'Coco', 'Inside Out', 'Up', 'Wall-E', 'Ratatouille', 'Cars', 'Monsters Inc', 'Finding Dory', 'The Incredibles', 'Cars 2', 'Monsters University', 'Cars 3', 'Incredibles 2', 'Toy Story 4', 'Onward', 'Soul', 'Luca', 'Turning Red', 'Lightyear', 'Elemental', 'Wish', 'Inside Out 2', 'Elio', 'Zootopia 2', 'Frozen 3', 'Moana 2']
+      };
+      
+      const categoryNames = names[category] || Array.from({ length: 50 }, (_, i) => `${category} #${i + 1}`);
+      return categoryNames[rank - 1] || `${category} #${rank}`;
+    };
 
     for (let i = 0; i < 50; i++) {
       const rank = i + 1;
@@ -59,9 +76,9 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
       const centsVariation = (Math.random() - 0.5) * 2; // -1 to +1 cents variation
       const price = basePriceForRank + centsVariation;
       
-      // No daily change for now - price is strictly based on rank
-      const change = 0;
-      const changePercent = 0;
+      // Generate realistic daily change (-5% to +5%)
+      const changePercent = (Math.random() - 0.5) * 10; // -5% to +5%
+      const change = (price * changePercent) / 100;
 
       // Seeded random number generator for consistent patterns per entity
       const seed = rank + category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -92,13 +109,16 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
         return sentiment;
       });
 
+      const entityName = getEntityName(category, rank);
+      const ticker = `${categoryPrefix}${rank}`;
+      
       entities.push({
         id: i + 1,
-        name: `${category} #${rank}`,
-        ticker: `${categoryPrefix}${rank}`,
+        name: entityName,
+        ticker: ticker,
         price: Math.round(price * 100) / 100,
-        change: change,
-        changePercent: changePercent,
+        change: Math.round(change * 100) / 100,
+        changePercent: Math.round(changePercent * 100) / 100,
         rank: rank,
         sentiment: baseSentiment, // Store base sentiment for EntityPage
         lineGraph: lineGraph,
