@@ -215,41 +215,53 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
           <div className="bg-white">
             <div className="h-80 relative">
               <div className="h-full bg-white relative">
-                {/* Generate more volatile price data */}
+                {/* Generate exact chart pattern from screenshot */}
                 {(() => {
                   // Trading day: 8:00 AM EST to 2:00 AM EST next day (18 hours)
                   const tradingStartHour = 8; // 8:00 AM EST
                   const tradingEndHour = 26; // 2:00 AM EST next day (24 + 2)
                   const tradingDuration = tradingEndHour - tradingStartHour; // 18 hours
                   
-                  // Current time (example: 6:00 PM EST = 18:00)
-                  const currentHour = 18; // This would be dynamic in real app
+                  // Current time (example: around 1:00 AM EST = 25:00, about 75% through trading day)
+                  const currentHour = 25; // This would be dynamic in real app
                   const currentMinute = 0; // This would be dynamic in real app
                   
                   // Calculate how far through the trading day we are (0 to 1)
                   const currentTimeDecimal = ((currentHour - tradingStartHour) + (currentMinute / 60)) / tradingDuration;
                   const currentXPosition = Math.min(1, Math.max(0, currentTimeDecimal)) * 100; // Convert to percentage
                   
-                  // Generate data points up to current time
-                  const dataPoints = Math.max(10, Math.floor(currentXPosition * 2)); // Ensure minimum points
+                  // Generate exact pattern from screenshot
                   const points = [];
                   
-                  for (let i = 0; i < dataPoints; i++) {
-                    const x = (i / Math.max(1, dataPoints - 1)) * currentXPosition * 100; // Scale to current time
-                    // Create more realistic price movement with trends and reversals
-                    const trend = Math.sin(i * 0.3) * 20; // Main trend
-                    const noise = (Math.random() - 0.5) * 15; // Random noise
-                    const reversal = Math.sin(i * 0.1) * 10; // Smaller reversals
-                    const y = 50 + trend + noise + reversal; // Center around 50, scale to 0-100
-                    points.push(`${x},${Math.max(5, Math.min(95, y))}`);
-                  }
+                  // Define key points based on the screenshot pattern
+                  const keyPoints = [
+                    { x: 0, y: 60 },      // 8:00 AM - Start around 443-444
+                    { x: 5, y: 65 },      // Slight dip to ~442
+                    { x: 15, y: 20 },     // Skyrocket to peak ~449 (around 10:51)
+                    { x: 20, y: 85 },     // Sharp decline to low ~440
+                    { x: 30, y: 70 },     // Recovery
+                    { x: 40, y: 50 },     // Oscillation
+                    { x: 50, y: 75 },     // Another dip
+                    { x: 60, y: 45 },     // Recovery
+                    { x: 70, y: 65 },     // More oscillation
+                    { x: currentXPosition, y: 55 } // Current price ~444.21
+                  ];
                   
-                  // Ensure the last point is exactly at the current time position
-                  if (points.length > 0) {
-                    const lastPoint = points[points.length - 1];
-                    const lastX = parseFloat(lastPoint.split(',')[0]);
-                    const lastY = parseFloat(lastPoint.split(',')[1]);
-                    points[points.length - 1] = `${currentXPosition},${lastY}`;
+                  // Interpolate between key points for smooth line
+                  for (let i = 0; i < keyPoints.length - 1; i++) {
+                    const start = keyPoints[i];
+                    const end = keyPoints[i + 1];
+                    const steps = Math.max(5, Math.floor(Math.abs(end.x - start.x) * 2));
+                    
+                    for (let j = 0; j <= steps; j++) {
+                      const progress = j / steps;
+                      const x = start.x + (end.x - start.x) * progress;
+                      const y = start.y + (end.y - start.y) * progress;
+                      
+                      // Add some realistic noise
+                      const noise = (Math.random() - 0.5) * 3;
+                      points.push(`${x},${Math.max(10, Math.min(90, y + noise))}`);
+                    }
                   }
                   
                   const minY = Math.min(...points.map(p => parseFloat(p.split(',')[1])));
@@ -258,12 +270,20 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   
                   return (
                     <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      {/* Main price line - thinner and more volatile */}
+                      {/* Main price line - exact pattern from screenshot */}
                       <polyline
                         points={points.join(' ')}
                         fill="none"
-                        stroke={entity.change >= 0 ? "#10B981" : "#EF4444"} // Green if positive, red if negative
-                        strokeWidth="1" // Even thinner line
+                        stroke="#10B981" // Green line like screenshot
+                        strokeWidth="1.5"
+                      />
+                      
+                      {/* Fill area under the line (light teal) */}
+                      <polyline
+                        points={`0,100 ${points.join(' ')} 100,100`}
+                        fill="#10B981"
+                        fillOpacity="0.1"
+                        stroke="none"
                       />
                       
                       {/* Current price horizontal line */}
@@ -277,28 +297,28 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                         strokeWidth="0.5"
                       />
                       
-                      {/* High point marker */}
-                      <circle
-                        cx={points.find(p => parseFloat(p.split(',')[1]) === maxY)?.split(',')[0] || "50"}
-                        cy={maxY}
-                        r="2"
-                        fill="#000"
-                      />
-                      
-                      {/* Low point marker */}
-                      <circle
-                        cx={points.find(p => parseFloat(p.split(',')[1]) === minY)?.split(',')[0] || "50"}
-                        cy={minY}
-                        r="2"
-                        fill="#000"
-                      />
-                      
-                      {/* Current price marker */}
+                      {/* Current price marker (teal dot) */}
                       <circle
                         cx={currentXPosition}
                         cy={currentY}
+                        r="3"
+                        fill="#10B981"
+                      />
+                      
+                      {/* High point marker (peak at ~449) */}
+                      <circle
+                        cx="15"
+                        cy="20"
                         r="2"
-                        fill="#3B82F6"
+                        fill="#000"
+                      />
+                      
+                      {/* Low point marker (low at ~440) */}
+                      <circle
+                        cx="20"
+                        cy="85"
+                        r="2"
+                        fill="#000"
                       />
                     </svg>
                   );
@@ -350,24 +370,25 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   </div>
                 </div>
                 
-                {/* Time labels at bottom */}
+                {/* Time labels at bottom - matching screenshot */}
                 <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2 pb-1">
-                  <div className="text-xs text-gray-500">8:00 AM</div>
-                  <div className="text-xs text-gray-500 font-semibold">6:00 PM (Now)</div>
-                  <div className="text-xs text-gray-500">2:00 AM</div>
+                  <div className="text-xs text-gray-500">08:00</div>
+                  <div className="text-xs text-gray-500">10:51</div>
+                  <div className="text-xs text-gray-500">13:42</div>
+                  <div className="text-xs text-gray-500">00:18</div>
                 </div>
               </div>
             </div>
             
-            {/* Time Options - Moved to bottom */}
+            {/* Time Options - Matching screenshot */}
             <div className="bg-white px-4 py-3 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  {['Today', 'Weekly', 'Monthly', 'Quarterly'].map((timeframe) => (
+                  {['24H', '5D', '1M', '3M', '1Y', '5Y', 'Max'].map((timeframe) => (
                     <button
                       key={timeframe}
                       className={`px-3 py-1 text-sm rounded ${
-                        timeframe === 'Today' 
+                        timeframe === '24H' 
                           ? 'bg-blue-500 text-white' 
                           : 'text-gray-600 hover:text-gray-800'
                       }`}
@@ -376,8 +397,17 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                     </button>
                   ))}
                 </div>
-                <div className="text-sm text-gray-600">
-                  ${formatNumber(entity.volume)} vol
+                <div className="flex items-center space-x-2">
+                  <button className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                  </button>
+                  <button className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
