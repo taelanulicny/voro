@@ -72,14 +72,6 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
       const priceDecrease = (rank - 1) * 7.6; // Decrease by ~7.6 per rank to get from 400 to ~20
       const basePriceForRank = Math.max(basePrice - priceDecrease, 20); // Minimum price of $20
       
-      // Add some cents variation to make prices look more realistic
-      const centsVariation = (Math.random() - 0.5) * 2; // -1 to +1 cents variation
-      const price = basePriceForRank + centsVariation;
-      
-      // Generate realistic daily change (-5% to +5%)
-      const changePercent = (Math.random() - 0.5) * 10; // -5% to +5%
-      const change = (price * changePercent) / 100;
-
       // Seeded random number generator for consistent patterns per entity
       const seed = rank + category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       const seededRandom = (index: number) => {
@@ -97,9 +89,9 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
       const trendStrength = seededRandom(2) * 18; // How strong the trend is (0-18) - MODERATE TRENDS
       const numPeaks = Math.floor(3 + seededRandom(3) * 5); // Number of peaks/valleys (3-8) - GOOD MOVEMENT
       
-      const lineGraph = Array.from({ length: 20 }, (_, index) => {
-        // Create the same pattern as the full chart but simplified
-        const progress = index / 19;
+      // Generate the same 100-point chart as EntityPage
+      const fullLineGraph = Array.from({ length: 100 }, (_, index) => {
+        const progress = index / 99;
         const startY = 40 + seededRandom(4) * 20;
         const baseY = startY + (trendDirection * trendStrength * progress);
         const oscillation = Math.sin(progress * Math.PI * numPeaks) * volatility * seededRandom(5 + index);
@@ -108,6 +100,27 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ categoryName, onBack, onEnt
         const sentiment = Math.max(0, Math.min(100, baseY + oscillation + noise));
         return sentiment;
       });
+      
+      // For mini chart, use the same data but sample strategically to preserve the pattern
+      // Take first point, last point, and evenly spaced points in between (20 total)
+      const lineGraph = [];
+      const step = Math.floor(100 / 19); // 19 intervals = 20 points
+      for (let i = 0; i < 20; i++) {
+        const index = Math.min(i * step, 99); // Ensure we don't go beyond array bounds
+        lineGraph.push(fullLineGraph[index]);
+      }
+      
+      // Add deterministic cents variation based on seed for consistency
+      const centsVariation = (seededRandom(1000) - 0.5) * 2; // -1 to +1 cents variation
+      const price = basePriceForRank + centsVariation;
+      
+      // Generate realistic daily change based on chart movement
+      // Calculate change based on the chart's start vs end sentiment
+      const startSentiment = fullLineGraph[0];
+      const endSentiment = fullLineGraph[fullLineGraph.length - 1];
+      const sentimentChange = endSentiment - startSentiment;
+      const changePercent = (sentimentChange / 100) * 10; // Scale sentiment change to price change
+      const change = (price * changePercent) / 100;
 
       const entityName = getEntityName(category, rank);
       

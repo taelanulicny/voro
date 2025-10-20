@@ -3,9 +3,10 @@ import React from 'react';
 interface HomeProps {
   onCategoryClick: (category: string) => void;
   onTradeableCategoriesClick?: () => void;
+  onSeasonCompetitionClick?: () => void;
 }
 
-const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick }) => {
+const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick, onSeasonCompetitionClick }) => {
   return (
     <div className="bg-gray-50" style={{ minHeight: '100vh', paddingBottom: '8rem' }}>
       {/* Profile Section - Top 40% */}
@@ -37,9 +38,12 @@ const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick
         </div>
 
         {/* Season Competition Card */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-4 flex justify-between items-center">
+        <div 
+          className="bg-gray-50 rounded-lg p-4 mb-4 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition-colors"
+          onClick={onSeasonCompetitionClick}
+        >
           <div>
-            <h3 className="font-semibold text-gray-900">Season Competition Q3-2026</h3>
+            <h3 className="font-semibold text-gray-900">Season Competition Q4-2025</h3>
             <p className="text-sm text-gray-600">Token Amount: 612.45</p>
             <p className="text-sm text-gray-600">Rank: #297/10,140</p>
           </div>

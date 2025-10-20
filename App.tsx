@@ -4,11 +4,12 @@ import BottomNavBar from './BottomNavBar';
 import Trade from './Trade';
 import CategoryPage from './CategoryPage';
 import EntityPage from './EntityPage';
+import SeasonCompetition from './SeasonCompetition';
 
 const App: React.FC = () => {
-  const [activeItem, setActiveItem] = useState<'home' | 'watchlist' | 'feeds' | 'news' | 'tradeable-categories' | 'category' | 'entity'>('home');
+  const [activeItem, setActiveItem] = useState<'home' | 'watchlist' | 'feeds' | 'news' | 'tradeable-categories' | 'category' | 'entity' | 'season-competition'>('home');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-  const [selectedEntity, setSelectedEntity] = useState<{id: string, category: string} | undefined>(undefined);
+  const [selectedEntity, setSelectedEntity] = useState<string | undefined>(undefined);
 
   const handleNavClick = (item: string) => {
     switch (item) {
@@ -45,7 +46,8 @@ const App: React.FC = () => {
 
   const handleEntityClick = (entityId: string, categoryName: string) => {
     setActiveItem('entity');
-    setSelectedEntity({ id: entityId, category: categoryName });
+    setSelectedEntity(entityId);
+    setSelectedCategory(categoryName);
   };
 
   const handleBackToHome = () => {
@@ -65,6 +67,10 @@ const App: React.FC = () => {
     setSelectedEntity(undefined);
   };
 
+  const handleSeasonCompetitionClick = () => {
+    setActiveItem('season-competition');
+  };
+
   const handleTradeableCategoriesClick = () => {
     setActiveItem('tradeable-categories');
     setSelectedCategory(undefined);
@@ -73,7 +79,7 @@ const App: React.FC = () => {
   const renderCurrentPage = () => {
     switch (activeItem) {
       case 'home':
-        return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} />;
+        return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} onSeasonCompetitionClick={handleSeasonCompetitionClick} />;
       case 'watchlist':
         return (
           <div className="bg-gray-50 p-6" style={{ minHeight: '100vh', paddingBottom: '8rem' }}>
@@ -113,8 +119,10 @@ const App: React.FC = () => {
         return selectedCategory ? <CategoryPage categoryName={selectedCategory} onBack={handleBackToTradeableCategories} onEntityClick={handleEntityClick} /> : <Home onCategoryClick={handleCategoryClick} />;
       case 'entity':
         return selectedEntity && selectedCategory ? <EntityPage entityId={selectedEntity} categoryName={selectedCategory} onBack={handleBackToCategory} /> : <Home onCategoryClick={handleCategoryClick} />;
+      case 'season-competition':
+        return <SeasonCompetition onBack={handleBackToHome} />;
       default:
-        return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} />;
+        return <Home onCategoryClick={handleCategoryClick} onTradeableCategoriesClick={handleTradeableCategoriesClick} onSeasonCompetitionClick={handleSeasonCompetitionClick} />;
     }
   };
 
