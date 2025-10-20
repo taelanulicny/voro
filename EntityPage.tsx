@@ -211,68 +211,51 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
       <div className="py-6 space-y-6">
         {/* 1. CHART SECTION - Always Visible */}
         <div className="space-y-4">
-
-          {/* Time Options */}
-          <div className="bg-white px-4 py-3 border-b border-gray-200">
-            <div className="flex items-center space-x-2">
-              {['1 min', 'Daily', 'Weekly', 'Monthly', 'Quarterly'].map((timeframe) => (
-                <button
-                  key={timeframe}
-                  className={`px-3 py-1 text-sm rounded ${
-                    timeframe === 'Daily' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {timeframe}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Sentiment Chart */}
           <div className="bg-white">
             <div className="h-80">
-              <div className="h-full bg-gray-50 relative">
-                {/* Y-axis labels */}
-                <div className="absolute left-2 top-2 text-xs text-gray-500">100</div>
-                <div className="absolute left-2 top-1/2 text-xs text-gray-500">50</div>
-                <div className="absolute left-2 bottom-2 text-xs text-gray-500">0</div>
-                
-                {/* Sentiment line chart */}
+              <div className="h-full bg-white relative">
+                {/* Fake graph data - mountain range style */}
                 <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  {/* Grid lines */}
-                  <line x1="0" y1="20" x2="100" y2="20" stroke="#E5E7EB" strokeWidth="0.5" />
-                  <line x1="0" y1="50" x2="100" y2="50" stroke="#E5E7EB" strokeWidth="0.5" />
-                  <line x1="0" y1="80" x2="100" y2="80" stroke="#E5E7EB" strokeWidth="0.5" />
-                  
-                  {/* Sentiment line */}
+                  {/* Main green line with mountain range pattern */}
                   <polyline
-                    points={entity.lineGraph.map((sentiment, index) => {
-                      const x = (index / (entity.lineGraph.length - 1)) * 100;
-                      const y = 100 - sentiment; // Invert Y-axis (0 at bottom, 100 at top)
-                      return `${x},${y}`;
-                    }).join(' ')}
+                    points="0,85 5,80 10,75 15,70 20,65 25,60 30,55 35,50 40,45 45,40 50,35 55,30 60,25 65,20 70,25 75,30 80,35 85,40 90,35 95,30 100,25"
                     fill="none"
-                    stroke={entity.sentiment >= 50 ? '#10B981' : '#EF4444'}
-                    strokeWidth="2"
+                    stroke="#10B981"
+                    strokeWidth="3"
                   />
                   
-                  {/* Current sentiment indicator */}
+                  {/* Current point indicator */}
                   <circle
                     cx="100"
-                    cy={100 - entity.sentiment}
-                    r="2"
-                    fill={entity.sentiment >= 50 ? '#10B981' : '#EF4444'}
+                    cy="25"
+                    r="3"
+                    fill="#10B981"
                   />
                 </svg>
-                
-                {/* Current sentiment value */}
-                <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded shadow-sm">
-                  <div className="text-sm font-semibold text-gray-900">
-                    {entity.sentiment.toFixed(0)}%
-                  </div>
-                </div>
+              </div>
+            </div>
+            
+            {/* Volume indicator */}
+            <div className="text-center py-2">
+              <span className="text-sm text-gray-600">${formatNumber(entity.volume)} vol</span>
+            </div>
+            
+            {/* Time Options - Moved to bottom */}
+            <div className="bg-white px-4 py-3">
+              <div className="flex items-center justify-center space-x-4">
+                {['6H', '1D', '1W', '1M', 'ALL'].map((timeframe) => (
+                  <button
+                    key={timeframe}
+                    className={`px-4 py-2 text-sm rounded ${
+                      timeframe === 'ALL' 
+                        ? 'bg-green-500 text-white' 
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    {timeframe}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
