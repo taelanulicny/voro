@@ -212,7 +212,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
         <div>
           {/* Price Chart */}
           <div className="bg-white">
-            <div className="relative" style={{ height: '50vh' }}>
+            <div className="relative" style={{ height: '30vh' }}>
               <div className="h-full bg-white relative">
                 {/* Generate exact chart pattern from screenshot */}
                 {(() => {
