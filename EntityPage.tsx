@@ -284,7 +284,6 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                   
                   const minY = Math.min(...points.map(p => parseFloat(p.split(',')[1])));
                   const maxY = Math.max(...points.map(p => parseFloat(p.split(',')[1])));
-                  const currentY = parseFloat(points[points.length - 1].split(',')[1]);
                   
                   return (
                     <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -300,9 +299,9 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                       {/* Current price horizontal line */}
                       <line
                         x1="0"
-                        y1={currentY}
+                        y1={keyPoints[keyPoints.length - 1].y}
                         x2="100"
-                        y2={currentY}
+                        y2={keyPoints[keyPoints.length - 1].y}
                         stroke="#10B981"
                         strokeDasharray="2,2"
                         strokeWidth="0.5"
@@ -311,7 +310,7 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
                       {/* Current price marker (tiny teal dot) */}
                       <circle
                         cx={currentXPosition}
-                        cy={currentY}
+                        cy={keyPoints[keyPoints.length - 1].y}
                         r="1"
                         fill="#10B981"
                       />
