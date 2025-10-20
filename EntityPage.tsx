@@ -211,51 +211,147 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
       <div className="py-6 space-y-6">
         {/* 1. CHART SECTION - Always Visible */}
         <div className="space-y-4">
-          {/* Sentiment Chart */}
+          {/* Price Chart */}
           <div className="bg-white">
-            <div className="h-80">
+            <div className="h-80 relative">
               <div className="h-full bg-white relative">
-                {/* Fake graph data - mountain range style */}
-                <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  {/* Main green line with mountain range pattern */}
-                  <polyline
-                    points="0,85 5,80 10,75 15,70 20,65 25,60 30,55 35,50 40,45 45,40 50,35 55,30 60,25 65,20 70,25 75,30 80,35 85,40 90,35 95,30 100,25"
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="3"
-                  />
+                {/* Generate more volatile price data */}
+                {(() => {
+                  const dataPoints = 50;
+                  const basePrice = entity.price;
+                  const volatility = 15; // More movement
+                  const points = [];
                   
-                  {/* Current point indicator */}
-                  <circle
-                    cx="100"
-                    cy="25"
-                    r="3"
-                    fill="#10B981"
-                  />
-                </svg>
+                  for (let i = 0; i < dataPoints; i++) {
+                    const x = (i / (dataPoints - 1)) * 100;
+                    // Create more realistic price movement with trends and reversals
+                    const trend = Math.sin(i * 0.3) * 20; // Main trend
+                    const noise = (Math.random() - 0.5) * volatility; // Random noise
+                    const reversal = Math.sin(i * 0.1) * 10; // Smaller reversals
+                    const y = 50 + trend + noise + reversal; // Center around 50, scale to 0-100
+                    points.push(`${x},${Math.max(5, Math.min(95, y))}`);
+                  }
+                  
+                  const minY = Math.min(...points.map(p => parseFloat(p.split(',')[1])));
+                  const maxY = Math.max(...points.map(p => parseFloat(p.split(',')[1])));
+                  const currentY = parseFloat(points[points.length - 1].split(',')[1]);
+                  
+                  return (
+                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      {/* Main price line - thinner and more volatile */}
+                      <polyline
+                        points={points.join(' ')}
+                        fill="none"
+                        stroke="#3B82F6" // Blue color like screenshot
+                        strokeWidth="1.5" // Thinner line
+                      />
+                      
+                      {/* Current price horizontal line */}
+                      <line
+                        x1="0"
+                        y1={currentY}
+                        x2="100"
+                        y2={currentY}
+                        stroke="#10B981"
+                        strokeDasharray="2,2"
+                        strokeWidth="0.5"
+                      />
+                      
+                      {/* High point marker */}
+                      <circle
+                        cx={points.find(p => parseFloat(p.split(',')[1]) === maxY)?.split(',')[0] || "50"}
+                        cy={maxY}
+                        r="2"
+                        fill="#000"
+                      />
+                      
+                      {/* Low point marker */}
+                      <circle
+                        cx={points.find(p => parseFloat(p.split(',')[1]) === minY)?.split(',')[0] || "50"}
+                        cy={minY}
+                        r="2"
+                        fill="#000"
+                      />
+                      
+                      {/* Current price marker */}
+                      <circle
+                        cx="100"
+                        cy={currentY}
+                        r="2"
+                        fill="#3B82F6"
+                      />
+                    </svg>
+                  );
+                })()}
+                
+                {/* Right-side price panel */}
+                <div className="absolute right-2 top-2 bottom-2 flex flex-col justify-between text-right">
+                  <div className="text-xs text-gray-600">
+                    <div className="font-semibold">${(entity.price * 1.05).toFixed(2)}</div>
+                    <div className="text-green-600">+0.87%</div>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <div className="font-semibold">${entity.price.toFixed(2)}</div>
+                    <div className="text-red-600">-0.43%</div>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    <div className="font-semibold">${(entity.price * 0.95).toFixed(2)}</div>
+                    <div className="text-gray-500">-1.2%</div>
+                  </div>
+                </div>
+                
+                {/* Price labels on graph */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* High price label */}
+                  <div className="absolute text-xs font-semibold text-gray-800" 
+                       style={{ 
+                         left: '20%', 
+                         top: '15%' 
+                       }}>
+                    ${(entity.price * 1.08).toFixed(2)}
+                  </div>
+                  
+                  {/* Low price label */}
+                  <div className="absolute text-xs font-semibold text-gray-800" 
+                       style={{ 
+                         left: '70%', 
+                         top: '80%' 
+                       }}>
+                    ${(entity.price * 0.92).toFixed(2)}
+                  </div>
+                  
+                  {/* Current price label */}
+                  <div className="absolute text-xs font-semibold text-green-600" 
+                       style={{ 
+                         left: '85%', 
+                         top: '45%' 
+                       }}>
+                    ${entity.price.toFixed(2)}
+                  </div>
+                </div>
               </div>
             </div>
             
-            {/* Volume indicator */}
-            <div className="text-center py-2">
-              <span className="text-sm text-gray-600">${formatNumber(entity.volume)} vol</span>
-            </div>
-            
             {/* Time Options - Moved to bottom */}
-            <div className="bg-white px-4 py-3">
-              <div className="flex items-center justify-center space-x-4">
-                {['6H', '1D', '1W', '1M', 'ALL'].map((timeframe) => (
-                  <button
-                    key={timeframe}
-                    className={`px-4 py-2 text-sm rounded ${
-                      timeframe === 'ALL' 
-                        ? 'bg-green-500 text-white' 
-                        : 'text-gray-600 hover:text-gray-800'
-                    }`}
-                  >
-                    {timeframe}
-                  </button>
-                ))}
+            <div className="bg-white px-4 py-3 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {['1 min', 'Daily', 'Weekly', 'Monthly', 'Quarterly'].map((timeframe) => (
+                    <button
+                      key={timeframe}
+                      className={`px-3 py-1 text-sm rounded ${
+                        timeframe === '1 min' 
+                          ? 'bg-blue-500 text-white' 
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      {timeframe}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-sm text-gray-600">
+                  ${formatNumber(entity.volume)} vol
+                </div>
               </div>
             </div>
           </div>
