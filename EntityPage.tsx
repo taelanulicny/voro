@@ -208,9 +208,9 @@ const EntityPage: React.FC<EntityPageProps> = ({ entityId, categoryName, onBack 
       </div>
 
       {/* Main Content - Always Visible */}
-      <div className="py-6 space-y-6">
+      <div className="space-y-0">
         {/* 1. CHART SECTION - Always Visible */}
-        <div className="space-y-4">
+        <div>
           {/* Price Chart */}
           <div className="bg-white">
             <div className="h-80 relative">
