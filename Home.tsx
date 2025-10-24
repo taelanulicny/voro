@@ -4,9 +4,10 @@ interface HomeProps {
   onCategoryClick: (category: string) => void;
   onTradeableCategoriesClick?: () => void;
   onSeasonCompetitionClick?: () => void;
+  onSimulatorClick?: () => void;
 }
 
-const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick, onSeasonCompetitionClick }) => {
+const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick, onSeasonCompetitionClick, onSimulatorClick }) => {
   return (
     <div className="bg-gray-50" style={{ minHeight: '100vh', paddingBottom: '8rem' }}>
       {/* Profile Section - Top 40% */}
@@ -40,6 +41,24 @@ const Home: React.FC<HomeProps> = ({ onCategoryClick, onTradeableCategoriesClick
             </svg>
           </div>
         </div>
+
+        {/* Simulator Button */}
+        {onSimulatorClick && (
+          <div 
+            className="bg-blue-50 rounded-lg p-4 mb-4 flex justify-between items-center cursor-pointer hover:bg-blue-100 transition-colors"
+            onClick={onSimulatorClick}
+          >
+            <div>
+              <h3 className="font-semibold text-gray-900">Algorithm Simulator</h3>
+              <p className="text-sm text-gray-600">Test your trading algorithms</p>
+            </div>
+            <div className="text-blue-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        )}
 
         {/* User Stats */}
         <div className="flex justify-between">
