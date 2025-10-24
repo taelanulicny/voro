@@ -29,7 +29,8 @@ const Simulator = () => {
         currentPrice: 0,
         change: 0,
         changePercent: 0,
-        voroData: null
+        voroData: null,
+        voroPrices: [] // Store Voro engine prices for chart
       };
       
       let currentPrice = parameters.initialPrice;
@@ -40,10 +41,12 @@ const Simulator = () => {
           const response = await fetch('/api/simulate');
           const voroResult = await response.json();
           
-          // Use Voro engine price calculation
-          const priceChange = (parseFloat(voroResult.newPrice) - currentPrice) * parameters.volatility;
-          currentPrice += priceChange;
-          currentPrice = Math.max(0.01, currentPrice); // Prevent negative prices
+          // Use Voro engine price directly
+          const voroPrice = parseFloat(voroResult.newPrice);
+          entityData.voroPrices.push(voroPrice);
+          
+          // Update current price based on Voro engine
+          currentPrice = voroPrice;
           
           entityData.prices.push(currentPrice);
           entityData.volumes.push(Math.random() * 1000 + 100);
@@ -305,6 +308,29 @@ const Simulator = () => {
                 </svg>
               </div>
             </div>
+
+            {/* Voro Engine Chart */}
+            {selectedEntity.voroPrices.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Voro Engine Price Movement</h3>
+                <div className="h-64 bg-gray-100 rounded p-4">
+                  <svg width="100%" height="100%" viewBox="0 0 400 200">
+                    <polyline
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="2"
+                      points={selectedEntity.voroPrices.map((price, index) => 
+                        `${index * (400 / selectedEntity.voroPrices.length)},${200 - ((price - Math.min(...selectedEntity.voroPrices)) / (Math.max(...selectedEntity.voroPrices) - Math.min(...selectedEntity.voroPrices)) * 180)}`
+                      ).join(' ')}
+                    />
+                  </svg>
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  <span className="inline-block w-3 h-3 bg-green-500 rounded mr-2"></span>
+                  Green line shows Voro engine price: P = P0 * (1 + A * tanh(T_eff' / L_global))
+                </div>
+              </div>
+            )}
 
             {/* Feed Section */}
             <div className="mb-6">

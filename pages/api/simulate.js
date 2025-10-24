@@ -13,11 +13,11 @@ const ALPHA = 500;         // liquidity growth per user
 const USERS = 1000;        // active users (for scaling example)
 const P0 = 100;            // IPO/base price
 
-// 2️⃣ --- Simulated market state ---
-let T_long = 50000;        // total long tokens
-let T_short = 30000;       // total short tokens
-let B_H = 6000;            // recent buy volume
-let S_H = 4000;            // recent sell+short volume
+// 2️⃣ --- Simulated market state (with some variation) ---
+let T_long = 50000 + (Math.random() - 0.5) * 10000;        // total long tokens
+let T_short = 30000 + (Math.random() - 0.5) * 6000;       // total short tokens
+let B_H = 6000 + (Math.random() - 0.5) * 2000;            // recent buy volume
+let S_H = 4000 + (Math.random() - 0.5) * 2000;            // recent sell+short volume
 
 // 3️⃣ --- STEP 1: Compute formulas in order ---
 
@@ -41,8 +41,10 @@ export default function handler(req, res) {
   return res.status(200).json({
     P0,
     L_global,
-    T_long,
-    T_short,
+    T_long: Math.round(T_long),
+    T_short: Math.round(T_short),
+    B_H: Math.round(B_H),
+    S_H: Math.round(S_H),
     f: f.toFixed(3),
     T_eff: T_eff.toFixed(2),
     T_eff_prime: T_eff_prime.toFixed(2),
