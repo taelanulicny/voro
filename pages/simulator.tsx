@@ -1,383 +1,830 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
-const Simulator = () => {
-  const [simulationResults, setSimulationResults] = useState([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState(null);
+export default function Simulator() {
+  // Core state
   const [price, setPrice] = useState(100);
-  const [parameters, setParameters] = useState({
-    initialPrice: 100,
-    volatility: 0.02,
-    trendStrength: 0.1,
-    timeSteps: 100,
-    entities: 10
-  });
+  const [isLiveSimulation, setIsLiveSimulation] = useState(false);
+  const [liveTime, setLiveTime] = useState(0);
+  const [liveData, setLiveData] = useState<{
+    time: number;
+    price: number;
+    posTokens: number;
+    negTokens: number;
+    netConviction: number;
+    deltaConviction: number;
+    convictionPressure: number;
+    r: number;
+  }[]>([]);
+  const [simulationSpeed, setSimulationSpeed] = useState(1000); // 1 second per tick
+  const [prevNetConviction, setPrevNetConviction] = useState(0); // Track previous net conviction (POS - NEG)
+  const [z_t, setZ_t] = useState(0); // Correlated noise term for realistic price movement
+  
+  // Data logging state
+  const [loggedData, setLoggedData] = useState<{
+    timestamp: string;
+    price: number;
+    posTokens: number;
+    negTokens: number;
+    netConviction: number;
+    deltaConviction: number;
+    convictionPressure: number;
+    r: number;
+    B_H: number;
+    S_H: number;
+    A: number;
+    L0: number;
+    USERS: number;
+  }[]>([]);
 
-  // Voro Engine Algorithm - replace with your actual equation
-  const runSimulation = async () => {
-    setIsRunning(true);
-    const results = [];
+  // Essential variables for momentum-based dual-token conviction system
+  const [B_H, setBH] = useState(6000); // Buy pressure (posTokens)
+  const [S_H, setSH] = useState(4000); // Sell pressure (negTokens)
+  const [A, setA] = useState(5.0); // Amplitude (volatility multiplier) - Strong for visible linear impact
+  const [L0, setL0] = useState(150000); // Base liquidity
+  const [USERS, setUSERS] = useState(1000); // Active users
+  
+  // Mode system for automated trading scenarios
+  type ModeType = "Custom" | "IPO" | "BadNews" | "GoodNews" | "NormalDay";
+  const [mode, setMode] = useState<ModeType>("Custom");
+  const [currentPressure, setCurrentPressure] = useState({ targetBH: B_H, targetSH: S_H, note: "" });
+  const [currentBH, setCurrentBH] = useState(B_H);
+  const [currentSH, setCurrentSH] = useState(S_H);
+
+  // Debug state for equation values
+  const [debugValues, setDebugValues] = useState<{
+    P: number;
+    posTokens: number;
+    negTokens: number;
+    netConviction: number;
+    deltaConviction: number;
+    convictionPressure: number;
+    L_global: number;
+    effectiveA: number;
+    effectiveBH: number;
+    effectiveSH: number;
+    hour: number;
+    step: number;
+    equationSteps: string[];
+    K: number;
+    r: number;
+  } | null>(null);
+
+  // Get time-based pressure adjustments based on mode
+  const getTimeBasedPressure = (timeStep: number) => {
+    const hour = Math.floor(timeStep / 60) + 8; // Each step is 1 minute, starting from 8 AM
     
-    for (let entity = 0; entity < parameters.entities; entity++) {
-      const entityData = {
-        id: entity,
-        name: `Entity ${entity + 1}`,
-        ticker: `ENT${(entity + 1).toString().padStart(2, '0')}`,
-        prices: [],
-        volumes: [],
-        sentiment: [],
-        currentPrice: 0,
-        change: 0,
-        changePercent: 0,
-        voroData: null,
-        voroPrices: [] // Store Voro engine prices for chart
-      };
-      
-      let currentPrice = parameters.initialPrice;
-      
-      for (let step = 0; step < parameters.timeSteps; step++) {
-        try {
-          // Call Voro engine API
-          const response = await fetch('/api/simulate');
-          const voroResult = await response.json();
-          
-          // Use Voro engine price directly
-          const voroPrice = parseFloat(voroResult.newPrice);
-          entityData.voroPrices.push(voroPrice);
-          
-          // Update current price based on Voro engine
-          currentPrice = voroPrice;
-          
-          entityData.prices.push(currentPrice);
-          entityData.volumes.push(Math.random() * 1000 + 100);
-          entityData.sentiment.push(Math.random() * 100);
-          
-          // Store Voro data for the last step
-          if (step === parameters.timeSteps - 1) {
-            entityData.voroData = voroResult;
-          }
-        } catch (error) {
-          console.error('Error calling Voro engine:', error);
-          // Fallback to simple algorithm
-          const randomFactor = (Math.random() - 0.5) * parameters.volatility;
-          const trendFactor = parameters.trendStrength * Math.sin(step / 10);
-          const priceChange = currentPrice * (randomFactor + trendFactor);
-          
-          currentPrice += priceChange;
-          currentPrice = Math.max(0.01, currentPrice);
-          
-          entityData.prices.push(currentPrice);
-          entityData.volumes.push(Math.random() * 1000 + 100);
-          entityData.sentiment.push(Math.random() * 100);
+    switch (mode) {
+      case "IPO":
+        // Strong early buying, then volatile trading, then stabilizes
+        if (hour >= 8 && hour < 10) {
+          return { targetBH: 16000, targetSH: 1500, note: "Initial IPO surge" };
+        } else if (hour >= 10 && hour < 12) {
+          return { targetBH: 14000, targetSH: 2500, note: "Strong early buying" };
+        } else if (hour >= 12 && hour < 14) {
+          return { targetBH: 6500, targetSH: 8500, note: "First dip/correction" };
+        } else if (hour >= 14 && hour < 16) {
+          return { targetBH: 12000, targetSH: 3000, note: "Recovery bounce" };
+        } else if (hour >= 16 && hour < 18) {
+          return { targetBH: 5000, targetSH: 7000, note: "Profit taking" };
+        } else {
+          return { targetBH: 7000, targetSH: 5000, note: "Stabilizing" };
         }
-      }
       
-      // Calculate final metrics
-      entityData.currentPrice = currentPrice;
-      entityData.change = currentPrice - parameters.initialPrice;
-      entityData.changePercent = (entityData.change / parameters.initialPrice) * 100;
+      case "BadNews":
+        // Negative pressure builds throughout day
+        if (hour >= 8 && hour < 12) {
+          return { targetBH: 6000, targetSH: 4000, note: "Pre-news" };
+        } else if (hour >= 12 && hour < 16) {
+          return { targetBH: 3600, targetSH: 6400, note: "Bad news hits" };
+        } else if (hour >= 16 && hour < 20) {
+          return { targetBH: 4200, targetSH: 5600, note: "Continued selling" };
+        } else {
+          return { targetBH: 5400, targetSH: 4800, note: "Fading" };
+        }
       
-      results.push(entityData);
+      case "GoodNews":
+        // Quiet morning, then news hits at 10am, peaks, minor selloff at 2pm, then rally to midnight, slight selloff before close
+        if (hour >= 8 && hour < 10) {
+          return { targetBH: 5500, targetSH: 4500, note: "Quiet morning" };
+        } else if (hour >= 10 && hour < 11) {
+          return { targetBH: 12000, targetSH: 2000, note: "Good news hits - strong buying" };
+        } else if (hour >= 11 && hour < 14) {
+          return { targetBH: 11000, targetSH: 3000, note: "Continuing rally" };
+        } else if (hour >= 14 && hour < 15) {
+          return { targetBH: 4500, targetSH: 8500, note: "Selloff at 2pm - goes negative" };
+        } else if (hour >= 15 && hour < 24) {
+          return { targetBH: 8500, targetSH: 3500, note: "Rally continues to midnight" };
+        } else if (hour >= 0 && hour < 1) {
+          return { targetBH: 7000, targetSH: 4500, note: "Slight selloff before close" };
+        } else {
+          return { targetBH: 6000, targetSH: 4000, note: "Market closing" };
+        }
+      
+      case "NormalDay":
+        // Gentle intraday patterns
+        if (hour >= 8 && hour < 12) {
+          return { targetBH: 6600, targetSH: 3600, note: "Morning lift" };
+        } else if (hour >= 12 && hour < 16) {
+          return { targetBH: 5700, targetSH: 4200, note: "Midday drift" };
+        } else {
+          return { targetBH: 6000, targetSH: 4000, note: "Evening" };
+        }
+      
+      default:
+        return { targetBH: B_H, targetSH: S_H, note: "Custom" };
+    }
+  };
+
+  // Liquidity-driven price update function
+  const updatePriceRealistic = (currentPrice: number, posTokens: number, negTokens: number, liquidity: number, volume: number, currentZ_t: number, medianCP: number) => {
+    // Parameters
+    const KAPPA = 1.0;          // base sensitivity scaling
+    const ETA = 22.0;           // liquidity elasticity (↑ETA = softer moves)
+    const SIGMA = 0.00012;      // base random volatility (~0.012%)
+    const GAMMA = 3.5;          // volatility amplification from high volume
+    const RHO = 0.92;           // AR(1) correlation of micro noise (0.9–0.95 looks realistic)
+    const CP_THRESH = 1.25;     // multiple of median(|cp|) triggering bursts
+    const P_BURST = 0.02;       // 2% chance of burst when cp exceeds threshold
+    const BURST_MAG = 0.001;    // burst size (0.1% move)
+    
+    // Compute conviction pressure
+    const cp = (posTokens - negTokens) / (posTokens + negTokens + 1e-9);
+    
+    // Normalize volume and compute basic liquidity resistance
+    const L = liquidity + 1e-9;
+    const V_norm = volume / Math.max(1, volume);
+    
+    // Liquidity elasticity: diminishing returns for large conviction
+    const x = (cp * V_norm) / L;
+    let rate = KAPPA * (x / (1 + ETA * Math.abs(x)));
+    
+    // Add correlated microstructure noise
+    const sigmaEff = SIGMA * Math.sqrt(1 + GAMMA * Math.abs(V_norm));
+    const randn = () => Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
+    const newZ_t = RHO * currentZ_t + randn() * sigmaEff;
+    
+    // Update z_t state for next iteration
+    setZ_t(newZ_t);
+    rate += newZ_t;
+    
+    // Occasional burst moves when conviction is extreme
+    if (Math.abs(cp) > CP_THRESH * medianCP && Math.random() < P_BURST) {
+      const burstSign = Math.sign(cp);
+      rate += burstSign * BURST_MAG;
     }
     
-    setSimulationResults(results);
-    setIsRunning(false);
+    // Update price (ensure no negative prices)
+    const nextPrice = Math.max(0.01, currentPrice * (1 + rate));
+    
+    return { nextPrice, rate, cp, newZ_t };
   };
 
-  const selectEntity = (entity) => {
-    setSelectedEntity(entity);
-    setPrice(entity.currentPrice);
+  // Live simulation effect
+  useEffect(() => {
+    if (!isLiveSimulation) return;
+
+    const interval = setInterval(() => {
+      // Get time-based pressure adjustments
+      const pressure = getTimeBasedPressure(liveTime);
+      setCurrentPressure(pressure); // Update current pressure for display
+      
+      // Gradually adjust sliders to target values (as if users are manually trading)
+      let newBH, newSH;
+      
+      if (mode !== "Custom") {
+        // Automated modes: transition to target values
+        const targetBH = pressure.targetBH;
+        const targetSH = pressure.targetSH;
+        
+        // Gradual transitions (8% per tick) to simulate very gradual market response
+        newBH = currentBH + (targetBH - currentBH) * 0.08;
+        newSH = currentSH + (targetSH - currentSH) * 0.08;
+        
+        // Add small random wandering (±1%) to simulate real trader behavior even when at target
+        const wanderAmount = 0.01; // ±1% wandering
+        newBH = newBH * (1 + (Math.random() - 0.5) * wanderAmount);
+        newSH = newSH * (1 + (Math.random() - 0.5) * wanderAmount);
+      } else {
+        // Custom mode: use slider values directly with minimal wandering
+        newBH = B_H * (1 + (Math.random() - 0.5) * 0.005); // ±0.5% for micro-movement
+        newSH = S_H * (1 + (Math.random() - 0.5) * 0.005);
+      }
+      
+      setCurrentBH(newBH);
+      setCurrentSH(newSH);
+      
+      const adjustedBH = newBH;
+      const adjustedSH = newSH;
+      
+      // Liquidity-driven realistic price update
+      let B_t = adjustedBH; // Current buy volume
+      let S_t = adjustedSH; // Current sell volume
+      
+      // Calculate volume factor V_t
+      let V_t = B_t + S_t;
+      
+      // Calculate liquidity L_t
+      let L_t = L0 + USERS;
+      
+      // Calculate net conviction (POS - NEG tokens)
+      const netConviction = currentBH - currentSH;
+      
+      // Use realistic price update function
+      const medianCP = 0.05; // Approximate median conviction pressure
+      const priceResult = updatePriceRealistic(price, B_t, S_t, L_t, V_t, z_t, medianCP);
+      const nextPrice = priceResult.nextPrice;
+      const r_t = priceResult.rate;
+      const cp = priceResult.cp;
+      
+      // Update z_t for next iteration
+      setZ_t(priceResult.newZ_t);
+      
+      // Calculate delta conviction (change in net conviction) for display
+      const deltaNetConviction = netConviction - prevNetConviction;
+      
+      // Store previous net conviction for next tick
+      setPrevNetConviction(netConviction);
+      
+      // Update live data with minute-by-minute buy/sell volumes
+      const newDataPoint = {
+        time: liveTime,
+        price: nextPrice,
+        posTokens: currentBH, // Buy volume for this minute
+        negTokens: currentSH, // Sell volume for this minute
+        netConviction: netConviction, // POS - NEG tokens
+        deltaConviction: deltaNetConviction, // Change in net conviction
+        convictionPressure: cp * (V_t / L_t), // Conviction pressure from realistic formula
+        r: r_t
+      };
+
+      // Log data for export
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        price: nextPrice,
+        posTokens: currentBH, // Actual buy volume for this minute
+        negTokens: currentSH, // Actual sell volume for this minute
+        netConviction: netConviction, // POS - NEG tokens
+        deltaConviction: deltaNetConviction, // Change in net conviction
+        convictionPressure: cp * (V_t / L_t), // Conviction pressure from realistic formula
+        r: r_t,
+        B_H,
+        S_H,
+        A,
+        L0,
+        USERS
+      };
+
+      setLiveData(prev => [...prev, newDataPoint]); // Keep all data points
+      setLoggedData(prev => [...prev, logEntry]); // Log all data
+      setLiveTime(prev => prev + 1);
+      setPrice(nextPrice);
+    }, simulationSpeed);
+
+    return () => clearInterval(interval);
+  }, [isLiveSimulation, B_H, S_H, A, L0, USERS, price, prevNetConviction, simulationSpeed, liveTime, mode, currentBH, currentSH]);
+
+  const runStep = () => {
+    console.log("Run Step clicked");
+    let B_t = B_H; // Current buy volume
+    let S_t = S_H; // Current sell volume
+    
+    // Calculate sentiment fraction f_t
+    const epsilon = 1e-9;
+    let f_t = (B_t - S_t) / (B_t + S_t + epsilon);
+    
+    // Calculate volume factor V_t
+    let V_t = B_t + S_t;
+    
+    // Calculate liquidity L_t
+    let L_t = L0 + USERS;
+    
+    // Calculate change in sentiment delta_f_t
+    let delta_f_t = f_t - prevNetConviction;
+    
+    // Calculate return rate r_t
+    let r_t = A * delta_f_t * (V_t / L_t);
+    
+    // Update price
+    const prevPrice = price;
+    const nextPrice = Math.max(0.01, prevPrice * (1 + r_t));
+    let P = nextPrice;
+    
+    // Store previous sentiment fraction for next tick
+    setPrevNetConviction(f_t);
+
+    // Capture debug values with step-by-step breakdown
+    const currentHour = new Date().getHours();
+    
+    const L_t_debug = L0 + USERS;
+    const V_t_debug = B_H + S_H;
+    const epsilon_debug = 1e-9;
+    const f_t_debug = (B_H - S_H) / (B_H + S_H + epsilon_debug);
+    const delta_f_t_debug = f_t_debug - prevNetConviction;
+    
+    const equationSteps = [
+      `1. B_t = ${B_H}, S_t = ${S_H}`,
+      `2. f_t = (B_t - S_t) / (B_t + S_t + ε) = (${B_H} - ${S_H}) / (${B_H} + ${S_H} + 1e-9) = ${f_t_debug.toFixed(6)}`,
+      `3. Δf_t = f_t - f_{t-1} = ${f_t_debug.toFixed(6)} - ${prevNetConviction.toFixed(6)} = ${delta_f_t_debug.toFixed(6)}`,
+      `4. V_t = B_t + S_t = ${B_H} + ${S_H} = ${V_t_debug}`,
+      `5. L_t = L0 + USERS = ${L0} + ${USERS} = ${L_t_debug}`,
+      `6. r_t = A × Δf_t × (V_t / L_t) = ${A} × ${delta_f_t_debug.toFixed(6)} × (${V_t_debug} / ${L_t_debug}) = ${r_t.toFixed(6)}`,
+      `7. nextPrice = prevPrice × (1 + r_t) = ${prevPrice.toFixed(4)} × (1 + ${r_t.toFixed(6)}) = ${P.toFixed(4)}`
+    ];
+
+    setDebugValues({
+      P,
+      posTokens: B_H,
+      negTokens: S_H,
+      netConviction: f_t_debug,
+      deltaConviction: delta_f_t_debug,
+      convictionPressure: delta_f_t_debug * (V_t_debug / L_t_debug),
+      L_global: L_t_debug,
+      effectiveA: A,
+      effectiveBH: B_H,
+      effectiveSH: S_H,
+      hour: currentHour,
+      step: liveData.length + 1,
+      equationSteps,
+      K: 0,
+      r: r_t
+    });
+
+    setPrice(P);
   };
 
-  const trade = (action) => {
-    // Placeholder trade function
-    console.log(`${action} ${selectedEntity?.ticker} at $${price.toFixed(2)}`);
-    alert(`${action.toUpperCase()} ${selectedEntity?.ticker} at $${price.toFixed(2)}`);
+  const resetSimulation = () => {
+    setPrice(100);
+    setLiveTime(0);
+    setLiveData([]);
+    setPrevNetConviction(0);
+    setIsLiveSimulation(false);
+    setCurrentBH(B_H);
+    setCurrentSH(S_H);
+  };
+  
+  // Reset current values when mode changes
+  useEffect(() => {
+    if (!isLiveSimulation) {
+      setCurrentBH(B_H);
+      setCurrentSH(S_H);
+    }
+  }, [mode, B_H, S_H, isLiveSimulation]);
+
+  const exportData = () => {
+    if (loggedData.length === 0) {
+      alert("No data to export. Run a simulation first.");
+      return;
+    }
+
+    const csvContent = [
+      // CSV Header
+      "Timestamp,Price,PosTokens,NegTokens,NetConviction,DeltaConviction,ConvictionPressure,Rate,B_H,S_H,A,L0,USERS",
+      // CSV Data
+      ...loggedData.map(entry => 
+        `${entry.timestamp},${entry.price.toFixed(4)},${entry.posTokens},${entry.negTokens},${entry.netConviction},${entry.deltaConviction},${entry.convictionPressure.toFixed(6)},${entry.r.toFixed(6)},${entry.B_H},${entry.S_H},${entry.A},${entry.L0},${entry.USERS}`
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `simulation_data_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
-  const updateParameter = (key, value) => {
-    setParameters(prev => ({
-      ...prev,
-      [key]: parseFloat(value)
-    }));
+  const clearLoggedData = () => {
+    setLoggedData([]);
+    alert("Logged data cleared.");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ minHeight: '100vh', paddingBottom: '5rem' }}>
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Algorithm Simulator</h1>
-        
-        {/* Parameters Panel */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Simulation Parameters</h2>
-          
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Initial Price
-              </label>
-              <input
-                type="number"
-                value={parameters.initialPrice}
-                onChange={(e) => updateParameter('initialPrice', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Volatility
-              </label>
-              <input
-                type="number"
-                step="0.001"
-                value={parameters.volatility}
-                onChange={(e) => updateParameter('volatility', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Trend Strength
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={parameters.trendStrength}
-                onChange={(e) => updateParameter('trendStrength', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Time Steps
-              </label>
-              <input
-                type="number"
-                value={parameters.timeSteps}
-                onChange={(e) => updateParameter('timeSteps', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Entities
-              </label>
-              <input
-                type="number"
-                value={parameters.entities}
-                onChange={(e) => updateParameter('entities', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          
-          <button
-            onClick={runSimulation}
-            disabled={isRunning}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isRunning ? 'Running Simulation...' : 'Run Simulation'}
-          </button>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+      <h1 className="text-3xl font-bold mb-6">Momentum-Based Trading Simulator</h1>
+
+      <div className="bg-white shadow rounded-lg p-6 w-full max-w-6xl">
+        <div className="text-center mb-6">
+        <p className="text-gray-700 mb-2">Live Price</p>
+          <div className="text-4xl font-bold text-blue-600">${price.toFixed(2)}</div>
         </div>
 
-        {/* Entity Selection */}
-        {simulationResults.length > 0 && !selectedEntity && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Entity to Trade</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {simulationResults.map((entity) => (
-                <div 
-                  key={entity.id} 
-                  className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => selectEntity(entity)}
-                >
-                  <h3 className="font-semibold text-gray-900 mb-2">{entity.ticker}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{entity.name}</p>
-                  
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Price:</span>
-                      <span className="font-medium">${entity.currentPrice.toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Change:</span>
-                      <span className={`font-medium ${
-                        entity.change >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {entity.change >= 0 ? '+' : ''}{entity.change.toFixed(2)} ({entity.changePercent >= 0 ? '+' : ''}{entity.changePercent.toFixed(2)}%)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {/* Mode Selector */}
+        <div className="mb-6">
+          <h2 className="font-semibold mb-3 text-lg">Trading Mode</h2>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setMode("Custom")}
+              className={`px-4 py-2 rounded font-medium ${
+                mode === "Custom" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Custom
+            </button>
+            <button
+              onClick={() => setMode("IPO")}
+              className={`px-4 py-2 rounded font-medium ${
+                mode === "IPO" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              IPO (Strong early buying)
+            </button>
+            <button
+              onClick={() => setMode("BadNews")}
+              className={`px-4 py-2 rounded font-medium ${
+                mode === "BadNews" ? "bg-red-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Bad News (Selloff scenario)
+            </button>
+            <button
+              onClick={() => setMode("GoodNews")}
+              className={`px-4 py-2 rounded font-medium ${
+                mode === "GoodNews" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Good News (Rally scenario)
+            </button>
+            <button
+              onClick={() => setMode("NormalDay")}
+              className={`px-4 py-2 rounded font-medium ${
+                mode === "NormalDay" ? "bg-gray-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Normal Day (Gentle patterns)
+            </button>
+          </div>
+          {mode !== "Custom" && (
+            <p className="mt-2 text-sm text-gray-600 italic">
+              Mode active: Pressure will automatically adjust throughout the trading day based on time
+            </p>
+          )}
+        </div>
+
+        {/* Essential Variables with Sliders */}
+        <div className="mb-6">
+          <h2 className="font-semibold mb-3 text-lg">Essential Variables</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-2">
+                B_H - Buy Pressure (posTokens)
+                {mode !== "Custom" && isLiveSimulation && (
+                  <span className="ml-2 text-xs font-normal text-blue-600">
+                    (Target: {currentPressure.targetBH}) | Current: {currentBH.toFixed(0)}
+                  </span>
+                )}
+            </label>
+              <div className="flex items-center space-x-4">
+              <input
+                  type="range"
+                  min="0"
+                  max="20000"
+                  step="50"
+                value={B_H}
+                onChange={(e) => setBH(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm font-medium text-green-600 w-16">
+                  {isLiveSimulation 
+                    ? currentBH.toFixed(0) 
+                    : B_H}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-2">
+                S_H - Sell Pressure (negTokens)
+                {mode !== "Custom" && isLiveSimulation && (
+                  <span className="ml-2 text-xs font-normal text-red-600">
+                    (Target: {currentPressure.targetSH}) | Current: {currentSH.toFixed(0)}
+                  </span>
+                )}
+            </label>
+              <div className="flex items-center space-x-4">
+              <input
+                  type="range"
+                  min="0"
+                  max="20000"
+                  step="50"
+                value={S_H}
+                onChange={(e) => setSH(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm font-medium text-red-600 w-16">
+                  {isLiveSimulation 
+                    ? currentSH.toFixed(0) 
+                    : S_H}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-2">A - Amplitude (Volatility)</label>
+              <div className="flex items-center space-x-4">
+              <input
+                  type="range"
+                  min="0.1"
+                  max="5.0"
+                  step="0.1"
+                value={A}
+                onChange={(e) => setA(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm font-medium text-blue-600 w-16">{A.toFixed(1)}</span>
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-2">L0 - Base Liquidity</label>
+              <div className="flex items-center space-x-4">
+              <input
+                  type="range"
+                  min="10000"
+                  max="500000"
+                  step="10000"
+                  value={L0}
+                  onChange={(e) => setL0(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm font-medium text-purple-600 w-16">{(L0/1000).toFixed(0)}k</span>
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-2">USERS - Active Users</label>
+              <div className="flex items-center space-x-4">
+              <input
+                  type="range"
+                  min="100"
+                  max="10000"
+                  step="100"
+                  value={USERS}
+                  onChange={(e) => setUSERS(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm font-medium text-orange-600 w-16">{USERS}</span>
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Selected Entity View */}
-        {selectedEntity && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            {/* Entity Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedEntity.ticker}</h2>
-                <p className="text-lg text-gray-600">{selectedEntity.name}</p>
-              </div>
-              <button
-                onClick={() => setSelectedEntity(null)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                ← Back to Selection
-              </button>
-            </div>
+        {/* Live Simulator Controls */}
+        <div className="mb-6">
+          <h2 className="font-semibold mb-3 text-lg">Live Simulator</h2>
+          {/* Buttons row */}
+          <div className="flex flex-wrap gap-4 items-center mb-3">
+            <button
+              onClick={() => setIsLiveSimulation(!isLiveSimulation)}
+              className={`px-4 py-2 rounded font-medium ${
+                isLiveSimulation
+                  ? "bg-red-500 text-white hover:bg-red-600"
+                  : "bg-green-500 text-white hover:bg-green-600"
+              }`}
+            >
+              {isLiveSimulation ? "Stop" : "Start"} Live Simulation
+            </button>
+            <button
+              onClick={runStep}
+              className="px-4 py-2 bg-blue-500 text-white rounded font-medium hover:bg-blue-600"
+            >
+              Run Single Step
+            </button>
+            <button
+              onClick={resetSimulation}
+              className="px-4 py-2 bg-gray-500 text-white rounded font-medium hover:bg-gray-600"
+            >
+              Reset
+            </button>
+            <button
+              onClick={exportData}
+              className="px-4 py-2 bg-green-500 text-white rounded font-medium hover:bg-green-600"
+            >
+              Export Data ({loggedData.length} points)
+            </button>
+            <button
+              onClick={clearLoggedData}
+              className="px-4 py-2 bg-red-500 text-white rounded font-medium hover:bg-red-600"
+            >
+              Clear Logged Data
+            </button>
+          </div>
+          {/* Speed control row */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Speed:</label>
+            <input
+              type="range"
+              min="100"
+              max="3000"
+              step="100"
+              value={simulationSpeed}
+              onChange={(e) => setSimulationSpeed(Number(e.target.value))}
+              className="w-32"
+            />
+            <span className="text-sm text-gray-600">{simulationSpeed}ms</span>
+          </div>
+        </div>
 
-            {/* Price Info */}
-            <div className="mb-6">
-              <div className="text-3xl font-bold text-gray-900 mb-2">
-                ${selectedEntity.currentPrice.toFixed(2)}
-              </div>
-              <div className={`text-lg ${
-                selectedEntity.change >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {selectedEntity.change >= 0 ? '+' : ''}{selectedEntity.change.toFixed(2)} ({selectedEntity.changePercent >= 0 ? '+' : ''}{selectedEntity.changePercent.toFixed(2)}%)
-              </div>
-            </div>
-
-            {/* Voro Engine Data */}
-            {selectedEntity.voroData && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Voro Engine Data</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Base Price (P0):</span>
-                      <div className="font-semibold">${selectedEntity.voroData.P0}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Global Liquidity:</span>
-                      <div className="font-semibold">{selectedEntity.voroData.L_global.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Flow Ratio (f):</span>
-                      <div className="font-semibold">{selectedEntity.voroData.f}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Effective Tokens:</span>
-                      <div className="font-semibold">{selectedEntity.voroData.T_eff}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Long Tokens:</span>
-                      <div className="font-semibold">{selectedEntity.voroData.T_long.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Short Tokens:</span>
-                      <div className="font-semibold">{selectedEntity.voroData.T_short.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">T_eff_prime:</span>
-                      <div className="font-semibold">{selectedEntity.voroData.T_eff_prime}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Voro Price:</span>
-                      <div className="font-semibold text-blue-600">${selectedEntity.voroData.newPrice}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Chart */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Price Chart</h3>
-              <div className="h-64 bg-gray-100 rounded p-4">
-                <svg width="100%" height="100%" viewBox="0 0 400 200">
-                  <polyline
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="2"
-                    points={selectedEntity.prices.map((price, index) => 
-                      `${index * (400 / selectedEntity.prices.length)},${200 - ((price - Math.min(...selectedEntity.prices)) / (Math.max(...selectedEntity.prices) - Math.min(...selectedEntity.prices)) * 180)}`
-                    ).join(' ')}
+        {/* Live Chart */}
+        <div className="mb-6">
+          <h2 className="font-semibold mb-3 text-lg">Live Price Chart (8 AM - 2 AM Trading Hours)</h2>
+          <div className="h-64 bg-gray-50 rounded border p-4">
+            <svg width="100%" height="100%" viewBox="0 0 800 220">
+              {/* Trading hours: 8 AM to 2 AM = 18 hours = 1080 one-minute intervals */}
+              {Array.from({ length: 1081 }, (_, i) => {
+                const x = (i / 1080) * 800;
+                return (
+                  <line
+                    key={i}
+                    x1={x}
+                    y1="10"
+                    x2={x}
+                    y2="190"
+                    stroke="transparent"
+                    strokeWidth="1"
                   />
-                </svg>
-              </div>
-            </div>
-
-            {/* Voro Engine Chart */}
-            {selectedEntity.voroPrices.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Voro Engine Price Movement</h3>
-                <div className="h-64 bg-gray-100 rounded p-4">
-                  <svg width="100%" height="100%" viewBox="0 0 400 200">
-                    <polyline
-                      fill="none"
-                      stroke="#10b981"
+                );
+              })}
+              
+              {/* Time labels - evenly distributed from 8 AM to 2 AM */}
+              {[0, 120, 240, 360, 480, 600, 720, 840, 960, 1080].map((interval, index) => {
+                const hours = ['8 AM', '10 AM', '12 PM', '2 PM', '6 PM', '10 PM', '12 AM', '1 AM', '2 AM'];
+                const x = (interval / 1080) * 800;
+                return (
+                  <text
+                    key={index}
+                    x={x}
+                    y="210"
+                    textAnchor="middle"
+                    className="text-xs fill-gray-600"
+                    fontSize="12"
+                  >
+                    {hours[index]}
+                  </text>
+                );
+              })}
+              
+              {/* Line chart with lines connecting dots */}
+              {liveData.map((point, index) => {
+                // Convert time to 1-minute interval position (0-1080)
+                const intervalPosition = Math.min(point.time, 1080);
+                const x = (intervalPosition / 1080) * 800;
+                
+                // Fixed price range: $85 to $115 (centered around $100)
+                const minPrice = 85;
+                const maxPrice = 115;
+                const priceRange = maxPrice - minPrice;
+                const y = 190 - ((point.price - minPrice) / priceRange) * 180;
+                
+                // Draw line from previous point to current point
+                if (index > 0) {
+                  const prevIntervalPosition = Math.min(liveData[index - 1].time, 1080);
+                  const prevX = (prevIntervalPosition / 1080) * 800;
+                  const prevPrice = liveData[index - 1].price;
+                  const prevY = 190 - ((prevPrice - minPrice) / priceRange) * 180;
+                  
+                  // Determine line color based on price movement
+                  const isUp = point.price > prevPrice;
+                  
+                  return (
+                    <line
+                      key={`line-${index}`}
+                      x1={prevX}
+                      y1={prevY}
+                      x2={x}
+                      y2={y}
+                      stroke={isUp ? "#10b981" : "#ef4444"}
                       strokeWidth="2"
-                      points={selectedEntity.voroPrices.map((price, index) => 
-                        `${index * (400 / selectedEntity.voroPrices.length)},${200 - ((price - Math.min(...selectedEntity.voroPrices)) / (Math.max(...selectedEntity.voroPrices) - Math.min(...selectedEntity.voroPrices)) * 180)}`
-                      ).join(' ')}
                     />
-                  </svg>
-                </div>
-                <div className="mt-2 text-sm text-gray-600">
-                  <span className="inline-block w-3 h-3 bg-green-500 rounded mr-2"></span>
-                  Green line shows Voro engine price: P = P0 * (1 + A * tanh(T_eff' / L_global))
-                </div>
-              </div>
-            )}
-
-            {/* Feed Section */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Live Feed</h3>
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-                        <span className="font-medium text-gray-900">Trader{i}</span>
-                      </div>
-                      <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                        Follow
-                      </button>
-                    </div>
-                    <p className="text-gray-700">
-                      {selectedEntity.change >= 0 ? 'Bullish' : 'Bearish'} on {selectedEntity.ticker}. 
-                      Price action looks {selectedEntity.change >= 0 ? 'strong' : 'weak'} today.
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  );
+                }
+                return null;
+              })}
+              
+              {/* Fixed price scale */}
+              <text x="-10" y="20" className="text-xs fill-gray-600" textAnchor="end">
+                $115.00
+              </text>
+              <text x="-10" y="100" className="text-xs fill-gray-600" textAnchor="end">
+                $100.00
+              </text>
+              <text x="-10" y="190" className="text-xs fill-gray-600" textAnchor="end">
+                $85.00
+              </text>
+              
+              {/* Horizontal reference line at $100 */}
+              <line
+                x1="0"
+                y1="100"
+                x2="800"
+                y2="100"
+                stroke="#d1d5db"
+                strokeWidth="1"
+                strokeDasharray="5,5"
+              />
+            </svg>
           </div>
+        </div>
+
+        {/* Live Data Table */}
+        {liveData.length > 0 && (
+          <div className="mb-6">
+            <h2 className="font-semibold mb-3 text-lg">Live Data</h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pos Tokens</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Neg Tokens</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Net Conviction</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Delta Conviction</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Conviction Pressure</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rate (r)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {liveData.slice(-10).reverse().map((point, index) => (
+                    <tr key={index} className="border-t border-gray-200">
+                      <td className="px-4 py-2 text-sm text-gray-900">{point.time}</td>
+                      <td className="px-4 py-2 text-sm font-medium text-blue-600">${point.price.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-sm text-green-600">{point.posTokens.toFixed(0)}</td>
+                      <td className="px-4 py-2 text-sm text-red-600">{point.negTokens.toFixed(0)}</td>
+                      <td className="px-4 py-2 text-sm text-purple-600">{point.netConviction.toFixed(0)}</td>
+                      <td className="px-4 py-2 text-sm text-indigo-600">{point.deltaConviction.toFixed(0)}</td>
+                      <td className="px-4 py-2 text-sm text-orange-600">{point.convictionPressure.toFixed(6)}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{point.r.toFixed(6)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+      </div>
         )}
 
-        {/* Trading Buttons - Fixed at Bottom */}
-        {selectedEntity && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
-            <div className="max-w-6xl mx-auto flex items-center justify-between">
-              <div className="text-lg font-semibold text-gray-900">
-                Price: ${price.toFixed(2)}
+        {/* Data Logging Status */}
+        <div className="mb-6">
+          <h2 className="font-semibold mb-3 text-lg">Data Logging</h2>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-700">Logged Data Points:</span>
+              <span className="text-lg font-bold text-blue-600">{loggedData.length}</span>
+            </div>
+            {loggedData.length > 0 && (
+              <div className="text-sm text-gray-600">
+                <p>First entry: {loggedData[0].timestamp}</p>
+                <p>Latest entry: {loggedData[loggedData.length - 1].timestamp}</p>
+                <p>Price range: ${Math.min(...loggedData.map(d => d.price)).toFixed(2)} - ${Math.max(...loggedData.map(d => d.price)).toFixed(2)}</p>
               </div>
-              <div className="flex space-x-4">
-                <button 
-                  onClick={() => trade("buy")}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
-                >
-                  Buy
-                </button>
-                <button 
-                  onClick={() => trade("sell")}
-                  className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
-                >
-                  Sell
-                </button>
+            )}
+          </div>
+        </div>
+
+        {/* Debug Panel */}
+        {debugValues && (
+          <div className="mb-6">
+            <h2 className="font-semibold mb-3 text-lg">Debug Panel - Step-by-Step Calculation</h2>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">posTokens</div>
+                  <div className="text-sm font-bold text-green-600">{debugValues.posTokens.toFixed(0)}</div>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">negTokens</div>
+                  <div className="text-sm font-bold text-red-600">{debugValues.negTokens.toFixed(0)}</div>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">netConviction</div>
+                  <div className="text-sm font-bold text-purple-600">{debugValues.netConviction.toFixed(0)}</div>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">deltaConviction</div>
+                  <div className="text-sm font-bold text-indigo-600">{debugValues.deltaConviction.toFixed(0)}</div>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">convictionPressure</div>
+                  <div className="text-sm font-bold text-orange-600">{debugValues.convictionPressure.toFixed(6)}</div>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">L_global</div>
+                  <div className="text-sm font-bold text-indigo-600">{debugValues.L_global.toFixed(2)}</div>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">A (Amplitude)</div>
+                  <div className="text-sm font-bold text-blue-600">{debugValues.effectiveA.toFixed(4)}</div>
+                </div>
+                <div className="bg-white p-2 rounded border">
+                  <div className="font-medium text-gray-700">r (Rate)</div>
+                  <div className="text-sm font-bold text-gray-600">{debugValues.r.toFixed(6)}</div>
+                </div>
+              </div>
+              <div className="bg-white p-4 rounded border">
+                <h3 className="font-medium text-gray-700 mb-2">Equation Steps:</h3>
+                <div className="space-y-1 text-sm font-mono">
+                  {debugValues.equationSteps.map((step, index) => (
+                    <div key={index} className="text-gray-700">{step}</div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -385,6 +832,4 @@ const Simulator = () => {
       </div>
     </div>
   );
-};
-
-export default Simulator;
+}

@@ -170,7 +170,13 @@ const App: React.FC = () => {
         </div>
       )}
       
-      <BottomNavBar activeItem={activeItem} onItemClick={handleNavClick} />
+      {/* Hide bottom navigation on simulator page */}
+      {activeItem !== 'simulator' && (
+        <BottomNavBar 
+          activeItem={activeItem === 'home' || activeItem === 'watchlist' || activeItem === 'feeds' || activeItem === 'news' ? activeItem : 'home'} 
+          onItemClick={handleNavClick} 
+        />
+      )}
     </div>
   );
 };
