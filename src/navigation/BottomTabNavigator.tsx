@@ -5,6 +5,7 @@ import { MainTabParamList } from '../types';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
+import NewsScreen from '../screens/NewsScreen';
 import FeedsScreen from '../screens/FeedsScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
@@ -21,6 +22,8 @@ export default function BottomTabNavigator() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'News') {
+            iconName = focused ? 'newspaper' : 'newspaper-outline';
           } else if (route.name === 'Feeds') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Groups') {
@@ -44,6 +47,7 @@ export default function BottomTabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="News" component={NewsScreen} />
       <Tab.Screen name="Feeds" component={FeedsScreen} />
       <Tab.Screen name="Groups" component={GroupsScreen} />
       <Tab.Screen name="Portfolio" component={PortfolioScreen} />

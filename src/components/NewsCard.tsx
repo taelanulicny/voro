@@ -7,8 +7,11 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { NewsArticle } from '../types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { NewsArticle, RootStackParamList } from '../types';
 import { useNavigation } from '@react-navigation/native';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -17,7 +20,15 @@ interface NewsCardProps {
 }
 
 export default function NewsCard({ article, onPress, showEntity = true }: NewsCardProps) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
+
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      navigation.navigate('NewsDetail', { articleId: article.id });
+    }
+  };
 
   const formatTimeAgo = (timestamp: string) => {
     const now = new Date();
@@ -68,7 +79,7 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
   return (
     <TouchableOpacity
       style={styles.container}
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.7}
     >
       {/* Breaking News Badge */}

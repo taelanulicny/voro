@@ -10,10 +10,12 @@ export type RootStackParamList = {
   GroupDetail: { groupId: string };
   FollowersList: { userId: string; type: 'followers' | 'following'; username: string };
   UserProfile: { userId: string };
+  NewsDetail: { articleId: string };
 };
 
 export type MainTabParamList = {
   Home: undefined;
+  News: undefined;
   Feeds: undefined;
   Groups: undefined;
   Portfolio: undefined;

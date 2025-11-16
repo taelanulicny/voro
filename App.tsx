@@ -18,6 +18,7 @@ import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import EntityScreen from './src/screens/EntityScreen';
 import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import FollowersListScreen from './src/screens/FollowersListScreen';
+import NewsDetailScreen from './src/screens/NewsDetailScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -44,6 +45,7 @@ function RootNavigator() {
           <Stack.Screen name="Entity" component={EntityScreen} />
           <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
           <Stack.Screen name="FollowersList" component={FollowersListScreen} />
+          <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
         </>
       )}
     </Stack.Navigator>
