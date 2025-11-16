@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, GroupMessage, GroupMember } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 type GroupDetailRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
 
@@ -95,6 +96,7 @@ export default function GroupDetailScreen() {
   const { groupId } = route.params;
   const { groups, leaveGroup } = useSocial();
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   const [selectedTab, setSelectedTab] = useState<'messages' | 'members'>('messages');
   const [messages, setMessages] = useState<GroupMessage[]>([]);
@@ -161,17 +163,20 @@ export default function GroupDetailScreen() {
       <View style={[styles.messageItem, isOwnMessage && styles.messageItemOwn]}>
         {!isOwnMessage && (
           <View style={styles.messageAvatar}>
-            <Ionicons name="person-circle" size={32} color="#9CA3AF" />
+            <Ionicons name="person-circle" size={32} color={theme.textTertiary} />
           </View>
         )}
-        <View style={[styles.messageBubble, isOwnMessage && styles.messageBubbleOwn]}>
+        <View style={[
+          styles.messageBubble,
+          { backgroundColor: isOwnMessage ? theme.primary : theme.card },
+        ]}>
           {!isOwnMessage && (
-            <Text style={styles.messageSender}>{item.displayName}</Text>
+            <Text style={[styles.messageSender, { color: theme.text }]}>{item.displayName}</Text>
           )}
-          <Text style={[styles.messageText, isOwnMessage && styles.messageTextOwn]}>
+          <Text style={[styles.messageText, { color: isOwnMessage ? '#FFFFFF' : theme.text }]}>
             {item.content}
           </Text>
-          <Text style={[styles.messageTime, isOwnMessage && styles.messageTimeOwn]}>
+          <Text style={[styles.messageTime, { color: isOwnMessage ? 'rgba(255,255,255,0.7)' : theme.textTertiary }]}>
             {formatTimestamp(item.timestamp)}
           </Text>
         </View>
@@ -180,19 +185,19 @@ export default function GroupDetailScreen() {
   };
 
   const renderMember = ({ item }: { item: GroupMember }) => (
-    <TouchableOpacity style={styles.memberItem}>
+    <TouchableOpacity style={[styles.memberItem, { backgroundColor: theme.card, borderBottomColor: theme.borderLight }]}>
       <View style={styles.memberLeft}>
         <View style={styles.memberAvatar}>
-          <Ionicons name="person-circle" size={40} color="#9CA3AF" />
+          <Ionicons name="person-circle" size={40} color={theme.textTertiary} />
         </View>
         <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{item.displayName}</Text>
-          <Text style={styles.memberUsername}>@{item.username}</Text>
+          <Text style={[styles.memberName, { color: theme.text }]}>{item.displayName}</Text>
+          <Text style={[styles.memberUsername, { color: theme.textSecondary }]}>@{item.username}</Text>
         </View>
       </View>
       {item.role !== 'member' && (
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{item.role.toUpperCase()}</Text>
+        <View style={[styles.roleBadge, { backgroundColor: theme.primaryLight }]}>
+          <Text style={[styles.roleText, { color: theme.primary }]}>{item.role.toUpperCase()}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -200,12 +205,12 @@ export default function GroupDetailScreen() {
 
   if (!group) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-          <Text style={styles.errorText}>Group not found</Text>
+          <Ionicons name="alert-circle-outline" size={64} color={theme.error} />
+          <Text style={[styles.errorText, { color: theme.text }]}>Group not found</Text>
           <TouchableOpacity
-            style={styles.errorButton}
+            style={[styles.errorButton, { backgroundColor: theme.primary }]}
             onPress={() => navigation.goBack()}
           >
             <Text style={styles.errorButtonText}>Go Back</Text>
@@ -216,58 +221,66 @@ export default function GroupDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{group.name}</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
             {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
           </Text>
         </View>
 
         <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color="#111827" />
+          <Ionicons name="ellipsis-horizontal" size={24} color={theme.text} />
         </TouchableOpacity>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === 'messages' && styles.tabActive]}
+          style={styles.tab}
           onPress={() => setSelectedTab('messages')}
         >
           <Ionicons
             name="chatbubbles"
             size={20}
-            color={selectedTab === 'messages' ? '#3B82F6' : '#6B7280'}
+            color={selectedTab === 'messages' ? theme.primary : theme.textSecondary}
           />
-          <Text style={[styles.tabText, selectedTab === 'messages' && styles.tabTextActive]}>
+          <Text style={[
+            styles.tabText,
+            { color: selectedTab === 'messages' ? theme.primary : theme.textSecondary },
+            selectedTab === 'messages' && { fontWeight: '600' },
+          ]}>
             Messages
           </Text>
-          {selectedTab === 'messages' && <View style={styles.tabIndicator} />}
+          {selectedTab === 'messages' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, selectedTab === 'members' && styles.tabActive]}
+          style={styles.tab}
           onPress={() => setSelectedTab('members')}
         >
           <Ionicons
             name="people"
             size={20}
-            color={selectedTab === 'members' ? '#3B82F6' : '#6B7280'}
+            color={selectedTab === 'members' ? theme.primary : theme.textSecondary}
           />
-          <Text style={[styles.tabText, selectedTab === 'members' && styles.tabTextActive]}>
+          <Text style={[
+            styles.tabText,
+            { color: selectedTab === 'members' ? theme.primary : theme.textSecondary },
+            selectedTab === 'members' && { fontWeight: '600' },
+          ]}>
             Members ({members.length})
           </Text>
-          {selectedTab === 'members' && <View style={styles.tabIndicator} />}
+          {selectedTab === 'members' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
         </TouchableOpacity>
       </View>
 
@@ -279,7 +292,7 @@ export default function GroupDetailScreen() {
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" />
+            <ActivityIndicator size="large" color={theme.primary} />
           </View>
         ) : (
           <>
@@ -295,11 +308,11 @@ export default function GroupDetailScreen() {
                 />
                 
                 {/* Message Input */}
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundSecondary }]}
                     placeholder="Type a message..."
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.textTertiary}
                     value={messageText}
                     onChangeText={setMessageText}
                     multiline
@@ -308,7 +321,7 @@ export default function GroupDetailScreen() {
                   <TouchableOpacity
                     style={[
                       styles.sendButton,
-                      !messageText.trim() && styles.sendButtonDisabled,
+                      { backgroundColor: messageText.trim() ? theme.primary : theme.backgroundTertiary },
                     ]}
                     onPress={handleSendMessage}
                     disabled={!messageText.trim()}
@@ -316,7 +329,7 @@ export default function GroupDetailScreen() {
                     <Ionicons
                       name="send"
                       size={20}
-                      color={messageText.trim() ? '#3B82F6' : '#D1D5DB'}
+                      color={messageText.trim() ? '#FFFFFF' : theme.textTertiary}
                     />
                   </TouchableOpacity>
                 </View>
@@ -331,11 +344,11 @@ export default function GroupDetailScreen() {
                 ListFooterComponent={
                   group.isMember && (
                     <TouchableOpacity
-                      style={styles.leaveGroupButton}
+                      style={[styles.leaveGroupButton, { backgroundColor: theme.card, borderColor: theme.error }]}
                       onPress={handleLeaveGroup}
                     >
-                      <Ionicons name="exit-outline" size={20} color="#EF4444" />
-                      <Text style={styles.leaveGroupText}>Leave Group</Text>
+                      <Ionicons name="exit-outline" size={20} color={theme.error} />
+                      <Text style={[styles.leaveGroupText, { color: theme.error }]}>Leave Group</Text>
                     </TouchableOpacity>
                   )
                 }
@@ -351,7 +364,6 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -359,9 +371,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     width: 40,
@@ -377,11 +387,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#111827',
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
     marginTop: 2,
   },
   menuButton: {
@@ -392,9 +400,7 @@ const styles = StyleSheet.create({
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   tab: {
     flex: 1,
@@ -405,15 +411,9 @@ const styles = StyleSheet.create({
     gap: 6,
     position: 'relative',
   },
-  tabActive: {},
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
-  },
-  tabTextActive: {
-    color: '#3B82F6',
-    fontWeight: '600',
   },
   tabIndicator: {
     position: 'absolute',
@@ -421,7 +421,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#3B82F6',
   },
   content: {
     flex: 1,
@@ -450,15 +449,9 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     maxWidth: '75%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  messageBubbleOwn: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
   },
   messageSender: {
     fontSize: 12,

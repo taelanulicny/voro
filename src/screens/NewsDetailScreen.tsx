@@ -14,6 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
 import { useNews } from '../context/NewsContext';
+import { useTheme } from '../context/ThemeContext';
 
 type NewsDetailRouteProp = RouteProp<RootStackParamList, 'NewsDetail'>;
 
@@ -24,6 +25,7 @@ export default function NewsDetailScreen() {
   const route = useRoute<NewsDetailRouteProp>();
   const { articleId } = route.params;
   const { news, markAsRead } = useNews();
+  const { theme } = useTheme();
   
   const [isBookmarked, setIsBookmarked] = useState(false);
 
@@ -111,14 +113,14 @@ export default function NewsDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         
         <View style={styles.headerActions}>
@@ -129,17 +131,17 @@ export default function NewsDetailScreen() {
             <Ionicons
               name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
               size={24}
-              color={isBookmarked ? '#3B82F6' : '#6B7280'}
+              color={isBookmarked ? theme.primary : theme.textSecondary}
             />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={24} color="#6B7280" />
+            <Ionicons name="share-outline" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.content, { backgroundColor: theme.backgroundSecondary }]} showsVerticalScrollIndicator={false}>
         {/* Breaking Badge */}
         {article.isBreaking && (
           <View style={styles.breakingBadge}>
@@ -159,7 +161,7 @@ export default function NewsDetailScreen() {
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>{article.title}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{article.title}</Text>
 
         {/* Entity Tag */}
         {article.entityTicker && (
@@ -175,23 +177,23 @@ export default function NewsDetailScreen() {
         )}
 
         {/* Source & Date */}
-        <View style={styles.sourceRow}>
+        <View style={[styles.sourceRow, { borderBottomColor: theme.borderLight }]}>
           <View style={styles.sourceInfo}>
-            <Ionicons name="newspaper-outline" size={16} color="#6B7280" />
-            <Text style={styles.sourceName}>{article.source}</Text>
+            <Ionicons name="newspaper-outline" size={16} color={theme.textSecondary} />
+            <Text style={[styles.sourceName, { color: theme.text }]}>{article.source}</Text>
             {article.author && (
               <>
-                <View style={styles.dot} />
-                <Text style={styles.authorName}>By {article.author}</Text>
+                <View style={[styles.dot, { backgroundColor: theme.textTertiary }]} />
+                <Text style={[styles.authorName, { color: theme.textSecondary }]}>By {article.author}</Text>
               </>
             )}
           </View>
-          <Text style={styles.publishDate}>{formatDate(article.publishedAt)}</Text>
+          <Text style={[styles.publishDate, { color: theme.textTertiary }]}>{formatDate(article.publishedAt)}</Text>
         </View>
 
         {/* Sentiment Analysis */}
-        <View style={styles.sentimentCard}>
-          <Text style={styles.sentimentCardTitle}>Market Sentiment Analysis</Text>
+        <View style={[styles.sentimentCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.sentimentCardTitle, { color: theme.text }]}>Market Sentiment Analysis</Text>
           <View style={styles.sentimentContent}>
             <View style={styles.sentimentLeft}>
               <View style={[styles.sentimentBadge, { backgroundColor: getSentimentColor() + '20' }]}>
@@ -201,7 +203,7 @@ export default function NewsDetailScreen() {
                 <Text style={[styles.sentimentLabel, { color: getSentimentColor() }]}>
                   {article.sentiment.toUpperCase()}
                 </Text>
-                <Text style={styles.sentimentDescription}>
+                <Text style={[styles.sentimentDescription, { color: theme.textSecondary }]}>
                   {article.sentiment === 'bullish' && 'Positive market outlook'}
                   {article.sentiment === 'bearish' && 'Negative market outlook'}
                   {article.sentiment === 'neutral' && 'Neutral market outlook'}
@@ -212,30 +214,30 @@ export default function NewsDetailScreen() {
               <Text style={[styles.sentimentScoreValue, { color: getSentimentColor() }]}>
                 {article.sentimentScore > 0 ? '+' : ''}{article.sentimentScore}
               </Text>
-              <Text style={styles.sentimentScoreLabel}>Score</Text>
+              <Text style={[styles.sentimentScoreLabel, { color: theme.textTertiary }]}>Score</Text>
             </View>
           </View>
         </View>
 
         {/* Summary */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Summary</Text>
-          <Text style={styles.summaryText}>{article.summary}</Text>
+        <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.summaryTitle, { color: theme.text }]}>Summary</Text>
+          <Text style={[styles.summaryText, { color: theme.textSecondary }]}>{article.summary}</Text>
         </View>
 
         {/* Full Article Content */}
         <View style={styles.articleContent}>
-          <Text style={styles.contentText}>{article.content}</Text>
+          <Text style={[styles.contentText, { color: theme.text }]}>{article.content}</Text>
         </View>
 
         {/* Tags */}
         {article.tags.length > 0 && (
           <View style={styles.tagsSection}>
-            <Text style={styles.tagsTitle}>Related Topics</Text>
+            <Text style={[styles.tagsTitle, { color: theme.text }]}>Related Topics</Text>
             <View style={styles.tagsContainer}>
               {article.tags.map((tag, index) => (
-                <View key={index} style={styles.tag}>
-                  <Text style={styles.tagText}>{tag}</Text>
+                <View key={index} style={[styles.tag, { backgroundColor: theme.backgroundTertiary }]}>
+                  <Text style={[styles.tagText, { color: theme.textSecondary }]}>{tag}</Text>
                 </View>
               ))}
             </View>
@@ -243,10 +245,10 @@ export default function NewsDetailScreen() {
         )}
 
         {/* Stats */}
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { borderTopColor: theme.borderLight, borderBottomColor: theme.borderLight }]}>
           <View style={styles.statItem}>
-            <Ionicons name="eye-outline" size={20} color="#6B7280" />
-            <Text style={styles.statText}>
+            <Ionicons name="eye-outline" size={20} color={theme.textSecondary} />
+            <Text style={[styles.statText, { color: theme.textSecondary }]}>
               {article.viewCount >= 1000 
                 ? `${(article.viewCount / 1000).toFixed(1)}K views` 
                 : `${article.viewCount} views`}
@@ -256,9 +258,9 @@ export default function NewsDetailScreen() {
 
         {/* Source Link */}
         {article.sourceUrl && (
-          <TouchableOpacity style={styles.sourceButton} onPress={handleOpenSource}>
-            <Ionicons name="open-outline" size={20} color="#3B82F6" />
-            <Text style={styles.sourceButtonText}>Read on {article.source}</Text>
+          <TouchableOpacity style={[styles.sourceButton, { backgroundColor: theme.primaryLight, borderColor: theme.primary }]} onPress={handleOpenSource}>
+            <Ionicons name="open-outline" size={20} color={theme.primary} />
+            <Text style={[styles.sourceButtonText, { color: theme.primary }]}>Read on {article.source}</Text>
           </TouchableOpacity>
         )}
 
@@ -272,7 +274,6 @@ export default function NewsDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -281,7 +282,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     width: 40,
@@ -380,7 +380,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   sourceInfo: {
     flexDirection: 'row',
@@ -391,36 +390,29 @@ const styles = StyleSheet.create({
   sourceName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginLeft: 6,
   },
   dot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#D1D5DB',
     marginHorizontal: 8,
   },
   authorName: {
     fontSize: 14,
-    color: '#6B7280',
   },
   publishDate: {
     fontSize: 13,
-    color: '#9CA3AF',
   },
   sentimentCard: {
-    backgroundColor: '#F9FAFB',
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   sentimentCardTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 12,
   },
   sentimentContent: {
@@ -451,7 +443,6 @@ const styles = StyleSheet.create({
   },
   sentimentDescription: {
     fontSize: 13,
-    color: '#6B7280',
   },
   sentimentScore: {
     alignItems: 'center',
@@ -462,27 +453,22 @@ const styles = StyleSheet.create({
   },
   sentimentScoreLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
     marginTop: 2,
   },
   summaryCard: {
-    backgroundColor: '#FFFBEB',
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#FEF3C7',
   },
   summaryTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#92400E',
     marginBottom: 8,
   },
   summaryText: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#78350F',
   },
   articleContent: {
     marginBottom: 24,
@@ -490,7 +476,6 @@ const styles = StyleSheet.create({
   contentText: {
     fontSize: 16,
     lineHeight: 26,
-    color: '#374151',
   },
   tagsSection: {
     marginBottom: 24,
@@ -498,7 +483,6 @@ const styles = StyleSheet.create({
   tagsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 12,
   },
   tagsContainer: {
@@ -507,14 +491,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tag: {
-    backgroundColor: '#F3F4F6',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   tagText: {
     fontSize: 13,
-    color: '#6B7280',
     fontWeight: '500',
   },
   statsRow: {
@@ -523,7 +505,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#F3F4F6',
     marginBottom: 16,
   },
   statItem: {
@@ -533,25 +514,21 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 14,
-    color: '#6B7280',
   },
   sourceButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EFF6FF',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
   },
   sourceButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#3B82F6',
   },
   errorContainer: {
     flex: 1,

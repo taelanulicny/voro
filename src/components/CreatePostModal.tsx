@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface CreatePostModalProps {
   visible: boolean;
@@ -33,6 +34,7 @@ export default function CreatePostModal({
 }: CreatePostModalProps) {
   const { user } = useAuth();
   const { createPost } = useSocial();
+  const { theme } = useTheme();
   const [content, setContent] = useState('');
   const [sentiment, setSentiment] = useState<'bullish' | 'bearish' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,18 +99,18 @@ export default function CreatePostModal({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+        style={[styles.container, { backgroundColor: theme.card }]}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity
             onPress={handleClose}
             disabled={isSubmitting}
             style={styles.headerButton}
           >
-            <Text style={[styles.headerButtonText, styles.cancelText]}>Cancel</Text>
+            <Text style={[styles.headerButtonText, { color: theme.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle}>New Post</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>New Post</Text>
           
           <TouchableOpacity
             onPress={handleSubmit}
@@ -119,13 +121,12 @@ export default function CreatePostModal({
             ]}
           >
             {isSubmitting ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
+              <ActivityIndicator size="small" color={theme.primary} />
             ) : (
               <Text
                 style={[
                   styles.headerButtonText,
-                  styles.postText,
-                  (!content.trim() || isSubmitting) && styles.postTextDisabled,
+                  { color: (!content.trim() || isSubmitting) ? theme.textTertiary : theme.primary },
                 ]}
               >
                 Post
@@ -141,19 +142,19 @@ export default function CreatePostModal({
           {/* User Info */}
           <View style={styles.userInfo}>
             <View style={styles.avatar}>
-              <Ionicons name="person-circle" size={40} color="#9CA3AF" />
+              <Ionicons name="person-circle" size={40} color={theme.textTertiary} />
             </View>
             <View style={styles.userDetails}>
-              <Text style={styles.displayName}>{user?.displayName}</Text>
-              <Text style={styles.username}>@{user?.username}</Text>
+              <Text style={[styles.displayName, { color: theme.text }]}>{user?.displayName}</Text>
+              <Text style={[styles.username, { color: theme.textSecondary }]}>@{user?.username}</Text>
             </View>
           </View>
 
           {/* Entity Tag (if present) */}
           {entityTicker && (
-            <View style={styles.entityTag}>
-              <Ionicons name="pricetag" size={16} color="#3B82F6" />
-              <Text style={styles.entityTagText}>
+            <View style={[styles.entityTag, { backgroundColor: theme.primaryLight }]}>
+              <Ionicons name="pricetag" size={16} color={theme.primary} />
+              <Text style={[styles.entityTagText, { color: theme.primary }]}>
                 ${entityTicker} {entityName && `· ${entityName}`}
               </Text>
             </View>
@@ -161,9 +162,9 @@ export default function CreatePostModal({
 
           {/* Post Content */}
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { color: theme.text }]}
             placeholder="What's on your mind?"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.textTertiary}
             value={content}
             onChangeText={setContent}
             multiline
@@ -171,16 +172,19 @@ export default function CreatePostModal({
             maxLength={500}
           />
 
-          <Text style={styles.characterCount}>{content.length}/500</Text>
+          <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/500</Text>
 
           {/* Sentiment Selector */}
           <View style={styles.sentimentSection}>
-            <Text style={styles.sectionLabel}>Sentiment (Optional)</Text>
+            <Text style={[styles.sectionLabel, { color: theme.text }]}>Sentiment (Optional)</Text>
             <View style={styles.sentimentButtons}>
               <TouchableOpacity
                 style={[
                   styles.sentimentButton,
-                  sentiment === 'bullish' && styles.sentimentButtonBullish,
+                  { 
+                    backgroundColor: sentiment === 'bullish' ? '#10B981' : theme.backgroundSecondary,
+                    borderColor: sentiment === 'bullish' ? '#10B981' : theme.border,
+                  },
                 ]}
                 onPress={() => setSentiment('bullish')}
               >
@@ -192,7 +196,7 @@ export default function CreatePostModal({
                 <Text
                   style={[
                     styles.sentimentButtonText,
-                    sentiment === 'bullish' && styles.sentimentButtonTextActive,
+                    { color: sentiment === 'bullish' ? '#FFFFFF' : theme.text },
                   ]}
                 >
                   Bullish
@@ -202,19 +206,22 @@ export default function CreatePostModal({
               <TouchableOpacity
                 style={[
                   styles.sentimentButton,
-                  sentiment === 'neutral' && styles.sentimentButtonNeutral,
+                  { 
+                    backgroundColor: sentiment === 'neutral' ? '#6B7280' : theme.backgroundSecondary,
+                    borderColor: sentiment === 'neutral' ? '#6B7280' : theme.border,
+                  },
                 ]}
                 onPress={() => setSentiment('neutral')}
               >
                 <Ionicons
                   name="remove"
                   size={20}
-                  color={sentiment === 'neutral' ? '#FFFFFF' : '#6B7280'}
+                  color={sentiment === 'neutral' ? '#FFFFFF' : theme.textSecondary}
                 />
                 <Text
                   style={[
                     styles.sentimentButtonText,
-                    sentiment === 'neutral' && styles.sentimentButtonTextActive,
+                    { color: sentiment === 'neutral' ? '#FFFFFF' : theme.text },
                   ]}
                 >
                   Neutral
@@ -224,7 +231,10 @@ export default function CreatePostModal({
               <TouchableOpacity
                 style={[
                   styles.sentimentButton,
-                  sentiment === 'bearish' && styles.sentimentButtonBearish,
+                  { 
+                    backgroundColor: sentiment === 'bearish' ? '#EF4444' : theme.backgroundSecondary,
+                    borderColor: sentiment === 'bearish' ? '#EF4444' : theme.border,
+                  },
                 ]}
                 onPress={() => setSentiment('bearish')}
               >
@@ -236,7 +246,7 @@ export default function CreatePostModal({
                 <Text
                   style={[
                     styles.sentimentButtonText,
-                    sentiment === 'bearish' && styles.sentimentButtonTextActive,
+                    { color: sentiment === 'bearish' ? '#FFFFFF' : theme.text },
                   ]}
                 >
                   Bearish
@@ -253,7 +263,6 @@ export default function CreatePostModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -262,7 +271,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   headerButton: {
     paddingVertical: 8,
@@ -276,19 +284,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  cancelText: {
-    color: '#6B7280',
-  },
-  postText: {
-    color: '#3B82F6',
-  },
-  postTextDisabled: {
-    color: '#9CA3AF',
-  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
   },
   content: {
     flex: 1,
@@ -311,16 +309,13 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
   },
   username: {
     fontSize: 14,
-    color: '#6B7280',
   },
   entityTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -330,19 +325,16 @@ const styles = StyleSheet.create({
   entityTagText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
     marginLeft: 6,
   },
   textInput: {
     fontSize: 16,
-    color: '#111827',
     minHeight: 120,
     textAlignVertical: 'top',
     marginBottom: 8,
   },
   characterCount: {
     fontSize: 12,
-    color: '#9CA3AF',
     textAlign: 'right',
     marginBottom: 16,
   },
@@ -352,7 +344,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 12,
   },
   sentimentButtons: {
@@ -368,29 +359,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
     gap: 6,
-  },
-  sentimentButtonBullish: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
-  },
-  sentimentButtonNeutral: {
-    backgroundColor: '#6B7280',
-    borderColor: '#6B7280',
-  },
-  sentimentButtonBearish: {
-    backgroundColor: '#EF4444',
-    borderColor: '#EF4444',
   },
   sentimentButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
-  },
-  sentimentButtonTextActive: {
-    color: '#FFFFFF',
   },
 });
 

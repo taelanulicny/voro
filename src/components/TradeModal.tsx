@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { useTrading } from '../context/TradingContext';
+import { useTheme } from '../context/ThemeContext';
 import { formatCurrency } from '../utils/dataGenerator';
 
 const { height } = Dimensions.get('window');
@@ -39,6 +40,7 @@ export default function TradeModal({
   existingQuantity = 0,
 }: TradeModalProps) {
   const { portfolio, executeTrade, getHolding } = useTrading();
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
   const [quantity, setQuantity] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -164,40 +166,47 @@ export default function TradeModal({
         <Animated.View
           style={[
             styles.modalContainer,
+            { backgroundColor: theme.card },
             {
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.handle} />
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <View style={[styles.handle, { backgroundColor: theme.textTertiary }]} />
             <View style={styles.headerContent}>
               <View>
-                <Text style={styles.ticker}>{entityTicker}</Text>
-                <Text style={styles.entityName}>{entityName}</Text>
+                <Text style={[styles.ticker, { color: theme.text }]}>{entityTicker}</Text>
+                <Text style={[styles.entityName, { color: theme.textSecondary }]}>{entityName}</Text>
               </View>
               <View style={styles.priceContainer}>
-                <Text style={styles.price}>{formatCurrency(currentPrice)}</Text>
+                <Text style={[styles.price, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
               </View>
             </View>
           </View>
 
           {/* Buy/Sell Tabs */}
-          <View style={styles.tabs}>
+          <View style={[styles.tabs, { backgroundColor: theme.backgroundSecondary }]}>
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'buy' && styles.tabActiveBuy]}
+              style={[
+                styles.tab,
+                { backgroundColor: activeTab === 'buy' ? theme.success : 'transparent' },
+              ]}
               onPress={() => setActiveTab('buy')}
             >
-              <Text style={[styles.tabText, activeTab === 'buy' && styles.tabTextActive]}>
+              <Text style={[styles.tabText, { color: activeTab === 'buy' ? '#FFFFFF' : theme.textSecondary }]}>
                 Buy
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'sell' && styles.tabActiveSell]}
+              style={[
+                styles.tab,
+                { backgroundColor: activeTab === 'sell' ? theme.error : 'transparent' },
+              ]}
               onPress={() => setActiveTab('sell')}
             >
-              <Text style={[styles.tabText, activeTab === 'sell' && styles.tabTextActive]}>
+              <Text style={[styles.tabText, { color: activeTab === 'sell' ? '#FFFFFF' : theme.textSecondary }]}>
                 Sell
               </Text>
             </TouchableOpacity>
@@ -205,11 +214,11 @@ export default function TradeModal({
 
           {/* Current Position Info */}
           {holding && (
-            <View style={styles.positionInfo}>
-              <Text style={styles.positionLabel}>Your Position</Text>
+            <View style={[styles.positionInfo, { backgroundColor: theme.backgroundSecondary }]}>
+              <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Your Position</Text>
               <View style={styles.positionRow}>
-                <Text style={styles.positionText}>Shares Owned: {holding.quantity}</Text>
-                <Text style={styles.positionText}>
+                <Text style={[styles.positionText, { color: theme.text }]}>Shares Owned: {holding.quantity}</Text>
+                <Text style={[styles.positionText, { color: theme.text }]}>
                   Avg Cost: {formatCurrency(holding.averageCost)}
                 </Text>
               </View>
@@ -218,18 +227,18 @@ export default function TradeModal({
 
           {/* Quantity Input */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Quantity</Text>
-            <View style={styles.inputContainer}>
+            <Text style={[styles.inputLabel, { color: theme.text }]}>Quantity</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="0"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.textTertiary}
                 value={quantity}
                 onChangeText={handleQuantityChange}
                 keyboardType="decimal-pad"
                 maxLength={10}
               />
-              <Text style={styles.inputSuffix}>shares</Text>
+              <Text style={[styles.inputSuffix, { color: theme.textSecondary }]}>shares</Text>
             </View>
 
             {/* Quick Percentage Buttons */}
@@ -237,31 +246,31 @@ export default function TradeModal({
               {[25, 50, 75, 100].map((percent) => (
                 <TouchableOpacity
                   key={percent}
-                  style={styles.percentButton}
+                  style={[styles.percentButton, { backgroundColor: theme.backgroundTertiary }]}
                   onPress={() => setPercentage(percent)}
                 >
-                  <Text style={styles.percentButtonText}>{percent}%</Text>
+                  <Text style={[styles.percentButtonText, { color: theme.text }]}>{percent}%</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           {/* Order Summary */}
-          <View style={styles.summary}>
+          <View style={[styles.summary, { backgroundColor: theme.backgroundSecondary }]}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Price per Share</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(currentPrice)}</Text>
+              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Price per Share</Text>
+              <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Quantity</Text>
-              <Text style={styles.summaryValue}>{quantityNum || 0}</Text>
+              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Quantity</Text>
+              <Text style={[styles.summaryValue, { color: theme.text }]}>{quantityNum || 0}</Text>
             </View>
-            <View style={styles.summaryDivider} />
+            <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabelBold}>
+              <Text style={[styles.summaryLabelBold, { color: theme.text }]}>
                 {activeTab === 'buy' ? 'Total Cost' : 'Total Proceeds'}
               </Text>
-              <Text style={styles.summaryValueBold}>{formatCurrency(totalCost)}</Text>
+              <Text style={[styles.summaryValueBold, { color: theme.text }]}>{formatCurrency(totalCost)}</Text>
             </View>
 
             {/* Sell - Show expected profit/loss */}
@@ -287,19 +296,19 @@ export default function TradeModal({
           </View>
 
           {/* Available Balance / Shares */}
-          <View style={styles.balanceInfo}>
+          <View style={[styles.balanceInfo, { backgroundColor: theme.backgroundSecondary }]}>
             {activeTab === 'buy' ? (
               <>
-                <Text style={styles.balanceLabel}>Available Cash</Text>
-                <Text style={styles.balanceValue}>{formatCurrency(portfolio.cashBalance)}</Text>
+                <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Available Cash</Text>
+                <Text style={[styles.balanceValue, { color: theme.text }]}>{formatCurrency(portfolio.cashBalance)}</Text>
                 {!hasSufficientFunds && quantityNum > 0 && (
                   <Text style={styles.errorText}>Insufficient funds</Text>
                 )}
               </>
             ) : (
               <>
-                <Text style={styles.balanceLabel}>Shares Available to Sell</Text>
-                <Text style={styles.balanceValue}>{holding?.quantity || 0}</Text>
+                <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Shares Available to Sell</Text>
+                <Text style={[styles.balanceValue, { color: theme.text }]}>{holding?.quantity || 0}</Text>
                 {!hasSufficientShares && quantityNum > 0 && (
                   <Text style={styles.errorText}>Insufficient shares</Text>
                 )}
@@ -310,17 +319,17 @@ export default function TradeModal({
           {/* Action Buttons */}
           <View style={styles.actions}>
             <TouchableOpacity
-              style={[styles.button, styles.buttonSecondary]}
+              style={[styles.button, { backgroundColor: theme.backgroundTertiary }]}
               onPress={handleClose}
             >
-              <Text style={styles.buttonTextSecondary}>Cancel</Text>
+              <Text style={[styles.buttonTextSecondary, { color: theme.text }]}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
                 styles.button,
-                activeTab === 'buy' ? styles.buttonBuy : styles.buttonSell,
-                !canExecute && styles.buttonDisabled,
+                { backgroundColor: activeTab === 'buy' ? theme.success : theme.error },
+                !canExecute && { opacity: 0.5 },
               ]}
               onPress={handleExecuteTrade}
               disabled={!canExecute || isProcessing}

@@ -507,6 +507,7 @@ function TransferModal({ visible, onClose, cashBalance }: {
   onClose: () => void;
   cashBalance: number;
 }) {
+  const { theme } = useTheme();
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
 
@@ -547,36 +548,36 @@ function TransferModal({ visible, onClose, cashBalance }: {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
+      <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.card }]}>
+        <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
+            <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Transfer Funds</Text>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Transfer Funds</Text>
           <View style={{ width: 60 }} />
         </View>
 
         <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.balanceDisplay}>
-            <Text style={styles.balanceDisplayLabel}>Available Balance</Text>
-            <Text style={styles.balanceDisplayValue}>{formatCurrency(cashBalance)}</Text>
+          <View style={[styles.balanceDisplay, { backgroundColor: theme.backgroundSecondary }]}>
+            <Text style={[styles.balanceDisplayLabel, { color: theme.textSecondary }]}>Available Balance</Text>
+            <Text style={[styles.balanceDisplayValue, { color: theme.text }]}>{formatCurrency(cashBalance)}</Text>
           </View>
 
-          <Text style={styles.inputLabel}>Recipient Username</Text>
+          <Text style={[styles.inputLabel, { color: theme.text }]}>Recipient Username</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
             placeholder="@username"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.textTertiary}
             value={recipient}
             onChangeText={setRecipient}
             autoCapitalize="none"
           />
 
-          <Text style={styles.inputLabel}>Amount</Text>
+          <Text style={[styles.inputLabel, { color: theme.text }]}>Amount</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
             placeholder="0.00"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.textTertiary}
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
@@ -585,7 +586,7 @@ function TransferModal({ visible, onClose, cashBalance }: {
           <TouchableOpacity
             style={[
               styles.modalButton,
-              (!amount || !recipient) && styles.modalButtonDisabled,
+              { backgroundColor: (!amount || !recipient) ? theme.backgroundTertiary : theme.primary },
             ]}
             onPress={handleTransfer}
             disabled={!amount || !recipient}
@@ -603,6 +604,7 @@ function DepositModal({ visible, onClose }: {
   visible: boolean;
   onClose: () => void;
 }) {
+  const { theme } = useTheme();
   const [amount, setAmount] = useState('');
 
   const handleDeposit = () => {
@@ -636,42 +638,42 @@ function DepositModal({ visible, onClose }: {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
+      <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.card }]}>
+        <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
+            <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Deposit Funds</Text>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Deposit Funds</Text>
           <View style={{ width: 60 }} />
         </View>
 
         <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.inputLabel}>Amount</Text>
+          <Text style={[styles.inputLabel, { color: theme.text }]}>Amount</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
             placeholder="0.00"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.textTertiary}
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
           />
 
-          <Text style={styles.quickAmountsLabel}>Quick Amounts</Text>
+          <Text style={[styles.quickAmountsLabel, { color: theme.text }]}>Quick Amounts</Text>
           <View style={styles.quickAmountsContainer}>
             {quickAmounts.map((quickAmount) => (
               <TouchableOpacity
                 key={quickAmount}
-                style={styles.quickAmountButton}
+                style={[styles.quickAmountButton, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
                 onPress={() => setAmount(quickAmount.toString())}
               >
-                <Text style={styles.quickAmountText}>{formatCurrency(quickAmount)}</Text>
+                <Text style={[styles.quickAmountText, { color: theme.text }]}>{formatCurrency(quickAmount)}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <View style={styles.infoCard}>
-            <Ionicons name="information-circle-outline" size={20} color="#3B82F6" />
-            <Text style={styles.infoText}>
+          <View style={[styles.infoCard, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="information-circle-outline" size={20} color={theme.primary} />
+            <Text style={[styles.infoText, { color: theme.text }]}>
               This is a demo app using virtual tokens. No real money is involved.
             </Text>
           </View>
@@ -679,7 +681,7 @@ function DepositModal({ visible, onClose }: {
           <TouchableOpacity
             style={[
               styles.modalButton,
-              !amount && styles.modalButtonDisabled,
+              { backgroundColor: !amount ? theme.backgroundTertiary : theme.primary },
             ]}
             onPress={handleDeposit}
             disabled={!amount}
@@ -946,7 +948,6 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -954,18 +955,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalCancelText: {
     fontSize: 16,
-    color: '#6B7280',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
   },
   modalContent: {
     padding: 16,
@@ -1027,50 +1024,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   balanceDisplay: {
-    backgroundColor: '#FFFFFF',
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   balanceDisplayLabel: {
     fontSize: 13,
-    color: '#6B7280',
     marginBottom: 8,
   },
   balanceDisplayValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 8,
     marginTop: 16,
   },
   textInput: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#111827',
   },
   modalButton: {
-    backgroundColor: '#3B82F6',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 24,
-  },
-  modalButtonDisabled: {
-    backgroundColor: '#D1D5DB',
   },
   modalButtonText: {
     color: '#FFFFFF',
@@ -1080,7 +1065,6 @@ const styles = StyleSheet.create({
   quickAmountsLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginTop: 24,
     marginBottom: 12,
   },
@@ -1092,21 +1076,17 @@ const styles = StyleSheet.create({
   quickAmountButton: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#EFF6FF',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#DBEAFE',
   },
   quickAmountText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#3B82F6',
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
     padding: 16,
     borderRadius: 12,
     marginTop: 24,
@@ -1116,6 +1096,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
-    color: '#1E40AF',
   },
 });

@@ -205,29 +205,33 @@ export default function BuyScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryScroll}
+        contentContainerStyle={[styles.categoryScroll, { backgroundColor: theme.card, borderBottomColor: theme.border }]}
       >
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryChip,
-              (category === 'All' ? selectedCategory === null : selectedCategory === category) &&
-                styles.categoryChipActive,
-            ]}
-            onPress={() => setSelectedCategory(category === 'All' ? null : category)}
-          >
-            <Text
+        {categories.map((category) => {
+          const isActive = category === 'All' ? selectedCategory === null : selectedCategory === category;
+          return (
+            <TouchableOpacity
+              key={category}
               style={[
-                styles.categoryChipText,
-                (category === 'All' ? selectedCategory === null : selectedCategory === category) &&
-                  styles.categoryChipTextActive,
+                styles.categoryChip,
+                {
+                  backgroundColor: isActive ? theme.primary : theme.backgroundSecondary,
+                  borderColor: isActive ? theme.primary : theme.border,
+                },
               ]}
+              onPress={() => setSelectedCategory(category === 'All' ? null : category)}
             >
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  { color: isActive ? '#FFFFFF' : theme.textSecondary },
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* Sort Options */}
@@ -345,31 +349,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     minWidth: 60,
     alignItems: 'center',
-  },
-  categoryChipActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
   },
   categoryChipText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
   },
   sortScroll: {
     paddingHorizontal: 16,

@@ -75,7 +75,7 @@ export default function NewsScreen() {
   );
 
   const renderFilterTabs = () => (
-    <View style={styles.filterSection}>
+    <View style={[styles.filterSection, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -84,7 +84,10 @@ export default function NewsScreen() {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            selectedFilter === 'all' && styles.filterTabActive,
+            { 
+              backgroundColor: selectedFilter === 'all' ? theme.primaryLight : theme.backgroundSecondary,
+              borderColor: selectedFilter === 'all' ? theme.primary : theme.border,
+            },
           ]}
           onPress={() => {
             setSelectedFilter('all');
@@ -95,7 +98,8 @@ export default function NewsScreen() {
           <Text
             style={[
               styles.filterTabText,
-              selectedFilter === 'all' && styles.filterTabTextActive,
+              { color: selectedFilter === 'all' ? theme.primary : theme.textSecondary },
+              selectedFilter === 'all' && { fontWeight: '600' },
             ]}
           >
             All News
@@ -105,7 +109,10 @@ export default function NewsScreen() {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            selectedFilter === 'breaking' && styles.filterTabActive,
+            { 
+              backgroundColor: selectedFilter === 'breaking' ? theme.primaryLight : theme.backgroundSecondary,
+              borderColor: selectedFilter === 'breaking' ? theme.primary : theme.border,
+            },
           ]}
           onPress={() => {
             setSelectedFilter('breaking');
@@ -116,12 +123,13 @@ export default function NewsScreen() {
           <Ionicons
             name="flash"
             size={14}
-            color={selectedFilter === 'breaking' ? '#3B82F6' : '#6B7280'}
+            color={selectedFilter === 'breaking' ? theme.primary : theme.textSecondary}
           />
           <Text
             style={[
               styles.filterTabText,
-              selectedFilter === 'breaking' && styles.filterTabTextActive,
+              { color: selectedFilter === 'breaking' ? theme.primary : theme.textSecondary },
+              selectedFilter === 'breaking' && { fontWeight: '600' },
             ]}
           >
             Breaking ({breakingNews.length})
@@ -131,19 +139,23 @@ export default function NewsScreen() {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            selectedFilter === 'category' && styles.filterTabActive,
+            { 
+              backgroundColor: selectedFilter === 'category' ? theme.primaryLight : theme.backgroundSecondary,
+              borderColor: selectedFilter === 'category' ? theme.primary : theme.border,
+            },
           ]}
           onPress={() => setSelectedFilter('category')}
         >
           <Ionicons
             name="grid-outline"
             size={14}
-            color={selectedFilter === 'category' ? '#3B82F6' : '#6B7280'}
+            color={selectedFilter === 'category' ? theme.primary : theme.textSecondary}
           />
           <Text
             style={[
               styles.filterTabText,
-              selectedFilter === 'category' && styles.filterTabTextActive,
+              { color: selectedFilter === 'category' ? theme.primary : theme.textSecondary },
+              selectedFilter === 'category' && { fontWeight: '600' },
             ]}
           >
             Category
@@ -153,19 +165,23 @@ export default function NewsScreen() {
         <TouchableOpacity
           style={[
             styles.filterTab,
-            selectedFilter === 'sentiment' && styles.filterTabActive,
+            { 
+              backgroundColor: selectedFilter === 'sentiment' ? theme.primaryLight : theme.backgroundSecondary,
+              borderColor: selectedFilter === 'sentiment' ? theme.primary : theme.border,
+            },
           ]}
           onPress={() => setSelectedFilter('sentiment')}
         >
           <Ionicons
             name="pulse-outline"
             size={14}
-            color={selectedFilter === 'sentiment' ? '#3B82F6' : '#6B7280'}
+            color={selectedFilter === 'sentiment' ? theme.primary : theme.textSecondary}
           />
           <Text
             style={[
               styles.filterTabText,
-              selectedFilter === 'sentiment' && styles.filterTabTextActive,
+              { color: selectedFilter === 'sentiment' ? theme.primary : theme.textSecondary },
+              selectedFilter === 'sentiment' && { fontWeight: '600' },
             ]}
           >
             Sentiment
@@ -185,14 +201,18 @@ export default function NewsScreen() {
               key={category}
               style={[
                 styles.categoryChip,
-                selectedCategory === category && styles.categoryChipActive,
+                { 
+                  backgroundColor: selectedCategory === category ? theme.primary : theme.backgroundSecondary,
+                  borderColor: selectedCategory === category ? theme.primary : theme.border,
+                },
               ]}
               onPress={() => setSelectedCategory(category === selectedCategory ? undefined : category)}
             >
               <Text
                 style={[
                   styles.categoryChipText,
-                  selectedCategory === category && styles.categoryChipTextActive,
+                  { color: selectedCategory === category ? '#FFFFFF' : theme.textSecondary },
+                  selectedCategory === category && { fontWeight: '600' },
                 ]}
               >
                 {category}
@@ -214,9 +234,9 @@ export default function NewsScreen() {
               key={sentiment.key}
               style={[
                 styles.sentimentChip,
-                selectedSentiment === sentiment.key && {
-                  backgroundColor: sentiment.color + '20',
-                  borderColor: sentiment.color,
+                { 
+                  backgroundColor: selectedSentiment === sentiment.key ? sentiment.color + '20' : theme.backgroundSecondary,
+                  borderColor: selectedSentiment === sentiment.key ? sentiment.color : theme.border,
                 },
               ]}
               onPress={() => setSelectedSentiment(sentiment.key === selectedSentiment ? undefined : sentiment.key)}
@@ -224,12 +244,12 @@ export default function NewsScreen() {
               <Ionicons
                 name={sentiment.icon}
                 size={14}
-                color={selectedSentiment === sentiment.key ? sentiment.color : '#6B7280'}
+                color={selectedSentiment === sentiment.key ? sentiment.color : theme.textSecondary}
               />
               <Text
                 style={[
                   styles.sentimentChipText,
-                  selectedSentiment === sentiment.key && { color: sentiment.color },
+                  { color: selectedSentiment === sentiment.key ? sentiment.color : theme.textSecondary },
                 ]}
               >
                 {sentiment.label}
@@ -247,9 +267,9 @@ export default function NewsScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="newspaper-outline" size={64} color="#D1D5DB" />
-      <Text style={styles.emptyStateTitle}>No news found</Text>
-      <Text style={styles.emptyStateText}>
+      <Ionicons name="newspaper-outline" size={64} color={theme.textTertiary} />
+      <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No news found</Text>
+      <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
         Try adjusting your filters or check back later for updates
       </Text>
     </View>
@@ -260,8 +280,8 @@ export default function NewsScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {renderHeader()}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading news...</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading news...</Text>
         </View>
       </SafeAreaView>
     );
@@ -300,7 +320,6 @@ export default function NewsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -309,12 +328,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: '#F9FAFB',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
   },
   breakingCountBadge: {
     flexDirection: 'row',
@@ -331,12 +348,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   filterSection: {
-    backgroundColor: '#FFFFFF',
     paddingTop: 12,
     paddingBottom: 8,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   filterTabs: {
     paddingHorizontal: 16,
@@ -350,22 +365,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
     gap: 6,
-  },
-  filterTabActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
   },
   filterTabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
-  },
-  filterTabTextActive: {
-    color: '#3B82F6',
-    fontWeight: '600',
   },
   subFilterContainer: {
     paddingHorizontal: 16,
@@ -377,21 +381,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-  },
-  categoryChipActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
   },
   categoryChipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6B7280',
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
   sentimentChip: {
     flexDirection: 'row',
@@ -400,14 +393,11 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
     gap: 4,
   },
   sentimentChipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6B7280',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -422,7 +412,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280',
   },
   emptyListContent: {
     flexGrow: 1,
@@ -437,13 +426,11 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
   },

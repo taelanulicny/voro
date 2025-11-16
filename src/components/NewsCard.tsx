@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { NewsArticle, RootStackParamList } from '../types';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -21,6 +22,7 @@ interface NewsCardProps {
 
 export default function NewsCard({ article, onPress, showEntity = true }: NewsCardProps) {
   const navigation = useNavigation<NavigationProp>();
+  const { theme } = useTheme();
 
   const handlePress = () => {
     if (onPress) {
@@ -78,7 +80,7 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.card, borderColor: theme.border }]}
       onPress={handlePress}
       activeOpacity={0.7}
     >
@@ -93,9 +95,9 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.source}>{article.source}</Text>
-          <View style={styles.dot} />
-          <Text style={styles.time}>{formatTimeAgo(article.publishedAt)}</Text>
+          <Text style={[styles.source, { color: theme.text }]}>{article.source}</Text>
+          <View style={[styles.dot, { backgroundColor: theme.textTertiary }]} />
+          <Text style={[styles.time, { color: theme.textTertiary }]}>{formatTimeAgo(article.publishedAt)}</Text>
         </View>
         
         {/* Impact Level Indicator */}
@@ -105,27 +107,27 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
       </View>
 
       {/* Title */}
-      <Text style={styles.title} numberOfLines={2}>
+      <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
         {article.title}
       </Text>
 
       {/* Summary */}
-      <Text style={styles.summary} numberOfLines={2}>
+      <Text style={[styles.summary, { color: theme.textSecondary }]} numberOfLines={2}>
         {article.summary}
       </Text>
 
       {/* Entity Tag */}
       {showEntity && article.entityTicker && (
         <TouchableOpacity
-          style={styles.entityTag}
+          style={[styles.entityTag, { backgroundColor: theme.primaryLight }]}
           onPress={handleEntityPress}
         >
-          <Ionicons name="pricetag" size={14} color="#3B82F6" />
-          <Text style={styles.entityTagText}>
+          <Ionicons name="pricetag" size={14} color={theme.primary} />
+          <Text style={[styles.entityTagText, { color: theme.primary }]}>
             ${article.entityTicker}
           </Text>
           {article.entityName && (
-            <Text style={styles.entityName}> · {article.entityName}</Text>
+            <Text style={[styles.entityName, { color: theme.textSecondary }]}> · {article.entityName}</Text>
           )}
         </TouchableOpacity>
       )}
@@ -149,8 +151,8 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
 
         {/* Views */}
         <View style={styles.viewsContainer}>
-          <Ionicons name="eye-outline" size={14} color="#9CA3AF" />
-          <Text style={styles.views}>
+          <Ionicons name="eye-outline" size={14} color={theme.textTertiary} />
+          <Text style={[styles.views, { color: theme.textTertiary }]}>
             {article.viewCount >= 1000 
               ? `${(article.viewCount / 1000).toFixed(1)}K` 
               : article.viewCount}
@@ -162,8 +164,8 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
       {article.tags.length > 0 && (
         <View style={styles.tagsContainer}>
           {article.tags.slice(0, 3).map((tag, index) => (
-            <View key={index} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
+            <View key={index} style={[styles.tag, { backgroundColor: theme.backgroundTertiary }]}>
+              <Text style={[styles.tagText, { color: theme.textSecondary }]}>{tag}</Text>
             </View>
           ))}
         </View>
@@ -174,12 +176,10 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
     padding: 16,
     marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     position: 'relative',
   },
   breakingBadge: {
@@ -215,18 +215,15 @@ const styles = StyleSheet.create({
   source: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#111827',
   },
   dot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#D1D5DB',
     marginHorizontal: 8,
   },
   time: {
     fontSize: 12,
-    color: '#9CA3AF',
   },
   impactBadge: {
     paddingHorizontal: 6,
@@ -242,21 +239,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#111827',
     lineHeight: 24,
     marginBottom: 8,
   },
   summary: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#6B7280',
     marginBottom: 12,
   },
   entityTag: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -265,12 +259,10 @@ const styles = StyleSheet.create({
   entityTagText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3B82F6',
     marginLeft: 4,
   },
   entityName: {
     fontSize: 13,
-    color: '#6B7280',
   },
   footer: {
     flexDirection: 'row',
@@ -306,7 +298,6 @@ const styles = StyleSheet.create({
   },
   views: {
     fontSize: 12,
-    color: '#9CA3AF',
     fontWeight: '500',
   },
   tagsContainer: {
@@ -315,14 +306,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tag: {
-    backgroundColor: '#F3F4F6',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   tagText: {
     fontSize: 11,
-    color: '#6B7280',
     fontWeight: '500',
   },
 });

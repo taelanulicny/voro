@@ -107,13 +107,16 @@ export default function PostCard({ post, onPress }: PostCardProps) {
 
           {/* Entity Tag */}
           {post.entityTicker && (
-            <TouchableOpacity style={styles.entityTag} onPress={handleEntityPress}>
-              <Ionicons name="pricetag" size={14} color="#3B82F6" />
-              <Text style={styles.entityTagText}>
+            <TouchableOpacity 
+              style={[styles.entityTag, { backgroundColor: theme.primaryLight }]} 
+              onPress={handleEntityPress}
+            >
+              <Ionicons name="pricetag" size={14} color={theme.primary} />
+              <Text style={[styles.entityTagText, { color: theme.primary }]}>
                 ${post.entityTicker}
               </Text>
               {post.entityName && (
-                <Text style={styles.entityName}> · {post.entityName}</Text>
+                <Text style={[styles.entityName, { color: theme.textSecondary }]}> · {post.entityName}</Text>
               )}
             </TouchableOpacity>
           )}
@@ -167,19 +170,19 @@ export default function PostCard({ post, onPress }: PostCardProps) {
           <Ionicons
             name={post.isLiked ? 'heart' : 'heart-outline'}
             size={20}
-            color={post.isLiked ? '#EF4444' : '#6B7280'}
+            color={post.isLiked ? '#EF4444' : theme.textSecondary}
           />
           {post.likes > 0 && (
-            <Text style={[styles.actionText, post.isLiked && styles.actionTextActive]}>
+            <Text style={[styles.actionText, { color: post.isLiked ? '#EF4444' : theme.textSecondary }]}>
               {post.likes}
             </Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-          <Ionicons name="chatbubble-outline" size={20} color="#6B7280" />
+          <Ionicons name="chatbubble-outline" size={20} color={theme.textSecondary} />
           {post.comments > 0 && (
-            <Text style={styles.actionText}>{post.comments}</Text>
+            <Text style={[styles.actionText, { color: theme.textSecondary }]}>{post.comments}</Text>
           )}
         </TouchableOpacity>
 
@@ -187,7 +190,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
           <Ionicons
             name={post.isBookmarked ? 'bookmark' : 'bookmark-outline'}
             size={20}
-            color={post.isBookmarked ? '#3B82F6' : '#6B7280'}
+            color={post.isBookmarked ? theme.primary : theme.textSecondary}
           />
         </TouchableOpacity>
       </View>
@@ -255,16 +258,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 6,
     alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   entityTagText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3B82F6',
     marginLeft: 4,
   },
   entityName: {
     fontSize: 13,
-    color: '#6B7280',
   },
   content: {
     paddingHorizontal: 16,
@@ -319,11 +323,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 14,
-    color: '#6B7280',
     fontWeight: '500',
-  },
-  actionTextActive: {
-    color: '#EF4444',
   },
 });
 

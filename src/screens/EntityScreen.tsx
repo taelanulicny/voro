@@ -14,6 +14,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { RootStackParamList, PriceDataPoint } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
+import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { getEntityById } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
@@ -24,20 +25,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width } = Dimensions.get('window');
 
-const chartConfig = {
-  backgroundColor: '#FFFFFF',
-  backgroundGradientFrom: '#FFFFFF',
-  backgroundGradientTo: '#FFFFFF',
-  decimalPlaces: 2,
-  color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
-  style: {
-    borderRadius: 16,
-  },
-  propsForDots: {
-    r: '0',
-  },
-};
+// Chart config will be created dynamically based on theme
 
 // Mock data generator for entity details
 const generateMockEntityData = (entityId: number, categoryId: string) => {
@@ -145,6 +133,7 @@ export default function EntityScreen() {
   const { entityId, categoryId } = route.params;
   const { getHolding, updatePrices } = useTrading();
   const { getNewsByEntity } = useNews();
+  const { theme } = useTheme();
 
   const [entityData] = useState(() => generateMockEntityData(entityId, categoryId));
   const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
@@ -193,24 +182,48 @@ export default function EntityScreen() {
     return `$${value.toFixed(2)}`;
   };
 
+  // Convert hex color to rgba for chart
+  const hexToRgba = (hex: string, opacity: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+
+  const chartConfig = {
+    backgroundColor: theme.card,
+    backgroundGradientFrom: theme.card,
+    backgroundGradientTo: theme.card,
+    decimalPlaces: 2,
+    color: (opacity = 1) => 
+      isPositive ? `rgba(16, 185, 129, ${opacity})` : `rgba(239, 68, 68, ${opacity})`,
+    labelColor: (opacity = 1) => hexToRgba(theme.textSecondary, opacity),
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: {
+      r: '0',
+    },
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
+            <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.ticker}>{entityData.entity.ticker}</Text>
-            <Text style={styles.entityName}>{entityData.entity.name}</Text>
+            <Text style={[styles.ticker, { color: theme.text }]}>{entityData.entity.ticker}</Text>
+            <Text style={[styles.entityName, { color: theme.textSecondary }]}>{entityData.entity.name}</Text>
           </View>
           <View style={styles.headerRight} />
         </View>
 
         {/* Price Section */}
-        <View style={styles.priceSection}>
-          <Text style={styles.price}>{formatCurrency(currentPrice)}</Text>
+        <View style={[styles.priceSection, { backgroundColor: theme.card }]}>
+          <Text style={[styles.price, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
           <View style={styles.changeContainer}>
             <Text style={[styles.change, { color: getChangeColor(priceChange) }]}>
               {isPositive ? '+' : ''}
@@ -224,16 +237,12 @@ export default function EntityScreen() {
         </View>
 
         {/* Chart */}
-        <View style={styles.chartContainer}>
+        <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
           <LineChart
             data={chartData}
             width={width}
             height={220}
-            chartConfig={{
-              ...chartConfig,
-              color: (opacity = 1) => 
-                isPositive ? `rgba(16, 185, 129, ${opacity})` : `rgba(239, 68, 68, ${opacity})`,
-            }}
+            chartConfig={chartConfig}
             bezier
             style={styles.chart}
             withInnerLines={true}
@@ -247,13 +256,18 @@ export default function EntityScreen() {
             {(['1D', '1W', '1M', 'ALL'] as const).map((range) => (
               <TouchableOpacity
                 key={range}
-                style={[styles.timeRangeButton, timeRange === range && styles.timeRangeButtonActive]}
+                style={[
+                  styles.timeRangeButton,
+                  { backgroundColor: theme.backgroundSecondary },
+                  timeRange === range && { backgroundColor: theme.primary },
+                ]}
                 onPress={() => setTimeRange(range)}
               >
                 <Text
                   style={[
                     styles.timeRangeText,
-                    timeRange === range && styles.timeRangeTextActive,
+                    { color: theme.textSecondary },
+                    timeRange === range && { color: '#FFFFFF' },
                   ]}
                 >
                   {range}
@@ -265,23 +279,23 @@ export default function EntityScreen() {
 
         {/* Your Position (if any) */}
         {holding && (
-          <View style={styles.positionCard}>
-            <Text style={styles.sectionTitle}>Your Position</Text>
+          <View style={[styles.positionCard, { backgroundColor: theme.card }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Position</Text>
             <View style={styles.positionGrid}>
               <View style={styles.positionItem}>
-                <Text style={styles.positionLabel}>Shares</Text>
-                <Text style={styles.positionValue}>{holding.quantity}</Text>
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Shares</Text>
+                <Text style={[styles.positionValue, { color: theme.text }]}>{holding.quantity}</Text>
               </View>
               <View style={styles.positionItem}>
-                <Text style={styles.positionLabel}>Avg Cost</Text>
-                <Text style={styles.positionValue}>{formatCurrency(holding.averageCost)}</Text>
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Avg Cost</Text>
+                <Text style={[styles.positionValue, { color: theme.text }]}>{formatCurrency(holding.averageCost)}</Text>
               </View>
               <View style={styles.positionItem}>
-                <Text style={styles.positionLabel}>Total Value</Text>
-                <Text style={styles.positionValue}>{formatCurrency(holding.totalValue)}</Text>
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Total Value</Text>
+                <Text style={[styles.positionValue, { color: theme.text }]}>{formatCurrency(holding.totalValue)}</Text>
               </View>
               <View style={styles.positionItem}>
-                <Text style={styles.positionLabel}>P&L</Text>
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>P&L</Text>
                 <Text
                   style={[
                     styles.positionValue,
@@ -297,50 +311,50 @@ export default function EntityScreen() {
         )}
 
         {/* Stats */}
-        <View style={styles.statsCard}>
-          <Text style={styles.sectionTitle}>Statistics</Text>
+        <View style={[styles.statsCard, { backgroundColor: theme.card }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Statistics</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>24h High</Text>
-              <Text style={styles.statValue}>{formatCurrency(entityData.stats.high24h)}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h High</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.high24h)}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>24h Low</Text>
-              <Text style={styles.statValue}>{formatCurrency(entityData.stats.low24h)}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h Low</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.low24h)}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Volume</Text>
-              <Text style={styles.statValue}>{formatVolume(entityData.stats.volume24h)}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Volume</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.volume24h)}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Market Cap</Text>
-              <Text style={styles.statValue}>{formatVolume(entityData.stats.marketCap)}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Market Cap</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.marketCap)}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Holders</Text>
-              <Text style={styles.statValue}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Holders</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>
                 {entityData.stats.holdersCount.toLocaleString()}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Rank</Text>
-              <Text style={styles.statValue}>#{entityData.stats.rank}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Rank</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>#{entityData.stats.rank}</Text>
             </View>
           </View>
         </View>
 
         {/* About */}
-        <View style={styles.aboutCard}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.description}>{entityData.entity.description}</Text>
+        <View style={[styles.aboutCard, { backgroundColor: theme.card }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>About</Text>
+          <Text style={[styles.description, { color: theme.textSecondary }]}>{entityData.entity.description}</Text>
         </View>
 
         {/* Related News */}
         {entityNews.length > 0 && (
           <View style={styles.newsSection}>
             <View style={styles.newsSectionHeader}>
-              <Text style={styles.sectionTitle}>Related News</Text>
-              <Text style={styles.newsCount}>{entityNews.length} articles</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Related News</Text>
+              <Text style={[styles.newsCount, { color: theme.textSecondary }]}>{entityNews.length} articles</Text>
             </View>
             {entityNews.slice(0, 5).map((article) => (
               <NewsCard
@@ -357,9 +371,9 @@ export default function EntityScreen() {
       </ScrollView>
 
       {/* Fixed Bottom Trade Buttons */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
         <TouchableOpacity
-          style={[styles.tradeButton, styles.tradeButtonBuy]}
+          style={[styles.tradeButton, { backgroundColor: theme.primary }]}
           onPress={() => setTradeModalVisible(true)}
         >
           <Text style={styles.tradeButtonText}>Trade {entityData.entity.ticker}</Text>
@@ -384,7 +398,6 @@ export default function EntityScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -392,7 +405,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
   },
   backButton: {
     width: 40,
@@ -402,7 +415,6 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 28,
-    color: '#111827',
   },
   headerCenter: {
     alignItems: 'center',
@@ -411,11 +423,9 @@ const styles = StyleSheet.create({
   ticker: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
   },
   entityName: {
     fontSize: 12,
-    color: '#6B7280',
     marginTop: 2,
   },
   headerRight: {
@@ -424,12 +434,10 @@ const styles = StyleSheet.create({
   priceSection: {
     alignItems: 'center',
     paddingVertical: 24,
-    backgroundColor: '#FFFFFF',
   },
   price: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#111827',
   },
   changeContainer: {
     flexDirection: 'row',
@@ -464,21 +472,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-  },
-  timeRangeButtonActive: {
-    backgroundColor: '#3B82F6',
   },
   timeRangeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
-  },
-  timeRangeTextActive: {
-    color: '#FFFFFF',
   },
   positionCard: {
-    backgroundColor: '#FFFFFF',
     margin: 16,
     padding: 16,
     borderRadius: 12,
@@ -491,7 +490,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
     marginBottom: 16,
   },
   positionGrid: {
@@ -504,16 +502,13 @@ const styles = StyleSheet.create({
   },
   positionLabel: {
     fontSize: 12,
-    color: '#6B7280',
     marginBottom: 4,
   },
   positionValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
   },
   statsCard: {
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
@@ -534,16 +529,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
     marginBottom: 4,
   },
   statValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
   },
   aboutCard: {
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
@@ -556,7 +548,6 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: '#6B7280',
     lineHeight: 20,
   },
   newsSection: {
@@ -579,10 +570,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -593,9 +582,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-  },
-  tradeButtonBuy: {
-    backgroundColor: '#3B82F6',
   },
   tradeButtonText: {
     fontSize: 18,

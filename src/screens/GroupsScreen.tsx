@@ -19,6 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
+import { useTheme } from '../context/ThemeContext';
 import { Group, RootStackParamList } from '../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -26,6 +27,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function GroupsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { groups, isLoadingGroups, refreshGroups, createGroup, joinGroup, leaveGroup } = useSocial();
+  const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'my'>('all');
@@ -49,89 +51,90 @@ export default function GroupsScreen() {
     : groups;
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.title}>Groups</Text>
+    <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Groups</Text>
       <TouchableOpacity
         style={styles.createButton}
         onPress={() => setShowCreateModal(true)}
       >
-        <Ionicons name="add-circle" size={28} color="#3B82F6" />
+        <Ionicons name="add-circle" size={28} color={theme.primary} />
       </TouchableOpacity>
     </View>
   );
 
   const renderFilterTabs = () => (
-    <View style={styles.filterTabs}>
+    <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       <TouchableOpacity
         style={[
           styles.filterTab,
-          filter === 'all' && styles.filterTabActive,
         ]}
         onPress={() => setFilter('all')}
       >
         <Text
           style={[
             styles.filterTabText,
-            filter === 'all' && styles.filterTabTextActive,
+            { color: filter === 'all' ? theme.primary : theme.textSecondary },
+            filter === 'all' && { fontWeight: '600' },
           ]}
         >
           All Groups
         </Text>
-        {filter === 'all' && <View style={styles.filterTabIndicator} />}
+        {filter === 'all' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
       </TouchableOpacity>
 
       <TouchableOpacity
         style={[
           styles.filterTab,
-          filter === 'my' && styles.filterTabActive,
         ]}
         onPress={() => setFilter('my')}
       >
         <Text
           style={[
             styles.filterTabText,
-            filter === 'my' && styles.filterTabTextActive,
+            { color: filter === 'my' ? theme.primary : theme.textSecondary },
+            filter === 'my' && { fontWeight: '600' },
           ]}
         >
           My Groups
         </Text>
-        {filter === 'my' && <View style={styles.filterTabIndicator} />}
+        {filter === 'my' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
       </TouchableOpacity>
     </View>
   );
 
   const renderGroupCard = ({ item }: { item: Group }) => (
     <TouchableOpacity
-      style={styles.groupCard}
+      style={[styles.groupCard, { backgroundColor: theme.card }]}
       onPress={() => navigation.navigate('GroupDetail', { groupId: item.id })}
       activeOpacity={0.7}
     >
       <View style={styles.groupHeader}>
-        <View style={styles.groupIcon}>
-          <Ionicons name="people" size={32} color="#3B82F6" />
+        <View style={[styles.groupIcon, { backgroundColor: theme.primaryLight }]}>
+          <Ionicons name="people" size={32} color={theme.primary} />
         </View>
         <View style={styles.groupInfo}>
           <View style={styles.groupTitleRow}>
-            <Text style={styles.groupName}>{item.name}</Text>
+            <Text style={[styles.groupName, { color: theme.text }]}>{item.name}</Text>
             {item.isPrivate && (
-              <Ionicons name="lock-closed" size={14} color="#6B7280" />
+              <Ionicons name="lock-closed" size={14} color={theme.textSecondary} />
             )}
           </View>
-          <Text style={styles.groupCategory}>{item.category}</Text>
-          <Text style={styles.groupMembers}>
+          <Text style={[styles.groupCategory, { color: theme.primary }]}>{item.category}</Text>
+          <Text style={[styles.groupMembers, { color: theme.textSecondary }]}>
             {item.memberCount.toLocaleString()} members
           </Text>
         </View>
       </View>
 
-      <Text style={styles.groupDescription} numberOfLines={2}>
+      <Text style={[styles.groupDescription, { color: theme.textSecondary }]} numberOfLines={2}>
         {item.description}
       </Text>
 
       <TouchableOpacity
         style={[
           styles.actionButton,
-          item.isMember ? styles.actionButtonSecondary : styles.actionButtonPrimary,
+          { backgroundColor: item.isMember ? theme.backgroundTertiary : theme.primary },
+          item.isMember && { borderWidth: 1.5, borderColor: theme.border },
         ]}
         onPress={(e) => {
           e.stopPropagation(); // Prevent navigation when tapping join/leave
@@ -141,7 +144,7 @@ export default function GroupsScreen() {
         <Text
           style={[
             styles.actionButtonText,
-            item.isMember ? styles.actionButtonTextSecondary : styles.actionButtonTextPrimary,
+            { color: item.isMember ? theme.textSecondary : '#FFFFFF' },
           ]}
         >
           {item.isMember ? 'Leave' : 'Join'}
@@ -152,17 +155,17 @@ export default function GroupsScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="people-outline" size={64} color="#D1D5DB" />
-      <Text style={styles.emptyStateTitle}>
+      <Ionicons name="people-outline" size={64} color={theme.textTertiary} />
+      <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
         {filter === 'my' ? 'No groups yet' : 'No groups found'}
       </Text>
-      <Text style={styles.emptyStateText}>
+      <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
         {filter === 'my'
           ? 'Join groups to connect with like-minded traders'
           : 'Be the first to create a trading group!'}
       </Text>
       <TouchableOpacity
-        style={styles.emptyStateButton}
+        style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
         onPress={() => setShowCreateModal(true)}
       >
         <Text style={styles.emptyStateButtonText}>Create Group</Text>
@@ -172,18 +175,18 @@ export default function GroupsScreen() {
 
   if (isLoadingGroups && groups.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
         {renderHeader()}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading groups...</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading groups...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       <FlatList
         data={filteredGroups}
         renderItem={renderGroupCard}
@@ -199,7 +202,7 @@ export default function GroupsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#3B82F6"
+            tintColor={theme.primary}
           />
         }
         contentContainerStyle={[
@@ -226,6 +229,7 @@ interface CreateGroupModalProps {
 }
 
 function CreateGroupModal({ visible, onClose, onCreate }: CreateGroupModalProps) {
+  const { theme } = useTheme();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -268,24 +272,24 @@ function CreateGroupModal({ visible, onClose, onCreate }: CreateGroupModalProps)
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalContainer}
+        style={[styles.modalContainer, { backgroundColor: theme.card }]}
       >
-        <View style={styles.modalHeader}>
+        <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
+            <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Create Group</Text>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Create Group</Text>
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={isSubmitting || !name.trim() || !description.trim() || !category}
           >
             {isSubmitting ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
+              <ActivityIndicator size="small" color={theme.primary} />
             ) : (
               <Text
                 style={[
                   styles.modalCreateText,
-                  (!name.trim() || !description.trim() || !category) && styles.modalCreateTextDisabled,
+                  { color: (!name.trim() || !description.trim() || !category) ? theme.textTertiary : theme.primary },
                 ]}
               >
                 Create
@@ -295,48 +299,54 @@ function CreateGroupModal({ visible, onClose, onCreate }: CreateGroupModalProps)
         </View>
 
         <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.label}>Group Name</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Group Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
             placeholder="e.g. Tech Stock Bulls"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.textTertiary}
             value={name}
             onChangeText={setName}
             maxLength={50}
           />
 
-          <Text style={styles.label}>Description</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Description</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
             placeholder="What's this group about?"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.textTertiary}
             value={description}
             onChangeText={setDescription}
             multiline
             maxLength={200}
           />
 
-          <Text style={styles.label}>Category</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Category</Text>
           <View style={styles.categoryButtons}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.categoryButton,
-                  category === cat && styles.categoryButtonActive,
-                ]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text
+            {categories.map((cat) => {
+              const isActive = category === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
                   style={[
-                    styles.categoryButtonText,
-                    category === cat && styles.categoryButtonTextActive,
+                    styles.categoryButton,
+                    {
+                      backgroundColor: isActive ? theme.primary : theme.backgroundSecondary,
+                      borderColor: isActive ? theme.primary : theme.border,
+                    },
                   ]}
+                  onPress={() => setCategory(cat)}
                 >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.categoryButtonText,
+                      { color: isActive ? '#FFFFFF' : theme.textSecondary },
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <TouchableOpacity
@@ -347,11 +357,14 @@ function CreateGroupModal({ visible, onClose, onCreate }: CreateGroupModalProps)
               <Ionicons
                 name={isPrivate ? 'lock-closed' : 'lock-open'}
                 size={20}
-                color="#6B7280"
+                color={theme.textSecondary}
               />
-              <Text style={styles.privacyToggleText}>Private Group</Text>
+              <Text style={[styles.privacyToggleText, { color: theme.text }]}>Private Group</Text>
             </View>
-            <View style={[styles.switch, isPrivate && styles.switchActive]}>
+            <View style={[
+              styles.switch,
+              { backgroundColor: isPrivate ? theme.primary : theme.backgroundTertiary },
+            ]}>
               <View style={[styles.switchThumb, isPrivate && styles.switchThumbActive]} />
             </View>
           </TouchableOpacity>
@@ -364,7 +377,6 @@ function CreateGroupModal({ visible, onClose, onCreate }: CreateGroupModalProps)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -373,21 +385,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
   },
   createButton: {
     padding: 4,
   },
   filterTabs: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     marginBottom: 16,
   },
   filterTab: {
@@ -396,15 +405,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     position: 'relative',
   },
-  filterTabActive: {},
   filterTabText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#6B7280',
-  },
-  filterTabTextActive: {
-    color: '#3B82F6',
-    fontWeight: '600',
   },
   filterTabIndicator: {
     position: 'absolute',
@@ -412,14 +415,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#3B82F6',
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
   groupCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -437,7 +438,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 12,
-    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -454,23 +454,19 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#111827',
   },
   groupCategory: {
     fontSize: 13,
-    color: '#3B82F6',
     fontWeight: '500',
     marginTop: 2,
   },
   groupMembers: {
     fontSize: 13,
-    color: '#6B7280',
     marginTop: 2,
   },
   groupDescription: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#6B7280',
     marginBottom: 12,
   },
   actionButton: {
@@ -479,23 +475,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  actionButtonPrimary: {
-    backgroundColor: '#3B82F6',
-  },
-  actionButtonSecondary: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-  },
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  actionButtonTextPrimary: {
-    color: '#FFFFFF',
-  },
-  actionButtonTextSecondary: {
-    color: '#6B7280',
   },
   loadingContainer: {
     flex: 1,
@@ -521,19 +503,16 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
   emptyStateButton: {
-    backgroundColor: '#3B82F6',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -546,7 +525,6 @@ const styles = StyleSheet.create({
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -555,24 +533,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   modalCancelText: {
     fontSize: 16,
-    color: '#6B7280',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
   },
   modalCreateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
-  },
-  modalCreateTextDisabled: {
-    color: '#9CA3AF',
   },
   modalContent: {
     flex: 1,
@@ -581,19 +552,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 8,
     marginTop: 16,
   },
   input: {
-    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#111827',
   },
   textArea: {
     height: 100,
@@ -609,20 +576,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
   },
   categoryButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
-  },
-  categoryButtonTextActive: {
-    color: '#FFFFFF',
   },
   privacyToggle: {
     flexDirection: 'row',
@@ -638,19 +595,14 @@ const styles = StyleSheet.create({
   },
   privacyToggleText: {
     fontSize: 15,
-    color: '#111827',
     fontWeight: '500',
   },
   switch: {
     width: 50,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     paddingHorizontal: 2,
-  },
-  switchActive: {
-    backgroundColor: '#3B82F6',
   },
   switchThumb: {
     width: 24,

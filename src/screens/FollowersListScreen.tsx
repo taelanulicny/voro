@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, User } from '../types';
 import FollowButton from '../components/FollowButton';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 type FollowersListRouteProp = RouteProp<RootStackParamList, 'FollowersList'>;
 
@@ -47,6 +48,7 @@ export default function FollowersListScreen() {
   const route = useRoute<FollowersListRouteProp>();
   const { userId, type, username } = route.params;
   const { user: currentUser } = useAuth();
+  const { theme } = useTheme();
   
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,20 +70,20 @@ export default function FollowersListScreen() {
     const isCurrentUser = item.id === currentUser?.id;
 
     return (
-      <TouchableOpacity style={styles.userItem}>
+      <TouchableOpacity style={[styles.userItem, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.userLeft}>
           <View style={styles.avatar}>
-            <Ionicons name="person-circle" size={48} color="#9CA3AF" />
+            <Ionicons name="person-circle" size={48} color={theme.textTertiary} />
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.displayName}>{item.displayName}</Text>
-            <Text style={styles.username}>@{item.username}</Text>
+            <Text style={[styles.displayName, { color: theme.text }]}>{item.displayName}</Text>
+            <Text style={[styles.username, { color: theme.textSecondary }]}>@{item.username}</Text>
             <View style={styles.statsRow}>
-              <Text style={styles.statsText}>
+              <Text style={[styles.statsText, { color: theme.textTertiary }]}>
                 {item.followersCount} followers
               </Text>
-              <View style={styles.statsDot} />
-              <Text style={styles.statsText}>
+              <View style={[styles.statsDot, { backgroundColor: theme.textTertiary }]} />
+              <Text style={[styles.statsText, { color: theme.textTertiary }]}>
                 {item.followingCount} following
               </Text>
             </View>
@@ -100,12 +102,12 @@ export default function FollowersListScreen() {
       <Ionicons
         name={type === 'followers' ? 'people-outline' : 'person-add-outline'}
         size={64}
-        color="#D1D5DB"
+        color={theme.textTertiary}
       />
-      <Text style={styles.emptyStateTitle}>
+      <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
         {type === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
       </Text>
-      <Text style={styles.emptyStateText}>
+      <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
         {type === 'followers'
           ? 'When people follow this user, they\'ll appear here'
           : 'Start following traders to see their activity'}
@@ -114,21 +116,21 @@ export default function FollowersListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
             {type === 'followers' ? 'Followers' : 'Following'}
           </Text>
-          <Text style={styles.headerSubtitle}>@{username}</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>@{username}</Text>
         </View>
 
         <View style={styles.headerRight} />
@@ -136,8 +138,8 @@ export default function FollowersListScreen() {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
             Loading {type === 'followers' ? 'followers' : 'following'}...
           </Text>
         </View>
@@ -161,7 +163,6 @@ export default function FollowersListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -169,9 +170,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     width: 40,
@@ -187,11 +186,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#111827',
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#6B7280',
     marginTop: 2,
   },
   headerRight: {
@@ -205,7 +202,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280',
   },
   listContent: {
     padding: 16,
@@ -217,12 +213,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   userLeft: {
     flexDirection: 'row',
@@ -240,12 +234,10 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 2,
   },
   username: {
     fontSize: 13,
-    color: '#6B7280',
     marginBottom: 4,
   },
   statsRow: {
@@ -254,13 +246,11 @@ const styles = StyleSheet.create({
   },
   statsText: {
     fontSize: 12,
-    color: '#9CA3AF',
   },
   statsDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#D1D5DB',
     marginHorizontal: 6,
   },
   emptyState: {
@@ -272,13 +262,11 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
   },
