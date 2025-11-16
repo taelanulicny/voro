@@ -49,7 +49,7 @@ export default function CreatePostModal({
       entityId,
       entityTicker,
       entityName,
-      sentiment: entityId ? sentiment : undefined, // Only include sentiment if entity is tagged
+      sentiment, // Always include sentiment
     });
 
     setIsSubmitting(false);
@@ -173,79 +173,77 @@ export default function CreatePostModal({
 
           <Text style={styles.characterCount}>{content.length}/500</Text>
 
-          {/* Sentiment Selector (only if entity is tagged) */}
-          {entityId && (
-            <View style={styles.sentimentSection}>
-              <Text style={styles.sectionLabel}>Sentiment</Text>
-              <View style={styles.sentimentButtons}>
-                <TouchableOpacity
+          {/* Sentiment Selector */}
+          <View style={styles.sentimentSection}>
+            <Text style={styles.sectionLabel}>Sentiment (Optional)</Text>
+            <View style={styles.sentimentButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.sentimentButton,
+                  sentiment === 'bullish' && styles.sentimentButtonBullish,
+                ]}
+                onPress={() => setSentiment('bullish')}
+              >
+                <Ionicons
+                  name="trending-up"
+                  size={20}
+                  color={sentiment === 'bullish' ? '#FFFFFF' : '#10B981'}
+                />
+                <Text
                   style={[
-                    styles.sentimentButton,
-                    sentiment === 'bullish' && styles.sentimentButtonBullish,
+                    styles.sentimentButtonText,
+                    sentiment === 'bullish' && styles.sentimentButtonTextActive,
                   ]}
-                  onPress={() => setSentiment('bullish')}
                 >
-                  <Ionicons
-                    name="trending-up"
-                    size={20}
-                    color={sentiment === 'bullish' ? '#FFFFFF' : '#10B981'}
-                  />
-                  <Text
-                    style={[
-                      styles.sentimentButtonText,
-                      sentiment === 'bullish' && styles.sentimentButtonTextActive,
-                    ]}
-                  >
-                    Bullish
-                  </Text>
-                </TouchableOpacity>
+                  Bullish
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
+              <TouchableOpacity
+                style={[
+                  styles.sentimentButton,
+                  sentiment === 'neutral' && styles.sentimentButtonNeutral,
+                ]}
+                onPress={() => setSentiment('neutral')}
+              >
+                <Ionicons
+                  name="remove"
+                  size={20}
+                  color={sentiment === 'neutral' ? '#FFFFFF' : '#6B7280'}
+                />
+                <Text
                   style={[
-                    styles.sentimentButton,
-                    sentiment === 'neutral' && styles.sentimentButtonNeutral,
+                    styles.sentimentButtonText,
+                    sentiment === 'neutral' && styles.sentimentButtonTextActive,
                   ]}
-                  onPress={() => setSentiment('neutral')}
                 >
-                  <Ionicons
-                    name="remove"
-                    size={20}
-                    color={sentiment === 'neutral' ? '#FFFFFF' : '#6B7280'}
-                  />
-                  <Text
-                    style={[
-                      styles.sentimentButtonText,
-                      sentiment === 'neutral' && styles.sentimentButtonTextActive,
-                    ]}
-                  >
-                    Neutral
-                  </Text>
-                </TouchableOpacity>
+                  Neutral
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
+              <TouchableOpacity
+                style={[
+                  styles.sentimentButton,
+                  sentiment === 'bearish' && styles.sentimentButtonBearish,
+                ]}
+                onPress={() => setSentiment('bearish')}
+              >
+                <Ionicons
+                  name="trending-down"
+                  size={20}
+                  color={sentiment === 'bearish' ? '#FFFFFF' : '#EF4444'}
+                />
+                <Text
                   style={[
-                    styles.sentimentButton,
-                    sentiment === 'bearish' && styles.sentimentButtonBearish,
+                    styles.sentimentButtonText,
+                    sentiment === 'bearish' && styles.sentimentButtonTextActive,
                   ]}
-                  onPress={() => setSentiment('bearish')}
                 >
-                  <Ionicons
-                    name="trending-down"
-                    size={20}
-                    color={sentiment === 'bearish' ? '#FFFFFF' : '#EF4444'}
-                  />
-                  <Text
-                    style={[
-                      styles.sentimentButtonText,
-                      sentiment === 'bearish' && styles.sentimentButtonTextActive,
-                    ]}
-                  >
-                    Bearish
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  Bearish
+                </Text>
+              </TouchableOpacity>
             </View>
-          )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
