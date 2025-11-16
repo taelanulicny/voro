@@ -12,11 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNews } from '../context/NewsContext';
+import { useTheme } from '../context/ThemeContext';
 import { NewsArticle, NewsFilter } from '../types';
 import NewsCard from '../components/NewsCard';
 
 export default function NewsScreen() {
   const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
+  const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'breaking' | 'category' | 'sentiment'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
@@ -61,8 +63,8 @@ export default function NewsScreen() {
   ] as const;
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.title}>News</Text>
+    <View style={[styles.header, { backgroundColor: theme.backgroundSecondary }]}>
+      <Text style={[styles.title, { color: theme.text }]}>News</Text>
       {breakingNews.length > 0 && (
         <View style={styles.breakingCountBadge}>
           <Ionicons name="flash" size={12} color="#FFFFFF" />
@@ -266,7 +268,7 @@ export default function NewsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       <FlatList
         data={filteredNews}
         renderItem={renderNewsItem}
@@ -282,7 +284,7 @@ export default function NewsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#3B82F6"
+            tintColor={theme.primary}
           />
         }
         contentContainerStyle={[

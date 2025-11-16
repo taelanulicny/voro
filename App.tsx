@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
 import { TradingProvider } from './src/context/TradingContext';
 import { NewsProvider } from './src/context/NewsContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -19,6 +20,8 @@ import EntityScreen from './src/screens/EntityScreen';
 import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import FollowersListScreen from './src/screens/FollowersListScreen';
 import NewsDetailScreen from './src/screens/NewsDetailScreen';
+import BuyScreen from './src/screens/BuyScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -43,6 +46,8 @@ function RootNavigator() {
         <>
           <Stack.Screen name="Main" component={BottomTabNavigator} />
           <Stack.Screen name="Entity" component={EntityScreen} />
+          <Stack.Screen name="BuyScreen" component={BuyScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
           <Stack.Screen name="FollowersList" component={FollowersListScreen} />
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
@@ -55,18 +60,20 @@ function RootNavigator() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <SocialProvider>
-          <NewsProvider>
-            <TradingProvider>
-              <NavigationContainer>
-                <StatusBar style="auto" />
-                <RootNavigator />
-              </NavigationContainer>
-            </TradingProvider>
-          </NewsProvider>
-        </SocialProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocialProvider>
+            <NewsProvider>
+              <TradingProvider>
+                <NavigationContainer>
+                  <StatusBar style="auto" />
+                  <RootNavigator />
+                </NavigationContainer>
+              </TradingProvider>
+            </NewsProvider>
+          </SocialProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

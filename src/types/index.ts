@@ -11,6 +11,8 @@ export type RootStackParamList = {
   FollowersList: { userId: string; type: 'followers' | 'following'; username: string };
   UserProfile: { userId: string };
   NewsDetail: { articleId: string };
+  BuyScreen: undefined;
+  Settings: undefined;
 };
 
 export type MainTabParamList = {

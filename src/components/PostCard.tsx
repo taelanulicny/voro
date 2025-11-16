@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Post } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import CommentSection from './CommentSection';
 
@@ -21,6 +22,7 @@ interface PostCardProps {
 export default function PostCard({ post, onPress }: PostCardProps) {
   const { user } = useAuth();
   const { toggleLikePost, toggleBookmarkPost, deletePost } = useSocial();
+  const { theme } = useTheme();
   const [showComments, setShowComments] = useState(false);
   const navigation = useNavigation();
 
@@ -81,19 +83,19 @@ export default function PostCard({ post, onPress }: PostCardProps) {
   const isOwnPost = user?.id === post.userId;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <Ionicons name="person-circle" size={40} color="#9CA3AF" />
+          <Ionicons name="person-circle" size={40} color={theme.textTertiary} />
         </View>
         
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
             <View style={styles.userInfo}>
-              <Text style={styles.displayName}>{post.displayName}</Text>
-              <Text style={styles.username}>@{post.username}</Text>
-              <Text style={styles.timestamp}>{formatTimestamp(post.timestamp)}</Text>
+              <Text style={[styles.displayName, { color: theme.text }]}>{post.displayName}</Text>
+              <Text style={[styles.username, { color: theme.textSecondary }]}>@{post.username}</Text>
+              <Text style={[styles.timestamp, { color: theme.textTertiary }]}>{formatTimestamp(post.timestamp)}</Text>
             </View>
             
             {isOwnPost && (
@@ -124,7 +126,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         onPress={onPress}
         activeOpacity={onPress ? 0.7 : 1}
       >
-        <Text style={styles.contentText}>{post.content}</Text>
+        <Text style={[styles.contentText, { color: theme.text }]}>{post.content}</Text>
         
         {/* Sentiment Badge */}
         {post.sentiment && (
