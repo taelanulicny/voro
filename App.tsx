@@ -14,6 +14,7 @@ import WelcomeScreen from './src/screens/WelcomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
+import EntityScreen from './src/screens/EntityScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -35,7 +36,10 @@ function RootNavigator() {
           <Stack.Screen name="Signup" component={SignupScreen} />
         </>
       ) : (
-        <Stack.Screen name="Main" component={BottomTabNavigator} />
+        <>
+          <Stack.Screen name="Main" component={BottomTabNavigator} />
+          <Stack.Screen name="Entity" component={EntityScreen} />
+        </>
       )}
     </Stack.Navigator>
   );

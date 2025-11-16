@@ -28,6 +28,7 @@
     },
     "plugins": [
       "expo-apple-authentication"
-    ]
+    ],
+    "scheme": "moro"
   }
 }

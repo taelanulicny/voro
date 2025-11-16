@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout } from '../services/authService';
 
 export interface User {
   id: string;
@@ -18,8 +19,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (data: { email: string; password: string; username: string; displayName: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  loginWithGoogle: (idToken: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithApple: (identityToken: string, user?: any) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (email: string, id: string, name: string, photo?: string, idToken?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithApple: (email: string, id: string, name: string, identityToken?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,11 +42,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const savedUser = await AsyncStorage.getItem('user');
       
       if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
+        // Verify token is still valid
+        const verification = await verifyToken(savedToken);
+        
+        if (verification.success && verification.user) {
+          // Token is valid, use verified user data
+          setToken(savedToken);
+          setUser(verification.user);
+        } else {
+          // Token is invalid, clear stored data
+          await clearAuthData();
+        }
       }
     } catch (error) {
       console.error('Error loading auth data:', error);
+      // On error, clear potentially invalid data
+      await clearAuthData();
     } finally {
       setIsLoading(false);
     }
@@ -75,77 +87,116 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // Mock login - replace with actual API call
-      const mockUser: User = {
-        id: '1',
-        email,
-        username: email.split('@')[0],
-        displayName: email.split('@')[0],
-      };
-      const mockToken = 'mock-jwt-token';
+      const result = await apiLogin({ email, password });
       
-      await saveAuthData(mockToken, mockUser);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Login failed' };
+      if (result.success && result.token && result.user) {
+        await saveAuthData(result.token, result.user);
+        return { success: true };
+      }
+      
+      return { 
+        success: false, 
+        error: result.error || 'Login failed. Please check your credentials.' 
+      };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Network error. Please check your connection.' 
+      };
     }
   };
 
   const signup = async (data: { email: string; password: string; username: string; displayName: string }) => {
     try {
-      // Mock signup - replace with actual API call
-      const mockUser: User = {
-        id: '1',
-        email: data.email,
-        username: data.username,
-        displayName: data.displayName,
-      };
-      const mockToken = 'mock-jwt-token';
+      const result = await apiSignup(data);
       
-      await saveAuthData(mockToken, mockUser);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Signup failed' };
+      if (result.success && result.token && result.user) {
+        await saveAuthData(result.token, result.user);
+        return { success: true };
+      }
+      
+      return { 
+        success: false, 
+        error: result.error || 'Signup failed. Please try again.' 
+      };
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Network error. Please check your connection.' 
+      };
     }
   };
 
   const logout = async () => {
-    await clearAuthData();
-  };
-
-  const loginWithGoogle = async (idToken: string) => {
     try {
-      // Mock Google login - replace with actual API call
-      const mockUser: User = {
-        id: '1',
-        email: 'google.user@gmail.com',
-        username: 'googleuser',
-        displayName: 'Google User',
-      };
-      const mockToken = 'mock-jwt-token';
-      
-      await saveAuthData(mockToken, mockUser);
-      return { success: true };
+      // Try to logout on server if we have a token
+      if (token) {
+        await apiLogout(token);
+      }
     } catch (error) {
-      return { success: false, error: 'Google login failed' };
+      console.error('Logout error:', error);
+      // Continue with local logout even if server logout fails
+    } finally {
+      await clearAuthData();
     }
   };
 
-  const loginWithApple = async (identityToken: string, user?: any) => {
+  const loginWithGoogle = async (email: string, id: string, name: string, photo?: string, idToken?: string) => {
     try {
-      // Mock Apple login - replace with actual API call
-      const mockUser: User = {
-        id: '1',
-        email: user?.email || 'apple.user@icloud.com',
-        username: 'appleuser',
-        displayName: user?.fullName?.givenName || 'Apple User',
-      };
-      const mockToken = 'mock-jwt-token';
+      const result = await loginWithOAuth({
+        email,
+        id,
+        name,
+        photo,
+        provider: 'google',
+        idToken,
+      });
       
-      await saveAuthData(mockToken, mockUser);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Apple login failed' };
+      if (result.success && result.token && result.user) {
+        await saveAuthData(result.token, result.user);
+        return { success: true };
+      }
+      
+      return { 
+        success: false, 
+        error: result.error || 'Google login failed' 
+      };
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Google login failed' 
+      };
+    }
+  };
+
+  const loginWithApple = async (email: string, id: string, name: string, identityToken?: string) => {
+    try {
+      const result = await loginWithOAuth({
+        email: email || `apple_${id}@privaterelay.appleid.com`,
+        id,
+        name: name || 'Apple User',
+        provider: 'apple',
+        identityToken,
+      });
+      
+      if (result.success && result.token && result.user) {
+        await saveAuthData(result.token, result.user);
+        return { success: true };
+      }
+      
+      return { 
+        success: false, 
+        error: result.error || 'Apple login failed' 
+      };
+    } catch (error: any) {
+      console.error('Apple login error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Apple login failed' 
+      };
     }
   };
 
