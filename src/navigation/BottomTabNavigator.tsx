@@ -5,9 +5,9 @@ import { MainTabParamList } from '../types';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
-import NewsScreen from '../screens/NewsScreen';
+import FeedsScreen from '../screens/FeedsScreen';
+import GroupsScreen from '../screens/GroupsScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
-import WatchlistScreen from '../screens/WatchlistScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -21,27 +21,32 @@ export default function BottomTabNavigator() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'News') {
-            iconName = focused ? 'newspaper' : 'newspaper-outline';
+          } else if (route.name === 'Feeds') {
+            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+          } else if (route.name === 'Groups') {
+            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Portfolio') {
             iconName = focused ? 'wallet' : 'wallet-outline';
-          } else if (route.name === 'Watchlist') {
-            iconName = focused ? 'star' : 'star-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#9CA3AF',
         headerShown: false,
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          backgroundColor: '#FFFFFF',
+        },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="News" component={NewsScreen} />
+      <Tab.Screen name="Feeds" component={FeedsScreen} />
+      <Tab.Screen name="Groups" component={GroupsScreen} />
       <Tab.Screen name="Portfolio" component={PortfolioScreen} />
-      <Tab.Screen name="Watchlist" component={WatchlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

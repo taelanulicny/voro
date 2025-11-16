@@ -14,6 +14,40 @@ export const API_CONFIG = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+  endpoints: {
+    social: {
+      // Posts
+      createPost: '/social/posts',
+      getActivityFeed: '/social/feed',
+      getUserPosts: '/social/users/:userId/posts',
+      getEntityPosts: '/social/entities/:entityId/posts',
+      deletePost: '/social/posts/:postId',
+      likePost: '/social/posts/:postId/like',
+      bookmarkPost: '/social/posts/:postId/bookmark',
+      // Comments
+      getComments: '/social/posts/:postId/comments',
+      addComment: '/social/posts/:postId/comments',
+      deleteComment: '/social/comments/:commentId',
+      likeComment: '/social/comments/:commentId/like',
+      // Follow
+      followUser: '/social/users/:userId/follow',
+      unfollowUser: '/social/users/:userId/follow',
+      getFollowers: '/social/users/:userId/followers',
+      getFollowing: '/social/users/:userId/following',
+      // User
+      searchUsers: '/social/users/search',
+      getUserProfile: '/social/users/:userId',
+      // Groups
+      getGroups: '/social/groups',
+      getUserGroups: '/social/users/:userId/groups',
+      createGroup: '/social/groups',
+      joinGroup: '/social/groups/:groupId/join',
+      leaveGroup: '/social/groups/:groupId/leave',
+      getGroupPosts: '/social/groups/:groupId/posts',
+      // Activities
+      getActivities: '/social/activities',
+    },
+  },
 };
 
 /**
@@ -116,5 +150,18 @@ export async function authenticatedRequest<T = any>(
       Authorization: `Bearer ${token}`,
     },
   });
+}
+
+/**
+ * Helper functions for building URLs
+ */
+export function buildURL(path: string): string {
+  return path.startsWith('http') ? path : `${API_CONFIG.baseURL}${path}`;
+}
+
+export function buildURLWithQuery(path: string, params: Record<string, string>): string {
+  const url = buildURL(path);
+  const queryString = new URLSearchParams(params).toString();
+  return queryString ? `${url}?${queryString}` : url;
 }
 

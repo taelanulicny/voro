@@ -11,9 +11,9 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  News: undefined;
+  Feeds: undefined;
+  Groups: undefined;
   Portfolio: undefined;
-  Watchlist: undefined;
   Profile: undefined;
 };
 
@@ -28,6 +28,12 @@ export interface User {
   followersCount: number;
   followingCount: number;
   isFollowing?: boolean;
+}
+
+export interface UserProfile extends User {
+  postsCount: number;
+  portfolioValue?: number;
+  joinedDate: string;
 }
 
 // Trading Types
