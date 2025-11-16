@@ -45,6 +45,10 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
+  // Create AbortController for timeout (React Native compatible)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+
   try {
     const url = `${API_CONFIG.baseURL}${endpoint}`;
     
@@ -54,8 +58,10 @@ export async function apiRequest<T = any>(
         ...API_CONFIG.headers,
         ...options.headers,
       },
-      signal: AbortSignal.timeout(API_CONFIG.timeout),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 
@@ -71,6 +77,7 @@ export async function apiRequest<T = any>(
       data: data.data || data,
     };
   } catch (error: any) {
+    clearTimeout(timeoutId);
     console.error('API Request Error:', error);
     
     if (error.name === 'AbortError' || error.name === 'TimeoutError') {

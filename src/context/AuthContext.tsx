@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   loginWithGoogle: (email: string, id: string, name: string, photo?: string, idToken?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithApple: (email: string, id: string, name: string, identityToken?: string) => Promise<{ success: boolean; error?: string }>;
+  skipAuth: () => Promise<void>; // DEV ONLY
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -200,6 +201,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // DEV ONLY - Skip authentication for development
+  const skipAuth = async () => {
+    const mockUser: User = {
+      id: 'dev-user-' + Date.now(),
+      email: 'dev@moro.app',
+      username: 'devuser',
+      displayName: 'Dev User',
+      avatarUrl: undefined,
+      bio: 'Development mode user',
+    };
+    const mockToken = 'dev-token-' + Date.now();
+    
+    await saveAuthData(mockToken, mockUser);
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -210,6 +226,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     loginWithGoogle,
     loginWithApple,
+    skipAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
