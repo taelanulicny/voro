@@ -1,0 +1,586 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  TextInput,
+  Animated,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import { useTrading } from '../context/TradingContext';
+import { formatCurrency } from '../utils/dataGenerator';
+
+const { height } = Dimensions.get('window');
+
+interface TradeModalProps {
+  visible: boolean;
+  onClose: () => void;
+  entityId: number;
+  entityName: string;
+  entityTicker: string;
+  currentPrice: number;
+  category: string;
+  existingQuantity?: number;
+}
+
+export default function TradeModal({
+  visible,
+  onClose,
+  entityId,
+  entityName,
+  entityTicker,
+  currentPrice,
+  category,
+  existingQuantity = 0,
+}: TradeModalProps) {
+  const { portfolio, executeTrade, getHolding } = useTrading();
+  const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+  const [quantity, setQuantity] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [slideAnim] = useState(new Animated.Value(height));
+
+  const holding = useMemo(() => getHolding(entityId), [entityId, portfolio.holdings]);
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: height,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
+
+  const quantityNum = parseFloat(quantity) || 0;
+  const totalCost = quantityNum * currentPrice;
+  const hasSufficientFunds = totalCost <= portfolio.cashBalance;
+  const hasSufficientShares = holding ? quantityNum <= holding.quantity : false;
+
+  const canBuy = activeTab === 'buy' && quantityNum > 0 && hasSufficientFunds;
+  const canSell = activeTab === 'sell' && quantityNum > 0 && hasSufficientShares;
+  const canExecute = canBuy || canSell;
+
+  const handleQuantityChange = (text: string) => {
+    // Only allow numbers and one decimal point
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) return;
+    if (parts[1] && parts[1].length > 2) return;
+    setQuantity(cleaned);
+  };
+
+  const setPercentage = (percent: number) => {
+    if (activeTab === 'buy') {
+      const maxAffordable = portfolio.cashBalance / currentPrice;
+      const qty = Math.floor((maxAffordable * percent) / 100);
+      setQuantity(qty.toString());
+    } else if (holding) {
+      const qty = Math.floor((holding.quantity * percent) / 100);
+      setQuantity(qty.toString());
+    }
+  };
+
+  const handleExecuteTrade = () => {
+    if (!canExecute) return;
+
+    setIsProcessing(true);
+
+    // Simulate slight delay for realistic feel
+    setTimeout(() => {
+      const success = executeTrade(
+        entityId,
+        entityName,
+        entityTicker,
+        activeTab,
+        quantityNum,
+        currentPrice,
+        category
+      );
+
+      setIsProcessing(false);
+
+      if (success) {
+        // Show success message
+        Alert.alert(
+          'Trade Executed',
+          `Successfully ${activeTab === 'buy' ? 'bought' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(currentPrice)}`,
+          [{ text: 'OK', onPress: () => handleClose() }]
+        );
+      } else {
+        // Show error message
+        Alert.alert(
+          'Trade Failed',
+          activeTab === 'buy'
+            ? 'Insufficient funds to complete this purchase.'
+            : 'Insufficient shares to complete this sale.',
+          [{ text: 'OK' }]
+        );
+      }
+    }, 300);
+  };
+
+  const handleClose = () => {
+    setQuantity('');
+    setActiveTab('buy');
+    onClose();
+  };
+
+  const expectedProceeds = useMemo(() => {
+    if (activeTab === 'sell' && holding && quantityNum > 0) {
+      const costBasis = holding.averageCost * quantityNum;
+      const proceeds = currentPrice * quantityNum;
+      const profitLoss = proceeds - costBasis;
+      const profitLossPercent = (profitLoss / costBasis) * 100;
+      return { proceeds, profitLoss, profitLossPercent };
+    }
+    return null;
+  }, [activeTab, holding, quantityNum, currentPrice]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={handleClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
+        <TouchableOpacity style={styles.backdrop} onPress={handleClose} activeOpacity={1} />
+
+        <Animated.View
+          style={[
+            styles.modalContainer,
+            {
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.handle} />
+            <View style={styles.headerContent}>
+              <View>
+                <Text style={styles.ticker}>{entityTicker}</Text>
+                <Text style={styles.entityName}>{entityName}</Text>
+              </View>
+              <View style={styles.priceContainer}>
+                <Text style={styles.price}>{formatCurrency(currentPrice)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Buy/Sell Tabs */}
+          <View style={styles.tabs}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'buy' && styles.tabActiveBuy]}
+              onPress={() => setActiveTab('buy')}
+            >
+              <Text style={[styles.tabText, activeTab === 'buy' && styles.tabTextActive]}>
+                Buy
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'sell' && styles.tabActiveSell]}
+              onPress={() => setActiveTab('sell')}
+            >
+              <Text style={[styles.tabText, activeTab === 'sell' && styles.tabTextActive]}>
+                Sell
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Current Position Info */}
+          {holding && (
+            <View style={styles.positionInfo}>
+              <Text style={styles.positionLabel}>Your Position</Text>
+              <View style={styles.positionRow}>
+                <Text style={styles.positionText}>Shares Owned: {holding.quantity}</Text>
+                <Text style={styles.positionText}>
+                  Avg Cost: {formatCurrency(holding.averageCost)}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Quantity Input */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Quantity</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                placeholderTextColor="#9CA3AF"
+                value={quantity}
+                onChangeText={handleQuantityChange}
+                keyboardType="decimal-pad"
+                maxLength={10}
+              />
+              <Text style={styles.inputSuffix}>shares</Text>
+            </View>
+
+            {/* Quick Percentage Buttons */}
+            <View style={styles.percentButtons}>
+              {[25, 50, 75, 100].map((percent) => (
+                <TouchableOpacity
+                  key={percent}
+                  style={styles.percentButton}
+                  onPress={() => setPercentage(percent)}
+                >
+                  <Text style={styles.percentButtonText}>{percent}%</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Order Summary */}
+          <View style={styles.summary}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Price per Share</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(currentPrice)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Quantity</Text>
+              <Text style={styles.summaryValue}>{quantityNum || 0}</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabelBold}>
+                {activeTab === 'buy' ? 'Total Cost' : 'Total Proceeds'}
+              </Text>
+              <Text style={styles.summaryValueBold}>{formatCurrency(totalCost)}</Text>
+            </View>
+
+            {/* Sell - Show expected profit/loss */}
+            {activeTab === 'sell' && expectedProceeds && quantityNum > 0 && (
+              <View style={[styles.summaryRow, { marginTop: 8 }]}>
+                <Text style={styles.summaryLabel}>Expected P&L</Text>
+                <Text
+                  style={[
+                    styles.summaryValue,
+                    {
+                      color:
+                        expectedProceeds.profitLoss >= 0 ? '#10B981' : '#EF4444',
+                      fontWeight: '600',
+                    },
+                  ]}
+                >
+                  {expectedProceeds.profitLoss >= 0 ? '+' : ''}
+                  {formatCurrency(expectedProceeds.profitLoss)} (
+                  {expectedProceeds.profitLossPercent.toFixed(2)}%)
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Available Balance / Shares */}
+          <View style={styles.balanceInfo}>
+            {activeTab === 'buy' ? (
+              <>
+                <Text style={styles.balanceLabel}>Available Cash</Text>
+                <Text style={styles.balanceValue}>{formatCurrency(portfolio.cashBalance)}</Text>
+                {!hasSufficientFunds && quantityNum > 0 && (
+                  <Text style={styles.errorText}>Insufficient funds</Text>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.balanceLabel}>Shares Available to Sell</Text>
+                <Text style={styles.balanceValue}>{holding?.quantity || 0}</Text>
+                {!hasSufficientShares && quantityNum > 0 && (
+                  <Text style={styles.errorText}>Insufficient shares</Text>
+                )}
+              </>
+            )}
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonSecondary]}
+              onPress={handleClose}
+            >
+              <Text style={styles.buttonTextSecondary}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.button,
+                activeTab === 'buy' ? styles.buttonBuy : styles.buttonSell,
+                !canExecute && styles.buttonDisabled,
+              ]}
+              onPress={handleExecuteTrade}
+              disabled={!canExecute || isProcessing}
+            >
+              <Text style={styles.buttonTextPrimary}>
+                {isProcessing
+                  ? 'Processing...'
+                  : `${activeTab === 'buy' ? 'Buy' : 'Sell'} ${entityTicker}`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.9,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  header: {
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  ticker: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  entityName: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  priceContainer: {
+    alignItems: 'flex-end',
+  },
+  price: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  tabActiveBuy: {
+    backgroundColor: '#10B981',
+  },
+  tabActiveSell: {
+    backgroundColor: '#EF4444',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
+  positionInfo: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+  },
+  positionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  positionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  positionText: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  inputSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+  },
+  input: {
+    flex: 1,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#111827',
+    paddingVertical: 16,
+  },
+  inputSuffix: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginLeft: 8,
+  },
+  percentButtons: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
+  },
+  percentButton: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  percentButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  summary: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  summaryLabelBold: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  summaryValueBold: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 8,
+  },
+  balanceInfo: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  balanceValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 20,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  buttonSecondary: {
+    backgroundColor: '#F3F4F6',
+  },
+  buttonBuy: {
+    backgroundColor: '#10B981',
+  },
+  buttonSell: {
+    backgroundColor: '#EF4444',
+  },
+  buttonDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+  buttonTextSecondary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  buttonTextPrimary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+});
+
