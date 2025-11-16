@@ -1,41 +1,218 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnp
+.pnp.js
 
 # Expo
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.orig.*
+.expo/
 
-# Metro
+# Native
+ios/
+android/
+.kotlin/
+*.orig.*
+
+# Metro bundler
 .metro-health-check*
+.metro/
 
-# debug
+# Debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
-# macOS
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+
+# Build outputs
+build/
+dist/
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Environment variables
+.env
+.env.local
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# TypeScript
+*.tsbuildinfo
+*.d.ts.map
+
+# IDE - VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE - IntelliJ / WebStorm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE - Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+project.xcworkspace
+
+# IDE - Android Studio
+.gradle/
+local.properties
+*.iml
+.idea/
+*.hprof
+.cxx/
+.externalNativeBuild/
+
+# OS - macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
 *.pem
 
-# local env files
-.env*.local
+# OS - Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
 
-# typescript
-*.tsbuildinfo
+# OS - Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
 
-# generated native folders
-/ios
-/android
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+.temp/
+
+# Package manager locks (optional - uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Misc
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*.swo
+*.swp
+*~
+
+# Documentation builds (if you generate docs)
+docs/_build/
+site/
+
+# EAS Build
+.eas/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+Pods/
+*.podspec.lock
+
+# Flipper
+.flipper/
+
+# Watchman
+.watchmanconfig
+
+# React Native
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+*.hprof
+
+# Backup files
+*.backup
+package.json.backup
