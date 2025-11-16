@@ -13,8 +13,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LineChart } from 'react-native-chart-kit';
 import { RootStackParamList, PriceDataPoint } from '../types';
 import { useTrading } from '../context/TradingContext';
+import { useNews } from '../context/NewsContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { getEntityById } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
+import NewsCard from '../components/NewsCard';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -38,7 +41,58 @@ const chartConfig = {
 
 // Mock data generator for entity details
 const generateMockEntityData = (entityId: number, categoryId: string) => {
-  const basePrice = 100 + entityId * 10;
+  // Get entity from centralized data
+  const entityData = getEntityById(entityId);
+  
+  // Fallback if entity not found
+  if (!entityData) {
+    const basePrice = 100 + entityId * 10;
+    const change = (Math.random() - 0.5) * 10;
+    const changePercent = (change / basePrice) * 100;
+
+    const priceHistory: PriceDataPoint[] = [];
+    let price = basePrice - change;
+    const now = Date.now();
+
+    for (let i = 30; i >= 0; i--) {
+      const variance = (Math.random() - 0.5) * 5;
+      price = Math.max(price + variance, basePrice * 0.8);
+      priceHistory.push({
+        timestamp: now - i * 24 * 60 * 60 * 1000,
+        price,
+        volume: Math.floor(Math.random() * 10000000) + 1000000,
+      });
+    }
+
+    priceHistory[priceHistory.length - 1].price = basePrice;
+
+    return {
+      entity: {
+        id: entityId,
+        ticker: `ENTITY${entityId}`,
+        name: `Entity ${entityId}`,
+        type: 'stock' as const,
+        currentPrice: basePrice,
+        change24h: change,
+        changePercent24h: changePercent,
+        volume24h: Math.floor(Math.random() * 100000000) + 10000000,
+        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
+        description: `Entity ${entityId} in the ${categoryId} category.`,
+      },
+      priceHistory,
+      stats: {
+        high24h: basePrice + Math.abs(change) * 0.5,
+        low24h: basePrice - Math.abs(change) * 0.5,
+        volume24h: Math.floor(Math.random() * 100000000) + 10000000,
+        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
+        holdersCount: Math.floor(Math.random() * 50000) + 1000,
+        rank: Math.floor(Math.random() * 100) + 1,
+      },
+    };
+  }
+
+  // Use centralized entity data
+  const basePrice = entityData.basePrice;
   const change = (Math.random() - 0.5) * 10;
   const changePercent = (change / basePrice) * 100;
 
@@ -60,33 +114,18 @@ const generateMockEntityData = (entityId: number, categoryId: string) => {
   // Update last price to match current
   priceHistory[priceHistory.length - 1].price = basePrice;
 
-  const tickers = ['OPENAI', 'CAND-X', 'AISAFE', 'BTCHLV', 'MUSK', 'AGI', 'STARSH', 'NEURL'];
-  const names = [
-    'OpenAI',
-    'Candidate X',
-    'AI Safety Initiative',
-    'Bitcoin Halving 2028',
-    'Elon Musk',
-    'Artificial General Intelligence',
-    'Starship Success',
-    'Neuralink IPO',
-  ];
-
-  const ticker = tickers[entityId % tickers.length];
-  const name = names[entityId % names.length];
-
   return {
     entity: {
       id: entityId,
-      ticker,
-      name,
+      ticker: entityData.ticker,
+      name: entityData.name,
       type: 'stock' as const,
       currentPrice: basePrice,
       change24h: change,
       changePercent24h: changePercent,
       volume24h: Math.floor(Math.random() * 100000000) + 10000000,
       marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-      description: `${name} is a leading entity in the ${categoryId} category. Track and trade confidence in this entity's future success.`,
+      description: entityData.description,
     },
     priceHistory,
     stats: {
@@ -105,6 +144,7 @@ export default function EntityScreen() {
   const route = useRoute<EntityScreenRouteProp>();
   const { entityId, categoryId } = route.params;
   const { getHolding, updatePrices } = useTrading();
+  const { getNewsByEntity } = useNews();
 
   const [entityData] = useState(() => generateMockEntityData(entityId, categoryId));
   const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
@@ -112,6 +152,7 @@ export default function EntityScreen() {
   const [currentPrice, setCurrentPrice] = useState(entityData.entity.currentPrice);
 
   const holding = getHolding(entityId);
+  const entityNews = getNewsByEntity(entityId);
 
   // Simulate real-time price updates
   useEffect(() => {
@@ -293,6 +334,23 @@ export default function EntityScreen() {
           <Text style={styles.sectionTitle}>About</Text>
           <Text style={styles.description}>{entityData.entity.description}</Text>
         </View>
+
+        {/* Related News */}
+        {entityNews.length > 0 && (
+          <View style={styles.newsSection}>
+            <View style={styles.newsSectionHeader}>
+              <Text style={styles.sectionTitle}>Related News</Text>
+              <Text style={styles.newsCount}>{entityNews.length} articles</Text>
+            </View>
+            {entityNews.slice(0, 5).map((article) => (
+              <NewsCard
+                key={article.id}
+                article={article}
+                showEntity={false}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Spacer for bottom buttons */}
         <View style={{ height: 100 }} />
@@ -500,6 +558,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 20,
+  },
+  newsSection: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  newsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  newsCount: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   bottomBar: {
     position: 'absolute',

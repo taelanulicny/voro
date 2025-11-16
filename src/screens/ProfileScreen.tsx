@@ -8,13 +8,19 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useSocial } from '../context/SocialContext';
+import { RootStackParamList } from '../types';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function ProfileScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { user, logout } = useAuth();
   const { activityFeed, followedUsers } = useSocial();
   const [selectedTab, setSelectedTab] = useState<'posts' | 'settings'>('posts');
@@ -56,12 +62,34 @@ export default function ProfileScreen() {
           <Text style={styles.statLabel}>Posts</Text>
         </View>
         <View style={styles.statDivider} />
-        <TouchableOpacity style={styles.statItem}>
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() => {
+            if (user) {
+              navigation.navigate('FollowersList', {
+                userId: user.id,
+                type: 'followers',
+                username: user.username,
+              });
+            }
+          }}
+        >
           <Text style={styles.statValue}>{followersCount}</Text>
           <Text style={styles.statLabel}>Followers</Text>
         </TouchableOpacity>
         <View style={styles.statDivider} />
-        <TouchableOpacity style={styles.statItem}>
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() => {
+            if (user) {
+              navigation.navigate('FollowersList', {
+                userId: user.id,
+                type: 'following',
+                username: user.username,
+              });
+            }
+          }}
+        >
           <Text style={styles.statValue}>{followingCount}</Text>
           <Text style={styles.statLabel}>Following</Text>
         </TouchableOpacity>

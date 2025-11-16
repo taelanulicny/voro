@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
 import { TradingProvider } from './src/context/TradingContext';
+import { NewsProvider } from './src/context/NewsContext';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -15,6 +16,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import EntityScreen from './src/screens/EntityScreen';
+import GroupDetailScreen from './src/screens/GroupDetailScreen';
+import FollowersListScreen from './src/screens/FollowersListScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -39,6 +42,8 @@ function RootNavigator() {
         <>
           <Stack.Screen name="Main" component={BottomTabNavigator} />
           <Stack.Screen name="Entity" component={EntityScreen} />
+          <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
+          <Stack.Screen name="FollowersList" component={FollowersListScreen} />
         </>
       )}
     </Stack.Navigator>
@@ -50,12 +55,14 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <SocialProvider>
-          <TradingProvider>
-            <NavigationContainer>
-              <StatusBar style="auto" />
-              <RootNavigator />
-            </NavigationContainer>
-          </TradingProvider>
+          <NewsProvider>
+            <TradingProvider>
+              <NavigationContainer>
+                <StatusBar style="auto" />
+                <RootNavigator />
+              </NavigationContainer>
+            </TradingProvider>
+          </NewsProvider>
         </SocialProvider>
       </AuthProvider>
     </SafeAreaProvider>

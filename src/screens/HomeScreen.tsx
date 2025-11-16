@@ -12,10 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { VictoryLine, VictoryChart, VictoryAxis } from 'victory-native';
+import { LineChart } from 'react-native-chart-kit';
 import { RootStackParamList } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { getEntityById } from '../utils/mockEntities';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -84,30 +85,32 @@ export default function HomeScreen() {
 
           {/* Portfolio Trend Chart */}
           <View style={styles.chartContainer}>
-            <VictoryChart
+            <LineChart
+              data={{
+                labels: [],
+                datasets: [{ data: chartData.map(d => d.y) }],
+              }}
               width={SCREEN_WIDTH}
               height={200}
-              padding={{ top: 20, bottom: 30, left: 0, right: 0 }}
-            >
-              <VictoryAxis
-                style={{
-                  axis: { stroke: 'transparent' },
-                  ticks: { stroke: 'transparent' },
-                  tickLabels: { fill: 'transparent' },
-                  grid: { stroke: 'transparent' },
-                }}
-              />
-              <VictoryLine
-                data={chartData}
-                style={{
-                  data: {
-                    stroke: isPositive ? '#10B981' : '#EF4444',
-                    strokeWidth: 2.5,
-                  },
-                }}
-                interpolation="natural"
-              />
-            </VictoryChart>
+              withDots={false}
+              withInnerLines={false}
+              withOuterLines={false}
+              withVerticalLabels={false}
+              withHorizontalLabels={false}
+              chartConfig={{
+                backgroundColor: '#FFFFFF',
+                backgroundGradientFrom: '#FFFFFF',
+                backgroundGradientTo: '#FFFFFF',
+                decimalPlaces: 0,
+                color: (opacity = 1) => isPositive 
+                  ? `rgba(16, 185, 129, ${opacity})` 
+                  : `rgba(239, 68, 68, ${opacity})`,
+                style: { borderRadius: 0 },
+                propsForBackgroundLines: { strokeWidth: 0 },
+              }}
+              bezier
+              style={{ marginLeft: -16 }}
+            />
           </View>
 
           {/* Time Period Selector */}
@@ -184,53 +187,59 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {portfolio.holdings.map((holding) => (
-                <TouchableOpacity
-                  key={holding.entityId}
-                  style={styles.holdingCard}
-                  onPress={() => handleHoldingPress(holding.entityId, holding.category)}
-                >
-                  <View style={styles.holdingLeft}>
-                    <View style={styles.holdingIcon}>
-                      <Text style={styles.holdingIconText}>
-                        {holding.entityTicker.substring(0, 2)}
-                      </Text>
+              {portfolio.holdings.map((holding) => {
+                const entity = getEntityById(holding.entityId);
+                const displayTicker = entity?.ticker || holding.entityTicker;
+                const displayName = entity?.name || holding.entityName;
+                
+                return (
+                  <TouchableOpacity
+                    key={holding.entityId}
+                    style={styles.holdingCard}
+                    onPress={() => handleHoldingPress(holding.entityId, holding.category)}
+                  >
+                    <View style={styles.holdingLeft}>
+                      <View style={styles.holdingIcon}>
+                        <Text style={styles.holdingIconText}>
+                          {displayTicker.substring(0, 2)}
+                        </Text>
+                      </View>
+                      <View style={styles.holdingInfo}>
+                        <Text style={styles.holdingTicker}>{displayTicker}</Text>
+                        <Text style={styles.holdingQuantity}>
+                          {holding.quantity} {holding.quantity === 1 ? 'share' : 'shares'}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.holdingInfo}>
-                      <Text style={styles.holdingTicker}>{holding.entityTicker}</Text>
-                      <Text style={styles.holdingQuantity}>
-                        {holding.quantity} {holding.quantity === 1 ? 'share' : 'shares'}
+                    
+                    <View style={styles.holdingRight}>
+                      <Text style={styles.holdingValue}>
+                        {formatCurrency(holding.totalValue)}
                       </Text>
+                      <View style={styles.holdingChangeRow}>
+                        <Text
+                          style={[
+                            styles.holdingChange,
+                            { color: getChangeColor(holding.profitLoss) },
+                          ]}
+                        >
+                          {holding.profitLoss >= 0 ? '+' : ''}
+                          {formatCurrency(holding.profitLoss)}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.holdingChangePercent,
+                            { color: getChangeColor(holding.profitLoss) },
+                          ]}
+                        >
+                          ({holding.profitLossPercent >= 0 ? '+' : ''}
+                          {holding.profitLossPercent.toFixed(2)}%)
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  
-                  <View style={styles.holdingRight}>
-                    <Text style={styles.holdingValue}>
-                      {formatCurrency(holding.totalValue)}
-                    </Text>
-                    <View style={styles.holdingChangeRow}>
-                      <Text
-                        style={[
-                          styles.holdingChange,
-                          { color: getChangeColor(holding.profitLoss) },
-                        ]}
-                      >
-                        {holding.profitLoss >= 0 ? '+' : ''}
-                        {formatCurrency(holding.profitLoss)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.holdingChangePercent,
-                          { color: getChangeColor(holding.profitLoss) },
-                        ]}
-                      >
-                        ({holding.profitLossPercent >= 0 ? '+' : ''}
-                        {holding.profitLossPercent.toFixed(2)}%)
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </>
           )}
         </View>

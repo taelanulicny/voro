@@ -15,11 +15,16 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
-import { Group } from '../types';
+import { Group, RootStackParamList } from '../types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function GroupsScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { groups, isLoadingGroups, refreshGroups, createGroup, joinGroup, leaveGroup } = useSocial();
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -96,7 +101,11 @@ export default function GroupsScreen() {
   );
 
   const renderGroupCard = ({ item }: { item: Group }) => (
-    <View style={styles.groupCard}>
+    <TouchableOpacity
+      style={styles.groupCard}
+      onPress={() => navigation.navigate('GroupDetail', { groupId: item.id })}
+      activeOpacity={0.7}
+    >
       <View style={styles.groupHeader}>
         <View style={styles.groupIcon}>
           <Ionicons name="people" size={32} color="#3B82F6" />
@@ -124,7 +133,10 @@ export default function GroupsScreen() {
           styles.actionButton,
           item.isMember ? styles.actionButtonSecondary : styles.actionButtonPrimary,
         ]}
-        onPress={() => item.isMember ? leaveGroup(item.id) : joinGroup(item.id)}
+        onPress={(e) => {
+          e.stopPropagation(); // Prevent navigation when tapping join/leave
+          item.isMember ? leaveGroup(item.id) : joinGroup(item.id);
+        }}
       >
         <Text
           style={[
@@ -135,7 +147,7 @@ export default function GroupsScreen() {
           {item.isMember ? 'Leave' : 'Join'}
         </Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderEmptyState = () => (

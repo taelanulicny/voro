@@ -7,6 +7,9 @@ export type RootStackParamList = {
   Entity: { entityId: number; categoryId: string };
   Category: { categoryId: string };
   Trade: { entityId: number; ticker: string; name: string };
+  GroupDetail: { groupId: string };
+  FollowersList: { userId: string; type: 'followers' | 'following'; username: string };
+  UserProfile: { userId: string };
 };
 
 export type MainTabParamList = {
@@ -122,6 +125,27 @@ export interface Group {
   createdAt: string;
 }
 
+export interface GroupMessage {
+  id: string;
+  groupId: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  content: string;
+  timestamp: string;
+}
+
+export interface GroupMember {
+  id: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
+}
+
 export interface Activity {
   id: string;
   userId: string;
@@ -132,6 +156,37 @@ export interface Activity {
   description: string;
   entityTicker?: string;
   timestamp: string;
+}
+
+// News Types
+export interface NewsArticle {
+  id: string;
+  title: string;
+  summary: string;
+  content: string;
+  source: string;
+  sourceUrl?: string;
+  imageUrl?: string;
+  author?: string;
+  publishedAt: string;
+  category: 'Tech' | 'Crypto' | 'Politics' | 'Events' | 'People' | 'General';
+  entityId?: number;
+  entityTicker?: string;
+  entityName?: string;
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+  sentimentScore: number; // -100 to 100
+  impactLevel: 'low' | 'medium' | 'high' | 'critical';
+  tags: string[];
+  viewCount: number;
+  isBreaking: boolean;
+}
+
+export interface NewsFilter {
+  category?: string;
+  sentiment?: 'bullish' | 'bearish' | 'neutral';
+  entityId?: number;
+  impactLevel?: 'low' | 'medium' | 'high' | 'critical';
+  isBreaking?: boolean;
 }
 
 // Competition Types
