@@ -152,8 +152,8 @@ export default function NewsDetailScreen() {
 
         {/* Category & Impact */}
         <View style={styles.metadataRow}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{article.category}</Text>
+          <View style={[styles.categoryBadge, { backgroundColor: theme.primaryLight }]}>
+            <Text style={[styles.categoryText, { color: theme.primary }]}>{article.category}</Text>
           </View>
           <View style={[styles.impactBadge, { backgroundColor: getImpactColor() }]}>
             <Text style={styles.impactText}>{article.impactLevel.toUpperCase()} IMPACT</Text>
@@ -165,13 +165,13 @@ export default function NewsDetailScreen() {
 
         {/* Entity Tag */}
         {article.entityTicker && (
-          <TouchableOpacity style={styles.entityTag} onPress={handleEntityPress}>
-            <Ionicons name="pricetag" size={16} color="#3B82F6" />
-            <Text style={styles.entityTagText}>
+          <TouchableOpacity style={[styles.entityTag, { backgroundColor: theme.primaryLight }]} onPress={handleEntityPress}>
+            <Ionicons name="pricetag" size={16} color={theme.primary} />
+            <Text style={[styles.entityTagText, { color: theme.primary }]}>
               ${article.entityTicker}
             </Text>
             {article.entityName && (
-              <Text style={styles.entityName}> · {article.entityName}</Text>
+              <Text style={[styles.entityName, { color: theme.textSecondary }]}> · {article.entityName}</Text>
             )}
           </TouchableOpacity>
         )}
@@ -330,13 +330,11 @@ const styles = StyleSheet.create({
   categoryBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#EFF6FF',
     borderRadius: 6,
   },
   categoryText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#3B82F6',
   },
   impactBadge: {
     paddingHorizontal: 12,
@@ -353,14 +351,12 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: 'bold',
     lineHeight: 34,
-    color: '#111827',
     marginBottom: 16,
   },
   entityTag: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -369,12 +365,10 @@ const styles = StyleSheet.create({
   entityTagText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
     marginLeft: 6,
   },
   entityName: {
     fontSize: 14,
-    color: '#6B7280',
   },
   sourceRow: {
     marginBottom: 20,

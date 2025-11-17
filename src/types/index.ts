@@ -21,6 +21,7 @@ export type MainTabParamList = {
   Feeds: undefined;
   Groups: undefined;
   Portfolio: undefined;
+  Watchlist: undefined;
   Profile: undefined;
 };
 
@@ -261,4 +262,31 @@ export interface EntityDetailData {
     rank: number;
   };
 }
+
+// Watchlist Types
+export interface PriceAlert {
+  id: string;
+  entityId: number;
+  entityTicker: string;
+  entityName: string;
+  alertType: 'above' | 'below';
+  targetPrice: number;
+  currentPrice: number;
+  isActive: boolean;
+  createdAt: string;
+  triggeredAt?: string;
+}
+
+export interface WatchlistItem {
+  entityId: number;
+  entityTicker: string;
+  entityName: string;
+  category: string;
+  addedAt: string;
+  currentPrice: number;
+  change24h: number;
+  changePercent24h: number;
+}
+
+export type WatchlistSortOption = 'name' | 'price_high' | 'price_low' | 'change_high' | 'change_low' | 'added';
 

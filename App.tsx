@@ -10,6 +10,7 @@ import { SocialProvider } from './src/context/SocialContext';
 import { TradingProvider } from './src/context/TradingContext';
 import { NewsProvider } from './src/context/NewsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { WatchlistProvider } from './src/context/WatchlistContext';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -65,10 +66,12 @@ export default function App() {
           <SocialProvider>
             <NewsProvider>
               <TradingProvider>
-                <NavigationContainer>
-                  <StatusBar style="auto" />
-                  <RootNavigator />
-                </NavigationContainer>
+                <WatchlistProvider>
+                  <NavigationContainer>
+                    <StatusBar style="auto" />
+                    <RootNavigator />
+                  </NavigationContainer>
+                </WatchlistProvider>
               </TradingProvider>
             </NewsProvider>
           </SocialProvider>

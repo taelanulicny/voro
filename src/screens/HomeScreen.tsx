@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,34 +28,51 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Generate entity list with price changes
-const generateEntityList = () => {
-  return MOCK_ENTITIES.map((entity) => {
-    const change = (Math.random() - 0.5) * 15;
-    const changePercent = (change / entity.basePrice) * 100;
-    return {
-      id: entity.id,
-      ticker: entity.ticker,
-      name: entity.name,
-      type: 'stock' as const,
-      currentPrice: entity.basePrice + change,
-      change24h: change,
-      changePercent24h: changePercent,
-      volume24h: Math.floor(Math.random() * 50000000) + 5000000,
-      marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-      description: entity.description,
-      category: entity.category,
-    };
-  });
-};
-
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { portfolio } = useTrading();
+  const { portfolio, getEntityPrice, getAllEntityPrices, portfolioHistory } = useTrading();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<'1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL'>('1D');
-  const [entities] = useState(() => generateEntityList());
+  const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
+  
+  // Get live entity prices
+  const entityPrices = getAllEntityPrices();
+  const [previousPrices, setPreviousPrices] = useState<Record<number, number>>({});
+  
+  // Force chart update when portfolio value changes - DISABLED (keeping prices static)
+  // useEffect(() => {
+  //   setChartUpdateKey(prev => prev + 1);
+  // }, [portfolio.totalValue, portfolioHistory.length]);
+  
+  // Update entities with live prices
+  const entities = useMemo(() => {
+    return MOCK_ENTITIES.map((entity) => {
+      const currentPrice = entityPrices[entity.id] || entity.basePrice;
+      const previousPrice = previousPrices[entity.id] || entity.basePrice;
+      const change24h = currentPrice - entity.basePrice;
+      const changePercent24h = (change24h / entity.basePrice) * 100;
+      
+      return {
+        id: entity.id,
+        ticker: entity.ticker,
+        name: entity.name,
+        type: 'stock' as const,
+        currentPrice,
+        change24h,
+        changePercent24h,
+        volume24h: Math.floor(Math.random() * 50000000) + 5000000,
+        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
+        description: entity.description,
+        category: entity.category,
+      };
+    });
+  }, [entityPrices, previousPrices]);
+  
+  // Track previous prices for change calculations
+  useEffect(() => {
+    setPreviousPrices(entityPrices);
+  }, [entityPrices]);
   
   // Trade modal states
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
@@ -74,24 +91,102 @@ export default function HomeScreen() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
 
-  // Generate mock chart data for portfolio trend
-  const generateChartData = () => {
-    const points = 30;
+  // Generate chart data from portfolio history or generate mock data
+  const chartData = useMemo(() => {
+    // Use real portfolio history if available (for 1D view)
+    if (selectedPeriod === '1D') {
+      if (portfolioHistory.length > 0) {
+        // Take last 30 points for smooth scrolling effect
+        const pointsToShow = Math.min(portfolioHistory.length, 30);
+        return portfolioHistory.slice(-pointsToShow);
+      } else {
+        // If no history yet, show current value repeated
+        return Array(10).fill(portfolio.totalValue);
+      }
+    }
+    
+    // For other periods, generate historical data based on current value
+    let points: number;
+    
+    switch (selectedPeriod) {
+      case '1D':
+        points = 24; // Hourly data for 1 day
+        break;
+      case '1W':
+        points = 7; // Daily data for 1 week
+        break;
+      case '1M':
+        points = 30; // Daily data for 1 month
+        break;
+      case '3M':
+        points = 90; // Daily data for 3 months
+        break;
+      case '1Y':
+        points = 52; // Weekly data for 1 year
+        break;
+      case 'ALL':
+        points = 100; // Monthly data for all time
+        break;
+      default:
+        points = 30;
+    }
+    
     const baseValue = portfolio.totalValue;
     const volatility = baseValue * 0.02; // 2% volatility
+    const totalChange = portfolio.todayChange;
     
+    // Generate data points with realistic trend
     return Array.from({ length: points }, (_, i) => {
+      const progress = i / (points - 1); // 0 to 1
       const variation = (Math.random() - 0.5) * volatility;
-      const trendValue = (portfolio.todayChange / points) * i; // Gradual trend
-      return {
-        x: i,
-        y: baseValue - (portfolio.todayChange * 0.5) + trendValue + variation,
-      };
+      // Create a trend that ends at current value
+      const trendValue = totalChange * progress;
+      const historicalValue = baseValue - totalChange + trendValue + variation;
+      return Math.max(historicalValue, baseValue * 0.5); // Ensure positive values
     });
-  };
+  }, [selectedPeriod, portfolio.totalValue, portfolio.todayChange, portfolioHistory]);
 
-  const chartData = generateChartData();
   const isPositive = portfolio.todayChange >= 0;
+  
+  // Generate labels based on period
+  const chartLabels = useMemo(() => {
+    switch (selectedPeriod) {
+      case '1D':
+        return Array.from({ length: 24 }, (_, i) => {
+          const hour = i % 24;
+          return hour % 6 === 0 ? `${hour}:00` : '';
+        });
+      case '1W':
+        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      case '1M':
+      case '3M':
+        const monthPoints = selectedPeriod === '1M' ? 30 : 90;
+        return Array.from({ length: monthPoints }, (_, i) => {
+          if (i % Math.ceil(monthPoints / 5) === 0) {
+            const date = new Date();
+            date.setDate(date.getDate() - (monthPoints - i));
+            return `${date.getMonth() + 1}/${date.getDate()}`;
+          }
+          return '';
+        });
+      case '1Y':
+        return Array.from({ length: 52 }, (_, i) => {
+          if (i % 13 === 0) {
+            return `W${i + 1}`;
+          }
+          return '';
+        });
+      case 'ALL':
+        return Array.from({ length: 100 }, (_, i) => {
+          if (i % 20 === 0) {
+            return `M${i / 20 + 1}`;
+          }
+          return '';
+        });
+      default:
+        return [];
+    }
+  }, [selectedPeriod]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -127,20 +222,49 @@ export default function HomeScreen() {
     setTradeModalVisible(true);
   };
 
-  const topGainers = [...entities]
+  // Calculate top gainers and losers with live prices
+  const topGainers = useMemo(() => {
+    return MOCK_ENTITIES.map(entity => {
+      const livePrice = getEntityPrice(entity.id);
+      const change = livePrice - entity.basePrice;
+      const changePercent = (change / entity.basePrice) * 100;
+      return {
+        id: entity.id,
+        ticker: entity.ticker,
+        name: entity.name,
+        category: entity.category,
+        currentPrice: livePrice,
+        changePercent24h: changePercent,
+      };
+    })
     .filter((e) => e.changePercent24h > 0)
     .sort((a, b) => b.changePercent24h - a.changePercent24h)
     .slice(0, 3);
+  }, [entityPrices, getEntityPrice]);
 
-  const topLosers = [...entities]
+  const topLosers = useMemo(() => {
+    return MOCK_ENTITIES.map(entity => {
+      const livePrice = getEntityPrice(entity.id);
+      const change = livePrice - entity.basePrice;
+      const changePercent = (change / entity.basePrice) * 100;
+      return {
+        id: entity.id,
+        ticker: entity.ticker,
+        name: entity.name,
+        category: entity.category,
+        currentPrice: livePrice,
+        changePercent24h: changePercent,
+      };
+    })
     .filter((e) => e.changePercent24h < 0)
     .sort((a, b) => a.changePercent24h - b.changePercent24h)
     .slice(0, 3);
+  }, [entityPrices, getEntityPrice]);
 
   const periods = ['1D', '1W', '1M', '3M', '1Y', 'ALL'] as const;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
@@ -167,54 +291,70 @@ export default function HomeScreen() {
           {/* Portfolio Trend Chart */}
           <View style={styles.chartContainer}>
             <LineChart
+              key={`portfolio-${selectedPeriod}-${chartData.length}-${chartData[chartData.length - 1]?.toFixed(0) || portfolio.totalValue.toFixed(0)}-${chartUpdateKey}`}
               data={{
-                labels: [],
-                datasets: [{ data: chartData.map(d => d.y) }],
+                labels: chartLabels,
+                datasets: [{ data: chartData }],
               }}
-              width={SCREEN_WIDTH}
+              width={SCREEN_WIDTH - 32}
               height={200}
-              withDots={false}
+              withDots={selectedPeriod === '1D' || selectedPeriod === '1W'} // Show dots for shorter periods
               withInnerLines={false}
               withOuterLines={false}
-              withVerticalLabels={false}
-              withHorizontalLabels={false}
+              withVerticalLabels={selectedPeriod !== '1D'} // Show labels for longer periods
+              withHorizontalLabels={true}
+              segments={selectedPeriod === '1D' ? 6 : selectedPeriod === '1W' ? 7 : 5}
               chartConfig={{
-                backgroundColor: '#FFFFFF',
-                backgroundGradientFrom: '#FFFFFF',
-                backgroundGradientTo: '#FFFFFF',
+                backgroundColor: theme.card,
+                backgroundGradientFrom: theme.card,
+                backgroundGradientTo: theme.card,
                 decimalPlaces: 0,
                 color: (opacity = 1) => isPositive 
                   ? `rgba(16, 185, 129, ${opacity})` 
                   : `rgba(239, 68, 68, ${opacity})`,
+                labelColor: (opacity = 1) => {
+                  const r = parseInt(theme.textSecondary.slice(1, 3), 16);
+                  const g = parseInt(theme.textSecondary.slice(3, 5), 16);
+                  const b = parseInt(theme.textSecondary.slice(5, 7), 16);
+                  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                },
                 style: { borderRadius: 0 },
                 propsForBackgroundLines: { strokeWidth: 0 },
               }}
               bezier
-              style={{ marginLeft: -16 }}
+              style={{ marginVertical: 8, borderRadius: 0 }}
             />
           </View>
 
           {/* Time Period Selector */}
-          <View style={styles.periodSelector}>
-            {periods.map((period) => (
-              <TouchableOpacity
-                key={period}
-                style={[
-                  styles.periodButton,
-                  selectedPeriod === period && styles.periodButtonActive,
-                ]}
-                onPress={() => setSelectedPeriod(period)}
-              >
-                <Text
+          <View style={[styles.periodSelector, { borderBottomColor: theme.borderLight }]}>
+            {periods.map((period) => {
+              const isActive = selectedPeriod === period;
+              return (
+                <TouchableOpacity
+                  key={period}
                   style={[
-                    styles.periodButtonText,
-                    selectedPeriod === period && styles.periodButtonTextActive,
+                    styles.periodButton,
+                    {
+                      backgroundColor: isActive ? theme.primaryLight : 'transparent',
+                    },
                   ]}
+                  onPress={() => setSelectedPeriod(period)}
                 >
-                  {period}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.periodButtonText,
+                      {
+                        color: isActive ? theme.primary : theme.textSecondary,
+                        fontWeight: isActive ? '600' : '500',
+                      },
+                    ]}
+                  >
+                    {period}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -267,24 +407,31 @@ export default function HomeScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>📈 Top Gainers</Text>
             </View>
-            {topGainers.map((entity) => (
-              <TouchableOpacity
-                key={entity.id}
-                style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
-                onPress={() => handleHoldingPress(entity.id, entity.category)}
-              >
-                <View style={styles.miniCardLeft}>
-                  <Text style={[styles.miniTicker, { color: theme.text }]}>{entity.ticker}</Text>
-                  <Text style={[styles.miniName, { color: theme.textSecondary }]}>{entity.name}</Text>
-                </View>
-                <View style={styles.miniCardRight}>
-                  <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(entity.currentPrice)}</Text>
-                  <Text style={[styles.miniChange, { color: '#10B981' }]}>
-                    +{entity.changePercent24h.toFixed(2)}%
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                {topGainers.map((entity) => {
+                      const livePrice = getEntityPrice(entity.id);
+                      const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
+                      const liveChange = livePrice - basePrice;
+                      const liveChangePercent = (liveChange / basePrice) * 100;
+                      
+                      return (
+                        <TouchableOpacity
+                          key={entity.id}
+                          style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
+                          onPress={() => handleHoldingPress(entity.id, entity.category)}
+                        >
+                          <View style={styles.miniCardLeft}>
+                            <Text style={[styles.miniTicker, { color: theme.text }]}>{entity.ticker}</Text>
+                            <Text style={[styles.miniName, { color: theme.textSecondary }]}>{entity.name}</Text>
+                          </View>
+                          <View style={styles.miniCardRight}>
+                            <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(livePrice)}</Text>
+                            <Text style={[styles.miniChange, { color: '#10B981' }]}>
+                              +{liveChangePercent.toFixed(2)}%
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
           </View>
         )}
 
@@ -294,24 +441,31 @@ export default function HomeScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>📉 Top Losers</Text>
             </View>
-            {topLosers.map((entity) => (
-              <TouchableOpacity
-                key={entity.id}
-                style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
-                onPress={() => handleHoldingPress(entity.id, entity.category)}
-              >
-                <View style={styles.miniCardLeft}>
-                  <Text style={[styles.miniTicker, { color: theme.text }]}>{entity.ticker}</Text>
-                  <Text style={[styles.miniName, { color: theme.textSecondary }]}>{entity.name}</Text>
-                </View>
-                <View style={styles.miniCardRight}>
-                  <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(entity.currentPrice)}</Text>
-                  <Text style={[styles.miniChange, { color: '#EF4444' }]}>
-                    {entity.changePercent24h.toFixed(2)}%
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                {topLosers.map((entity) => {
+                      const livePrice = getEntityPrice(entity.id);
+                      const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
+                      const liveChange = livePrice - basePrice;
+                      const liveChangePercent = (liveChange / basePrice) * 100;
+                      
+                      return (
+                        <TouchableOpacity
+                          key={entity.id}
+                          style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
+                          onPress={() => handleHoldingPress(entity.id, entity.category)}
+                        >
+                          <View style={styles.miniCardLeft}>
+                            <Text style={[styles.miniTicker, { color: theme.text }]}>{entity.ticker}</Text>
+                            <Text style={[styles.miniName, { color: theme.textSecondary }]}>{entity.name}</Text>
+                          </View>
+                          <View style={styles.miniCardRight}>
+                            <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(livePrice)}</Text>
+                            <Text style={[styles.miniChange, { color: '#EF4444' }]}>
+                              {liveChangePercent.toFixed(2)}%
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
           </View>
         )}
 
@@ -334,60 +488,65 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {portfolio.holdings.map((holding) => {
-                const entity = getEntityById(holding.entityId);
-                const displayTicker = entity?.ticker || holding.entityTicker;
-                const displayName = entity?.name || holding.entityName;
-                
-                return (
-                  <TouchableOpacity
-                    key={holding.entityId}
-                    style={[styles.holdingCard, { borderBottomColor: theme.borderLight }]}
-                    onPress={() => handleHoldingPress(holding.entityId, holding.category)}
-                  >
-                    <View style={styles.holdingLeft}>
-                      <View style={[styles.holdingIcon, { backgroundColor: theme.primaryLight }]}>
-                        <Text style={[styles.holdingIconText, { color: theme.primary }]}>
-                          {displayTicker.substring(0, 2)}
-                        </Text>
-                      </View>
-                      <View style={styles.holdingInfo}>
-                        <Text style={[styles.holdingTicker, { color: theme.text }]}>{displayTicker}</Text>
-                        <Text style={[styles.holdingQuantity, { color: theme.textSecondary }]}>
-                          {holding.quantity} {holding.quantity === 1 ? 'share' : 'shares'}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.holdingRight}>
-                      <Text style={[styles.holdingValue, { color: theme.text }]}>
-                        {formatCurrency(holding.totalValue)}
-                      </Text>
-                      <View style={styles.holdingChangeRow}>
-                        <Text
-                          style={[
-                            styles.holdingChange,
-                            { color: getChangeColor(holding.profitLoss) },
-                          ]}
-                        >
-                          {holding.profitLoss >= 0 ? '+' : ''}
-                          {formatCurrency(holding.profitLoss)}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.holdingChangePercent,
-                            { color: getChangeColor(holding.profitLoss) },
-                          ]}
-                        >
-                          ({holding.profitLossPercent >= 0 ? '+' : ''}
-                          {holding.profitLossPercent.toFixed(2)}%)
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
+                {portfolio.holdings.map((holding) => {
+                        const entity = getEntityById(holding.entityId);
+                        const displayTicker = entity?.ticker || holding.entityTicker;
+                        const displayName = entity?.name || holding.entityName;
+                        // Get live price for this holding
+                        const livePrice = getEntityPrice(holding.entityId);
+                        const liveTotalValue = holding.quantity * livePrice;
+                        const liveProfitLoss = liveTotalValue - holding.totalCost;
+                        const liveProfitLossPercent = (liveProfitLoss / holding.totalCost) * 100;
+                        
+                        return (
+                          <TouchableOpacity
+                            key={holding.entityId}
+                            style={[styles.holdingCard, { borderBottomColor: theme.borderLight }]}
+                            onPress={() => handleHoldingPress(holding.entityId, holding.category)}
+                          >
+                            <View style={styles.holdingLeft}>
+                              <View style={[styles.holdingIcon, { backgroundColor: theme.primaryLight }]}>
+                                <Text style={[styles.holdingIconText, { color: theme.primary }]}>
+                                  {displayTicker.substring(0, 2)}
+                                </Text>
+                              </View>
+                              <View style={styles.holdingInfo}>
+                                <Text style={[styles.holdingTicker, { color: theme.text }]}>{displayTicker}</Text>
+                                <Text style={[styles.holdingQuantity, { color: theme.textSecondary }]}>
+                                  {holding.quantity} {holding.quantity === 1 ? 'share' : 'shares'}
+                                </Text>
+                              </View>
+                            </View>
+                            
+                            <View style={styles.holdingRight}>
+                              <Text style={[styles.holdingValue, { color: theme.text }]}>
+                                {formatCurrency(liveTotalValue)}
+                              </Text>
+                              <View style={styles.holdingChangeRow}>
+                                <Text
+                                  style={[
+                                    styles.holdingChange,
+                                    { color: getChangeColor(liveProfitLoss) },
+                                  ]}
+                                >
+                                  {liveProfitLoss >= 0 ? '+' : ''}
+                                  {formatCurrency(liveProfitLoss)}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.holdingChangePercent,
+                                    { color: getChangeColor(liveProfitLoss) },
+                                  ]}
+                                >
+                                  ({liveProfitLossPercent >= 0 ? '+' : ''}
+                                  {liveProfitLossPercent.toFixed(2)}%)
+                                </Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        );
 
-              })}
+                      })}
             </>
           )}
         </View>
@@ -738,24 +897,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   periodButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-  },
-  periodButtonActive: {
-    backgroundColor: '#EFF6FF',
     borderRadius: 6,
   },
   periodButtonText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  periodButtonTextActive: {
-    color: '#3B82F6',
-    fontWeight: '600',
   },
   quickActions: {
     flexDirection: 'row',

@@ -10,6 +10,7 @@ import NewsScreen from '../screens/NewsScreen';
 import FeedsScreen from '../screens/FeedsScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
+import WatchlistScreen from '../screens/WatchlistScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -33,6 +34,8 @@ export default function BottomTabNavigator() {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Portfolio') {
             iconName = focused ? 'wallet' : 'wallet-outline';
+          } else if (route.name === 'Watchlist') {
+            iconName = focused ? 'star' : 'star-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -54,6 +57,7 @@ export default function BottomTabNavigator() {
       <Tab.Screen name="Feeds" component={FeedsScreen} />
       <Tab.Screen name="Groups" component={GroupsScreen} />
       <Tab.Screen name="Portfolio" component={PortfolioScreen} />
+      <Tab.Screen name="Watchlist" component={WatchlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { Portfolio, Holding, UserTransaction } from '../types';
+import { MOCK_ENTITIES } from '../utils/mockEntities';
 
 interface TradingContextType {
   portfolio: Portfolio;
@@ -16,6 +17,9 @@ interface TradingContextType {
   getHolding: (entityId: number) => Holding | undefined;
   updatePrices: (entityId: number, newPrice: number) => void;
   resetPortfolio: () => void;
+  getEntityPrice: (entityId: number) => number;
+  getAllEntityPrices: () => Record<number, number>;
+  portfolioHistory: number[]; // Portfolio value history for chart
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
@@ -28,6 +32,21 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [transactions, setTransactions] = useState<UserTransaction[]>([]);
   const [todayChange, setTodayChange] = useState(0);
   const [todayChangePercent, setTodayChangePercent] = useState(0);
+  
+  // Global entity prices - tracks current price for all entities
+  const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
+    const initialPrices: Record<number, number> = {};
+    MOCK_ENTITIES.forEach(entity => {
+      // Start with base price plus small random variation
+      initialPrices[entity.id] = entity.basePrice + (Math.random() - 0.5) * 5;
+    });
+    return initialPrices;
+  });
+  
+  // Portfolio value history for chart animation
+  const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
+  const portfolioHistoryRef = useRef<number[]>([]);
+  const maxHistoryLength = 100; // Keep last 100 data points
 
   // Calculate portfolio total value
   const calculateTotalValue = () => {
@@ -40,6 +59,73 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     const totalProfitLoss = holdings.reduce((sum, holding) => sum + holding.profitLoss, 0);
     return totalProfitLoss * 0.1; // Mock: 10% of P&L as today's change
   };
+
+  // Real-time price updates for all entities - DISABLED (keeping prices static)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setEntityPrices(prev => {
+  //       const updated: Record<number, number> = {};
+  //       MOCK_ENTITIES.forEach(entity => {
+  //         const currentPrice = prev[entity.id] || entity.basePrice;
+  //         // More noticeable random change: ±1% to ±3% per update for visible movement
+  //         const changePercent = (Math.random() - 0.5) * 0.06; // -3% to +3%
+  //         const change = currentPrice * changePercent;
+  //         const newPrice = Math.max(entity.basePrice * 0.5, Math.min(entity.basePrice * 1.5, currentPrice + change)); // Prevent going too low or too high
+  //         updated[entity.id] = newPrice;
+  //         
+  //         // Update holdings if user owns this entity
+  //         setHoldings(currentHoldings => 
+  //           currentHoldings.map(h => {
+  //             if (h.entityId === entity.id) {
+  //               const newTotalValue = h.quantity * newPrice;
+  //               const newProfitLoss = newTotalValue - h.totalCost;
+  //               const newProfitLossPercent = (newProfitLoss / h.totalCost) * 100;
+  //               return {
+  //                 ...h,
+  //                 currentPrice: newPrice,
+  //                 totalValue: newTotalValue,
+  //                 profitLoss: newProfitLoss,
+  //                 profitLossPercent: newProfitLossPercent,
+  //               };
+  //             }
+  //             return h;
+  //           })
+  //         );
+  //       });
+  //       return updated;
+  //     });
+  //   }, 3000); // Update every 3 seconds
+
+  //   return () => clearInterval(interval);
+  // }, []);
+
+  // Update portfolio history for chart - update more frequently for smooth animation
+  useEffect(() => {
+    // Initial value
+    const initialValue = calculateTotalValue();
+    if (portfolioHistoryRef.current.length === 0) {
+      portfolioHistoryRef.current = Array(10).fill(initialValue); // Start with 10 points of same value
+      setPortfolioHistory([...portfolioHistoryRef.current]);
+    }
+  }, []);
+
+  // Update portfolio history continuously - DISABLED (keeping portfolio static)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     const totalValue = calculateTotalValue();
+  //     portfolioHistoryRef.current = [...portfolioHistoryRef.current, totalValue];
+  //     
+  //     // Keep only last N points (sliding window effect - removes oldest, adds newest)
+  //     if (portfolioHistoryRef.current.length > maxHistoryLength) {
+  //       portfolioHistoryRef.current = portfolioHistoryRef.current.slice(-maxHistoryLength);
+  //     }
+  //     
+  //     // Force update by creating new array reference
+  //     setPortfolioHistory([...portfolioHistoryRef.current]);
+  //   }, 3000); // Update every 3 seconds to match price updates
+  //   
+  //   return () => clearInterval(interval);
+  // }, [holdings, cashBalance, entityPrices]); // Update when these change
 
   useEffect(() => {
     const change = calculateTodayChange();
@@ -207,6 +293,16 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     setTransactions([]);
     setTodayChange(0);
     setTodayChangePercent(0);
+    portfolioHistoryRef.current = [];
+    setPortfolioHistory([]);
+  };
+
+  const getEntityPrice = (entityId: number): number => {
+    return entityPrices[entityId] || MOCK_ENTITIES.find(e => e.id === entityId)?.basePrice || 100;
+  };
+
+  const getAllEntityPrices = (): Record<number, number> => {
+    return entityPrices;
   };
 
   const portfolio: Portfolio = {
@@ -226,6 +322,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         getHolding,
         updatePrices,
         resetPortfolio,
+        getEntityPrice,
+        getAllEntityPrices,
+        portfolioHistory,
       }}
     >
       {children}

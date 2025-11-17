@@ -135,9 +135,12 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         {post.sentiment && (
           <View style={[
             styles.sentimentBadge,
-            post.sentiment === 'bullish' && styles.sentimentBullish,
-            post.sentiment === 'bearish' && styles.sentimentBearish,
-            post.sentiment === 'neutral' && styles.sentimentNeutral,
+            {
+              backgroundColor: 
+                post.sentiment === 'bullish' ? 'rgba(16, 185, 129, 0.2)' :
+                post.sentiment === 'bearish' ? 'rgba(239, 68, 68, 0.2)' :
+                theme.backgroundTertiary,
+            },
           ]}>
             <Ionicons
               name={
@@ -149,14 +152,17 @@ export default function PostCard({ post, onPress }: PostCardProps) {
               color={
                 post.sentiment === 'bullish' ? '#10B981' :
                 post.sentiment === 'bearish' ? '#EF4444' :
-                '#6B7280'
+                theme.textSecondary
               }
             />
             <Text style={[
               styles.sentimentText,
-              post.sentiment === 'bullish' && styles.sentimentTextBullish,
-              post.sentiment === 'bearish' && styles.sentimentTextBearish,
-              post.sentiment === 'neutral' && styles.sentimentTextNeutral,
+              {
+                color:
+                  post.sentiment === 'bullish' ? '#10B981' :
+                  post.sentiment === 'bearish' ? '#EF4444' :
+                  theme.textSecondary,
+              },
             ]}>
               {post.sentiment.charAt(0).toUpperCase() + post.sentiment.slice(1)}
             </Text>
@@ -289,27 +295,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 4,
   },
-  sentimentBullish: {
-    backgroundColor: '#D1FAE5',
-  },
-  sentimentBearish: {
-    backgroundColor: '#FEE2E2',
-  },
-  sentimentNeutral: {
-    backgroundColor: '#F3F4F6',
-  },
   sentimentText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  sentimentTextBullish: {
-    color: '#10B981',
-  },
-  sentimentTextBearish: {
-    color: '#EF4444',
-  },
-  sentimentTextNeutral: {
-    color: '#6B7280',
   },
   actions: {
     flexDirection: 'row',

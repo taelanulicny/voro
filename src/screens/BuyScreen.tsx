@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,43 +15,48 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
+import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Generate entity list with price changes
-const generateEntityList = () => {
-  return MOCK_ENTITIES.map((entity) => {
-    const change = (Math.random() - 0.5) * 15;
-    const changePercent = (change / entity.basePrice) * 100;
-    return {
-      id: entity.id,
-      ticker: entity.ticker,
-      name: entity.name,
-      type: 'stock' as const,
-      currentPrice: entity.basePrice + change,
-      change24h: change,
-      changePercent24h: changePercent,
-      volume24h: Math.floor(Math.random() * 50000000) + 5000000,
-      marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-      description: entity.description,
-      category: entity.category,
-    };
-  });
-};
-
 type SortOption = 'name' | 'price_high' | 'price_low' | 'gainers' | 'losers';
 
 export default function BuyScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { portfolio } = useTrading();
+  const { portfolio, getEntityPrice, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('gainers');
-  const [entities] = useState(() => generateEntityList());
+  
+  // Get live entity prices
+  const entityPrices = getAllEntityPrices();
+  
+  // Generate entity list with live prices
+  const entities = useMemo(() => {
+    return MOCK_ENTITIES.map((entity) => {
+      const currentPrice = getEntityPrice(entity.id);
+      const change24h = currentPrice - entity.basePrice;
+      const changePercent24h = (change24h / entity.basePrice) * 100;
+      return {
+        id: entity.id,
+        ticker: entity.ticker,
+        name: entity.name,
+        type: 'stock' as const,
+        currentPrice,
+        change24h,
+        changePercent24h,
+        volume24h: Math.floor(Math.random() * 50000000) + 5000000,
+        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
+        description: entity.description,
+        category: entity.category,
+      };
+    });
+  }, [entityPrices, getEntityPrice]);
   
   // Trade modal
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
@@ -121,15 +126,32 @@ export default function BuyScreen() {
 
   const renderSortOption = (option: SortOption, label: string, icon: string) => (
     <TouchableOpacity
-      style={[styles.sortChip, sortBy === option && styles.sortChipActive]}
+      style={[
+        styles.sortChip,
+        {
+          backgroundColor: sortBy === option ? theme.primaryLight : theme.backgroundSecondary,
+          borderColor: sortBy === option ? theme.primary : theme.border,
+          width: 120,
+        },
+      ]}
       onPress={() => setSortBy(option)}
     >
       <Ionicons
         name={icon as any}
         size={14}
-        color={sortBy === option ? '#3B82F6' : '#6B7280'}
+        color={sortBy === option ? theme.primary : theme.textSecondary}
       />
-      <Text style={[styles.sortChipText, sortBy === option && styles.sortChipTextActive]}>
+      <Text
+        style={[
+          styles.sortChipText,
+          {
+            color: sortBy === option ? theme.primary : theme.textSecondary,
+            fontWeight: '600',
+          },
+        ]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
         {label}
       </Text>
     </TouchableOpacity>
@@ -145,7 +167,26 @@ export default function BuyScreen() {
           <Text style={[styles.entityIconText, { color: theme.primary }]}>{item.ticker.substring(0, 2)}</Text>
         </View>
         <View style={styles.entityInfo}>
-          <Text style={[styles.entityTicker, { color: theme.text }]}>{item.ticker}</Text>
+          <View style={styles.entityHeaderRow}>
+            <Text style={[styles.entityTicker, { color: theme.text }]}>{item.ticker}</Text>
+            <TouchableOpacity
+              style={styles.watchlistIconButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (isInWatchlist(item.id)) {
+                  removeFromWatchlist(item.id);
+                } else {
+                  addToWatchlist(item.id);
+                }
+              }}
+            >
+              <Ionicons
+                name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
+                size={18}
+                color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
+              />
+            </TouchableOpacity>
+          </View>
           <Text style={[styles.entityName, { color: theme.textSecondary }]}>{item.name}</Text>
           <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
             <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{item.category}</Text>
@@ -202,11 +243,12 @@ export default function BuyScreen() {
       </View>
 
       {/* Category Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.categoryScroll, { backgroundColor: theme.card, borderBottomColor: theme.border }]}
-      >
+      <View style={[styles.categoryContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScroll}
+        >
         {categories.map((category) => {
           const isActive = category === 'All' ? selectedCategory === null : selectedCategory === category;
           return (
@@ -217,6 +259,7 @@ export default function BuyScreen() {
                 {
                   backgroundColor: isActive ? theme.primary : theme.backgroundSecondary,
                   borderColor: isActive ? theme.primary : theme.border,
+                  width: 85,
                 },
               ]}
               onPress={() => setSelectedCategory(category === 'All' ? null : category)}
@@ -226,30 +269,35 @@ export default function BuyScreen() {
                   styles.categoryChipText,
                   { color: isActive ? '#FFFFFF' : theme.textSecondary },
                 ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {category}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* Sort Options */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.sortScroll}
-      >
+      <View style={[styles.sortContainer, { backgroundColor: theme.card }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sortScroll}
+        >
         {renderSortOption('gainers', 'Top Gainers', 'trending-up')}
         {renderSortOption('losers', 'Top Losers', 'trending-down')}
         {renderSortOption('price_high', 'Price: High', 'arrow-down')}
         {renderSortOption('price_low', 'Price: Low', 'arrow-up')}
         {renderSortOption('name', 'A-Z', 'text')}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* Results Count */}
-      <View style={styles.resultsBar}>
-        <Text style={styles.resultsText}>
+      <View style={[styles.resultsBar, { backgroundColor: theme.card }]}>
+        <Text style={[styles.resultsText, { color: theme.textSecondary }]}>
           {filteredEntities.length} {filteredEntities.length === 1 ? 'entity' : 'entities'}
         </Text>
       </View>
@@ -263,9 +311,9 @@ export default function BuyScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyStateTitle}>No results found</Text>
-            <Text style={styles.emptyStateText}>
+            <Ionicons name="search-outline" size={64} color={theme.textTertiary} />
+            <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No results found</Text>
+            <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
               Try adjusting your search or filters
             </Text>
           </View>
@@ -345,62 +393,62 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
   },
+  categoryContainer: {
+    borderBottomWidth: 1,
+    height: 60,
+  },
   categoryScroll: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    borderBottomWidth: 1,
+    minHeight: 60,
   },
   categoryChip: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    minWidth: 60,
+    width: 85,
+    height: 36,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   categoryChipText: {
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
+    width: '100%',
+  },
+  sortContainer: {
+    minHeight: 60,
   },
   sortScroll: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: '#FFFFFF',
   },
   sortChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    height: 36,
     gap: 6,
-  },
-  sortChipActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
+    overflow: 'hidden',
   },
   sortChipText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  sortChipTextActive: {
-    color: '#3B82F6',
     fontWeight: '600',
   },
   resultsBar: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#F9FAFB',
   },
   resultsText: {
     fontSize: 13,
-    color: '#6B7280',
     fontWeight: '500',
   },
   listContent: {
@@ -412,12 +460,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -434,40 +480,43 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 10,
-    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   entityIconText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#3B82F6',
   },
   entityInfo: {
     flex: 1,
   },
+  entityHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  watchlistIconButton: {
+    padding: 4,
+  },
   entityTicker: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#111827',
     marginBottom: 2,
   },
   entityName: {
     fontSize: 14,
-    color: '#6B7280',
     marginBottom: 6,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: '#F3F4F6',
     borderRadius: 6,
   },
   categoryBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6B7280',
   },
   entityRight: {
     alignItems: 'flex-end',
@@ -475,7 +524,6 @@ const styles = StyleSheet.create({
   entityPrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
     marginBottom: 4,
   },
   entityChange: {
@@ -490,13 +538,11 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6B7280',
     textAlign: 'center',
   },
 });

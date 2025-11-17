@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { RootStackParamList, PriceDataPoint } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
+import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { getEntityById } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
@@ -131,48 +133,151 @@ export default function EntityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<EntityScreenRouteProp>();
   const { entityId, categoryId } = route.params;
-  const { getHolding, updatePrices } = useTrading();
+  const { getHolding, updatePrices, getEntityPrice } = useTrading();
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
-
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [entityData] = useState(() => generateMockEntityData(entityId, categoryId));
   const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
-  const [currentPrice, setCurrentPrice] = useState(entityData.entity.currentPrice);
+  const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
+  const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
 
   const holding = getHolding(entityId);
   const entityNews = getNewsByEntity(entityId);
+  
+  // Get live price from global price system
+  const currentPrice = getEntityPrice(entityId);
+  
+  // Force chart update when price changes - DISABLED (keeping prices static)
+  // useEffect(() => {
+  //   setChartUpdateKey(prev => prev + 1);
+  // }, [currentPrice]);
 
-  // Simulate real-time price updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const variance = (Math.random() - 0.5) * 0.5;
-      setCurrentPrice((prev) => {
-        const newPrice = Math.max(prev + variance, entityData.entity.currentPrice * 0.95);
-        updatePrices(entityId, newPrice);
-        return newPrice;
-      });
-    }, 5000); // Update every 5 seconds
+  // Update price history in real-time for chart animation - DISABLED (keeping prices static)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     const now = Date.now();
+  //     const livePrice = getEntityPrice(entityId);
+  //     
+  //     setPriceHistory(prev => {
+  //       // Add new data point with current live price
+  //       const newPoint: PriceDataPoint = {
+  //         timestamp: now,
+  //         price: livePrice,
+  //         volume: Math.floor(Math.random() * 10000000) + 1000000,
+  //       };
+  //       
+  //       // Keep last 100 points for 1D view, or filter based on timeRange
+  //       let filtered = [...prev, newPoint];
+  //       
+  //       // For 1D, keep only last 24 hours
+  //       if (timeRange === '1D') {
+  //         const cutoff = now - 24 * 60 * 60 * 1000;
+  //         filtered = filtered.filter(p => p.timestamp >= cutoff);
+  //       }
+  //       
+  //       // Limit to 100 points max
+  //       if (filtered.length > 100) {
+  //         filtered = filtered.slice(-100);
+  //       }
+  //       
+  //       return filtered;
+  //     });
+  //   }, 3000); // Update every 3 seconds to match global price updates
 
-    return () => clearInterval(interval);
-  }, [entityId]);
+  //   return () => clearInterval(interval);
+  // }, [entityId, timeRange, getEntityPrice]);
 
-  const chartData = {
-    labels: entityData.priceHistory
-      .filter((_, index) => index % 5 === 0)
-      .map((point) => {
-        const date = new Date(point.timestamp);
-        return `${date.getMonth() + 1}/${date.getDate()}`;
-      }),
-    datasets: [
-      {
-        data: entityData.priceHistory.map((point) => point.price),
-      },
-    ],
-  };
+  // Filter price history based on selected time range (using live data)
+  const filteredPriceHistory = useMemo(() => {
+    const now = Date.now();
+    let cutoffTime: number;
+    
+    switch (timeRange) {
+      case '1D':
+        cutoffTime = now - 24 * 60 * 60 * 1000; // 1 day ago
+        break;
+      case '1W':
+        cutoffTime = now - 7 * 24 * 60 * 60 * 1000; // 1 week ago
+        break;
+      case '1M':
+        cutoffTime = now - 30 * 24 * 60 * 60 * 1000; // 1 month ago
+        break;
+      case 'ALL':
+      default:
+        // Combine original history with live updates
+        return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
+          // Remove duplicates by timestamp
+          return index === self.findIndex(p => p.timestamp === point.timestamp);
+        }).sort((a, b) => a.timestamp - b.timestamp);
+    }
+    
+    // Use live price history if available, otherwise fall back to original
+    const historyToUse = priceHistory.length > 0 ? priceHistory : entityData.priceHistory;
+    return historyToUse.filter(point => point.timestamp >= cutoffTime);
+  }, [timeRange, priceHistory, entityData.priceHistory]);
 
-  const priceChange = currentPrice - entityData.entity.currentPrice;
-  const priceChangePercent = (priceChange / entityData.entity.currentPrice) * 100;
+  // Generate chart data with appropriate labels based on time range
+  const chartData = useMemo(() => {
+    let labelInterval: number;
+    let labelFormatter: (point: PriceDataPoint, index: number) => string;
+    
+    switch (timeRange) {
+      case '1D':
+        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 6));
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+        };
+        break;
+      case '1W':
+        labelInterval = 1; // Show all days
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          return days[date.getDay()];
+        };
+        break;
+      case '1M':
+        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 5));
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          return `${date.getMonth() + 1}/${date.getDate()}`;
+        };
+        break;
+      case 'ALL':
+      default:
+        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 6));
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          return `${date.getMonth() + 1}/${date.getDate()}`;
+        };
+    }
+    
+    const labels = filteredPriceHistory
+      .map((point, index) => index % labelInterval === 0 ? labelFormatter(point, index) : '')
+      .filter((label, index) => index % labelInterval === 0 || label !== '');
+    
+    // Ensure we always have data points
+    const priceData = filteredPriceHistory.length > 0 
+      ? filteredPriceHistory.map((point) => point.price)
+      : [currentPrice]; // Fallback to current price if no history
+    
+    return {
+      labels: labels.length > 0 ? labels : priceData.map((_, i) => i % labelInterval === 0 ? `${i}` : ''),
+      datasets: [
+        {
+          data: priceData,
+        },
+      ],
+    };
+  }, [timeRange, filteredPriceHistory, currentPrice]);
+
+  // Calculate price change from base price
+  const basePrice = entityData.entity.currentPrice; // Original base price
+  const priceChange = currentPrice - basePrice;
+  const priceChangePercent = (priceChange / basePrice) * 100;
   const isPositive = priceChange >= 0;
 
   const formatVolume = (value: number) => {
@@ -218,7 +323,22 @@ export default function EntityScreen() {
             <Text style={[styles.ticker, { color: theme.text }]}>{entityData.entity.ticker}</Text>
             <Text style={[styles.entityName, { color: theme.textSecondary }]}>{entityData.entity.name}</Text>
           </View>
-          <View style={styles.headerRight} />
+          <TouchableOpacity
+            style={styles.watchlistButton}
+            onPress={() => {
+              if (isInWatchlist(entityId)) {
+                removeFromWatchlist(entityId);
+              } else {
+                addToWatchlist(entityId);
+              }
+            }}
+          >
+            <Ionicons
+              name={isInWatchlist(entityId) ? 'star' : 'star-outline'}
+              size={24}
+              color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Price Section */}
@@ -239,16 +359,19 @@ export default function EntityScreen() {
         {/* Chart */}
         <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
           <LineChart
+            key={`entity-${entityId}-${timeRange}-${filteredPriceHistory.length}-${currentPrice.toFixed(2)}-${chartUpdateKey}`}
             data={chartData}
-            width={width}
+            width={width - 32}
             height={220}
             chartConfig={chartConfig}
             bezier
             style={styles.chart}
-            withInnerLines={true}
-            withOuterLines={true}
-            withVerticalLabels={true}
+            withInnerLines={timeRange !== '1D'}
+            withOuterLines={false}
+            withVerticalLabels={timeRange !== '1D'}
             withHorizontalLabels={true}
+            withDots={timeRange === '1D' || filteredPriceHistory.length <= 7}
+            segments={timeRange === '1D' ? 6 : timeRange === '1W' ? 7 : 5}
           />
 
           {/* Time Range Selector */}
@@ -430,6 +553,9 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 40,
+  },
+  watchlistButton: {
+    padding: 4,
   },
   priceSection: {
     alignItems: 'center',
