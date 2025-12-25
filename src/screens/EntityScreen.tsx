@@ -140,13 +140,23 @@ export default function EntityScreen() {
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
-  const [entityData] = useState(() => generateMockEntityData(entityId, categoryId));
+  
+  // Generate entity data based on current entityId - updates when entityId changes
+  const entityData = useMemo(() => generateMockEntityData(entityId, categoryId), [entityId, categoryId]);
+  
   const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
   const [refreshing, setRefreshing] = useState(false);
+
+  // Update price history and reset tab whenever entityId changes (ensures we always show Chart when navigating to an entity)
+  useEffect(() => {
+    setSelectedTab('chart');
+    setPriceHistory(entityData.priceHistory);
+    setChartUpdateKey(prev => prev + 1); // Force chart to re-render with new data
+  }, [entityId, entityData.priceHistory]);
 
   const holding = getHolding(entityId);
   const entityNews = getNewsByEntity(entityId);
@@ -163,68 +173,70 @@ export default function EntityScreen() {
     const entityName = entity?.name || '';
     
     // Generate posts with variety - some with other entity mentions, some without
+    // Base template posts that work for any entity
+    const entityMentionName = entityName?.replace(/\s+/g, '') || '';
     const posts: Post[] = [
       {
         id: `entity-${entityId}-1`,
         userId: 'user-1',
         username: 'trading_pro',
         displayName: 'Trading Pro',
-        content: 'just dropped @Drake\'s name in his stream and now drake\'s moro score is plummeting 📉',
+        content: `just dropped @TaylorSwift's name in the conversation and now her moro score is skyrocketing 📈`,
         entityId: undefined,
         entityTicker: undefined,
-        entityName: 'Drake',
-        sentiment: 'negative',
-        likes: 234,
+        entityName: 'Taylor Swift',
+        sentiment: 'positive',
+        likes: 289,
         comments: 45,
         isLiked: false,
         isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 20).toISOString(),
+        timestamp: new Date(now - 1000 * 60 * 18).toISOString(),
       },
       {
         id: `entity-${entityId}-2`,
         userId: 'user-2',
         username: 'market_watcher',
         displayName: 'Market Watcher',
-        content: 'The content has been really consistent lately. Big fan of the direction!',
+        content: 'The trajectory looks solid. Really impressed with the recent performance and strategic moves.',
         entityId: undefined,
         entityTicker: undefined,
         entityName: undefined,
         sentiment: 'positive',
-        likes: 89,
-        comments: 12,
+        likes: 145,
+        comments: 23,
         isLiked: false,
         isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60).toISOString(),
+        timestamp: new Date(now - 1000 * 60 * 42).toISOString(),
       },
       {
         id: `entity-${entityId}-3`,
         userId: 'user-3',
         username: 'trend_analyst',
         displayName: 'Trend Analyst',
-        content: 'collab with @MrBeast would be huge for both of them!',
+        content: 'A collab with @MrBeast would create insane value for both parties. The cross-audience potential is huge.',
         entityId: undefined,
         entityTicker: undefined,
         entityName: 'MrBeast',
         sentiment: 'positive',
-        likes: 156,
-        comments: 28,
+        likes: 234,
+        comments: 38,
         isLiked: false,
         isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 90).toISOString(),
+        timestamp: new Date(now - 1000 * 60 * 60 * 1).toISOString(),
       },
       {
         id: `entity-${entityId}-4`,
         userId: 'user-4',
         username: 'content_creator',
         displayName: 'Content Creator',
-        content: 'Really excited to see what\'s coming next!',
+        content: 'The recent moves have been interesting. Curious to see what direction things take from here.',
         entityId: undefined,
         entityTicker: undefined,
         entityName: undefined,
         sentiment: undefined,
-        likes: 67,
-        comments: 8,
-        isLiked: false,
+        likes: 98,
+        comments: 14,
+        isLiked: true,
         isBookmarked: false,
         timestamp: new Date(now - 1000 * 60 * 60 * 2).toISOString(),
       },
@@ -233,15 +245,15 @@ export default function EntityScreen() {
         userId: 'user-5',
         username: 'influence_tracker',
         displayName: 'Influence Tracker',
-        content: 'The engagement metrics have been solid. Wonder if @Taylor Swift would consider a partnership?',
+        content: 'Engagement metrics are through the roof. Wonder if @Drake would consider a partnership? The synergy would be perfect.',
         entityId: undefined,
         entityTicker: undefined,
-        entityName: 'Taylor Swift',
+        entityName: 'Drake',
         sentiment: 'positive',
-        likes: 198,
-        comments: 34,
+        likes: 312,
+        comments: 52,
         isLiked: false,
-        isBookmarked: false,
+        isBookmarked: true,
         timestamp: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
       },
       {
@@ -249,16 +261,48 @@ export default function EntityScreen() {
         userId: 'user-6',
         username: 'social_metrics',
         displayName: 'Social Metrics',
-        content: 'Brand deals coming in hot 🔥',
+        content: 'Not feeling great about the recent direction. The numbers aren\'t adding up like they used to.',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: 'negative',
+        likes: 167,
+        comments: 29,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-7`,
+        userId: 'user-7',
+        username: 'industry_insider',
+        displayName: 'Industry Insider',
+        content: `@KanyeWest's recent comments about @Drake caused some controversy. The drama might actually help engagement though.`,
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'Kanye West',
+        sentiment: 'negative',
+        likes: 445,
+        comments: 78,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 28).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-8`,
+        userId: 'user-8',
+        username: 'brand_analyst',
+        displayName: 'Brand Analyst',
+        content: 'The partnership deals are looking strong. Multiple big brands are showing interest.',
         entityId: undefined,
         entityTicker: undefined,
         entityName: undefined,
         sentiment: 'positive',
-        likes: 112,
-        comments: 19,
-        isLiked: false,
+        likes: 198,
+        comments: 31,
+        isLiked: true,
         isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
+        timestamp: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
       },
     ];
     
@@ -681,6 +725,7 @@ export default function EntityScreen() {
               isEntityFeed={true}
               entityId={entityId}
               entityName={entity?.name}
+              categoryId={categoryId}
             />
           )}
           keyExtractor={(item) => item.id}
