@@ -15,26 +15,38 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
-import { RootStackParamList, Entity } from '../types';
+import { RootStackParamList, MainTabParamList, Entity } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
+import { useWatchlist } from '../context/WatchlistContext';
+import { useSideMenu } from '../context/SideMenuContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { getEntityById, getAllEntities, MOCK_ENTITIES } from '../utils/mockEntities';
+import { getEntityById, getAllEntities, MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
+import SideMenu from '../components/SideMenu';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { portfolio, getEntityPrice, getAllEntityPrices, portfolioHistory } = useTrading();
+  const { portfolio, getEntityPrice, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
+  const { watchlist } = useWatchlist();
+  const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<'1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL'>('1D');
-  const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
+  const [selectedCategory, setSelectedCategory] = useState<string>('Trending');
+  const [addedCategories, setAddedCategories] = useState<string[]>([]);
+  
+  const categories = ['Trending', 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
+  const customizableCategories = ['Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
   
   // Get live entity prices
   const entityPrices = getAllEntityPrices();
@@ -84,109 +96,6 @@ export default function HomeScreen() {
     category: string;
   } | null>(null);
   
-  // Selection modal
-  const [showSellSelectionModal, setShowSellSelectionModal] = useState(false);
-  
-  // Other modal states
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showDepositModal, setShowDepositModal] = useState(false);
-
-  // Generate chart data from portfolio history or generate mock data
-  const chartData = useMemo(() => {
-    // Use real portfolio history if available (for 1D view)
-    if (selectedPeriod === '1D') {
-      if (portfolioHistory.length > 0) {
-        // Take last 30 points for smooth scrolling effect
-        const pointsToShow = Math.min(portfolioHistory.length, 30);
-        return portfolioHistory.slice(-pointsToShow);
-      } else {
-        // If no history yet, show current value repeated
-        return Array(10).fill(portfolio.totalValue);
-      }
-    }
-    
-    // For other periods, generate historical data based on current value
-    let points: number;
-    
-    switch (selectedPeriod) {
-      case '1D':
-        points = 24; // Hourly data for 1 day
-        break;
-      case '1W':
-        points = 7; // Daily data for 1 week
-        break;
-      case '1M':
-        points = 30; // Daily data for 1 month
-        break;
-      case '3M':
-        points = 90; // Daily data for 3 months
-        break;
-      case '1Y':
-        points = 52; // Weekly data for 1 year
-        break;
-      case 'ALL':
-        points = 100; // Monthly data for all time
-        break;
-      default:
-        points = 30;
-    }
-    
-    const baseValue = portfolio.totalValue;
-    const volatility = baseValue * 0.02; // 2% volatility
-    const totalChange = portfolio.todayChange;
-    
-    // Generate data points with realistic trend
-    return Array.from({ length: points }, (_, i) => {
-      const progress = i / (points - 1); // 0 to 1
-      const variation = (Math.random() - 0.5) * volatility;
-      // Create a trend that ends at current value
-      const trendValue = totalChange * progress;
-      const historicalValue = baseValue - totalChange + trendValue + variation;
-      return Math.max(historicalValue, baseValue * 0.5); // Ensure positive values
-    });
-  }, [selectedPeriod, portfolio.totalValue, portfolio.todayChange, portfolioHistory]);
-
-  const isPositive = portfolio.todayChange >= 0;
-  
-  // Generate labels based on period
-  const chartLabels = useMemo(() => {
-    switch (selectedPeriod) {
-      case '1D':
-        return Array.from({ length: 24 }, (_, i) => {
-          const hour = i % 24;
-          return hour % 6 === 0 ? `${hour}:00` : '';
-        });
-      case '1W':
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      case '1M':
-      case '3M':
-        const monthPoints = selectedPeriod === '1M' ? 30 : 90;
-        return Array.from({ length: monthPoints }, (_, i) => {
-          if (i % Math.ceil(monthPoints / 5) === 0) {
-            const date = new Date();
-            date.setDate(date.getDate() - (monthPoints - i));
-            return `${date.getMonth() + 1}/${date.getDate()}`;
-          }
-          return '';
-        });
-      case '1Y':
-        return Array.from({ length: 52 }, (_, i) => {
-          if (i % 13 === 0) {
-            return `W${i + 1}`;
-          }
-          return '';
-        });
-      case 'ALL':
-        return Array.from({ length: 100 }, (_, i) => {
-          if (i % 20 === 0) {
-            return `M${i / 20 + 1}`;
-          }
-          return '';
-        });
-      default:
-        return [];
-    }
-  }, [selectedPeriod]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -197,160 +106,616 @@ export default function HomeScreen() {
     navigation.navigate('Entity', { entityId, categoryId: category });
   };
 
-  const handleBuyPress = () => {
-    navigation.navigate('BuyScreen');
+
+  // Map entity categories to display category names
+  const getDisplayCategory = (entityId: number, category: string): string => {
+    // Distinguish between Influencers (IDs 11-20) and Music Artists (IDs 21-30) in People category
+    if (category === 'People') {
+      if (entityId >= 11 && entityId <= 20) {
+        return 'Influencers';
+      } else if (entityId >= 21 && entityId <= 30) {
+        return 'Music Artists';
+      }
+      return 'Influencers'; // Default for other People entities
+    }
+    
+    const categoryMap: Record<string, string> = {
+      'Tech': 'Startups',
+      'Politics': 'Political Figures',
+      'Events': 'Sports',
+    };
+    
+    return categoryMap[category] || category;
   };
 
-  const handleSellPress = () => {
-    if (portfolio.holdings.length > 0) {
-      setShowSellSelectionModal(true);
-    } else {
-      Alert.alert('No Holdings', 'You don\'t have any positions to sell');
+  // Map display category to entity category
+  const getEntityCategory = (displayCategory: string): string => {
+    const categoryMap: Record<string, string> = {
+      'Influencers': 'People',
+      'Music Artists': 'People',
+      'Sports': 'Events',
+      'Political Figures': 'Politics',
+      'Startups': 'Tech',
+    };
+    return categoryMap[displayCategory] || displayCategory;
+  };
+
+  // Get previous day ranks for a category (mock data)
+  const getPreviousDayRanks = (displayCategory: string): Record<number, number> => {
+    const entityCategory = getEntityCategory(displayCategory);
+    let filteredEntities = getEntitiesByCategory(entityCategory);
+    
+    if (displayCategory === 'Music Artists') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 21 && entity.id <= 30);
+    } else if (displayCategory === 'Influencers') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 11 && entity.id <= 20);
+    }
+    
+    // Create mock previous day prices (slightly different to simulate ranking changes)
+    const previousDayEntities = filteredEntities.map((entity) => {
+      const currentPrice = getEntityPrice(entity.id);
+      // Simulate previous day price (add some randomness for ranking changes)
+      const randomChange = (Math.random() - 0.5) * 0.1; // ±5% variation
+      const previousPrice = currentPrice * (1 + randomChange);
+      return {
+        id: entity.id,
+        previousPrice,
+      };
+    });
+    
+    // Sort by previous day price to get previous day ranks
+    const sortedPrevious = [...previousDayEntities].sort((a, b) => b.previousPrice - a.previousPrice);
+    
+    // Map entity ID to previous day rank
+    const mockRanks: Record<number, number> = {};
+    sortedPrevious.forEach((entity, index) => {
+      mockRanks[entity.id] = index + 1;
+    });
+    
+    return mockRanks;
+  };
+
+  // Get top 5 entities for a category (ranked by price)
+  const getTopEntitiesForCategory = (displayCategory: string) => {
+    const entityCategory = getEntityCategory(displayCategory);
+    let filteredEntities = getEntitiesByCategory(entityCategory);
+    
+    // Filter out influencers from Music Artists (both use 'People' category)
+    if (displayCategory === 'Music Artists') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 21 && entity.id <= 30);
+    } else if (displayCategory === 'Influencers') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 11 && entity.id <= 20);
+    }
+    
+    const mappedEntities = filteredEntities.map((entity) => {
+      const currentPrice = getEntityPrice(entity.id);
+      const change24h = currentPrice - entity.basePrice;
+      const changePercent24h = (change24h / entity.basePrice) * 100;
+      return {
+        id: entity.id,
+        ticker: entity.ticker,
+        name: entity.name,
+        currentPrice,
+        change24h,
+        changePercent24h,
+        category: entity.category,
+      };
+    });
+    
+    // Sort by price (descending) - highest price = rank #1
+    const sorted = [...mappedEntities].sort((a, b) => b.currentPrice - a.currentPrice);
+    
+    // Get previous day ranks for this category
+    const previousDayRanks = getPreviousDayRanks(displayCategory);
+    
+    // Add rank and position change, return top 5
+    return sorted.slice(0, 5).map((entity, index) => {
+      const currentRank = index + 1;
+      const previousRank = previousDayRanks[entity.id] || currentRank;
+      const positionChange = previousRank - currentRank; // Positive = moved up, Negative = moved down
+      
+      return {
+        ...entity,
+        rank: currentRank,
+        previousRank,
+        positionChange,
+      };
+    });
+  };
+
+  // Handle adding a category to home screen
+  const handleAddCategory = (category: string) => {
+    if (!addedCategories.includes(category)) {
+      setAddedCategories([...addedCategories, category]);
     }
   };
 
-  const handleSelectHoldingToSell = (holding: any) => {
-    setShowSellSelectionModal(false);
-    const entity = getEntityById(holding.entityId);
-    setSelectedEntity({
-      id: holding.entityId,
-      ticker: entity?.ticker || holding.entityTicker,
-      name: entity?.name || holding.entityName,
-      price: holding.currentPrice,
-      category: holding.category,
-    });
-    setTradeModalVisible(true);
+  // Handle removing a category from home screen
+  const handleRemoveCategory = (category: string) => {
+    setAddedCategories(addedCategories.filter(c => c !== category));
   };
 
-  // Calculate top gainers and losers with live prices
+  // Calculate trending entities (top 5 by absolute percentage change)
   const topGainers = useMemo(() => {
-    return MOCK_ENTITIES.map(entity => {
+    const entitiesWithData = MOCK_ENTITIES.map(entity => {
       const livePrice = getEntityPrice(entity.id);
       const change = livePrice - entity.basePrice;
       const changePercent = (change / entity.basePrice) * 100;
+      const displayCategory = getDisplayCategory(entity.id, entity.category);
+      
       return {
         id: entity.id,
         ticker: entity.ticker,
         name: entity.name,
         category: entity.category,
+        displayCategory,
         currentPrice: livePrice,
         changePercent24h: changePercent,
+        change24h: change,
       };
-    })
-    .filter((e) => e.changePercent24h > 0)
-    .sort((a, b) => b.changePercent24h - a.changePercent24h)
-    .slice(0, 3);
-  }, [entityPrices, getEntityPrice]);
-
-  const topLosers = useMemo(() => {
-    return MOCK_ENTITIES.map(entity => {
-      const livePrice = getEntityPrice(entity.id);
-      const change = livePrice - entity.basePrice;
-      const changePercent = (change / entity.basePrice) * 100;
+    });
+    
+    // Sort by absolute percentage change and get top 5
+    const top5 = entitiesWithData
+      .sort((a, b) => Math.abs(b.changePercent24h) - Math.abs(a.changePercent24h))
+      .slice(0, 5);
+    
+    // Calculate position changes within each entity's category
+    return top5.map(entity => {
+      const previousDayRanks = getPreviousDayRanks(entity.displayCategory);
+      
+      // Get all entities in this category to calculate current rank
+      const entityCategory = getEntityCategory(entity.displayCategory);
+      let categoryEntities = getEntitiesByCategory(entityCategory);
+      
+      if (entity.displayCategory === 'Music Artists') {
+        categoryEntities = categoryEntities.filter(e => e.id >= 21 && e.id <= 30);
+      } else if (entity.displayCategory === 'Influencers') {
+        categoryEntities = categoryEntities.filter(e => e.id >= 11 && e.id <= 20);
+      }
+      
+      // Calculate current rank in category (by price)
+      const categoryEntitiesWithPrices = categoryEntities.map(e => ({
+        id: e.id,
+        currentPrice: getEntityPrice(e.id),
+      }));
+      const sortedCategory = [...categoryEntitiesWithPrices].sort((a, b) => b.currentPrice - a.currentPrice);
+      const currentRank = sortedCategory.findIndex(e => e.id === entity.id) + 1;
+      const previousRank = previousDayRanks[entity.id] || currentRank;
+      const positionChange = previousRank - currentRank;
+      
       return {
-        id: entity.id,
-        ticker: entity.ticker,
-        name: entity.name,
-        category: entity.category,
-        currentPrice: livePrice,
-        changePercent24h: changePercent,
+        ...entity,
+        rank: currentRank,
+        previousRank,
+        positionChange,
       };
-    })
-    .filter((e) => e.changePercent24h < 0)
-    .sort((a, b) => a.changePercent24h - b.changePercent24h)
-    .slice(0, 3);
+    });
   }, [entityPrices, getEntityPrice]);
 
-  const periods = ['1D', '1W', '1M', '3M', '1Y', 'ALL'] as const;
+  // Mock spotlight items - can be ads, entities, users, or events
+  const spotlights = useMemo(() => [
+    {
+      id: '1',
+      type: 'ad' as const,
+      title: 'bonus',
+      backgroundColor: '#000000',
+      textColor: '#F5F5DC',
+      subtitle: '',
+      entityId: null,
+      onPress: () => {
+        // Handle ad click
+      },
+    },
+    {
+      id: '2',
+      type: 'entity' as const,
+      title: 'Cal AI',
+      backgroundColor: '#E5E5E5',
+      textColor: '#1E3A8A',
+      subtitle: '',
+      entityId: null,
+      icon: '🍎',
+      onPress: () => {
+        // Handle entity click - could navigate to entity detail
+      },
+    },
+    {
+      id: '3',
+      type: 'entity' as const,
+      title: 'Dodgers',
+      backgroundColor: '#1E3A8A',
+      textColor: '#FFFFFF',
+      subtitle: '',
+      entityId: null,
+      onPress: () => {
+        // Handle entity click
+      },
+    },
+  ], []);
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setSideMenuVisible(true)}
+          >
+            <Ionicons name="menu" size={24} color={theme.text} />
+          </TouchableOpacity>
+          
+          <Text style={[styles.logoText, { color: theme.text }]}>moro</Text>
+        </View>
+        
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => {
+              // Will be linked later
+            }}
+          >
+            <Ionicons name="gift-outline" size={24} color={theme.text} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => {
+              // Will be linked later
+            }}
+          >
+            <Ionicons name="notifications-outline" size={24} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Category Selector */}
+      <View style={[styles.categorySelectorContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categorySelector}
+          contentContainerStyle={styles.categorySelectorContent}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={styles.categoryButton}
+              onPress={() => {
+                if (category === 'Trending') {
+                  // Keep "Trending" on the home page
+                  setSelectedCategory(category);
+                } else {
+                  // Navigate to the Category screen for other categories
+                  navigation.navigate('Category', { categoryId: category });
+                }
+              }}
+            >
+              <Text
+                style={[
+                  styles.categoryButtonText,
+                  {
+                    color: selectedCategory === category ? theme.text : theme.textSecondary,
+                    fontWeight: selectedCategory === category ? '600' : '400',
+                  }
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Portfolio Value Header */}
-        <View style={[styles.portfolioHeader, { backgroundColor: theme.card }]}>
-          <View style={styles.portfolioValueContainer}>
-            <Text style={[styles.portfolioValue, { color: theme.text }]}>
-              {formatCurrency(portfolio.totalValue)}
-            </Text>
-            <View style={styles.changeContainer}>
-              <Ionicons
-                name={isPositive ? 'trending-up' : 'trending-down'}
-                size={16}
-                color={isPositive ? '#10B981' : '#EF4444'}
-              />
-              <Text style={[styles.changeText, { color: isPositive ? '#10B981' : '#EF4444' }]}>
-                {formatCurrency(Math.abs(portfolio.todayChange))} ({Math.abs(portfolio.todayChangePercent).toFixed(2)}%)
-              </Text>
-              <Text style={styles.changePeriod}>Today</Text>
-            </View>
-          </View>
 
-          {/* Portfolio Trend Chart */}
-          <View style={styles.chartContainer}>
-            <LineChart
-              key={`portfolio-${selectedPeriod}-${chartData.length}-${chartData[chartData.length - 1]?.toFixed(0) || portfolio.totalValue.toFixed(0)}-${chartUpdateKey}`}
-              data={{
-                labels: chartLabels,
-                datasets: [{ data: chartData }],
-              }}
-              width={SCREEN_WIDTH - 32}
-              height={200}
-              withDots={selectedPeriod === '1D' || selectedPeriod === '1W'} // Show dots for shorter periods
-              withInnerLines={false}
-              withOuterLines={false}
-              withVerticalLabels={selectedPeriod !== '1D'} // Show labels for longer periods
-              withHorizontalLabels={true}
-              segments={selectedPeriod === '1D' ? 6 : selectedPeriod === '1W' ? 7 : 5}
-              chartConfig={{
-                backgroundColor: theme.card,
-                backgroundGradientFrom: theme.card,
-                backgroundGradientTo: theme.card,
-                decimalPlaces: 0,
-                color: (opacity = 1) => isPositive 
-                  ? `rgba(16, 185, 129, ${opacity})` 
-                  : `rgba(239, 68, 68, ${opacity})`,
-                labelColor: (opacity = 1) => {
-                  const r = parseInt(theme.textSecondary.slice(1, 3), 16);
-                  const g = parseInt(theme.textSecondary.slice(3, 5), 16);
-                  const b = parseInt(theme.textSecondary.slice(5, 7), 16);
-                  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-                },
-                style: { borderRadius: 0 },
-                propsForBackgroundLines: { strokeWidth: 0 },
-              }}
-              bezier
-              style={{ marginVertical: 8, borderRadius: 0 }}
-            />
-          </View>
+        {/* Top Gainers Section */}
+        {topGainers.length > 0 && (
+          <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+                {topGainers.map((entity) => {
+                      const livePrice = getEntityPrice(entity.id);
+                      const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
+                      const liveChange = livePrice - basePrice;
+                      const liveChangePercent = (liveChange / basePrice) * 100;
+                      
+                      // Get initials from name (first 2 letters)
+                      const getInitials = (name: string) => {
+                        return name.substring(0, 2).toUpperCase();
+                      };
 
-          {/* Time Period Selector */}
-          <View style={[styles.periodSelector, { borderBottomColor: theme.borderLight }]}>
-            {periods.map((period) => {
-              const isActive = selectedPeriod === period;
-              return (
-                <TouchableOpacity
-                  key={period}
-                  style={[
-                    styles.periodButton,
-                    {
-                      backgroundColor: isActive ? theme.primaryLight : 'transparent',
-                    },
-                  ]}
-                  onPress={() => setSelectedPeriod(period)}
-                >
+                      return (
+                        <TouchableOpacity
+                          key={entity.id}
+                          style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
+                          onPress={() => handleHoldingPress(entity.id, entity.category)}
+                        >
+                          <View style={styles.miniCardLeft}>
+                            <View style={[styles.miniIcon, { backgroundColor: theme.primaryLight }]}>
+                              <Text style={[styles.miniIconText, { color: theme.primary }]}>
+                                {getInitials(entity.name)}
+                              </Text>
+                            </View>
+                            <View style={styles.miniNameContainer}>
+                              <Text style={[styles.miniName, { color: theme.text }]}>{entity.name}</Text>
+                              <Text style={[styles.miniCategory, { color: theme.textSecondary }]}>{entity.displayCategory}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.miniCardRight}>
+                            <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(livePrice)}</Text>
+                            <Text style={[styles.miniChange, { color: getChangeColor(liveChange) }]}>
+                              {liveChangePercent >= 0 ? '+' : ''}{liveChangePercent.toFixed(2)}%
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+          </View>
+        )}
+
+        {/* Spotlights Section */}
+        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Spotlights</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.spotlightsScrollContent}
+            style={styles.spotlightsScroll}
+          >
+            {spotlights.map((spotlight) => (
+              <TouchableOpacity
+                key={spotlight.id}
+                style={[
+                  styles.spotlightCard,
+                  {
+                    backgroundColor: spotlight.backgroundColor,
+                  },
+                ]}
+                onPress={spotlight.onPress}
+              >
+                <View style={styles.spotlightCardContent}>
+                  {spotlight.icon && (
+                    <Text style={styles.spotlightIcon}>{spotlight.icon}</Text>
+                  )}
                   <Text
                     style={[
-                      styles.periodButtonText,
+                      styles.spotlightCardTitle,
                       {
-                        color: isActive ? theme.primary : theme.textSecondary,
-                        fontWeight: isActive ? '600' : '500',
+                        color: spotlight.textColor,
                       },
                     ]}
                   >
-                    {period}
+                    {spotlight.title}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Watchlist Section */}
+        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Watchlist</Text>
+            <TouchableOpacity onPress={() => {
+              // Navigate to Watchlist tab
+              navigation.navigate('Watchlist');
+            }}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {watchlist.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="star-outline" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No watchlist items yet</Text>
+              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+                Add entities to your watchlist to track them
+              </Text>
+            </View>
+          ) : (
+            <>
+              {watchlist.slice(0, 5).map((item) => {
+                return (
+                  <TouchableOpacity
+                    key={item.entityId}
+                    style={[styles.watchlistCard, { borderBottomColor: theme.borderLight }]}
+                    onPress={() => handleHoldingPress(item.entityId, item.category)}
+                  >
+                    <View style={styles.watchlistLeft}>
+                      <View style={[styles.watchlistIcon, { backgroundColor: theme.primaryLight }]}>
+                        <Text style={[styles.watchlistIconText, { color: theme.primary }]}>
+                          {item.entityName.substring(0, 2).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.watchlistInfo}>
+                        <Text style={[styles.watchlistName, { color: theme.text }]}>{item.entityName}</Text>
+                        <Text style={[styles.watchlistCategory, { color: theme.textSecondary }]}>
+                          {getDisplayCategory(item.entityId, item.category)}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.watchlistRight}>
+                      <Text style={[styles.watchlistPrice, { color: theme.text }]}>
+                        {formatCurrency(item.currentPrice)}
+                      </Text>
+                      <Text style={[styles.watchlistChange, { color: getChangeColor(item.change24h) }]}>
+                        {item.change24h >= 0 ? '+' : ''}
+                        {item.changePercent24h.toFixed(2)}%
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+        </View>
+
+        {/* Open Positions Section */}
+        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Open Positions</Text>
+            <TouchableOpacity onPress={() => {
+              // Navigate to Portfolio tab
+              navigation.navigate('Portfolio');
+            }}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {portfolio.holdings.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="wallet-outline" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No open positions</Text>
+              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+                Start trading to see your positions here
+              </Text>
+            </View>
+          ) : (
+            <>
+              {portfolio.holdings.slice(0, 5).map((holding) => {
+                const entity = MOCK_ENTITIES.find(e => e.id === holding.entityId);
+                const entityCategory = entity?.category || '';
+                return (
+                  <TouchableOpacity
+                    key={holding.entityId}
+                    style={[styles.watchlistCard, { borderBottomColor: theme.borderLight }]}
+                    onPress={() => handleHoldingPress(holding.entityId, entityCategory)}
+                  >
+                    <View style={styles.watchlistLeft}>
+                      <View style={[styles.watchlistIcon, { backgroundColor: theme.primaryLight }]}>
+                        <Text style={[styles.watchlistIconText, { color: theme.primary }]}>
+                          {holding.entityName.substring(0, 2).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.watchlistInfo}>
+                        <Text style={[styles.watchlistName, { color: theme.text }]}>{holding.entityName}</Text>
+                        <Text style={[styles.watchlistCategory, { color: theme.textSecondary }]}>
+                          {getDisplayCategory(holding.entityId, entityCategory)}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.watchlistRight}>
+                      <Text style={[styles.watchlistPrice, { color: theme.text }]}>
+                        {formatCurrency(holding.totalValue)}
+                      </Text>
+                      <Text style={[styles.watchlistChange, { color: getChangeColor(holding.profitLoss) }]}>
+                        {holding.profitLoss >= 0 ? '+' : ''}
+                        {formatCurrency(holding.profitLoss)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+        </View>
+
+        {/* Added Category Modules */}
+        {addedCategories.map((category) => {
+          const topEntities = getTopEntitiesForCategory(category);
+          return (
+            <View key={category} style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>{category}</Text>
+                <TouchableOpacity onPress={() => handleRemoveCategory(category)}>
+                  <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              {topEntities.map((entity) => {
+                const livePrice = getEntityPrice(entity.id);
+                const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
+                const liveChange = livePrice - basePrice;
+                const liveChangePercent = (liveChange / basePrice) * 100;
+                
+                // Get initials from name (first 2 letters)
+                const getInitials = (name: string) => {
+                  return name.substring(0, 2).toUpperCase();
+                };
+
+                return (
+                  <TouchableOpacity
+                    key={entity.id}
+                    style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
+                    onPress={() => {
+                      const entityCategory = getEntityCategory(category);
+                      navigation.navigate('Entity', { entityId: entity.id, categoryId: entityCategory });
+                    }}
+                  >
+                    <View style={styles.rankContainer}>
+                      <Text style={[styles.categoryRankNumber, { color: theme.textSecondary }]}>{entity.rank}</Text>
+                      {entity.positionChange !== 0 && (
+                        <View style={styles.positionChangeContainer}>
+                          {entity.positionChange > 0 ? (
+                            <View style={styles.positionChangeUp}>
+                              <Ionicons name="arrow-up" size={10} color="#10B981" />
+                              <Text style={styles.positionChangeTextUp}>{entity.positionChange}</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.positionChangeDown}>
+                              <Ionicons name="arrow-down" size={10} color="#EF4444" />
+                              <Text style={styles.positionChangeTextDown}>{Math.abs(entity.positionChange)}</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.miniCardLeft}>
+                      <View style={[styles.miniIcon, { backgroundColor: theme.primaryLight }]}>
+                        <Text style={[styles.miniIconText, { color: theme.primary }]}>
+                          {getInitials(entity.name)}
+                        </Text>
+                      </View>
+                      <View style={styles.miniNameContainer}>
+                        <Text style={[styles.miniName, { color: theme.text }]}>{entity.name}</Text>
+                        <Text style={[styles.miniCategory, { color: theme.textSecondary }]}>{category}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.miniCardRight}>
+                      <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(livePrice)}</Text>
+                      <Text style={[styles.miniChange, { color: getChangeColor(liveChange) }]}>
+                        {liveChangePercent >= 0 ? '+' : ''}{liveChangePercent.toFixed(2)}%
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          );
+        })}
+
+        {/* Customize Section */}
+        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Customize Your Home Screen</Text>
+          <View style={styles.widgetIconsContainer}>
+            {customizableCategories.map((category) => {
+              const isAdded = addedCategories.includes(category);
+              return (
+                <TouchableOpacity
+                  key={category}
+                  style={styles.widgetItem}
+                  onPress={() => {
+                    if (isAdded) {
+                      handleRemoveCategory(category);
+                    } else {
+                      handleAddCategory(category);
+                    }
+                  }}
+                  disabled={isAdded}
+                >
+                  <View style={[styles.widgetIcon, { borderColor: isAdded ? theme.textTertiary : theme.primary, opacity: isAdded ? 0.5 : 1 }]}>
+                    <Text style={[styles.widgetIconText, { color: isAdded ? theme.textTertiary : theme.primary }]}>
+                      {category.substring(0, 2).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={[styles.widgetLabel, { color: isAdded ? theme.textTertiary : theme.text }]}>
+                    {isAdded ? '✓ Added' : `+ ${category}`}
                   </Text>
                 </TouchableOpacity>
               );
@@ -358,274 +723,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={[styles.quickActions, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={handleBuyPress}
-          >
-            <View style={[styles.actionIconContainer, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="trending-up" size={20} color={theme.primary} />
-            </View>
-            <Text style={[styles.actionButtonText, { color: theme.textSecondary }]}>Buy</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={handleSellPress}
-          >
-            <View style={[styles.actionIconContainer, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="trending-down" size={20} color={theme.primary} />
-            </View>
-            <Text style={[styles.actionButtonText, { color: theme.textSecondary }]}>Sell</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => setShowTransferModal(true)}
-          >
-            <View style={[styles.actionIconContainer, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="swap-horizontal" size={20} color={theme.primary} />
-            </View>
-            <Text style={[styles.actionButtonText, { color: theme.textSecondary }]}>Transfer</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => setShowDepositModal(true)}
-          >
-            <View style={[styles.actionIconContainer, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="card" size={20} color={theme.primary} />
-            </View>
-            <Text style={[styles.actionButtonText, { color: theme.textSecondary }]}>Deposit</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Top Gainers Section */}
-        {topGainers.length > 0 && (
-          <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>📈 Top Gainers</Text>
-            </View>
-                {topGainers.map((entity) => {
-                      const livePrice = getEntityPrice(entity.id);
-                      const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
-                      const liveChange = livePrice - basePrice;
-                      const liveChangePercent = (liveChange / basePrice) * 100;
-                      
-                      return (
-                        <TouchableOpacity
-                          key={entity.id}
-                          style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
-                          onPress={() => handleHoldingPress(entity.id, entity.category)}
-                        >
-                          <View style={styles.miniCardLeft}>
-                            <Text style={[styles.miniTicker, { color: theme.text }]}>{entity.ticker}</Text>
-                            <Text style={[styles.miniName, { color: theme.textSecondary }]}>{entity.name}</Text>
-                          </View>
-                          <View style={styles.miniCardRight}>
-                            <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(livePrice)}</Text>
-                            <Text style={[styles.miniChange, { color: '#10B981' }]}>
-                              +{liveChangePercent.toFixed(2)}%
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-          </View>
-        )}
-
-        {/* Top Losers Section */}
-        {topLosers.length > 0 && (
-          <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>📉 Top Losers</Text>
-            </View>
-                {topLosers.map((entity) => {
-                      const livePrice = getEntityPrice(entity.id);
-                      const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
-                      const liveChange = livePrice - basePrice;
-                      const liveChangePercent = (liveChange / basePrice) * 100;
-                      
-                      return (
-                        <TouchableOpacity
-                          key={entity.id}
-                          style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
-                          onPress={() => handleHoldingPress(entity.id, entity.category)}
-                        >
-                          <View style={styles.miniCardLeft}>
-                            <Text style={[styles.miniTicker, { color: theme.text }]}>{entity.ticker}</Text>
-                            <Text style={[styles.miniName, { color: theme.textSecondary }]}>{entity.name}</Text>
-                          </View>
-                          <View style={styles.miniCardRight}>
-                            <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(livePrice)}</Text>
-                            <Text style={[styles.miniChange, { color: '#EF4444' }]}>
-                              {liveChangePercent.toFixed(2)}%
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-          </View>
-        )}
-
-        {/* Holdings Section */}
-        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Holdings</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Portfolio' as never)}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-
-          {portfolio.holdings.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="briefcase-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No holdings yet</Text>
-              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-                Start trading to build your portfolio
-              </Text>
-            </View>
-          ) : (
-            <>
-                {portfolio.holdings.map((holding) => {
-                        const entity = getEntityById(holding.entityId);
-                        const displayTicker = entity?.ticker || holding.entityTicker;
-                        const displayName = entity?.name || holding.entityName;
-                        // Get live price for this holding
-                        const livePrice = getEntityPrice(holding.entityId);
-                        const liveTotalValue = holding.quantity * livePrice;
-                        const liveProfitLoss = liveTotalValue - holding.totalCost;
-                        const liveProfitLossPercent = (liveProfitLoss / holding.totalCost) * 100;
-                        
-                        return (
-                          <TouchableOpacity
-                            key={holding.entityId}
-                            style={[styles.holdingCard, { borderBottomColor: theme.borderLight }]}
-                            onPress={() => handleHoldingPress(holding.entityId, holding.category)}
-                          >
-                            <View style={styles.holdingLeft}>
-                              <View style={[styles.holdingIcon, { backgroundColor: theme.primaryLight }]}>
-                                <Text style={[styles.holdingIconText, { color: theme.primary }]}>
-                                  {displayTicker.substring(0, 2)}
-                                </Text>
-                              </View>
-                              <View style={styles.holdingInfo}>
-                                <Text style={[styles.holdingTicker, { color: theme.text }]}>{displayTicker}</Text>
-                                <Text style={[styles.holdingQuantity, { color: theme.textSecondary }]}>
-                                  {holding.quantity} {holding.quantity === 1 ? 'share' : 'shares'}
-                                </Text>
-                              </View>
-                            </View>
-                            
-                            <View style={styles.holdingRight}>
-                              <Text style={[styles.holdingValue, { color: theme.text }]}>
-                                {formatCurrency(liveTotalValue)}
-                              </Text>
-                              <View style={styles.holdingChangeRow}>
-                                <Text
-                                  style={[
-                                    styles.holdingChange,
-                                    { color: getChangeColor(liveProfitLoss) },
-                                  ]}
-                                >
-                                  {liveProfitLoss >= 0 ? '+' : ''}
-                                  {formatCurrency(liveProfitLoss)}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.holdingChangePercent,
-                                    { color: getChangeColor(liveProfitLoss) },
-                                  ]}
-                                >
-                                  ({liveProfitLossPercent >= 0 ? '+' : ''}
-                                  {liveProfitLossPercent.toFixed(2)}%)
-                                </Text>
-                              </View>
-                            </View>
-                          </TouchableOpacity>
-                        );
-
-                      })}
-            </>
-          )}
-        </View>
-
-        {/* Cash Balance Card */}
-        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <View style={[styles.cashCard, { backgroundColor: theme.backgroundSecondary }]}>
-            <View style={styles.cashLeft}>
-              <Ionicons name="wallet" size={24} color={theme.primary} />
-              <View style={styles.cashInfo}>
-                <Text style={[styles.cashLabel, { color: theme.textSecondary }]}>Buying Power</Text>
-                <Text style={[styles.cashValue, { color: theme.text }]}>{formatCurrency(portfolio.cashBalance)}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
-          </View>
-        </View>
-
         {/* Bottom Padding */}
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
-
-      {/* Sell Selection Modal */}
-      <Modal
-        visible={showSellSelectionModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowSellSelectionModal(false)}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Select Position to Sell</Text>
-            <View style={{ width: 60 }} />
-          </View>
-
-          <FlatList
-            data={portfolio.holdings}
-            keyExtractor={(item) => item.entityId.toString()}
-            renderItem={({ item }) => {
-              const entity = getEntityById(item.entityId);
-              return (
-                <TouchableOpacity
-                  style={styles.selectionItem}
-                  onPress={() => handleSelectHoldingToSell(item)}
-                >
-                  <View style={styles.selectionLeft}>
-                    <View style={styles.selectionIcon}>
-                      <Text style={styles.selectionIconText}>
-                        {(entity?.ticker || item.entityTicker).substring(0, 2)}
-                      </Text>
-                    </View>
-                    <View style={styles.selectionInfo}>
-                      <Text style={styles.selectionTicker}>
-                        {entity?.ticker || item.entityTicker}
-                      </Text>
-                      <Text style={styles.selectionName}>
-                        {item.quantity} {item.quantity === 1 ? 'share' : 'shares'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.selectionRight}>
-                    <Text style={styles.selectionPrice}>{formatCurrency(item.totalValue)}</Text>
-                    <Text style={[
-                      styles.selectionChange,
-                      { color: getChangeColor(item.profitLoss) }
-                    ]}>
-                      {item.profitLoss >= 0 ? '+' : ''}{formatCurrency(item.profitLoss)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-            contentContainerStyle={styles.modalContent}
-            showsVerticalScrollIndicator={false}
-          />
-        </SafeAreaView>
-      </Modal>
 
       {/* Trade Modal */}
       {selectedEntity && (
@@ -644,267 +744,80 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* Transfer Modal */}
-      <TransferModal
-        visible={showTransferModal}
-        onClose={() => setShowTransferModal(false)}
-        cashBalance={portfolio.cashBalance}
-      />
-
-      {/* Deposit Modal */}
-      <DepositModal
-        visible={showDepositModal}
-        onClose={() => setShowDepositModal(false)}
-      />
+      {/* Side Menu */}
+      <SideMenu />
     </SafeAreaView>
   );
 }
 
-// Transfer Modal Component
-function TransferModal({ visible, onClose, cashBalance }: {
-  visible: boolean;
-  onClose: () => void;
-  cashBalance: number;
-}) {
-  const { theme } = useTheme();
-  const [amount, setAmount] = useState('');
-  const [recipient, setRecipient] = useState('');
-
-  const handleTransfer = () => {
-    if (!amount || !recipient) {
-      Alert.alert('Error', 'Please enter both amount and recipient');
-      return;
-    }
-
-    const transferAmount = parseFloat(amount);
-    if (isNaN(transferAmount) || transferAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-
-    if (transferAmount > cashBalance) {
-      Alert.alert('Error', 'Insufficient balance');
-      return;
-    }
-
-    Alert.alert(
-      'Transfer Confirmed',
-      `Transfer ${formatCurrency(transferAmount)} to @${recipient}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => {
-            Alert.alert('Success', 'Transfer completed!');
-            setAmount('');
-            setRecipient('');
-            onClose();
-          },
-        },
-      ]
-    );
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.card }]}>
-        <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>Transfer Funds</Text>
-          <View style={{ width: 60 }} />
-        </View>
-
-        <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <View style={[styles.balanceDisplay, { backgroundColor: theme.backgroundSecondary }]}>
-            <Text style={[styles.balanceDisplayLabel, { color: theme.textSecondary }]}>Available Balance</Text>
-            <Text style={[styles.balanceDisplayValue, { color: theme.text }]}>{formatCurrency(cashBalance)}</Text>
-          </View>
-
-          <Text style={[styles.inputLabel, { color: theme.text }]}>Recipient Username</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
-            placeholder="@username"
-            placeholderTextColor={theme.textTertiary}
-            value={recipient}
-            onChangeText={setRecipient}
-            autoCapitalize="none"
-          />
-
-          <Text style={[styles.inputLabel, { color: theme.text }]}>Amount</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
-            placeholder="0.00"
-            placeholderTextColor={theme.textTertiary}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-          />
-
-          <TouchableOpacity
-            style={[
-              styles.modalButton,
-              { backgroundColor: (!amount || !recipient) ? theme.backgroundTertiary : theme.primary },
-            ]}
-            onPress={handleTransfer}
-            disabled={!amount || !recipient}
-          >
-            <Text style={styles.modalButtonText}>Transfer</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
-
-// Deposit Modal Component
-function DepositModal({ visible, onClose }: {
-  visible: boolean;
-  onClose: () => void;
-}) {
-  const { theme } = useTheme();
-  const [amount, setAmount] = useState('');
-
-  const handleDeposit = () => {
-    if (!amount) {
-      Alert.alert('Error', 'Please enter an amount');
-      return;
-    }
-
-    const depositAmount = parseFloat(amount);
-    if (isNaN(depositAmount) || depositAmount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-
-    Alert.alert(
-      'Deposit',
-      `This is a demo app. In production, this would connect to a payment processor to deposit ${formatCurrency(depositAmount)}.`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            setAmount('');
-            onClose();
-          },
-        },
-      ]
-    );
-  };
-
-  const quickAmounts = [100, 500, 1000, 5000];
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.card }]}>
-        <View style={[styles.modalHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>Deposit Funds</Text>
-          <View style={{ width: 60 }} />
-        </View>
-
-        <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.inputLabel, { color: theme.text }]}>Amount</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
-            placeholder="0.00"
-            placeholderTextColor={theme.textTertiary}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-          />
-
-          <Text style={[styles.quickAmountsLabel, { color: theme.text }]}>Quick Amounts</Text>
-          <View style={styles.quickAmountsContainer}>
-            {quickAmounts.map((quickAmount) => (
-              <TouchableOpacity
-                key={quickAmount}
-                style={[styles.quickAmountButton, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
-                onPress={() => setAmount(quickAmount.toString())}
-              >
-                <Text style={[styles.quickAmountText, { color: theme.text }]}>{formatCurrency(quickAmount)}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={[styles.infoCard, { backgroundColor: theme.primaryLight }]}>
-            <Ionicons name="information-circle-outline" size={20} color={theme.primary} />
-            <Text style={[styles.infoText, { color: theme.text }]}>
-              This is a demo app using virtual tokens. No real money is involved.
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.modalButton,
-              { backgroundColor: !amount ? theme.backgroundTertiary : theme.primary },
-            ]}
-            onPress={handleDeposit}
-            disabled={!amount}
-          >
-            <Text style={styles.modalButtonText}>Continue to Payment</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  portfolioHeader: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  portfolioValueContainer: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  portfolioValue: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#111827',
-    letterSpacing: -0.5,
-  },
-  changeContainer: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 6,
-  },
-  changeText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  changePeriod: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  chartContainer: {
-    alignItems: 'center',
-    marginTop: -10,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
     borderBottomWidth: 1,
   },
-  periodButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  periodButtonText: {
-    fontSize: 13,
+  menuButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    fontStyle: 'italic',
+    // Note: Bukhari Script font should be loaded via expo-font
+    // For now using italic style as placeholder
+    // fontFamily: 'BukhariScript', // Uncomment when font is loaded
+  },
+  categorySelectorContainer: {
+    borderBottomWidth: 1,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  categorySelector: {
+    maxHeight: 20,
+  },
+  categorySelectorContent: {
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    paddingBottom: 0,
+    alignItems: 'flex-end',
+  },
+  categoryButton: {
+    marginRight: 18,
+    paddingVertical: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryButtonText: {
+    fontSize: 15,
+    lineHeight: 18,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quickActions: {
     flexDirection: 'row',
@@ -949,6 +862,38 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  spotlightsScroll: {
+    marginHorizontal: -16,
+  },
+  spotlightsScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    gap: 12,
+  },
+  spotlightCard: {
+    width: 140,
+    height: 140,
+    borderRadius: 16,
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    marginRight: 12,
+  },
+  spotlightCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  spotlightIcon: {
+    fontSize: 24,
+  },
+  spotlightCardTitle: {
+    fontSize: 18,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    // For a cursive look, you may want to use a custom font
   },
   seeAllText: {
     fontSize: 14,
@@ -1043,18 +988,78 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
   },
+  rankContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: 50,
+    marginRight: 12,
+    position: 'relative',
+  },
+  categoryRankNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  trendingRankNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  positionChangeContainer: {
+    position: 'absolute',
+    top: -2,
+    left: 18,
+    alignItems: 'flex-start',
+  },
+  positionChangeUp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+  },
+  positionChangeDown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+  },
+  positionChangeTextUp: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#10B981',
+    lineHeight: 10,
+  },
+  positionChangeTextDown: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#EF4444',
+    lineHeight: 10,
+  },
   miniCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  miniTicker: {
+  miniIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  miniIconText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  miniNameContainer: {
+    flex: 1,
+  },
+  miniName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
   },
-  miniName: {
+  miniCategory: {
     fontSize: 12,
-    color: '#6B7280',
     marginTop: 2,
+    color: '#6B7280',
   },
   miniCardRight: {
     alignItems: 'flex-end',
@@ -1068,6 +1073,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginTop: 2,
+  },
+  watchlistCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  watchlistLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  watchlistIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  watchlistIconText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+  },
+  watchlistInfo: {
+    flex: 1,
+  },
+  watchlistName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  watchlistCategory: {
+    fontSize: 12,
+    marginTop: 2,
+    color: '#6B7280',
+  },
+  watchlistRight: {
+    alignItems: 'flex-end',
+  },
+  watchlistPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  watchlistChange: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   cashCard: {
     flexDirection: 'row',
@@ -1245,5 +1303,92 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
+  },
+  widgetIconsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  widgetItem: {
+    width: '23%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  widgetIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    marginBottom: 8,
+  },
+  widgetIconText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  widgetLabel: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  trendingCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  trendingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  rankNumber: {
+    width: 24,
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  rankText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  trendingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  trendingIconText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  trendingInfo: {
+    flex: 1,
+  },
+  trendingName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  trendingCategory: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  trendingRight: {
+    alignItems: 'flex-end',
+  },
+  trendingPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  trendingChange: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

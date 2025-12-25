@@ -1,0 +1,195 @@
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
+import { useSideMenu } from '../context/SideMenuContext';
+
+interface SideMenuProps {
+  onClose?: () => void;
+}
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const MENU_WIDTH = SCREEN_WIDTH * 0.67; // 2/3 of screen width
+
+export default function SideMenu({ onClose }: SideMenuProps) {
+  const { theme } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
+  const { isVisible: visible, setIsVisible } = useSideMenu();
+  const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  const handleClose = () => {
+    setIsVisible(false);
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -MENU_WIDTH,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, slideAnim, backdropOpacity]);
+
+  if (!visible && slideAnim._value === -MENU_WIDTH) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <Animated.View
+        style={[
+          styles.backdrop,
+          {
+            opacity: backdropOpacity,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
+      </Animated.View>
+      
+      {/* Side Menu */}
+      <Animated.View
+        style={[
+          styles.menuContainer,
+          {
+            backgroundColor: theme.card,
+            width: MENU_WIDTH,
+            transform: [{ translateX: slideAnim }],
+          },
+        ]}
+      >
+        <SafeAreaView style={styles.menuContent} edges={['top', 'left', 'right']}>
+          {/* Header */}
+          <View style={[styles.menuHeader, { borderBottomColor: theme.border }]}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleClose}
+            >
+              <Ionicons name="close" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Menu Content - Will be filled later */}
+          <View style={styles.menuBody}>
+            <Text style={[styles.menuTitle, { color: theme.text }]}>Menu</Text>
+            {/* Menu items will be added here */}
+          </View>
+
+          {/* Settings Button at Bottom */}
+          <View style={[styles.menuFooter, { borderTopColor: theme.border }]}>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => {
+                handleClose();
+                navigation.navigate('Settings');
+              }}
+            >
+              <Ionicons name="settings-outline" size={24} color={theme.text} />
+              <Text style={[styles.settingsButtonText, { color: theme.text }]}>Settings</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Animated.View>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 999,
+  },
+  menuContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  menuContent: {
+    flex: 1,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuBody: {
+    flex: 1,
+    padding: 16,
+  },
+  menuTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  menuFooter: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  settingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  settingsButtonText: {
+    fontSize: 18,
+    fontWeight: '500',
+  },
+});
+

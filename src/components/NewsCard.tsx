@@ -49,14 +49,14 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
   };
 
   const getSentimentColor = () => {
-    if (article.sentiment === 'bullish') return '#10B981';
-    if (article.sentiment === 'bearish') return '#EF4444';
+    if (article.sentiment === 'positive') return '#10B981';
+    if (article.sentiment === 'negative') return '#EF4444';
     return '#6B7280';
   };
 
   const getSentimentIcon = () => {
-    if (article.sentiment === 'bullish') return 'trending-up';
-    if (article.sentiment === 'bearish') return 'trending-down';
+    if (article.sentiment === 'positive') return 'trending-up';
+    if (article.sentiment === 'negative') return 'trending-down';
     return 'remove';
   };
 

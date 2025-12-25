@@ -22,7 +22,7 @@ export default function NewsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'breaking' | 'category' | 'sentiment'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
-  const [selectedSentiment, setSelectedSentiment] = useState<'bullish' | 'bearish' | 'neutral' | undefined>();
+  const [selectedSentiment, setSelectedSentiment] = useState<'positive' | 'negative' | 'neutral' | undefined>();
   const [filteredNews, setFilteredNews] = useState<NewsArticle[]>(news);
 
   useEffect(() => {
@@ -55,10 +55,10 @@ export default function NewsScreen() {
     }
   };
 
-  const categories = ['Tech', 'Crypto', 'Politics', 'Events', 'People', 'General'];
+  const categories = ['Tech', 'Politics', 'Events', 'People', 'General'];
   const sentiments = [
-    { key: 'bullish', label: 'Bullish', color: '#10B981', icon: 'trending-up' },
-    { key: 'bearish', label: 'Bearish', color: '#EF4444', icon: 'trending-down' },
+    { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
+    { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },
     { key: 'neutral', label: 'Neutral', color: '#6B7280', icon: 'remove' },
   ] as const;
 

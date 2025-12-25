@@ -36,7 +36,7 @@ export default function CreatePostModal({
   const { createPost } = useSocial();
   const { theme } = useTheme();
   const [content, setContent] = useState('');
-  const [sentiment, setSentiment] = useState<'bullish' | 'bearish' | 'neutral'>('neutral');
+  const [sentiment, setSentiment] = useState<'positive' | 'negative' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -182,24 +182,24 @@ export default function CreatePostModal({
                 style={[
                   styles.sentimentButton,
                   { 
-                    backgroundColor: sentiment === 'bullish' ? '#10B981' : theme.backgroundSecondary,
-                    borderColor: sentiment === 'bullish' ? '#10B981' : theme.border,
+                    backgroundColor: sentiment === 'positive' ? '#10B981' : theme.backgroundSecondary,
+                    borderColor: sentiment === 'positive' ? '#10B981' : theme.border,
                   },
                 ]}
-                onPress={() => setSentiment('bullish')}
+                onPress={() => setSentiment('positive')}
               >
                 <Ionicons
                   name="trending-up"
                   size={20}
-                  color={sentiment === 'bullish' ? '#FFFFFF' : '#10B981'}
+                  color={sentiment === 'positive' ? '#FFFFFF' : '#10B981'}
                 />
                 <Text
                   style={[
                     styles.sentimentButtonText,
-                    { color: sentiment === 'bullish' ? '#FFFFFF' : theme.text },
+                    { color: sentiment === 'positive' ? '#FFFFFF' : theme.text },
                   ]}
                 >
-                  Bullish
+                  Positive
                 </Text>
               </TouchableOpacity>
 
@@ -232,24 +232,24 @@ export default function CreatePostModal({
                 style={[
                   styles.sentimentButton,
                   { 
-                    backgroundColor: sentiment === 'bearish' ? '#EF4444' : theme.backgroundSecondary,
-                    borderColor: sentiment === 'bearish' ? '#EF4444' : theme.border,
+                    backgroundColor: sentiment === 'negative' ? '#EF4444' : theme.backgroundSecondary,
+                    borderColor: sentiment === 'negative' ? '#EF4444' : theme.border,
                   },
                 ]}
-                onPress={() => setSentiment('bearish')}
+                onPress={() => setSentiment('negative')}
               >
                 <Ionicons
                   name="trending-down"
                   size={20}
-                  color={sentiment === 'bearish' ? '#FFFFFF' : '#EF4444'}
+                  color={sentiment === 'negative' ? '#FFFFFF' : '#EF4444'}
                 />
                 <Text
                   style={[
                     styles.sentimentButtonText,
-                    { color: sentiment === 'bearish' ? '#FFFFFF' : theme.text },
+                    { color: sentiment === 'negative' ? '#FFFFFF' : theme.text },
                   ]}
                 >
-                  Bearish
+                  Negative
                 </Text>
               </TouchableOpacity>
             </View>

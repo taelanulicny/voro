@@ -11,7 +11,8 @@ export type RootStackParamList = {
   FollowersList: { userId: string; type: 'followers' | 'following'; username: string };
   UserProfile: { userId: string };
   NewsDetail: { articleId: string };
-  BuyScreen: undefined;
+  NewsFeed: undefined;
+  Search: undefined;
   Settings: undefined;
 };
 
@@ -22,6 +23,8 @@ export type MainTabParamList = {
   Groups: undefined;
   Portfolio: undefined;
   Watchlist: undefined;
+  Categories: undefined;
+  SeasonalCompetition: undefined;
   Profile: undefined;
 };
 
@@ -96,7 +99,7 @@ export interface Post {
   entityId?: number;
   entityTicker?: string;
   entityName?: string;
-  sentiment?: 'bullish' | 'bearish' | 'neutral';
+  sentiment?: 'positive' | 'negative' | 'neutral';
   images?: string[];
   likes: number;
   comments: number;
@@ -174,11 +177,11 @@ export interface NewsArticle {
   imageUrl?: string;
   author?: string;
   publishedAt: string;
-  category: 'Tech' | 'Crypto' | 'Politics' | 'Events' | 'People' | 'General';
+  category: 'Tech' | 'Politics' | 'Events' | 'People' | 'General';
   entityId?: number;
   entityTicker?: string;
   entityName?: string;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
+  sentiment: 'positive' | 'negative' | 'neutral';
   sentimentScore: number; // -100 to 100
   impactLevel: 'low' | 'medium' | 'high' | 'critical';
   tags: string[];
@@ -188,7 +191,7 @@ export interface NewsArticle {
 
 export interface NewsFilter {
   category?: string;
-  sentiment?: 'bullish' | 'bearish' | 'neutral';
+  sentiment?: 'positive' | 'negative' | 'neutral';
   entityId?: number;
   impactLevel?: 'low' | 'medium' | 'high' | 'critical';
   isBreaking?: boolean;

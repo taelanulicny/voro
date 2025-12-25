@@ -17,8 +17,10 @@ import { RootStackParamList, WatchlistSortOption } from '../types';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
+import { useSideMenu } from '../context/SideMenuContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import TradeModal from '../components/TradeModal';
+import SideMenu from '../components/SideMenu';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -46,6 +48,7 @@ export default function WatchlistScreen() {
     category: string;
     currentPrice: number;
   } | null>(null);
+  const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
 
   // Sort and filter watchlist
   const sortedWatchlist = useMemo(() => {
@@ -147,6 +150,27 @@ export default function WatchlistScreen() {
     });
   };
 
+  // Map entity categories to display category names
+  const getDisplayCategory = (entityId: number, category: string): string => {
+    // Distinguish between Influencers (IDs 11-20) and Music Artists (IDs 21-30) in People category
+    if (category === 'People') {
+      if (entityId >= 11 && entityId <= 20) {
+        return 'Influencers';
+      } else if (entityId >= 21 && entityId <= 30) {
+        return 'Music Artists';
+      }
+      return 'Influencers'; // Default for other People entities
+    }
+    
+    const categoryMap: Record<string, string> = {
+      'Tech': 'Startups',
+      'Politics': 'Political Figures',
+      'Events': 'Sports',
+    };
+    
+    return categoryMap[category] || category;
+  };
+
   const sortOptions: { label: string; value: WatchlistSortOption }[] = [
     { label: 'Name (A-Z)', value: 'name' },
     { label: 'Price (High to Low)', value: 'price_high' },
@@ -169,18 +193,20 @@ export default function WatchlistScreen() {
         <View style={styles.itemLeft}>
           <View style={[styles.tickerIcon, { backgroundColor: theme.primaryLight }]}>
             <Text style={[styles.tickerIconText, { color: theme.primary }]}>
-              {item.entityTicker.substring(0, 2)}
+              {item.entityName.substring(0, 2).toUpperCase()}
             </Text>
           </View>
           <View style={styles.itemInfo}>
             <View style={styles.itemHeader}>
-              <Text style={[styles.ticker, { color: theme.text }]}>{item.entityTicker}</Text>
+              <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+                {item.entityName}
+              </Text>
               {hasAlerts && (
                 <Ionicons name="notifications" size={16} color={theme.primary} style={styles.alertIcon} />
               )}
             </View>
-            <Text style={[styles.name, { color: theme.textSecondary }]} numberOfLines={1}>
-              {item.entityName}
+            <Text style={[styles.categoryText, { color: theme.textSecondary }]}>
+              {getDisplayCategory(item.entityId, item.category)}
             </Text>
           </View>
         </View>
@@ -212,14 +238,14 @@ export default function WatchlistScreen() {
                 style={[styles.actionButton, styles.sellButton, { backgroundColor: theme.error + '20' }]}
                 onPress={() => handleQuickSell(item)}
               >
-                <Text style={[styles.actionButtonText, { color: theme.error }]}>Sell</Text>
+                <Text style={[styles.actionButtonText, { color: theme.error }]}>Negative</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={[styles.actionButton, styles.buyButton, { backgroundColor: theme.primary + '20' }]}
                 onPress={() => handleQuickBuy(item)}
               >
-                <Text style={[styles.actionButtonText, { color: theme.primary }]}>Buy</Text>
+                <Text style={[styles.actionButtonText, { color: theme.primary }]}>Positive</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -247,13 +273,25 @@ export default function WatchlistScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Watchlist</Text>
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={() => setShowSortModal(true)}
-        >
-          <Ionicons name="swap-vertical" size={20} color={theme.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setSideMenuVisible(true)}
+          >
+            <Ionicons name="menu" size={24} color={theme.text} />
+          </TouchableOpacity>
+          
+          <Text style={[styles.logoText, { color: theme.text }]}>Watchlist</Text>
+        </View>
+        
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => setShowSortModal(true)}
+          >
+            <Ionicons name="swap-vertical" size={24} color={theme.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar */}
@@ -444,6 +482,9 @@ export default function WatchlistScreen() {
           currentPrice={tradeEntity.currentPrice}
         />
       )}
+
+      {/* Side Menu */}
+      <SideMenu />
     </SafeAreaView>
   );
 }
@@ -460,12 +501,32 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  headerTitle: {
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  logoText: {
     fontSize: 24,
     fontWeight: '700',
   },
-  sortButton: {
-    padding: 4,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -516,16 +577,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  ticker: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginRight: 6,
-  },
   alertIcon: {
     marginLeft: 4,
   },
   name: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  categoryText: {
+    fontSize: 12,
     marginTop: 2,
   },
   itemRight: {

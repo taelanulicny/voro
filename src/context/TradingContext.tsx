@@ -37,8 +37,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
     const initialPrices: Record<number, number> = {};
     MOCK_ENTITIES.forEach(entity => {
-      // Start with base price plus small random variation
-      initialPrices[entity.id] = entity.basePrice + (Math.random() - 0.5) * 5;
+      // Start with base price plus small random variation (with cents)
+      const variation = (Math.random() - 0.5) * 8; // -4 to +4 range
+      initialPrices[entity.id] = Math.round((entity.basePrice + variation) * 100) / 100; // Round to 2 decimals
     });
     return initialPrices;
   });

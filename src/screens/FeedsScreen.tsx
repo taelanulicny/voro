@@ -9,6 +9,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
@@ -17,13 +20,17 @@ import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
 import { Post } from '../types';
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function FeedsScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const { activityFeed, isLoadingFeed, refreshActivityFeed } = useSocial();
   const { theme } = useTheme();
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'following'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<'trending' | 'following'>('trending');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<'feed' | 'news'>('feed');
 
   useEffect(() => {
     loadFeed();
@@ -43,13 +50,36 @@ export default function FeedsScreen() {
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Feed</Text>
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => setShowCreatePost(true)}
-      >
-        <Ionicons name="add-circle" size={28} color={theme.primary} />
-      </TouchableOpacity>
+      <View style={[styles.segmentedControl, { backgroundColor: '#E8E8F5' }]}>
+        <TouchableOpacity
+          style={[
+            styles.segmentButton,
+            selectedTab === 'feed' && styles.segmentButtonActive
+          ]}
+          onPress={() => setSelectedTab('feed')}
+        >
+          <Text style={[
+            styles.segmentButtonText,
+            selectedTab === 'feed' && styles.segmentButtonTextActive
+          ]}>
+            Feed
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.segmentButton,
+            selectedTab === 'news' && styles.segmentButtonActive
+          ]}
+          onPress={() => navigation.navigate('NewsFeed')}
+        >
+          <Text style={[
+            styles.segmentButtonText,
+            selectedTab === 'news' && styles.segmentButtonTextActive
+          ]}>
+            News
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -57,18 +87,18 @@ export default function FeedsScreen() {
     <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       <TouchableOpacity
         style={styles.filterTab}
-        onPress={() => setSelectedFilter('all')}
+        onPress={() => setSelectedFilter('trending')}
       >
         <Text
           style={[
             styles.filterTabText,
-            { color: selectedFilter === 'all' ? theme.primary : theme.textSecondary },
-            selectedFilter === 'all' && { fontWeight: '600' },
+            { color: selectedFilter === 'trending' ? theme.primary : theme.textSecondary },
+            selectedFilter === 'trending' && { fontWeight: '600' },
           ]}
         >
-          All Posts
+          Trending
         </Text>
-        {selectedFilter === 'all' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+        {selectedFilter === 'trending' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -100,7 +130,7 @@ export default function FeedsScreen() {
       <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
         {selectedFilter === 'following'
           ? 'Posts from people you follow will appear here'
-          : 'Be the first to share your thoughts!'}
+          : 'Trending posts will appear here'}
       </Text>
       <TouchableOpacity
         style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
@@ -163,19 +193,39 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
     borderBottomWidth: 1,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  createButton: {
+  segmentedControl: {
+    flexDirection: 'row',
+    borderRadius: 0,
     padding: 4,
+    alignSelf: 'stretch',
+    width: '100%',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  segmentButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 10,
+    borderRadius: 0,
+  },
+  segmentButtonActive: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+  },
+  segmentButtonText: {
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#374151',
+  },
+  segmentButtonTextActive: {
+    fontWeight: '600',
+    color: '#111827',
   },
   filterTabs: {
     flexDirection: 'row',

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Post } from '../types';
@@ -13,15 +14,22 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import CommentSection from './CommentSection';
+import { getEntityByName } from '../utils/mockEntities';
 
 interface PostCardProps {
   post: Post;
   onPress?: () => void;
+  isCategoryFeed?: boolean; // For category feeds, use @entityName format
+  categoryId?: string; // Category ID for navigation
+  categoryName?: string; // Category display name for tagging
+  isEntityFeed?: boolean; // For entity feeds, use @entityName format
+  entityId?: number; // Entity ID for navigation
+  entityName?: string; // Entity display name for tagging
 }
 
-export default function PostCard({ post, onPress }: PostCardProps) {
+export default function PostCard({ post, onPress, isCategoryFeed = false, categoryId, categoryName, isEntityFeed = false, entityId, entityName }: PostCardProps) {
   const { user } = useAuth();
-  const { toggleLikePost, toggleBookmarkPost, deletePost } = useSocial();
+  const { toggleLikePost, deletePost } = useSocial();
   const { theme } = useTheme();
   const [showComments, setShowComments] = useState(false);
   const navigation = useNavigation();
@@ -46,8 +54,19 @@ export default function PostCard({ post, onPress }: PostCardProps) {
     await toggleLikePost(post.id);
   };
 
-  const handleBookmark = async () => {
-    await toggleBookmarkPost(post.id);
+  const handleShare = async () => {
+    try {
+      const shareContent = post.entityName 
+        ? `${post.content}\n\n— ${post.displayName} (@${post.username})`
+        : `${post.content}\n\n— ${post.displayName} (@${post.username})`;
+      
+      await Share.share({
+        message: shareContent,
+        title: post.entityName ? `Post about @${post.entityName}` : 'Post from moro',
+      });
+    } catch (error) {
+      // User cancelled or error occurred
+    }
   };
 
   const handleComment = () => {
@@ -71,23 +90,183 @@ export default function PostCard({ post, onPress }: PostCardProps) {
     );
   };
 
-  const handleEntityPress = () => {
-    if (post.entityId) {
+  const handleEntityPress = (mentionEntityName?: string) => {
+    // If a specific entity name is provided (from mention), use that
+    if (mentionEntityName) {
+      const entity = getEntityByName(mentionEntityName);
+      if (entity) {
+        // Map entity category to categoryId format used in navigation
+        // For People category, need to check entity ID to distinguish Influencers vs Music Artists
+        let entityCategoryId: string;
+        if (entity.category === 'People') {
+          if (entity.id >= 11 && entity.id <= 20) {
+            entityCategoryId = 'Influencers';
+          } else if (entity.id >= 21 && entity.id <= 30) {
+            entityCategoryId = 'Music Artists';
+          } else {
+            entityCategoryId = 'Influencers'; // Default
+          }
+        } else {
+          const categoryMap: Record<string, string> = {
+            'Politics': 'Political Figures',
+            'Tech': 'Startups',
+            'Events': 'Sports',
+          };
+          entityCategoryId = categoryMap[entity.category] || entity.category;
+        }
+        
+        navigation.navigate('Entity' as never, {
+          entityId: entity.id,
+          categoryId: entityCategoryId,
+        } as never);
+      }
+      return;
+    }
+    
+    // Otherwise use the post's entity
+    if (post.entityId && categoryId) {
       navigation.navigate('Entity' as never, {
         entityId: post.entityId,
-        categoryId: 'stocks', // Default category
+        categoryId: categoryId,
+      } as never);
+    } else if (post.entityId) {
+      // Fallback for non-category feeds
+      navigation.navigate('Entity' as never, {
+        entityId: post.entityId,
+        categoryId: 'Influencers',
+      } as never);
+    }
+  };
+
+  const handleCategoryPress = () => {
+    if (categoryId) {
+      navigation.navigate('Category' as never, {
+        categoryId: categoryId,
       } as never);
     }
   };
 
   const isOwnPost = user?.id === post.userId;
 
+  // Parse content to find @mentions and make them clickable
+  const renderContentWithMentions = () => {
+    if (isEntityFeed) {
+      // Entity feed: Start with @EntityName prefix, then parse all @mentions in content
+      const entityMention = entityName ? `@${entityName} ` : '';
+      const fullContent = entityMention + post.content;
+      
+      // Use regex to find all @mentions
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      const mentionRegex = /@([a-zA-Z0-9\s.'-]+)/g;
+      let match;
+      
+      while ((match = mentionRegex.exec(fullContent)) !== null) {
+        const mention = match[0];
+        const mentionName = match[1];
+        const startIndex = match.index;
+        
+        // Add text before the mention
+        if (startIndex > lastIndex) {
+          parts.push(
+            <Text key={`text-${lastIndex}`} style={[styles.contentText, { color: theme.text }]}>
+              {fullContent.substring(lastIndex, startIndex)}
+            </Text>
+          );
+        }
+        
+        // Add the clickable mention
+        const isMainEntityMention = mention.toLowerCase() === `@${entityName?.toLowerCase()}`;
+        parts.push(
+          <Text
+            key={`mention-${startIndex}`}
+            style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+            onPress={() => {
+              if (!isMainEntityMention && mentionName) {
+                handleEntityPress(mentionName);
+              }
+            }}
+          >
+            {mention}
+          </Text>
+        );
+        lastIndex = startIndex + mention.length;
+      }
+      
+      // Add any remaining text after the last mention
+      if (lastIndex < fullContent.length) {
+        parts.push(
+          <Text key={`text-${lastIndex}`} style={[styles.contentText, { color: theme.text }]}>
+            {fullContent.substring(lastIndex)}
+          </Text>
+        );
+      }
+      
+      return <Text style={[styles.contentText, { color: theme.text }]}>{parts}</Text>;
+    }
+    
+    if (isCategoryFeed) {
+      // Category feed: Start with @CategoryName prefix, then parse entity mentions
+      const categoryMention = categoryName ? `@${categoryName} ` : '';
+      let contentToParse = post.content;
+      
+      // Parse entity mentions
+      if (post.entityName) {
+        const entityMention = `@${post.entityName}`;
+        const parts = contentToParse.split(entityMention);
+        
+        if (parts.length > 1) {
+          // Render with category tag and entity mention
+          return (
+            <Text style={[styles.contentText, { color: theme.text }]}>
+              <Text
+                style={[styles.mentionText, { color: theme.primary }]}
+                onPress={handleCategoryPress}
+              >
+                {categoryMention}
+              </Text>
+              {parts.map((part, index) => (
+                <React.Fragment key={index}>
+                  {part}
+                  {index < parts.length - 1 && (
+                    <Text
+                      style={[styles.mentionText, { color: theme.primary }]}
+                      onPress={() => handleEntityPress()}
+                    >
+                      {entityMention}
+                    </Text>
+                  )}
+                </React.Fragment>
+              ))}
+            </Text>
+          );
+        }
+      }
+
+      // Render with just category tag (no entity mention)
+      return (
+        <Text style={[styles.contentText, { color: theme.text }]}>
+          <Text
+            style={[styles.mentionText, { color: theme.primary }]}
+            onPress={handleCategoryPress}
+          >
+            {categoryMention}
+          </Text>
+          {contentToParse}
+        </Text>
+      );
+    }
+    
+    // Regular feed (no special formatting)
+    return <Text style={[styles.contentText, { color: theme.text }]}>{post.content}</Text>;
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Ionicons name="person-circle" size={40} color={theme.textTertiary} />
+        <View style={[styles.avatar, { backgroundColor: theme.backgroundSecondary }]}>
+          <Ionicons name="person" size={24} color={theme.textTertiary} />
         </View>
         
         <View style={styles.headerContent}>
@@ -95,7 +274,6 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             <View style={styles.userInfo}>
               <Text style={[styles.displayName, { color: theme.text }]}>{post.displayName}</Text>
               <Text style={[styles.username, { color: theme.textSecondary }]}>@{post.username}</Text>
-              <Text style={[styles.timestamp, { color: theme.textTertiary }]}>{formatTimestamp(post.timestamp)}</Text>
             </View>
             
             {isOwnPost && (
@@ -104,22 +282,9 @@ export default function PostCard({ post, onPress }: PostCardProps) {
               </TouchableOpacity>
             )}
           </View>
-
-          {/* Entity Tag */}
-          {post.entityTicker && (
-            <TouchableOpacity 
-              style={[styles.entityTag, { backgroundColor: theme.primaryLight }]} 
-              onPress={handleEntityPress}
-            >
-              <Ionicons name="pricetag" size={14} color={theme.primary} />
-              <Text style={[styles.entityTagText, { color: theme.primary }]}>
-                ${post.entityTicker}
-              </Text>
-              {post.entityName && (
-                <Text style={[styles.entityName, { color: theme.textSecondary }]}> · {post.entityName}</Text>
-              )}
-            </TouchableOpacity>
-          )}
+          
+          {/* Timestamp */}
+          <Text style={[styles.timestamp, { color: theme.textTertiary }]}>{formatTimestamp(post.timestamp)}</Text>
         </View>
       </View>
 
@@ -129,7 +294,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         onPress={onPress}
         activeOpacity={onPress ? 0.7 : 1}
       >
-        <Text style={[styles.contentText, { color: theme.text }]}>{post.content}</Text>
+        {renderContentWithMentions()}
         
         {/* Sentiment Badge */}
         {post.sentiment && (
@@ -137,21 +302,21 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             styles.sentimentBadge,
             {
               backgroundColor: 
-                post.sentiment === 'bullish' ? 'rgba(16, 185, 129, 0.2)' :
-                post.sentiment === 'bearish' ? 'rgba(239, 68, 68, 0.2)' :
+                post.sentiment === 'positive' ? 'rgba(16, 185, 129, 0.2)' :
+                post.sentiment === 'negative' ? 'rgba(239, 68, 68, 0.2)' :
                 theme.backgroundTertiary,
             },
           ]}>
             <Ionicons
               name={
-                post.sentiment === 'bullish' ? 'trending-up' :
-                post.sentiment === 'bearish' ? 'trending-down' :
+                post.sentiment === 'positive' ? 'trending-up' :
+                post.sentiment === 'negative' ? 'trending-down' :
                 'remove'
               }
               size={14}
               color={
-                post.sentiment === 'bullish' ? '#10B981' :
-                post.sentiment === 'bearish' ? '#EF4444' :
+                post.sentiment === 'positive' ? '#10B981' :
+                post.sentiment === 'negative' ? '#EF4444' :
                 theme.textSecondary
               }
             />
@@ -159,8 +324,8 @@ export default function PostCard({ post, onPress }: PostCardProps) {
               styles.sentimentText,
               {
                 color:
-                  post.sentiment === 'bullish' ? '#10B981' :
-                  post.sentiment === 'bearish' ? '#EF4444' :
+                  post.sentiment === 'positive' ? '#10B981' :
+                  post.sentiment === 'negative' ? '#EF4444' :
                   theme.textSecondary,
               },
             ]}>
@@ -192,11 +357,11 @@ export default function PostCard({ post, onPress }: PostCardProps) {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
+        <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
           <Ionicons
-            name={post.isBookmarked ? 'bookmark' : 'bookmark-outline'}
+            name="share-outline"
             size={20}
-            color={post.isBookmarked ? theme.primary : theme.textSecondary}
+            color={theme.textSecondary}
           />
         </TouchableOpacity>
       </View>
@@ -226,6 +391,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerContent: {
     flex: 1,
@@ -262,11 +429,11 @@ const styles = StyleSheet.create({
   entityTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderRadius: 0,
   },
   entityTagText: {
     fontSize: 13,
@@ -284,6 +451,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#111827',
+  },
+  mentionText: {
+    fontWeight: '600',
   },
   sentimentBadge: {
     flexDirection: 'row',

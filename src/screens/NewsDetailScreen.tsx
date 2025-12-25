@@ -66,14 +66,14 @@ export default function NewsDetailScreen() {
   };
 
   const getSentimentColor = () => {
-    if (article.sentiment === 'bullish') return '#10B981';
-    if (article.sentiment === 'bearish') return '#EF4444';
+    if (article.sentiment === 'positive') return '#10B981';
+    if (article.sentiment === 'negative') return '#EF4444';
     return '#6B7280';
   };
 
   const getSentimentIcon = () => {
-    if (article.sentiment === 'bullish') return 'trending-up';
-    if (article.sentiment === 'bearish') return 'trending-down';
+    if (article.sentiment === 'positive') return 'trending-up';
+    if (article.sentiment === 'negative') return 'trending-down';
     return 'remove';
   };
 
@@ -204,8 +204,8 @@ export default function NewsDetailScreen() {
                   {article.sentiment.toUpperCase()}
                 </Text>
                 <Text style={[styles.sentimentDescription, { color: theme.textSecondary }]}>
-                  {article.sentiment === 'bullish' && 'Positive market outlook'}
-                  {article.sentiment === 'bearish' && 'Negative market outlook'}
+                  {article.sentiment === 'positive' && 'Positive market outlook'}
+                  {article.sentiment === 'negative' && 'Negative market outlook'}
                   {article.sentiment === 'neutral' && 'Neutral market outlook'}
                 </Text>
               </View>

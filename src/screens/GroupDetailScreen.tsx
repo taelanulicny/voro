@@ -38,7 +38,7 @@ const generateMockMessages = (groupId: string): GroupMessage[] => {
       userId: '3',
       username: 'mike_investor',
       displayName: 'Mike Johnson',
-      content: 'Looking bullish! Strong fundamentals across the board.',
+      content: 'Looking positive! Strong fundamentals across the board.',
       timestamp: new Date(Date.now() - 1000 * 60 * 3).toISOString(),
     },
     {

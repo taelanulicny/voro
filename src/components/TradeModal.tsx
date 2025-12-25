@@ -117,7 +117,7 @@ export default function TradeModal({
         // Show success message
         Alert.alert(
           'Trade Executed',
-          `Successfully ${activeTab === 'buy' ? 'bought' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(currentPrice)}`,
+          `Successfully ${activeTab === 'buy' ? 'purchased' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(currentPrice)}`,
           [{ text: 'OK', onPress: () => handleClose() }]
         );
       } else {
@@ -177,8 +177,7 @@ export default function TradeModal({
             <View style={[styles.handle, { backgroundColor: theme.textTertiary }]} />
             <View style={styles.headerContent}>
               <View>
-                <Text style={[styles.ticker, { color: theme.text }]}>{entityTicker}</Text>
-                <Text style={[styles.entityName, { color: theme.textSecondary }]}>{entityName}</Text>
+                <Text style={[styles.entityName, { color: theme.text }]}>{entityName}</Text>
               </View>
               <View style={styles.priceContainer}>
                 <Text style={[styles.price, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
@@ -196,7 +195,7 @@ export default function TradeModal({
               onPress={() => setActiveTab('buy')}
             >
               <Text style={[styles.tabText, { color: activeTab === 'buy' ? '#FFFFFF' : theme.textSecondary }]}>
-                Buy
+                Positive
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -207,7 +206,7 @@ export default function TradeModal({
               onPress={() => setActiveTab('sell')}
             >
               <Text style={[styles.tabText, { color: activeTab === 'sell' ? '#FFFFFF' : theme.textSecondary }]}>
-                Sell
+                Negative
               </Text>
             </TouchableOpacity>
           </View>
@@ -337,7 +336,7 @@ export default function TradeModal({
               <Text style={styles.buttonTextPrimary}>
                 {isProcessing
                   ? 'Processing...'
-                  : `${activeTab === 'buy' ? 'Buy' : 'Sell'} ${entityTicker}`}
+                  : `${activeTab === 'buy' ? 'Positive' : 'Negative'} ${entityTicker}`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -385,15 +384,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  ticker: {
+  entityName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
-  },
-  entityName: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
   },
   priceContainer: {
     alignItems: 'flex-end',

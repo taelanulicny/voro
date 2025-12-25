@@ -11,6 +11,7 @@ import { TradingProvider } from './src/context/TradingContext';
 import { NewsProvider } from './src/context/NewsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { WatchlistProvider } from './src/context/WatchlistContext';
+import { SideMenuProvider } from './src/context/SideMenuContext';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -21,8 +22,10 @@ import EntityScreen from './src/screens/EntityScreen';
 import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import FollowersListScreen from './src/screens/FollowersListScreen';
 import NewsDetailScreen from './src/screens/NewsDetailScreen';
-import BuyScreen from './src/screens/BuyScreen';
+import NewsFeedScreen from './src/screens/NewsFeedScreen';
+import SearchScreen from './src/screens/SearchScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import CategoryScreen from './src/screens/CategoryScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -47,11 +50,13 @@ function RootNavigator() {
         <>
           <Stack.Screen name="Main" component={BottomTabNavigator} />
           <Stack.Screen name="Entity" component={EntityScreen} />
-          <Stack.Screen name="BuyScreen" component={BuyScreen} />
+          <Stack.Screen name="Category" component={CategoryScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
           <Stack.Screen name="FollowersList" component={FollowersListScreen} />
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
+          <Stack.Screen name="NewsFeed" component={NewsFeedScreen} />
         </>
       )}
     </Stack.Navigator>
@@ -67,10 +72,12 @@ export default function App() {
             <NewsProvider>
               <TradingProvider>
                 <WatchlistProvider>
-                  <NavigationContainer>
-                    <StatusBar style="auto" />
-                    <RootNavigator />
-                  </NavigationContainer>
+                  <SideMenuProvider>
+                    <NavigationContainer>
+                      <StatusBar style="auto" />
+                      <RootNavigator />
+                    </NavigationContainer>
+                  </SideMenuProvider>
                 </WatchlistProvider>
               </TradingProvider>
             </NewsProvider>

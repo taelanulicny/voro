@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,15 +18,14 @@ import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
-import TradeModal from '../components/TradeModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type SortOption = 'name' | 'price_high' | 'price_low' | 'gainers' | 'losers';
 
-export default function BuyScreen() {
+export default function SearchScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { portfolio, getEntityPrice, getAllEntityPrices } = useTrading();
+  const { getEntityPrice, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,17 +57,20 @@ export default function BuyScreen() {
     });
   }, [entityPrices, getEntityPrice]);
   
-  // Trade modal
-  const [tradeModalVisible, setTradeModalVisible] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState<{
-    id: number;
-    ticker: string;
-    name: string;
-    price: number;
-    category: string;
-  } | null>(null);
 
-  const categories = ['All', 'Tech', 'Crypto', 'Politics', 'Events', 'People'];
+  const categories = ['All', 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
+
+  // Map display categories to entity categories
+  const getEntityCategory = (displayCategory: string): string | null => {
+    const categoryMap: Record<string, string> = {
+      'Influencers': 'People',
+      'Music Artists': 'People',
+      'Sports': 'Events',
+      'Political Figures': 'Politics',
+      'Startups': 'Tech',
+    };
+    return categoryMap[displayCategory] || null;
+  };
 
   // Filter and sort entities
   const filteredEntities = useMemo(() => {
@@ -87,7 +89,19 @@ export default function BuyScreen() {
 
     // Apply category filter
     if (selectedCategory && selectedCategory !== 'All') {
-      filtered = filtered.filter((e) => e.category === selectedCategory);
+      const entityCategory = getEntityCategory(selectedCategory);
+      if (entityCategory) {
+        // For People category, need to distinguish between Influencers and Music Artists
+        if (entityCategory === 'People') {
+          if (selectedCategory === 'Influencers') {
+            filtered = filtered.filter((e) => e.category === 'People' && e.id >= 11 && e.id <= 20);
+          } else if (selectedCategory === 'Music Artists') {
+            filtered = filtered.filter((e) => e.category === 'People' && e.id >= 21 && e.id <= 30);
+          }
+        } else {
+          filtered = filtered.filter((e) => e.category === entityCategory);
+        }
+      }
     }
 
     // Apply sorting
@@ -114,14 +128,10 @@ export default function BuyScreen() {
   }, [entities, searchQuery, selectedCategory, sortBy]);
 
   const handleSelectEntity = (entity: any) => {
-    setSelectedEntity({
-      id: entity.id,
-      ticker: entity.ticker,
-      name: entity.name,
-      price: entity.currentPrice,
-      category: entity.category,
+    navigation.navigate('Entity', {
+      entityId: entity.id,
+      categoryId: entity.category,
     });
-    setTradeModalVisible(true);
   };
 
   const renderSortOption = (option: SortOption, label: string, icon: string) => (
@@ -157,51 +167,57 @@ export default function BuyScreen() {
     </TouchableOpacity>
   );
 
-  const renderEntityItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.entityCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-      onPress={() => handleSelectEntity(item)}
-    >
-      <View style={styles.entityLeft}>
-        <View style={[styles.entityIcon, { backgroundColor: theme.primaryLight }]}>
-          <Text style={[styles.entityIconText, { color: theme.primary }]}>{item.ticker.substring(0, 2)}</Text>
-        </View>
-        <View style={styles.entityInfo}>
-          <View style={styles.entityHeaderRow}>
-            <Text style={[styles.entityTicker, { color: theme.text }]}>{item.ticker}</Text>
-            <TouchableOpacity
-              style={styles.watchlistIconButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                if (isInWatchlist(item.id)) {
-                  removeFromWatchlist(item.id);
-                } else {
-                  addToWatchlist(item.id);
-                }
-              }}
-            >
-              <Ionicons
-                name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
-                size={18}
-                color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
-              />
-            </TouchableOpacity>
+  const renderEntityItem = ({ item }: { item: any }) => {
+    // Get initials from name (first 2 letters)
+    const getInitials = (name: string) => {
+      return name.substring(0, 2).toUpperCase();
+    };
+
+    return (
+      <TouchableOpacity
+        style={[styles.entityCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+        onPress={() => handleSelectEntity(item)}
+      >
+        <View style={styles.entityLeft}>
+          <View style={[styles.entityIcon, { backgroundColor: theme.primaryLight }]}>
+            <Text style={[styles.entityIconText, { color: theme.primary }]}>{getInitials(item.name)}</Text>
           </View>
-          <Text style={[styles.entityName, { color: theme.textSecondary }]}>{item.name}</Text>
-          <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
-            <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{item.category}</Text>
+          <View style={styles.entityInfo}>
+            <View style={styles.entityHeaderRow}>
+              <Text style={[styles.entityName, { color: theme.text }]}>{item.name}</Text>
+              <TouchableOpacity
+                style={styles.watchlistIconButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (isInWatchlist(item.id)) {
+                    removeFromWatchlist(item.id);
+                  } else {
+                    addToWatchlist(item.id);
+                  }
+                }}
+              >
+                <Ionicons
+                  name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
+                  size={18}
+                  color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
+              <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{item.category}</Text>
+            </View>
           </View>
         </View>
-      </View>
-      <View style={styles.entityRight}>
-        <Text style={[styles.entityPrice, { color: theme.text }]}>{formatCurrency(item.currentPrice)}</Text>
-        <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
-          {item.change24h >= 0 ? '+' : ''}
-          {item.changePercent24h.toFixed(2)}%
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.entityRight}>
+          <Text style={[styles.entityPrice, { color: theme.text }]}>{formatCurrency(item.currentPrice)}</Text>
+          <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
+            {item.change24h >= 0 ? '+' : ''}
+            {item.changePercent24h.toFixed(2)}%
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
@@ -213,12 +229,10 @@ export default function BuyScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Buy</Text>
-        <View style={styles.headerRight}>
-          <Text style={[styles.buyingPower, { color: theme.success }]}>
-            {formatCurrency(portfolio.cashBalance)}
-          </Text>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Search</Text>
         </View>
+        <View style={styles.headerRight} />
       </View>
 
       {/* Search Bar */}
@@ -247,6 +261,11 @@ export default function BuyScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          scrollEnabled={true}
+          directionalLockEnabled={true}
+          alwaysBounceVertical={false}
+          alwaysBounceHorizontal={true}
+          bounces={false}
           contentContainerStyle={styles.categoryScroll}
         >
         {categories.map((category) => {
@@ -259,7 +278,6 @@ export default function BuyScreen() {
                 {
                   backgroundColor: isActive ? theme.primary : theme.backgroundSecondary,
                   borderColor: isActive ? theme.primary : theme.border,
-                  width: 85,
                 },
               ]}
               onPress={() => setSelectedCategory(category === 'All' ? null : category)}
@@ -320,22 +338,6 @@ export default function BuyScreen() {
         }
       />
 
-      {/* Trade Modal */}
-      {selectedEntity && (
-        <TradeModal
-          visible={tradeModalVisible}
-          onClose={() => {
-            setTradeModalVisible(false);
-            setSelectedEntity(null);
-          }}
-          entityId={selectedEntity.id}
-          entityName={selectedEntity.name}
-          entityTicker={selectedEntity.ticker}
-          currentPrice={selectedEntity.price}
-          category={selectedEntity.category}
-          existingQuantity={portfolio.holdings.find(h => h.entityId === selectedEntity.id)?.quantity}
-        />
-      )}
     </SafeAreaView>
   );
 }
@@ -354,10 +356,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    position: 'relative',
   },
   backButton: {
     width: 40,
     height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -367,12 +377,8 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   headerRight: {
-    alignItems: 'flex-end',
-  },
-  buyingPower: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#10B981',
+    width: 40,
+    height: 40,
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -400,19 +406,20 @@ const styles = StyleSheet.create({
   categoryScroll: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 8,
-    minHeight: 60,
+    alignItems: 'center',
+    height: 60,
   },
   categoryChip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    width: 85,
+    minWidth: 80,
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    marginRight: 8,
   },
   categoryChipText: {
     fontSize: 14,
@@ -499,13 +506,9 @@ const styles = StyleSheet.create({
   watchlistIconButton: {
     padding: 4,
   },
-  entityTicker: {
+  entityName: {
     fontSize: 17,
     fontWeight: '600',
-    marginBottom: 2,
-  },
-  entityName: {
-    fontSize: 14,
     marginBottom: 6,
   },
   categoryBadge: {

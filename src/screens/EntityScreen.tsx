@@ -6,13 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  FlatList,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
-import { RootStackParamList, PriceDataPoint } from '../types';
+import { RootStackParamList, PriceDataPoint, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
@@ -21,6 +23,7 @@ import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { getEntityById } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
+import PostCard from '../components/PostCard';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -142,12 +145,133 @@ export default function EntityScreen() {
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
+  const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
+  const [refreshing, setRefreshing] = useState(false);
 
   const holding = getHolding(entityId);
   const entityNews = getNewsByEntity(entityId);
   
   // Get live price from global price system
   const currentPrice = getEntityPrice(entityId);
+  
+  // Get entity info for feed
+  const entity = getEntityById(entityId);
+  
+  // Entity-specific feed posts
+  const entityFeedPosts = useMemo(() => {
+    const now = Date.now();
+    const entityName = entity?.name || '';
+    
+    // Generate posts with variety - some with other entity mentions, some without
+    const posts: Post[] = [
+      {
+        id: `entity-${entityId}-1`,
+        userId: 'user-1',
+        username: 'trading_pro',
+        displayName: 'Trading Pro',
+        content: 'just dropped @Drake\'s name in his stream and now drake\'s moro score is plummeting 📉',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'Drake',
+        sentiment: 'negative',
+        likes: 234,
+        comments: 45,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 20).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-2`,
+        userId: 'user-2',
+        username: 'market_watcher',
+        displayName: 'Market Watcher',
+        content: 'The content has been really consistent lately. Big fan of the direction!',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: 'positive',
+        likes: 89,
+        comments: 12,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-3`,
+        userId: 'user-3',
+        username: 'trend_analyst',
+        displayName: 'Trend Analyst',
+        content: 'collab with @MrBeast would be huge for both of them!',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'MrBeast',
+        sentiment: 'positive',
+        likes: 156,
+        comments: 28,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 90).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-4`,
+        userId: 'user-4',
+        username: 'content_creator',
+        displayName: 'Content Creator',
+        content: 'Really excited to see what\'s coming next!',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: undefined,
+        likes: 67,
+        comments: 8,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 2).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-5`,
+        userId: 'user-5',
+        username: 'influence_tracker',
+        displayName: 'Influence Tracker',
+        content: 'The engagement metrics have been solid. Wonder if @Taylor Swift would consider a partnership?',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'Taylor Swift',
+        sentiment: 'positive',
+        likes: 198,
+        comments: 34,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-6`,
+        userId: 'user-6',
+        username: 'social_metrics',
+        displayName: 'Social Metrics',
+        content: 'Brand deals coming in hot 🔥',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: 'positive',
+        likes: 112,
+        comments: 19,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
+      },
+    ];
+    
+    return posts;
+  }, [entityId, entity]);
+  
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Simulate refresh
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
   
   // Force chart update when price changes - DISABLED (keeping prices static)
   // useEffect(() => {
@@ -311,36 +435,84 @@ export default function EntityScreen() {
     },
   };
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.ticker, { color: theme.text }]}>{entityData.entity.ticker}</Text>
-            <Text style={[styles.entityName, { color: theme.textSecondary }]}>{entityData.entity.name}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.watchlistButton}
-            onPress={() => {
-              if (isInWatchlist(entityId)) {
-                removeFromWatchlist(entityId);
-              } else {
-                addToWatchlist(entityId);
+  const renderTabSelector = () => (
+    <View style={[styles.tabSelectorContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabSelector}
+        contentContainerStyle={styles.tabSelectorContent}
+      >
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => setSelectedTab('chart')}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'chart' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'chart' ? '600' : '400',
               }
-            }}
+            ]}
           >
-            <Ionicons
-              name={isInWatchlist(entityId) ? 'star' : 'star-outline'}
-              size={24}
-              color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
+            Chart
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => setSelectedTab('about')}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'about' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'about' ? '600' : '400',
+              }
+            ]}
+          >
+            About
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => setSelectedTab('feed')}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'feed' ? '600' : '400',
+              }
+            ]}
+          >
+            Feed
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => setSelectedTab('news')}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'news' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'news' ? '600' : '400',
+              }
+            ]}
+          >
+            News
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
 
+  const renderChartContent = () => (
+    <>
         {/* Price Section */}
         <View style={[styles.priceSection, { backgroundColor: theme.card }]}>
           <Text style={[styles.price, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
@@ -465,33 +637,88 @@ export default function EntityScreen() {
             </View>
           </View>
         </View>
+    </>
+  );
 
-        {/* About */}
-        <View style={[styles.aboutCard, { backgroundColor: theme.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>About</Text>
-          <Text style={[styles.description, { color: theme.textSecondary }]}>{entityData.entity.description}</Text>
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.entityName, { color: theme.text }]}>{entityData.entity.name}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.watchlistButton}
+          onPress={() => {
+            if (isInWatchlist(entityId)) {
+              removeFromWatchlist(entityId);
+            } else {
+              addToWatchlist(entityId);
+            }
+          }}
+        >
+          <Ionicons
+            name={isInWatchlist(entityId) ? 'star' : 'star-outline'}
+            size={24}
+            color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
+          />
+        </TouchableOpacity>
+      </View>
 
-        {/* Related News */}
-        {entityNews.length > 0 && (
-          <View style={styles.newsSection}>
-            <View style={styles.newsSectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Related News</Text>
-              <Text style={[styles.newsCount, { color: theme.textSecondary }]}>{entityNews.length} articles</Text>
+      {/* Tab Selector */}
+      {renderTabSelector()}
+
+      {/* Content based on selected tab */}
+      {selectedTab === 'feed' ? (
+        <FlatList
+          data={entityFeedPosts}
+          renderItem={({ item }) => (
+            <PostCard 
+              post={item} 
+              isEntityFeed={true}
+              entityId={entityId}
+              entityName={entity?.name}
+            />
+          )}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.feedContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                No posts yet for this entity
+              </Text>
             </View>
-            {entityNews.slice(0, 5).map((article) => (
-              <NewsCard
-                key={article.id}
-                article={article}
-                showEntity={false}
-              />
-            ))}
-          </View>
-        )}
+          )}
+        />
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {selectedTab === 'chart' && renderChartContent()}
 
-        {/* Spacer for bottom buttons */}
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          {selectedTab === 'about' && (
+            <View style={styles.comingSoonContainer}>
+              <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
+                About coming soon
+              </Text>
+            </View>
+          )}
+
+          {selectedTab === 'news' && (
+            <View style={styles.comingSoonContainer}>
+              <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
+                News coming soon
+              </Text>
+            </View>
+          )}
+
+          {/* Spacer for bottom buttons */}
+          {selectedTab === 'chart' && <View style={{ height: 100 }} />}
+        </ScrollView>
+      )}
 
       {/* Fixed Bottom Trade Buttons */}
       <View style={[styles.bottomBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
@@ -499,7 +726,7 @@ export default function EntityScreen() {
           style={[styles.tradeButton, { backgroundColor: theme.primary }]}
           onPress={() => setTradeModalVisible(true)}
         >
-          <Text style={styles.tradeButtonText}>Trade {entityData.entity.ticker}</Text>
+          <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
         </TouchableOpacity>
       </View>
 
@@ -543,13 +770,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  ticker: {
+  entityName: {
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  entityName: {
-    fontSize: 12,
-    marginTop: 2,
   },
   headerRight: {
     width: 40,
@@ -713,6 +936,51 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  tabSelectorContainer: {
+    borderBottomWidth: 1,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  tabSelector: {
+    maxHeight: 20,
+  },
+  tabSelectorContent: {
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    paddingBottom: 0,
+    alignItems: 'flex-end',
+  },
+  tabButton: {
+    marginRight: 18,
+    paddingVertical: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabButtonText: {
+    fontSize: 15,
+    lineHeight: 18,
+  },
+  comingSoonContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    minHeight: 400,
+  },
+  comingSoonText: {
+    fontSize: 16,
+  },
+  feedContent: {
+    paddingBottom: 100,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    marginTop: 16,
   },
 });
 

@@ -30,7 +30,7 @@ export async function createPost(params: {
   entityId?: number;
   entityTicker?: string;
   entityName?: string;
-  sentiment?: 'bullish' | 'bearish' | 'neutral';
+  sentiment?: 'positive' | 'negative' | 'neutral';
   images?: string[];
 }): Promise<ApiResponse<Post>> {
   try {

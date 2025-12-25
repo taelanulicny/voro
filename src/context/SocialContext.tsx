@@ -25,7 +25,7 @@ interface SocialContextType {
     entityId?: number;
     entityTicker?: string;
     entityName?: string;
-    sentiment?: 'bullish' | 'bearish' | 'neutral';
+    sentiment?: 'positive' | 'negative' | 'neutral';
   }) => Promise<{ success: boolean; error?: string; post?: Post }>;
   toggleLikePost: (postId: string) => Promise<{ success: boolean }>;
   toggleBookmarkPost: (postId: string) => Promise<{ success: boolean }>;
@@ -70,7 +70,7 @@ const MOCK_POSTS: Post[] = [
     entityId: 1,
     entityTicker: 'AAPL',
     entityName: 'Apple Inc.',
-    sentiment: 'bullish',
+    sentiment: 'positive',
     likes: 24,
     comments: 8,
     isLiked: false,
@@ -86,7 +86,7 @@ const MOCK_POSTS: Post[] = [
     entityId: 2,
     entityTicker: 'NVDA',
     entityName: 'NVIDIA Corporation',
-    sentiment: 'bullish',
+    sentiment: 'positive',
     likes: 56,
     comments: 15,
     isLiked: true,
@@ -102,7 +102,7 @@ const MOCK_POSTS: Post[] = [
     entityId: 10,
     entityTicker: 'BTC',
     entityName: 'Bitcoin',
-    sentiment: 'bullish',
+    sentiment: 'positive',
     likes: 142,
     comments: 34,
     isLiked: false,
@@ -115,7 +115,7 @@ const MOCK_POSTS: Post[] = [
     username: 'jane_doe',
     displayName: 'Jane Williams',
     content: 'Concerned about the macro environment. Taking some profits off the table.',
-    sentiment: 'bearish',
+    sentiment: 'negative',
     likes: 18,
     comments: 12,
     isLiked: false,
@@ -173,7 +173,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     entityId?: number;
     entityTicker?: string;
     entityName?: string;
-    sentiment?: 'bullish' | 'bearish' | 'neutral';
+    sentiment?: 'positive' | 'negative' | 'neutral';
   }) => {
     try {
       if (!user) {
