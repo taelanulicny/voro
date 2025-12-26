@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { Portfolio, Holding, UserTransaction } from '../types';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { useAuth } from './AuthContext';
 
 interface TradingContextType {
   portfolio: Portfolio;
   transactions: UserTransaction[];
+  isLoading: boolean;
   executeTrade: (
     entityId: number,
     entityName: string,
@@ -13,129 +15,168 @@ interface TradingContextType {
     quantity: number,
     pricePerToken: number,
     category: string
-  ) => boolean;
+  ) => Promise<boolean>;
   getHolding: (entityId: number) => Holding | undefined;
   updatePrices: (entityId: number, newPrice: number) => void;
   resetPortfolio: () => void;
   getEntityPrice: (entityId: number) => number;
   getAllEntityPrices: () => Record<number, number>;
-  portfolioHistory: number[]; // Portfolio value history for chart
+  portfolioHistory: number[];
+  fetchPortfolio: () => Promise<void>;
+  fetchTransactions: () => Promise<void>;
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
 
-const INITIAL_CASH_BALANCE = 10000; // Starting cash: $10,000
+const INITIAL_CASH_BALANCE = 10000;
 
 export const TradingProvider = ({ children }: { children: ReactNode }) => {
+  const { token, isAuthenticated } = useAuth();
   const [cashBalance, setCashBalance] = useState(INITIAL_CASH_BALANCE);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [transactions, setTransactions] = useState<UserTransaction[]>([]);
   const [todayChange, setTodayChange] = useState(0);
   const [todayChangePercent, setTodayChangePercent] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   
-  // Global entity prices - tracks current price for all entities
-  const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
-    const initialPrices: Record<number, number> = {};
-    MOCK_ENTITIES.forEach(entity => {
-      // Start with base price plus small random variation (with cents)
-      const variation = (Math.random() - 0.5) * 8; // -4 to +4 range
-      initialPrices[entity.id] = Math.round((entity.basePrice + variation) * 100) / 100; // Round to 2 decimals
-    });
-    return initialPrices;
-  });
+  // Global entity prices - fetched from backend
+  const [entityPrices, setEntityPrices] = useState<Record<number, number>>({});
   
   // Portfolio value history for chart animation
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
   const portfolioHistoryRef = useRef<number[]>([]);
-  const maxHistoryLength = 100; // Keep last 100 data points
+  const maxHistoryLength = 100;
 
-  // Calculate portfolio total value
-  const calculateTotalValue = () => {
-    const holdingsValue = holdings.reduce((sum, holding) => sum + holding.totalValue, 0);
-    return cashBalance + holdingsValue;
-  };
+  // Fetch portfolio from backend
+  const fetchPortfolio = useCallback(async () => {
+    if (!token || !isAuthenticated || !isBackendConfigured()) return;
 
-  // Calculate today's change (mock for now - in real app would compare to yesterday's close)
-  const calculateTodayChange = () => {
-    const totalProfitLoss = holdings.reduce((sum, holding) => sum + holding.profitLoss, 0);
-    return totalProfitLoss * 0.1; // Mock: 10% of P&L as today's change
-  };
+    try {
+      setIsLoading(true);
+      const response = await authenticatedRequest<{
+        cashBalance: number;
+        holdings: Holding[];
+        totalValue: number;
+        todayChange: number;
+        todayChangePercent: number;
+      }>('/api/portfolio', token, {
+        method: 'GET',
+      });
 
-  // Real-time price updates for all entities - DISABLED (keeping prices static)
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     setEntityPrices(prev => {
-  //       const updated: Record<number, number> = {};
-  //       MOCK_ENTITIES.forEach(entity => {
-  //         const currentPrice = prev[entity.id] || entity.basePrice;
-  //         // More noticeable random change: ±1% to ±3% per update for visible movement
-  //         const changePercent = (Math.random() - 0.5) * 0.06; // -3% to +3%
-  //         const change = currentPrice * changePercent;
-  //         const newPrice = Math.max(entity.basePrice * 0.5, Math.min(entity.basePrice * 1.5, currentPrice + change)); // Prevent going too low or too high
-  //         updated[entity.id] = newPrice;
-  //         
-  //         // Update holdings if user owns this entity
-  //         setHoldings(currentHoldings => 
-  //           currentHoldings.map(h => {
-  //             if (h.entityId === entity.id) {
-  //               const newTotalValue = h.quantity * newPrice;
-  //               const newProfitLoss = newTotalValue - h.totalCost;
-  //               const newProfitLossPercent = (newProfitLoss / h.totalCost) * 100;
-  //               return {
-  //                 ...h,
-  //                 currentPrice: newPrice,
-  //                 totalValue: newTotalValue,
-  //                 profitLoss: newProfitLoss,
-  //                 profitLossPercent: newProfitLossPercent,
-  //               };
-  //             }
-  //             return h;
-  //           })
-  //         );
-  //       });
-  //       return updated;
-  //     });
-  //   }, 3000); // Update every 3 seconds
+      if (response.success && response.data) {
+        setCashBalance(response.data.cashBalance);
+        setHoldings(response.data.holdings);
+        setTodayChange(response.data.todayChange);
+        setTodayChangePercent(response.data.todayChangePercent);
 
-  //   return () => clearInterval(interval);
-  // }, []);
-
-  // Update portfolio history for chart - update more frequently for smooth animation
-  useEffect(() => {
-    // Initial value
-    const initialValue = calculateTotalValue();
-    if (portfolioHistoryRef.current.length === 0) {
-      portfolioHistoryRef.current = Array(10).fill(initialValue); // Start with 10 points of same value
-      setPortfolioHistory([...portfolioHistoryRef.current]);
+        // Update entity prices from holdings
+        const prices: Record<number, number> = {};
+        response.data.holdings.forEach((holding) => {
+          prices[holding.entityId] = holding.currentPrice;
+        });
+        setEntityPrices((prev) => ({ ...prev, ...prices }));
+      } else if (response.error && response.error.includes('not configured')) {
+        // Backend not configured - use default values
+        console.log('Backend not configured, using default portfolio values');
+      }
+    } catch (error) {
+      // Silently handle errors - don't crash the app
+      console.debug('Error fetching portfolio (backend may not be running):', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }, [token, isAuthenticated]);
 
-  // Update portfolio history continuously - DISABLED (keeping portfolio static)
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     const totalValue = calculateTotalValue();
-  //     portfolioHistoryRef.current = [...portfolioHistoryRef.current, totalValue];
-  //     
-  //     // Keep only last N points (sliding window effect - removes oldest, adds newest)
-  //     if (portfolioHistoryRef.current.length > maxHistoryLength) {
-  //       portfolioHistoryRef.current = portfolioHistoryRef.current.slice(-maxHistoryLength);
-  //     }
-  //     
-  //     // Force update by creating new array reference
-  //     setPortfolioHistory([...portfolioHistoryRef.current]);
-  //   }, 3000); // Update every 3 seconds to match price updates
-  //   
-  //   return () => clearInterval(interval);
-  // }, [holdings, cashBalance, entityPrices]); // Update when these change
+  // Fetch transactions from backend
+  const fetchTransactions = useCallback(async () => {
+    if (!token || !isAuthenticated || !isBackendConfigured()) return;
 
+    try {
+      const response = await authenticatedRequest<{
+        transactions: UserTransaction[];
+        lastEvaluatedKey?: string;
+      }>('/api/transactions', token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data) {
+        // Map backend transaction format to frontend format
+        const mappedTransactions: UserTransaction[] = response.data.transactions.map((t: any) => ({
+          id: t.transactionId || t.id,
+          entityId: t.entityId,
+          entityName: t.entityName,
+          entityTicker: t.entityTicker,
+          type: t.type,
+          quantity: t.quantity,
+          pricePerToken: t.pricePerToken,
+          totalAmount: t.totalAmount,
+          timestamp: t.timestamp,
+          category: t.category,
+        }));
+        setTransactions(mappedTransactions);
+      }
+    } catch (error) {
+      // Silently handle errors - don't crash the app
+      console.debug('Error fetching transactions (backend may not be running):', error);
+    }
+  }, [token, isAuthenticated]);
+
+  // Fetch entity prices
+  const fetchEntityPrices = useCallback(async () => {
+    if (!token || !isAuthenticated || !isBackendConfigured()) return;
+
+    try {
+      const response = await authenticatedRequest<any[]>('/api/entities', token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data) {
+        const prices: Record<number, number> = {};
+        response.data.forEach((entity: any) => {
+          prices[entity.entityId] = entity.currentPrice || entity.basePrice;
+        });
+        setEntityPrices(prices);
+      }
+    } catch (error) {
+      // Silently handle errors - don't crash the app
+      console.debug('Error fetching entity prices (backend may not be running):', error);
+    }
+  }, [token, isAuthenticated]);
+
+  // Load portfolio and transactions on mount and when auth changes
   useEffect(() => {
-    const change = calculateTodayChange();
-    const totalValue = calculateTotalValue();
-    setTodayChange(change);
-    setTodayChangePercent(totalValue > 0 ? (change / totalValue) * 100 : 0);
+    if (isAuthenticated && token) {
+      // Wrap in try-catch to prevent app crashes
+      fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
+      fetchTransactions().catch(err => console.error('Error fetching transactions:', err));
+      fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
+    }
+  }, [isAuthenticated, token, fetchPortfolio, fetchTransactions, fetchEntityPrices]);
+
+  // Poll for price updates every 5 seconds
+  useEffect(() => {
+    if (!isAuthenticated || !token || !isBackendConfigured()) return;
+
+    const interval = setInterval(() => {
+      fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
+      fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
+
+  // Update portfolio history
+  useEffect(() => {
+    const totalValue = holdings.reduce((sum, h) => sum + h.totalValue, 0) + cashBalance;
+    
+    portfolioHistoryRef.current = [...portfolioHistoryRef.current, totalValue];
+    if (portfolioHistoryRef.current.length > maxHistoryLength) {
+      portfolioHistoryRef.current = portfolioHistoryRef.current.slice(-maxHistoryLength);
+    }
+    setPortfolioHistory([...portfolioHistoryRef.current]);
   }, [holdings, cashBalance]);
 
-  const executeTrade = (
+  const executeTrade = async (
     entityId: number,
     entityName: string,
     entityTicker: string,
@@ -143,124 +184,58 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     quantity: number,
     pricePerToken: number,
     category: string
-  ): boolean => {
-    const totalAmount = quantity * pricePerToken;
-
-    if (type === 'buy') {
-      // Check if user has enough cash
-      if (totalAmount > cashBalance) {
-        return false; // Insufficient funds
-      }
-
-      // Deduct cash
-      setCashBalance(prev => prev - totalAmount);
-
-      // Update or create holding
-      setHoldings(prev => {
-        const existingHolding = prev.find(h => h.entityId === entityId);
-
-        if (existingHolding) {
-          // Add to existing position
-          const newQuantity = existingHolding.quantity + quantity;
-          const newTotalCost = existingHolding.totalCost + totalAmount;
-          const newAverageCost = newTotalCost / newQuantity;
-          const newTotalValue = newQuantity * pricePerToken;
-          const newProfitLoss = newTotalValue - newTotalCost;
-          const newProfitLossPercent = (newProfitLoss / newTotalCost) * 100;
-
-          return prev.map(h =>
-            h.entityId === entityId
-              ? {
-                  ...h,
-                  quantity: newQuantity,
-                  averageCost: newAverageCost,
-                  currentPrice: pricePerToken,
-                  totalValue: newTotalValue,
-                  totalCost: newTotalCost,
-                  profitLoss: newProfitLoss,
-                  profitLossPercent: newProfitLossPercent,
-                }
-              : h
-          );
-        } else {
-          // Create new holding
-          const newHolding: Holding = {
-            entityId,
-            entityName,
-            entityTicker,
-            quantity,
-            averageCost: pricePerToken,
-            currentPrice: pricePerToken,
-            totalValue: totalAmount,
-            totalCost: totalAmount,
-            profitLoss: 0,
-            profitLossPercent: 0,
-            category,
-          };
-          return [...prev, newHolding];
-        }
-      });
-    } else {
-      // SELL
-      const existingHolding = holdings.find(h => h.entityId === entityId);
-
-      if (!existingHolding || existingHolding.quantity < quantity) {
-        return false; // Insufficient holdings
-      }
-
-      // Add cash from sale
-      setCashBalance(prev => prev + totalAmount);
-
-      // Update or remove holding
-      setHoldings(prev => {
-        const holding = prev.find(h => h.entityId === entityId);
-        if (!holding) return prev;
-
-        const newQuantity = holding.quantity - quantity;
-
-        if (newQuantity === 0) {
-          // Remove holding completely
-          return prev.filter(h => h.entityId !== entityId);
-        } else {
-          // Reduce quantity
-          const newTotalCost = holding.totalCost * (newQuantity / holding.quantity);
-          const newTotalValue = newQuantity * pricePerToken;
-          const newProfitLoss = newTotalValue - newTotalCost;
-          const newProfitLossPercent = (newProfitLoss / newTotalCost) * 100;
-
-          return prev.map(h =>
-            h.entityId === entityId
-              ? {
-                  ...h,
-                  quantity: newQuantity,
-                  currentPrice: pricePerToken,
-                  totalValue: newTotalValue,
-                  totalCost: newTotalCost,
-                  profitLoss: newProfitLoss,
-                  profitLossPercent: newProfitLossPercent,
-                }
-              : h
-          );
-        }
-      });
+  ): Promise<boolean> => {
+    if (!token) {
+      console.error('No authentication token');
+      return false;
     }
 
-    // Record transaction
-    const newTransaction: UserTransaction = {
-      id: Date.now().toString() + Math.random().toString(),
-      entityId,
-      entityName,
-      entityTicker,
-      type,
-      quantity,
-      pricePerToken,
-      totalAmount,
-      timestamp: new Date().toISOString(),
-      category,
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
+    try {
+      setIsLoading(true);
+      const response = await authenticatedRequest<{
+        cashBalance: number;
+        holdings: Holding[];
+        totalValue: number;
+        todayChange: number;
+        todayChangePercent: number;
+      }>('/api/trade/execute', token, {
+        method: 'POST',
+        body: JSON.stringify({
+          entityId,
+          type,
+          quantity,
+          pricePerToken,
+        }),
+      });
 
-    return true;
+      if (response.success && response.data) {
+        // Update local state with backend response
+        setCashBalance(response.data.cashBalance);
+        setHoldings(response.data.holdings);
+        setTodayChange(response.data.todayChange);
+        setTodayChangePercent(response.data.todayChangePercent);
+
+        // Update entity prices
+        const prices: Record<number, number> = {};
+        response.data.holdings.forEach((holding) => {
+          prices[holding.entityId] = holding.currentPrice;
+        });
+        setEntityPrices((prev) => ({ ...prev, ...prices }));
+
+        // Refresh transactions
+        await fetchTransactions();
+
+        return true;
+      } else {
+        console.error('Trade execution failed:', response.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error executing trade:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getHolding = (entityId: number): Holding | undefined => {
@@ -268,7 +243,10 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updatePrices = (entityId: number, newPrice: number) => {
-    setHoldings(prev =>
+    setEntityPrices((prev) => ({ ...prev, [entityId]: newPrice }));
+    
+    // Update holdings with new price
+    setHoldings((prev) =>
       prev.map(h => {
         if (h.entityId === entityId) {
           const newTotalValue = h.quantity * newPrice;
@@ -296,10 +274,11 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     setTodayChangePercent(0);
     portfolioHistoryRef.current = [];
     setPortfolioHistory([]);
+    setEntityPrices({});
   };
 
   const getEntityPrice = (entityId: number): number => {
-    return entityPrices[entityId] || MOCK_ENTITIES.find(e => e.id === entityId)?.basePrice || 100;
+    return entityPrices[entityId] || 100;
   };
 
   const getAllEntityPrices = (): Record<number, number> => {
@@ -308,7 +287,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
   const portfolio: Portfolio = {
     cashBalance,
-    totalValue: calculateTotalValue(),
+    totalValue: holdings.reduce((sum, h) => sum + h.totalValue, 0) + cashBalance,
     holdings,
     todayChange,
     todayChangePercent,
@@ -319,6 +298,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       value={{
         portfolio,
         transactions,
+        isLoading,
         executeTrade,
         getHolding,
         updatePrices,
@@ -326,6 +306,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         getEntityPrice,
         getAllEntityPrices,
         portfolioHistory,
+        fetchPortfolio,
+        fetchTransactions,
       }}
     >
       {children}

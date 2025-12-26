@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
+import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
 interface SocialContextType {
   // Posts state
@@ -52,209 +53,7 @@ interface SocialContextType {
 
 const SocialContext = createContext<SocialContextType | undefined>(undefined);
 
-// Mock data for development
-const MOCK_USERS = [
-  { id: '2', username: 'sarah_trader', displayName: 'Sarah Chen', avatarUrl: undefined, followersCount: 1250, followingCount: 340 },
-  { id: '3', username: 'mike_investor', displayName: 'Mike Johnson', avatarUrl: undefined, followersCount: 890, followingCount: 210 },
-  { id: '4', username: 'crypto_king', displayName: 'Alex Rivera', avatarUrl: undefined, followersCount: 3400, followingCount: 120 },
-  { id: '5', username: 'jane_doe', displayName: 'Jane Williams', avatarUrl: undefined, followersCount: 560, followingCount: 445 },
-];
-
-const MOCK_POSTS: Post[] = [
-  {
-    id: '1',
-    userId: '2',
-    username: 'sarah_trader',
-    displayName: 'Sarah Chen',
-    content: '@TaylorSwift just announced her new tour dates and the demand is absolutely insane. Ticket prices are through the roof but fans are still buying. This is a no-brainer investment right now.',
-    entityId: 21,
-    entityTicker: 'TSWFT',
-    entityName: 'Taylor Swift',
-    sentiment: 'positive',
-    likes: 823,
-    comments: 156,
-    isLiked: false,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 25).toISOString(), // 25 min ago
-  },
-  {
-    id: '2',
-    userId: '3',
-    username: 'mike_investor',
-    displayName: 'Mike Johnson',
-    content: '@MrBeast and @KaiCenat just did a massive collab stream. Both of their engagement metrics are exploding. This is what smart creators do - cross-pollinate audiences.',
-    entityId: 12,
-    entityTicker: 'MRBST',
-    entityName: 'MrBeast',
-    sentiment: 'positive',
-    likes: 445,
-    comments: 89,
-    isLiked: true,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 min ago
-  },
-  {
-    id: '3',
-    userId: '4',
-    username: 'crypto_king',
-    displayName: 'Alex Rivera',
-    content: '@Drake\'s new album is getting mixed reviews but the streaming numbers don\'t lie. First week was solid but week 2 drop-off is concerning. Might be time to take profits.',
-    entityId: 22,
-    entityTicker: 'DRAKE',
-    entityName: 'Drake',
-    sentiment: 'negative',
-    likes: 612,
-    comments: 142,
-    isLiked: false,
-    isBookmarked: true,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(), // 1 hour ago
-  },
-  {
-    id: '4',
-    userId: '5',
-    username: 'jane_doe',
-    displayName: 'Jane Williams',
-    content: 'The influencer marketing landscape is completely shifting. TikTok creators like @AlixEarle are commanding brand deals that were unheard of just two years ago.',
-    entityId: 11,
-    entityTicker: 'ALIX',
-    entityName: 'Alix Earle',
-    sentiment: 'positive',
-    likes: 356,
-    comments: 67,
-    isLiked: true,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-  },
-  {
-    id: '5',
-    userId: '6',
-    username: 'trend_watcher',
-    displayName: 'Trend Watcher',
-    content: '@KansasCityChiefs are back in championship form. The narrative is strong and the fan engagement is through the roof. Perfect time to get in before the playoffs.',
-    entityId: 33,
-    entityTicker: 'KC',
-    entityName: 'Kansas City Chiefs',
-    sentiment: 'positive',
-    likes: 523,
-    comments: 98,
-    isLiked: false,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
-  },
-  {
-    id: '6',
-    userId: '7',
-    username: 'tech_analyst',
-    displayName: 'Tech Analyst',
-    content: '@Cursor just hit 100k paying customers. Developers literally can\'t work without it now. The productivity gains are insane and the network effects are real.',
-    entityId: 47,
-    entityTicker: 'CURSO',
-    entityName: 'Cursor',
-    sentiment: 'positive',
-    likes: 712,
-    comments: 134,
-    isLiked: false,
-    isBookmarked: true,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4 hours ago
-  },
-  {
-    id: '7',
-    userId: '8',
-    username: 'sports_fan',
-    displayName: 'Sports Fan',
-    content: '@GoldenStateWarriors can\'t catch a break with injuries. Curry being out is crushing their playoff chances. This season might be a wash.',
-    entityId: 32,
-    entityTicker: 'GSW',
-    entityName: 'Golden State Warriors',
-    sentiment: 'negative',
-    likes: 289,
-    comments: 56,
-    isLiked: true,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-  },
-  {
-    id: '8',
-    userId: '9',
-    username: 'music_lover',
-    displayName: 'Music Lover',
-    content: 'The streaming data this quarter is wild. @TaylorSwift and @BadBunny are dominating globally. The gap between them and everyone else is huge.',
-    entityId: 21,
-    entityTicker: 'TSWFT',
-    entityName: 'Taylor Swift',
-    sentiment: 'positive',
-    likes: 567,
-    comments: 112,
-    isLiked: false,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(), // 6 hours ago
-  },
-  {
-    id: '9',
-    userId: '10',
-    username: 'political_insider',
-    displayName: 'Political Insider',
-    content: '@DonaldTrump\'s rally turnout numbers are absolutely massive. The base enthusiasm is off the charts compared to previous cycles. The data doesn\'t lie.',
-    entityId: 10,
-    entityTicker: 'TRUMP',
-    entityName: 'Donald Trump',
-    sentiment: 'positive',
-    likes: 892,
-    comments: 201,
-    isLiked: false,
-    isBookmarked: true,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString(), // 7 hours ago
-  },
-  {
-    id: '10',
-    userId: '11',
-    username: 'content_creator',
-    displayName: 'Content Creator',
-    content: 'Not feeling great about @LoganPaul lately. The recent drama is affecting his brand partnerships and the engagement metrics are showing it.',
-    entityId: 15,
-    entityTicker: 'LPAUL',
-    entityName: 'Logan Paul',
-    sentiment: 'negative',
-    likes: 334,
-    comments: 78,
-    isLiked: true,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
-  },
-  {
-    id: '11',
-    userId: '12',
-    username: 'startup_founder',
-    displayName: 'Startup Founder',
-    content: '@Perplexity just closed another huge funding round. Their AI search is legitimately better than Google for research. This is the future.',
-    entityId: 41,
-    entityTicker: 'PERP',
-    entityName: 'Perplexity',
-    sentiment: 'positive',
-    likes: 678,
-    comments: 145,
-    isLiked: false,
-    isBookmarked: true,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(), // 9 hours ago
-  },
-  {
-    id: '12',
-    userId: '13',
-    username: 'market_watcher',
-    displayName: 'Market Watcher',
-    content: 'Interesting cross-category movement today. @TaylorSwift\'s tour announcement boosted engagement across music, and @MrBeast\'s collab with @KaiCenat is creating ripple effects in the influencer space.',
-    entityId: undefined,
-    entityTicker: undefined,
-    entityName: undefined,
-    sentiment: undefined,
-    likes: 456,
-    comments: 89,
-    isLiked: false,
-    isBookmarked: false,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(), // 10 hours ago
-  },
-];
-
+// Mock groups (not yet implemented in backend)
 const MOCK_GROUPS: Group[] = [
   {
     id: '1',
@@ -276,28 +75,67 @@ const MOCK_GROUPS: Group[] = [
     isMember: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
   },
-  {
-    id: '3',
-    name: 'Day Trading Strategies',
-    description: 'Share and discuss day trading strategies',
-    category: 'Trading',
-    memberCount: 892,
-    isPrivate: true,
-    isMember: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
-  },
 ];
 
 export function SocialProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const [activityFeed, setActivityFeed] = useState<Post[]>(MOCK_POSTS);
+  const { user, token, isAuthenticated } = useAuth();
+  const [activityFeed, setActivityFeed] = useState<Post[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(false);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-  const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set()); // Start with no followed users
+  const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
+
+  // Fetch activity feed from backend
+  const refreshActivityFeed = useCallback(async () => {
+    if (!token || !isAuthenticated || !isBackendConfigured()) return;
+
+    try {
+      setIsLoadingFeed(true);
+      const response = await authenticatedRequest<{
+        posts: Post[];
+        lastEvaluatedKey?: string;
+      }>('/api/social/feed', token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data) {
+        // Map backend post format to frontend format
+        const mappedPosts: Post[] = response.data.posts.map((p: any) => ({
+          id: p.postId || p.id,
+          userId: p.userId,
+          username: p.username,
+          displayName: p.displayName,
+          avatarUrl: p.avatarUrl,
+          content: p.content,
+          entityId: p.entityId,
+          entityTicker: p.entityTicker,
+          entityName: p.entityName,
+          sentiment: p.sentiment,
+          likes: p.likes || 0,
+          comments: p.comments || 0,
+          isLiked: p.isLiked || false,
+          isBookmarked: p.isBookmarked || false,
+          timestamp: p.timestamp,
+        }));
+        setActivityFeed(mappedPosts);
+      }
+    } catch (error) {
+      // Silently handle errors - don't crash the app
+      console.debug('Error fetching feed (backend may not be running):', error);
+    } finally {
+      setIsLoadingFeed(false);
+    }
+  }, [token, isAuthenticated]);
+
+  // Load feed on mount and when auth changes
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      refreshActivityFeed().catch(err => console.error('Error refreshing feed:', err));
+    }
+  }, [isAuthenticated, token, refreshActivityFeed]);
 
   const createPost = useCallback(async (params: {
     content: string;
@@ -306,134 +144,191 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     entityName?: string;
     sentiment?: 'positive' | 'negative' | 'neutral';
   }) => {
+    if (!token || !user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    if (!isBackendConfigured()) {
+      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+    }
+
     try {
-      if (!user) {
-        return { success: false, error: 'User not authenticated' };
+      const response = await authenticatedRequest<Post>('/api/social/posts', token, {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+
+      if (response.success && response.data) {
+        const newPost: Post = {
+          id: response.data.postId || response.data.id,
+          userId: response.data.userId,
+          username: response.data.username,
+          displayName: response.data.displayName,
+          avatarUrl: response.data.avatarUrl,
+          content: response.data.content,
+          entityId: response.data.entityId,
+          entityTicker: response.data.entityTicker,
+          entityName: response.data.entityName,
+          sentiment: response.data.sentiment,
+          likes: response.data.likes || 0,
+          comments: response.data.comments || 0,
+          isLiked: false,
+          isBookmarked: false,
+          timestamp: response.data.timestamp,
+        };
+        
+        setActivityFeed(prev => [newPost, ...prev]);
+        return { success: true, post: newPost };
       }
 
-      const newPost: Post = {
-        id: Date.now().toString(),
-        userId: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-        content: params.content,
-        entityId: params.entityId,
-        entityTicker: params.entityTicker,
-        entityName: params.entityName,
-        sentiment: params.sentiment,
-        likes: 0,
-        comments: 0,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date().toISOString(),
-      };
-      
-      setActivityFeed(prev => [newPost, ...prev]);
-      return { success: true, post: newPost };
-    } catch (error) {
-      return { success: false, error: 'Failed to create post' };
+      return { success: false, error: response.error || 'Failed to create post' };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to create post' };
     }
-  }, [user]);
+  }, [token, user]);
 
   const toggleLikePost = useCallback(async (postId: string) => {
-    setActivityFeed(prev => prev.map(post => 
-      post.id === postId 
-        ? { ...post, isLiked: !post.isLiked, likes: post.isLiked ? post.likes - 1 : post.likes + 1 }
-        : post
-    ));
-    return { success: true };
-  }, []);
+    if (!token) {
+      return { success: false };
+    }
+
+    try {
+      const response = await authenticatedRequest<{ isLiked: boolean }>(
+        `/api/social/posts/${postId}/like`,
+        token,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (response.success && response.data) {
+        setActivityFeed(prev =>
+          prev.map(post =>
+            post.id === postId
+              ? {
+                  ...post,
+                  isLiked: response.data!.isLiked,
+                  likes: response.data!.isLiked ? post.likes + 1 : post.likes - 1,
+                }
+              : post
+          )
+        );
+        return { success: true };
+      }
+
+      return { success: false };
+    } catch (error) {
+      return { success: false };
+    }
+  }, [token]);
 
   const toggleBookmarkPost = useCallback(async (postId: string) => {
-    setActivityFeed(prev => prev.map(post => 
-      post.id === postId 
-        ? { ...post, isBookmarked: !post.isBookmarked }
-        : post
-    ));
+    // TODO: Implement bookmark functionality in backend
+    setActivityFeed(prev =>
+      prev.map(post =>
+        post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
+      )
+    );
     return { success: true };
   }, []);
 
   const deletePost = useCallback(async (postId: string) => {
+    // TODO: Implement delete post in backend
     setActivityFeed(prev => prev.filter(post => post.id !== postId));
     return { success: true };
   }, []);
 
-  const refreshActivityFeed = useCallback(async () => {
-    setIsLoadingFeed(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setActivityFeed(MOCK_POSTS);
-    setIsLoadingFeed(false);
-  }, []);
-
   const getComments = useCallback(async (postId: string) => {
-    // Generate mock comments if they don't exist
-    if (!postComments[postId]) {
-      const mockComments: Comment[] = [
+    if (!token) return;
+
+    try {
+      const response = await authenticatedRequest<Comment[]>(
+        `/api/social/posts/${postId}/comments`,
+        token,
         {
-          id: `${postId}-c1`,
-          postId,
-          userId: '2',
-          username: 'sarah_trader',
-          displayName: 'Sarah Chen',
-          content: 'Great analysis! I agree with your perspective.',
-          likes: 3,
-          isLiked: false,
-          timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-        },
-        {
-          id: `${postId}-c2`,
-          postId,
-          userId: '4',
-          username: 'crypto_king',
-          displayName: 'Alex Rivera',
-          content: 'Interesting point. What about the regulatory concerns?',
-          likes: 1,
-          isLiked: false,
-          timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-        },
-      ];
-      setPostComments(prev => ({ ...prev, [postId]: mockComments }));
+          method: 'GET',
+        }
+      );
+
+      if (response.success && response.data) {
+        const mappedComments: Comment[] = response.data.map((c: any) => ({
+          id: c.commentId || c.id,
+          postId: c.postId,
+          userId: c.userId,
+          username: c.username,
+          displayName: c.displayName,
+          avatarUrl: c.avatarUrl,
+          content: c.content,
+          likes: c.likes || 0,
+          isLiked: c.isLiked || false,
+          timestamp: c.timestamp,
+        }));
+
+        setPostComments(prev => ({ ...prev, [postId]: mappedComments }));
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
     }
-  }, [postComments]);
+  }, [token]);
 
   const addComment = useCallback(async (postId: string, content: string) => {
-    if (!user) {
+    if (!token || !user) {
       return { success: false };
     }
 
-    const newComment: Comment = {
-      id: `${postId}-c${Date.now()}`,
-      postId,
-      userId: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl,
-      content,
-      likes: 0,
-      isLiked: false,
-      timestamp: new Date().toISOString(),
-    };
-    
-    setPostComments(prev => ({
-      ...prev,
-      [postId]: [...(prev[postId] || []), newComment],
-    }));
-    
-    setActivityFeed(prev => prev.map(post =>
-      post.id === postId ? { ...post, comments: post.comments + 1 } : post
-    ));
-    
-    return { success: true, comment: newComment };
-  }, [user]);
+    try {
+      const response = await authenticatedRequest<Comment>(
+        `/api/social/posts/${postId}/comments`,
+        token,
+        {
+          method: 'POST',
+          body: JSON.stringify({ content }),
+        }
+      );
+
+      if (response.success && response.data) {
+        const newComment: Comment = {
+          id: response.data.commentId || response.data.id,
+          postId: response.data.postId,
+          userId: response.data.userId,
+          username: response.data.username,
+          displayName: response.data.displayName,
+          avatarUrl: response.data.avatarUrl,
+          content: response.data.content,
+          likes: response.data.likes || 0,
+          isLiked: false,
+          timestamp: response.data.timestamp,
+        };
+
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), newComment],
+        }));
+
+        setActivityFeed(prev =>
+          prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
+        );
+
+        return { success: true, comment: newComment };
+      }
+
+      return { success: false };
+    } catch (error) {
+      return { success: false };
+    }
+  }, [token, user]);
 
   const toggleLikeComment = useCallback(async (postId: string, commentId: string) => {
+    // TODO: Implement like comment in backend
     setPostComments(prev => ({
       ...prev,
       [postId]: (prev[postId] || []).map(comment =>
         comment.id === commentId
-          ? { ...comment, isLiked: !comment.isLiked, likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1 }
+          ? {
+              ...comment,
+              isLiked: !comment.isLiked,
+              likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
+            }
           : comment
       ),
     }));
@@ -441,21 +336,44 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleFollowUser = useCallback(async (userId: string) => {
-    setFollowedUsers(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(userId)) {
-        newSet.delete(userId);
-      } else {
-        newSet.add(userId);
-      }
-      return newSet;
-    });
-    return { success: true };
-  }, []);
+    if (!token) {
+      return { success: false };
+    }
 
-  const isFollowingUser = useCallback((userId: string) => {
-    return followedUsers.has(userId);
-  }, [followedUsers]);
+    try {
+      const response = await authenticatedRequest<{ isFollowing: boolean }>(
+        `/api/social/users/${userId}/follow`,
+        token,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (response.success && response.data) {
+        setFollowedUsers(prev => {
+          const newSet = new Set(prev);
+          if (response.data!.isFollowing) {
+            newSet.add(userId);
+          } else {
+            newSet.delete(userId);
+          }
+          return newSet;
+        });
+        return { success: true };
+      }
+
+      return { success: false };
+    } catch (error) {
+      return { success: false };
+    }
+  }, [token]);
+
+  const isFollowingUser = useCallback(
+    (userId: string) => {
+      return followedUsers.has(userId);
+    },
+    [followedUsers]
+  );
 
   const refreshGroups = useCallback(async () => {
     setIsLoadingGroups(true);
@@ -470,6 +388,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     category: string;
     isPrivate: boolean;
   }) => {
+    // TODO: Implement groups in backend
     const newGroup: Group = {
       id: Date.now().toString(),
       name: params.name,
@@ -480,26 +399,32 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       isMember: true,
       createdAt: new Date().toISOString(),
     };
-    
+
     setGroups(prev => [newGroup, ...prev]);
     return { success: true, group: newGroup };
   }, []);
 
   const joinGroup = useCallback(async (groupId: string) => {
-    setGroups(prev => prev.map(group =>
-      group.id === groupId
-        ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
-        : group
-    ));
+    // TODO: Implement groups in backend
+    setGroups(prev =>
+      prev.map(group =>
+        group.id === groupId
+          ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
+          : group
+      )
+    );
     return { success: true };
   }, []);
 
   const leaveGroup = useCallback(async (groupId: string) => {
-    setGroups(prev => prev.map(group =>
-      group.id === groupId
-        ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
-        : group
-    ));
+    // TODO: Implement groups in backend
+    setGroups(prev =>
+      prev.map(group =>
+        group.id === groupId
+          ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
+          : group
+      )
+    );
     return { success: true };
   }, []);
 

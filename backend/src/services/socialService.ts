@@ -1,0 +1,421 @@
+import { docClient, TABLE_NAMES } from '../utils/dynamodb';
+import {
+  PutCommand,
+  GetCommand,
+  UpdateCommand,
+  QueryCommand,
+  DeleteCommand,
+  ScanCommand,
+} from '@aws-sdk/lib-dynamodb';
+import { Post, Comment, Like, Follow, User } from '../models/types';
+import { v4 as uuidv4 } from 'uuid';
+
+export async function createPost(
+  userId: string,
+  content: string,
+  entityId?: number,
+  entityTicker?: string,
+  entityName?: string,
+  sentiment?: 'positive' | 'negative' | 'neutral'
+): Promise<{ success: boolean; post?: Post; error?: string }> {
+  try {
+    // Get user info
+    const userResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.USERS,
+        Key: { userId },
+      })
+    );
+
+    if (!userResult.Item) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const user = userResult.Item as User;
+    const now = new Date().toISOString();
+    const postId = uuidv4();
+
+    const post: Post = {
+      postId,
+      userId,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      content,
+      entityId,
+      entityTicker,
+      entityName,
+      sentiment,
+      likes: 0,
+      comments: 0,
+      timestamp: now,
+      createdAt: now,
+    };
+
+    await docClient.send(
+      new PutCommand({
+        TableName: TABLE_NAMES.POSTS,
+        Item: post,
+      })
+    );
+
+    return { success: true, post };
+  } catch (error: any) {
+    console.error('Error creating post:', error);
+    return { success: false, error: error.message || 'Failed to create post' };
+  }
+}
+
+export async function getFeed(
+  userId: string,
+  limit: number = 50,
+  lastKey?: string
+): Promise<{ posts: Post[]; lastEvaluatedKey?: string }> {
+  try {
+    // Get users being followed
+    const followsResult = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAMES.FOLLOWS,
+        KeyConditionExpression: 'userId = :userId',
+        ExpressionAttributeValues: {
+          ':userId': userId,
+        },
+      })
+    );
+
+    const followingUserIds = ((followsResult.Items || []) as Follow[]).map((f) => f.followingUserId);
+    followingUserIds.push(userId); // Include own posts
+
+    // Get posts from followed users
+    const posts: Post[] = [];
+    for (const followedUserId of followingUserIds) {
+      const postsResult = await docClient.send(
+        new QueryCommand({
+          TableName: TABLE_NAMES.POSTS,
+          IndexName: 'userId-timestamp-index',
+          KeyConditionExpression: 'userId = :userId',
+          ExpressionAttributeValues: {
+            ':userId': followedUserId,
+          },
+          ScanIndexForward: false,
+          Limit: limit,
+        })
+      );
+
+      if (postsResult.Items) {
+        posts.push(...(postsResult.Items as Post[]));
+      }
+    }
+
+    // Sort by timestamp and limit
+    posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const limitedPosts = posts.slice(0, limit);
+
+    // Get like status for each post
+    const postsWithLikes = await Promise.all(
+      limitedPosts.map(async (post) => {
+        const likeResult = await docClient.send(
+          new QueryCommand({
+            TableName: TABLE_NAMES.LIKES,
+            IndexName: 'postId-userId-index',
+            KeyConditionExpression: 'postId = :postId AND userId = :userId',
+            ExpressionAttributeValues: {
+              ':postId': post.postId,
+              ':userId': userId,
+            },
+          })
+        );
+
+        return {
+          ...post,
+          isLiked: (likeResult.Items?.length || 0) > 0,
+          isBookmarked: false, // TODO: Implement bookmarks
+        };
+      })
+    );
+
+    return { posts: postsWithLikes };
+  } catch (error: any) {
+    console.error('Error getting feed:', error);
+    return { posts: [] };
+  }
+}
+
+export async function toggleLikePost(
+  userId: string,
+  postId: string
+): Promise<{ success: boolean; isLiked: boolean; error?: string }> {
+  try {
+    // Check if already liked
+    const likeResult = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAMES.LIKES,
+        IndexName: 'postId-userId-index',
+        KeyConditionExpression: 'postId = :postId AND userId = :userId',
+        ExpressionAttributeValues: {
+          ':postId': postId,
+          ':userId': userId,
+        },
+      })
+    );
+
+    const existingLike = likeResult.Items?.[0];
+
+    if (existingLike) {
+      // Unlike
+      await docClient.send(
+        new DeleteCommand({
+          TableName: TABLE_NAMES.LIKES,
+          Key: { likeId: existingLike.likeId },
+        })
+      );
+
+      // Decrement like count
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.POSTS,
+          Key: { postId },
+          UpdateExpression: 'SET likes = likes - :one',
+          ExpressionAttributeValues: {
+            ':one': 1,
+          },
+        })
+      );
+
+      return { success: true, isLiked: false };
+    } else {
+      // Like
+      const like: Like = {
+        likeId: uuidv4(),
+        postId,
+        userId,
+        createdAt: new Date().toISOString(),
+      };
+
+      await docClient.send(
+        new PutCommand({
+          TableName: TABLE_NAMES.LIKES,
+          Item: like,
+        })
+      );
+
+      // Increment like count
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.POSTS,
+          Key: { postId },
+          UpdateExpression: 'SET likes = likes + :one',
+          ExpressionAttributeValues: {
+            ':one': 1,
+          },
+        })
+      );
+
+      return { success: true, isLiked: true };
+    }
+  } catch (error: any) {
+    console.error('Error toggling like:', error);
+    return { success: false, isLiked: false, error: error.message || 'Failed to toggle like' };
+  }
+}
+
+export async function addComment(
+  userId: string,
+  postId: string,
+  content: string
+): Promise<{ success: boolean; comment?: Comment; error?: string }> {
+  try {
+    // Get user info
+    const userResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.USERS,
+        Key: { userId },
+      })
+    );
+
+    if (!userResult.Item) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const user = userResult.Item as User;
+    const now = new Date().toISOString();
+    const commentId = uuidv4();
+
+    const comment: Comment = {
+      commentId,
+      postId,
+      userId,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      content,
+      likes: 0,
+      timestamp: now,
+      createdAt: now,
+    };
+
+    await docClient.send(
+      new PutCommand({
+        TableName: TABLE_NAMES.COMMENTS,
+        Item: comment,
+      })
+    );
+
+    // Increment comment count
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.POSTS,
+        Key: { postId },
+        UpdateExpression: 'SET comments = comments + :one',
+        ExpressionAttributeValues: {
+          ':one': 1,
+        },
+      })
+    );
+
+    return { success: true, comment };
+  } catch (error: any) {
+    console.error('Error adding comment:', error);
+    return { success: false, error: error.message || 'Failed to add comment' };
+  }
+}
+
+export async function getComments(
+  postId: string,
+  limit: number = 50
+): Promise<Comment[]> {
+  try {
+    const result = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAMES.COMMENTS,
+        IndexName: 'postId-timestamp-index',
+        KeyConditionExpression: 'postId = :postId',
+        ExpressionAttributeValues: {
+          ':postId': postId,
+        },
+        ScanIndexForward: false,
+        Limit: limit,
+      })
+    );
+
+    return (result.Items || []) as Comment[];
+  } catch (error) {
+    console.error('Error getting comments:', error);
+    return [];
+  }
+}
+
+export async function toggleFollowUser(
+  userId: string,
+  followingUserId: string
+): Promise<{ success: boolean; isFollowing: boolean; error?: string }> {
+  try {
+    if (userId === followingUserId) {
+      return { success: false, isFollowing: false, error: 'Cannot follow yourself' };
+    }
+
+    // Check if already following
+    const followResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.FOLLOWS,
+        Key: {
+          userId,
+          followingUserId,
+        },
+      })
+    );
+
+    if (followResult.Item) {
+      // Unfollow
+      await docClient.send(
+        new DeleteCommand({
+          TableName: TABLE_NAMES.FOLLOWS,
+          Key: {
+            userId,
+            followingUserId,
+          },
+        })
+      );
+
+      // Update follower/following counts
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId: followingUserId },
+          UpdateExpression: 'SET followersCount = followersCount - :one',
+          ExpressionAttributeValues: { ':one': 1 },
+        })
+      );
+
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId },
+          UpdateExpression: 'SET followingCount = followingCount - :one',
+          ExpressionAttributeValues: { ':one': 1 },
+        })
+      );
+
+      return { success: true, isFollowing: false };
+    } else {
+      // Follow
+      const follow: Follow = {
+        userId,
+        followingUserId,
+        createdAt: new Date().toISOString(),
+      };
+
+      await docClient.send(
+        new PutCommand({
+          TableName: TABLE_NAMES.FOLLOWS,
+          Item: follow,
+        })
+      );
+
+      // Update follower/following counts
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId: followingUserId },
+          UpdateExpression: 'SET followersCount = followersCount + :one',
+          ExpressionAttributeValues: { ':one': 1 },
+        })
+      );
+
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId },
+          UpdateExpression: 'SET followingCount = followingCount + :one',
+          ExpressionAttributeValues: { ':one': 1 },
+        })
+      );
+
+      return { success: true, isFollowing: true };
+    }
+  } catch (error: any) {
+    console.error('Error toggling follow:', error);
+    return { success: false, isFollowing: false, error: error.message || 'Failed to toggle follow' };
+  }
+}
+
+export async function searchUsers(query: string, limit: number = 20): Promise<User[]> {
+  try {
+    const result = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAMES.USERS,
+        FilterExpression: 'contains(username, :query) OR contains(displayName, :query)',
+        ExpressionAttributeValues: {
+          ':query': query,
+        },
+        Limit: limit,
+      })
+    );
+
+    return (result.Items || []) as User[];
+  } catch (error) {
+    console.error('Error searching users:', error);
+    return [];
+  }
+}
+

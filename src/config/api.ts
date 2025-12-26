@@ -7,6 +7,12 @@
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
+// Check if backend is configured
+export const isBackendConfigured = () => {
+  const url = process.env.EXPO_PUBLIC_API_URL;
+  return url && url !== 'http://localhost:3000/api' && url.trim() !== '';
+};
+
 export const API_CONFIG = {
   baseURL: API_URL,
   timeout: 10000, // 10 seconds
@@ -15,28 +21,35 @@ export const API_CONFIG = {
     'Accept': 'application/json',
   },
   endpoints: {
+    trading: {
+      executeTrade: '/api/trade/execute',
+      getPortfolio: '/api/portfolio',
+      getTransactions: '/api/transactions',
+      getAllEntities: '/api/entities',
+      getEntityPrice: '/api/entities/:entityId/price',
+    },
     social: {
       // Posts
-      createPost: '/social/posts',
-      getActivityFeed: '/social/feed',
-      getUserPosts: '/social/users/:userId/posts',
-      getEntityPosts: '/social/entities/:entityId/posts',
-      deletePost: '/social/posts/:postId',
-      likePost: '/social/posts/:postId/like',
-      bookmarkPost: '/social/posts/:postId/bookmark',
+      createPost: '/api/social/posts',
+      getActivityFeed: '/api/social/feed',
+      getUserPosts: '/api/social/users/:userId/posts',
+      getEntityPosts: '/api/social/entities/:entityId/posts',
+      deletePost: '/api/social/posts/:postId',
+      likePost: '/api/social/posts/:postId/like',
+      bookmarkPost: '/api/social/posts/:postId/bookmark',
       // Comments
-      getComments: '/social/posts/:postId/comments',
-      addComment: '/social/posts/:postId/comments',
-      deleteComment: '/social/comments/:commentId',
-      likeComment: '/social/comments/:commentId/like',
+      getComments: '/api/social/posts/:postId/comments',
+      addComment: '/api/social/posts/:postId/comments',
+      deleteComment: '/api/social/comments/:commentId',
+      likeComment: '/api/social/comments/:commentId/like',
       // Follow
-      followUser: '/social/users/:userId/follow',
-      unfollowUser: '/social/users/:userId/follow',
-      getFollowers: '/social/users/:userId/followers',
-      getFollowing: '/social/users/:userId/following',
+      followUser: '/api/social/users/:userId/follow',
+      unfollowUser: '/api/social/users/:userId/follow',
+      getFollowers: '/api/social/users/:userId/followers',
+      getFollowing: '/api/social/users/:userId/following',
       // User
-      searchUsers: '/social/users/search',
-      getUserProfile: '/social/users/:userId',
+      searchUsers: '/api/social/users/search',
+      getUserProfile: '/api/user/:userId',
       // Groups
       getGroups: '/social/groups',
       getUserGroups: '/social/users/:userId/groups',
@@ -79,6 +92,14 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
+  // If backend is not configured, return error gracefully
+  if (!isBackendConfigured()) {
+    return {
+      success: false,
+      error: 'Backend API not configured. Please set EXPO_PUBLIC_API_URL in your .env file.',
+    };
+  }
+
   // Create AbortController for timeout (React Native compatible)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
@@ -112,7 +133,10 @@ export async function apiRequest<T = any>(
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
-    console.error('API Request Error:', error);
+    // Only log errors if backend is configured (avoid spam when backend isn't running)
+    if (isBackendConfigured()) {
+      console.error('API Request Error:', error);
+    }
     
     if (error.name === 'AbortError' || error.name === 'TimeoutError') {
       return {
@@ -121,7 +145,14 @@ export async function apiRequest<T = any>(
       };
     }
 
-    if (error.message?.includes('Network request failed')) {
+    if (error.message?.includes('Network request failed') || error.message?.includes('Failed to connect')) {
+      // Don't show error for localhost connections when backend isn't running
+      if (API_CONFIG.baseURL.includes('localhost')) {
+        return {
+          success: false,
+          error: 'Backend not available. Please start the backend server or configure EXPO_PUBLIC_API_URL.',
+        };
+      }
       return {
         success: false,
         error: 'Network error. Please check your internet connection.',
