@@ -64,10 +64,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const saveAuthData = async (newToken: string, newUser: User) => {
+  const saveAuthData = async (newToken: string, newUser: User, refreshToken?: string) => {
     try {
       await AsyncStorage.setItem('authToken', newToken);
       await AsyncStorage.setItem('user', JSON.stringify(newUser));
+      if (refreshToken) {
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+      }
       setToken(newToken);
       setUser(newUser);
     } catch (error) {
@@ -79,6 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('refreshToken');
       setToken(null);
       setUser(null);
     } catch (error) {
@@ -113,7 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await apiSignup(data);
       
       if (result.success && result.token && result.user) {
-        await saveAuthData(result.token, result.user);
+        await saveAuthData(result.token, result.user, result.refreshToken);
         return { success: true };
       }
       
@@ -156,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       
       if (result.success && result.token && result.user) {
-        await saveAuthData(result.token, result.user);
+        await saveAuthData(result.token, result.user, result.refreshToken);
         return { success: true };
       }
       
@@ -184,7 +188,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       
       if (result.success && result.token && result.user) {
-        await saveAuthData(result.token, result.user);
+        await saveAuthData(result.token, result.user, result.refreshToken);
         return { success: true };
       }
       

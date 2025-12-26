@@ -34,10 +34,15 @@ export async function login(credentials: LoginCredentials): Promise<{
   success: boolean;
   error?: string;
   token?: string;
+  refreshToken?: string;
   user?: AuthResponse['user'];
 }> {
   try {
-    const response = await apiRequest<AuthResponse>('/auth/login', {
+    const response = await apiRequest<{
+      token: string;
+      refreshToken?: string;
+      user: AuthResponse['user'];
+    }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -52,6 +57,7 @@ export async function login(credentials: LoginCredentials): Promise<{
     return {
       success: true,
       token: response.data.token,
+      refreshToken: response.data.refreshToken,
       user: response.data.user,
     };
   } catch (error: any) {
@@ -72,7 +78,10 @@ export async function signup(data: SignupData): Promise<{
   user?: AuthResponse['user'];
 }> {
   try {
-    const response = await apiRequest<AuthResponse>('/auth/signup', {
+    const response = await apiRequest<{
+      userId: string;
+      message: string;
+    }>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -84,11 +93,13 @@ export async function signup(data: SignupData): Promise<{
       };
     }
 
-    return {
-      success: true,
-      token: response.data.token,
-      user: response.data.user,
-    };
+    // After signup, automatically log in
+    const loginResult = await login({
+      email: data.email,
+      password: data.password,
+    });
+
+    return loginResult;
   } catch (error: any) {
     return {
       success: false,
@@ -99,6 +110,7 @@ export async function signup(data: SignupData): Promise<{
 
 /**
  * Login with OAuth (Google or Apple)
+ * Note: OAuth implementation would need to be added to backend
  */
 export async function loginWithOAuth(data: OAuthLoginData): Promise<{
   success: boolean;
@@ -107,7 +119,7 @@ export async function loginWithOAuth(data: OAuthLoginData): Promise<{
   user?: AuthResponse['user'];
 }> {
   try {
-    const endpoint = data.provider === 'google' ? '/auth/google' : '/auth/apple';
+    const endpoint = data.provider === 'google' ? '/api/auth/google' : '/api/auth/apple';
     
     const response = await apiRequest<AuthResponse>(endpoint, {
       method: 'POST',
@@ -150,7 +162,7 @@ export async function verifyToken(token: string): Promise<{
   user?: AuthResponse['user'];
 }> {
   try {
-    const response = await authenticatedRequest<AuthResponse['user']>('/auth/me', token, {
+    const response = await authenticatedRequest<AuthResponse['user']>('/api/auth/me', token, {
       method: 'GET',
     });
 
@@ -182,7 +194,7 @@ export async function refreshToken(refreshToken: string): Promise<{
   token?: string;
 }> {
   try {
-    const response = await apiRequest<{ token: string }>('/auth/refresh', {
+    const response = await apiRequest<{ token: string }>('/api/auth/refresh', {
       method: 'POST',
       body: JSON.stringify({ refreshToken }),
     });
@@ -214,7 +226,7 @@ export async function logout(token: string): Promise<{
   error?: string;
 }> {
   try {
-    const response = await authenticatedRequest('/auth/logout', token, {
+    const response = await authenticatedRequest('/api/auth/logout', token, {
       method: 'POST',
     });
 
