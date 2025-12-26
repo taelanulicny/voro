@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ interface CreatePostModalProps {
   entityId?: number;
   entityTicker?: string;
   entityName?: string;
+  slideFromBottom?: boolean;
+  prefillEntityTag?: boolean;
 }
 
 export default function CreatePostModal({
@@ -31,6 +33,8 @@ export default function CreatePostModal({
   entityId,
   entityTicker,
   entityName,
+  slideFromBottom = false,
+  prefillEntityTag = false,
 }: CreatePostModalProps) {
   const { user } = useAuth();
   const { createPost } = useSocial();
@@ -38,6 +42,20 @@ export default function CreatePostModal({
   const [content, setContent] = useState('');
   const [sentiment, setSentiment] = useState<'positive' | 'negative' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-fill entity tag when modal opens
+  useEffect(() => {
+    if (visible && prefillEntityTag && entityName) {
+      const entityMention = `@${entityName.replace(/\s+/g, '')} `;
+      if (!content.startsWith(entityMention.trim())) {
+        setContent(entityMention);
+      }
+    } else if (!visible) {
+      // Reset content when modal closes
+      setContent('');
+      setSentiment('neutral');
+    }
+  }, [visible, prefillEntityTag, entityName]);
 
   const handleSubmit = async () => {
     if (!content.trim()) {
@@ -93,14 +111,29 @@ export default function CreatePostModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      animationType={slideFromBottom ? "slide" : "slide"}
+      presentationStyle={slideFromBottom ? "overFullScreen" : "pageSheet"}
+      transparent={slideFromBottom}
       onRequestClose={handleClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={[styles.container, { backgroundColor: theme.card }]}
-      >
+      <View style={[
+        styles.container, 
+        { backgroundColor: slideFromBottom ? 'transparent' : theme.card }
+      ]}>
+        {slideFromBottom && (
+          <TouchableOpacity
+            style={styles.backdrop}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+        )}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={[
+            slideFromBottom ? styles.modalContentBottom : styles.modalContent,
+            { backgroundColor: theme.card }
+          ]}
+        >
         <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity
             onPress={handleClose}
@@ -149,16 +182,6 @@ export default function CreatePostModal({
               <Text style={[styles.username, { color: theme.textSecondary }]}>@{user?.username}</Text>
             </View>
           </View>
-
-          {/* Entity Tag (if present) */}
-          {entityTicker && (
-            <View style={[styles.entityTag, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="pricetag" size={16} color={theme.primary} />
-              <Text style={[styles.entityTagText, { color: theme.primary }]}>
-                ${entityTicker} {entityName && `· ${entityName}`}
-              </Text>
-            </View>
-          )}
 
           {/* Post Content */}
           <TextInput
@@ -255,7 +278,8 @@ export default function CreatePostModal({
             </View>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -263,6 +287,26 @@ export default function CreatePostModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalContentBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -312,20 +356,6 @@ const styles = StyleSheet.create({
   },
   username: {
     fontSize: 14,
-  },
-  entityTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignSelf: 'flex-start',
-  },
-  entityTagText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
   },
   textInput: {
     fontSize: 16,

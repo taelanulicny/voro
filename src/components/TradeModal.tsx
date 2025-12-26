@@ -334,9 +334,7 @@ export default function TradeModal({
               disabled={!canExecute || isProcessing}
             >
               <Text style={styles.buttonTextPrimary}>
-                {isProcessing
-                  ? 'Processing...'
-                  : `${activeTab === 'buy' ? 'Positive' : 'Negative'} ${entityTicker}`}
+                {isProcessing ? 'Processing...' : 'Confirm'}
               </Text>
             </TouchableOpacity>
           </View>

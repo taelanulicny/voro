@@ -59,7 +59,15 @@ function RootNavigator() {
               animation: 'slide_from_bottom',
             }}
           />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen 
+            name="Settings" 
+            component={SettingsScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          />
           <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
           <Stack.Screen name="FollowersList" component={FollowersListScreen} />
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />

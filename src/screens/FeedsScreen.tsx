@@ -74,11 +74,24 @@ export default function FeedsScreen() {
     setNewsRefreshing(false);
   };
 
+  // Map display categories to NewsContext category names
+  const mapCategoryToNewsCategory = (displayCategory: string): string => {
+    const categoryMap: Record<string, string> = {
+      'Influencers': 'People',
+      'Music Artists': 'People',
+      'Sports': 'Events',
+      'Political Figures': 'Politics',
+      'Startups': 'Tech',
+    };
+    return categoryMap[displayCategory] || displayCategory;
+  };
+
   const applyNewsFilters = () => {
     if (newsFilter === 'breaking') {
       setFilteredNews(breakingNews);
     } else if (newsFilter === 'category' && selectedCategory) {
-      setFilteredNews(getNewsByFilter({ category: selectedCategory }));
+      const newsCategory = mapCategoryToNewsCategory(selectedCategory);
+      setFilteredNews(getNewsByFilter({ category: newsCategory }));
     } else if (newsFilter === 'sentiment' && selectedSentiment) {
       setFilteredNews(getNewsByFilter({ sentiment: selectedSentiment }));
     } else {
@@ -113,7 +126,7 @@ export default function FeedsScreen() {
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <View style={[styles.segmentedControl, { backgroundColor: '#E8E8F5' }]}>
+      <View style={[styles.segmentedControl, { backgroundColor: '#FFFFFF' }]}>
         <TouchableOpacity
           style={[
             styles.segmentButton,
@@ -245,7 +258,7 @@ export default function FeedsScreen() {
   );
 
   const renderNewsFilterTabs = () => {
-    const categories = ['Tech', 'Politics', 'Events', 'People', 'General'];
+    const categories = ['Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
     const sentiments = [
       { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
       { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },
@@ -534,7 +547,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
   },
   segmentButtonActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F5F5',
     borderRadius: 8,
   },
   segmentButtonText: {

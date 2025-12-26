@@ -140,7 +140,7 @@ export default function SettingsScreen() {
               <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
                 <Text style={dynamicStyles.menuItemText}>Email</Text>
-                <Text style={dynamicStyles.menuItemSubtext}>{user?.email}</Text>
+                <Text style={dynamicStyles.menuItemSubtext}>team@moro.support</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
@@ -402,7 +402,7 @@ export default function SettingsScreen() {
               <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
                 <Text style={dynamicStyles.menuItemText}>About Moro</Text>
-                <Text style={dynamicStyles.menuItemSubtext}>Version 1.0.0</Text>
+                <Text style={dynamicStyles.menuItemSubtext}>Version 1.0.2</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
