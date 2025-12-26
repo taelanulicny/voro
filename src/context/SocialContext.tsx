@@ -88,9 +88,191 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
 
+  // Mock posts for trending feed (fallback when backend not available)
+  const MOCK_POSTS: Post[] = [
+    {
+      id: '1',
+      userId: 'user1',
+      username: 'sarah_trader',
+      displayName: 'Sarah Chen',
+      avatarUrl: undefined,
+      content: '@TaylorSwift just announced her new tour dates and the demand is absolutely insane. Ticket prices are through the roof but fans are still buying. This is a no-brainer investment right now.',
+      sentiment: 'positive',
+      likes: 823,
+      comments: 156,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
+    },
+    {
+      id: '2',
+      userId: 'user2',
+      username: 'mike_investor',
+      displayName: 'Mike Johnson',
+      avatarUrl: undefined,
+      content: '@MrBeast and @KaiCenat just did a massive collab stream. Both of their engagement metrics are exploding. This is what smart creators do - cross-pollinate audiences.',
+      sentiment: 'positive',
+      likes: 542,
+      comments: 89,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
+    },
+    {
+      id: '3',
+      userId: 'user3',
+      username: 'trading_pro',
+      displayName: 'Alex Rivera',
+      avatarUrl: undefined,
+      content: '@TomBrady coming out of retirement again? The man is a machine. His brand value just keeps climbing. Smart move for any investor watching the sports market.',
+      sentiment: 'positive',
+      likes: 1204,
+      comments: 234,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    },
+    {
+      id: '4',
+      userId: 'user4',
+      username: 'crypto_analyst',
+      displayName: 'Jordan Kim',
+      avatarUrl: undefined,
+      content: '@ElonMusk latest tweet about @Tesla production numbers is concerning. Supply chain issues are real and investors should be cautious.',
+      sentiment: 'negative',
+      likes: 678,
+      comments: 145,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 15).toISOString(),
+    },
+    {
+      id: '5',
+      userId: 'user5',
+      username: 'market_watch',
+      displayName: 'Emma Davis',
+      avatarUrl: undefined,
+      content: '@KanyeWest new album drop is generating massive buzz. Streaming numbers are through the roof. This could be a major comeback moment.',
+      sentiment: 'positive',
+      likes: 945,
+      comments: 201,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
+    },
+    {
+      id: '6',
+      userId: 'user6',
+      username: 'sports_insider',
+      displayName: 'Chris Martinez',
+      avatarUrl: undefined,
+      content: '@LeBronJames breaking another record. The longevity of his career is unmatched. His brand partnerships are worth watching.',
+      sentiment: 'positive',
+      likes: 1102,
+      comments: 267,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
+    },
+    {
+      id: '7',
+      userId: 'user7',
+      username: 'tech_guru',
+      displayName: 'Sam Wilson',
+      avatarUrl: undefined,
+      content: '@OpenAI latest model release is game-changing. The AI space is moving so fast, investors need to stay on top of these developments.',
+      sentiment: 'positive',
+      likes: 1567,
+      comments: 312,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
+    },
+    {
+      id: '8',
+      userId: 'user8',
+      username: 'entertainment_buzz',
+      displayName: 'Taylor Brown',
+      avatarUrl: undefined,
+      content: '@Drake new single is climbing the charts fast. His streaming numbers are insane. Music industry is watching closely.',
+      sentiment: 'positive',
+      likes: 834,
+      comments: 178,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    },
+    {
+      id: '9',
+      userId: 'user9',
+      username: 'political_analyst',
+      displayName: 'Morgan Lee',
+      avatarUrl: undefined,
+      content: '@TuckerCarlson latest segment is generating controversy. His influence on certain demographics remains strong despite recent changes.',
+      sentiment: 'neutral',
+      likes: 456,
+      comments: 123,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+    },
+    {
+      id: '10',
+      userId: 'user10',
+      username: 'startup_watcher',
+      displayName: 'Casey Park',
+      avatarUrl: undefined,
+      content: '@OpenAI valuation keeps climbing. The AI revolution is real and early investors are seeing massive returns.',
+      sentiment: 'positive',
+      likes: 1890,
+      comments: 445,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(),
+    },
+    {
+      id: '11',
+      userId: 'user11',
+      username: 'music_insider',
+      displayName: 'Riley Chen',
+      avatarUrl: undefined,
+      content: '@TheWeekend new tour announcement is huge. Ticket sales are breaking records. Live music is back in a big way.',
+      sentiment: 'positive',
+      likes: 723,
+      comments: 156,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
+    },
+    {
+      id: '12',
+      userId: 'user12',
+      username: 'sports_business',
+      displayName: 'Drew Anderson',
+      avatarUrl: undefined,
+      content: '@PatrickMahomes contract extension is massive. Quarterback market is resetting. This affects the entire NFL economy.',
+      sentiment: 'positive',
+      likes: 1023,
+      comments: 234,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 32).toISOString(),
+    },
+  ];
+
   // Fetch activity feed from backend
   const refreshActivityFeed = useCallback(async () => {
-    if (!token || !isAuthenticated || !isBackendConfigured()) return;
+    if (!token || !isAuthenticated) {
+      // Use mock posts if not authenticated or backend not configured
+      setActivityFeed(MOCK_POSTS);
+      return;
+    }
+
+    if (!isBackendConfigured()) {
+      // Use mock posts as fallback when backend not configured
+      setActivityFeed(MOCK_POSTS);
+      return;
+    }
 
     try {
       setIsLoadingFeed(true);
@@ -101,7 +283,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         method: 'GET',
       });
 
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.posts.length > 0) {
         // Map backend post format to frontend format
         const mappedPosts: Post[] = response.data.posts.map((p: any) => ({
           id: p.postId || p.id,
@@ -121,10 +303,14 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           timestamp: p.timestamp,
         }));
         setActivityFeed(mappedPosts);
+      } else {
+        // Use mock posts if backend returns empty
+        setActivityFeed(MOCK_POSTS);
       }
     } catch (error) {
-      // Silently handle errors - don't crash the app
+      // Use mock posts as fallback on error
       console.debug('Error fetching feed (backend may not be running):', error);
+      setActivityFeed(MOCK_POSTS);
     } finally {
       setIsLoadingFeed(false);
     }

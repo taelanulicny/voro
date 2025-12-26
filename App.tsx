@@ -26,6 +26,7 @@ import NewsFeedScreen from './src/screens/NewsFeedScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import CategoryScreen from './src/screens/CategoryScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -72,6 +73,14 @@ function RootNavigator() {
           <Stack.Screen name="FollowersList" component={FollowersListScreen} />
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
           <Stack.Screen name="NewsFeed" component={NewsFeedScreen} />
+          <Stack.Screen 
+            name="Notifications" 
+            component={NotificationsScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
         </>
       )}
     </Stack.Navigator>

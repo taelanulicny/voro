@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 import { useAuth } from './AuthContext';
+import { MOCK_ENTITIES } from '../utils/mockEntities';
 
 interface TradingContextType {
   portfolio: Portfolio;
@@ -39,8 +40,33 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [todayChangePercent, setTodayChangePercent] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Global entity prices - fetched from backend
-  const [entityPrices, setEntityPrices] = useState<Record<number, number>>({});
+  // Global entity prices - fetched from backend or initialized with hardcoded 3-5% moves
+  const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
+    // Initialize prices with hardcoded percentage changes (3-5% moves)
+    const initialPrices: Record<number, number> = {};
+    // Predefined percentage changes for each entity (alternating between positive and negative, 3-5% range)
+    const changePercentages: Record<number, number> = {
+      10: -4.2, 11: 3.8, 12: -3.5, 13: 4.7, 14: -3.9, 15: 4.1, 16: -4.5, 17: 3.6, 18: -4.3, 19: 4.9, 20: -3.7,
+      21: 4.4, 22: -3.8, 23: 4.2, 24: -4.1, 25: 3.9, 26: -4.6, 27: 3.7, 28: -4.0, 29: 4.3, 30: -3.6,
+      31: 4.5, 32: -3.4, 33: 4.8, 34: -3.9, 35: 4.0, 36: -4.2, 37: 3.8, 38: -4.4, 39: 3.5,
+      40: 4.6, 41: -3.7, 42: 4.3, 43: -4.1, 44: 3.9, 45: -4.5, 46: 4.2, 47: -3.8, 48: 4.4, 49: -3.6,
+    };
+    
+    MOCK_ENTITIES.forEach((entity) => {
+      // Get hardcoded percentage change (3-5% range), default to 0 if not specified
+      const changePercent = changePercentages[entity.id] || 0;
+      // Cap at ±12% maximum
+      const cappedChangePercent = Math.max(-12, Math.min(12, changePercent));
+      // Calculate price based on basePrice with the percentage change
+      let price = entity.basePrice * (1 + cappedChangePercent / 100);
+      // Ensure price stays within $80-$200 range
+      price = Math.max(80, Math.min(200, price));
+      // Round to 2 decimal places (cents)
+      price = Math.round(price * 100) / 100;
+      initialPrices[entity.id] = price;
+    });
+    return initialPrices;
+  });
   
   // Portfolio value history for chart animation
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
@@ -278,7 +304,23 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getEntityPrice = (entityId: number): number => {
-    return entityPrices[entityId] || 100;
+    if (entityPrices[entityId] !== undefined) {
+      return entityPrices[entityId];
+    }
+    // Fallback: calculate price with 3-5% move from basePrice
+    const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+    if (entity) {
+      // Use entity ID to determine a consistent change percentage (alternating pattern)
+      const changePercent = (entityId % 2 === 0 ? 1 : -1) * (3 + (entityId % 3) * 0.5); // 3-5% range
+      const cappedChangePercent = Math.max(-12, Math.min(12, changePercent));
+      let price = entity.basePrice * (1 + cappedChangePercent / 100);
+      price = Math.max(80, Math.min(200, price));
+      price = Math.round(price * 100) / 100;
+      // Cache it
+      setEntityPrices(prev => ({ ...prev, [entityId]: price }));
+      return price;
+    }
+    return 100; // Ultimate fallback
   };
 
   const getAllEntityPrices = (): Record<number, number> => {
