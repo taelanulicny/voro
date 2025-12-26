@@ -194,6 +194,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 8,
+    borderRadius: 6,
   },
   labelContainer: {
     alignItems: 'center',

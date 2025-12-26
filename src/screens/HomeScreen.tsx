@@ -60,8 +60,9 @@ export default function HomeScreen() {
   // Update entities with live prices
   const entities = useMemo(() => {
     return MOCK_ENTITIES.map((entity) => {
-      const currentPrice = entityPrices[entity.id] || entity.basePrice;
+      const currentPrice = getEntityPrice(entity.id);
       const previousPrice = previousPrices[entity.id] || entity.basePrice;
+      // Calculate change from basePrice
       const change24h = currentPrice - entity.basePrice;
       const changePercent24h = (change24h / entity.basePrice) * 100;
       
@@ -79,7 +80,7 @@ export default function HomeScreen() {
         category: entity.category,
       };
     });
-  }, [entityPrices, previousPrices]);
+  }, [entityPrices, previousPrices, getEntityPrice]);
   
   // Track previous prices for change calculations
   useEffect(() => {
@@ -189,6 +190,7 @@ export default function HomeScreen() {
     
     const mappedEntities = filteredEntities.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
+      // Calculate change from basePrice
       const change24h = currentPrice - entity.basePrice;
       const changePercent24h = (change24h / entity.basePrice) * 100;
       return {
@@ -362,9 +364,7 @@ export default function HomeScreen() {
           
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => {
-              // Will be linked later
-            }}
+            onPress={() => navigation.navigate('Notifications')}
           >
             <Ionicons name="notifications-outline" size={24} color={theme.text} />
           </TouchableOpacity>

@@ -41,20 +41,40 @@ export default function ProfileScreen() {
         <View style={styles.avatar}>
           <Ionicons name="person" size={40} color="#FFFFFF" />
         </View>
-        <TouchableOpacity
-          style={styles.headerSettingsButton}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
-        </TouchableOpacity>
+        <View style={styles.headerRightButtons}>
+          <TouchableOpacity
+            style={styles.headerAddPostButton}
+            onPress={() => setShowCreatePost(true)}
+          >
+            <Ionicons name="add" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerSettingsButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Text style={[styles.displayName, { color: theme.text }]}>{user?.displayName}</Text>
       <Text style={[styles.username, { color: theme.textSecondary }]}>@{user?.username}</Text>
       
-      {user?.bio && (
-        <Text style={[styles.bio, { color: theme.textSecondary }]}>{user.bio}</Text>
-      )}
+      <View style={styles.bioContainer}>
+        {user?.bio && (
+          <Text style={[styles.bio, { color: theme.textSecondary }]}>{user.bio}</Text>
+        )}
+        <TouchableOpacity
+          style={styles.editProfileButton}
+          onPress={() => {
+            // TODO: Navigate to edit profile screen or open edit modal
+            console.log('Edit profile pressed');
+          }}
+        >
+          <Ionicons name="pencil-outline" size={16} color={theme.text} />
+          <Text style={[styles.editProfileText, { color: theme.text }]}>Edit Profile</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Stats */}
       <View style={[styles.stats, { borderTopColor: theme.borderLight }]}>
@@ -140,14 +160,6 @@ export default function ProfileScreen() {
         {renderPostsTab()}
       </ScrollView>
 
-      {/* Floating Action Button - Create Post */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.primary }]}
-        onPress={() => setShowCreatePost(true)}
-      >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
-
       <CreatePostModal
         visible={showCreatePost}
         onClose={() => setShowCreatePost(false)}
@@ -188,6 +200,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerRightButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerAddPostButton: {
+    padding: 4,
+  },
   headerSettingsButton: {
     padding: 4,
   },
@@ -202,11 +222,29 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 8,
   },
+  bioContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   bio: {
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
-    marginBottom: 16,
+    flex: 1,
+    marginRight: 12,
+  },
+  editProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  editProfileText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   stats: {
     flexDirection: 'row',
@@ -233,22 +271,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 32,
     backgroundColor: '#E5E7EB',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#3B82F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   emptyState: {
     alignItems: 'center',

@@ -24,6 +24,7 @@ import { getEntityById } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
 import PostCard from '../components/PostCard';
+import CreatePostModal from '../components/CreatePostModal';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -146,6 +147,7 @@ export default function EntityScreen() {
   
   const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
+  const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
   const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
@@ -767,12 +769,20 @@ export default function EntityScreen() {
 
       {/* Fixed Bottom Trade Buttons */}
       <View style={[styles.bottomBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
-        <TouchableOpacity
-          style={[styles.tradeButton, { backgroundColor: theme.primary }]}
-          onPress={() => setTradeModalVisible(true)}
-        >
-          <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
-        </TouchableOpacity>
+        <View style={styles.bottomButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.tradeButton, styles.halfWidthButton, { backgroundColor: theme.primary }]}
+            onPress={() => setTradeModalVisible(true)}
+          >
+            <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.shareOpinionButton, styles.halfWidthButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={() => setShareOpinionModalVisible(true)}
+          >
+            <Text style={[styles.shareOpinionButtonText, { color: theme.text }]}>Share Your Opinion</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Trade Modal */}
@@ -785,6 +795,17 @@ export default function EntityScreen() {
         currentPrice={currentPrice}
         category={categoryId}
         existingQuantity={holding?.quantity}
+      />
+
+      {/* Share Opinion Modal */}
+      <CreatePostModal
+        visible={shareOpinionModalVisible}
+        onClose={() => setShareOpinionModalVisible(false)}
+        entityId={entityId}
+        entityName={entityData.entity.name}
+        entityTicker={entityData.entity.ticker}
+        slideFromBottom={true}
+        prefillEntityTag={true}
       />
     </SafeAreaView>
   );
@@ -964,23 +985,50 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
     borderTopWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bottomButtonsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+  },
+  halfWidthButton: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
   },
   tradeButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tradeButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  shareOpinionButton: {
+    borderWidth: 1.5,
+  },
+  shareOpinionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   tabSelectorContainer: {
     borderBottomWidth: 1,

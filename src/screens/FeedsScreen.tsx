@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -44,10 +45,13 @@ export default function FeedsScreen() {
   const [selectedSentiment, setSelectedSentiment] = useState<'positive' | 'negative' | 'neutral' | undefined>();
   const [filteredNews, setFilteredNews] = useState<NewsArticle[]>(news);
   const scrollViewRef = useRef<ScrollView>(null);
+  const slideAnim = useRef(new Animated.Value(0)).current; // 0 for Feed, 1 for News
 
   useEffect(() => {
     loadFeed();
     loadNews();
+    // Initialize animation position based on selectedTab
+    slideAnim.setValue(selectedTab === 'feed' ? 0 : 1);
   }, []);
 
   useEffect(() => {
@@ -74,11 +78,24 @@ export default function FeedsScreen() {
     setNewsRefreshing(false);
   };
 
+  // Map display categories to NewsContext category names
+  const mapCategoryToNewsCategory = (displayCategory: string): string => {
+    const categoryMap: Record<string, string> = {
+      'Influencers': 'People',
+      'Music Artists': 'People',
+      'Sports': 'Events',
+      'Political Figures': 'Politics',
+      'Startups': 'Tech',
+    };
+    return categoryMap[displayCategory] || displayCategory;
+  };
+
   const applyNewsFilters = () => {
     if (newsFilter === 'breaking') {
       setFilteredNews(breakingNews);
     } else if (newsFilter === 'category' && selectedCategory) {
-      setFilteredNews(getNewsByFilter({ category: selectedCategory }));
+      const newsCategory = mapCategoryToNewsCategory(selectedCategory);
+      setFilteredNews(getNewsByFilter({ category: newsCategory }));
     } else if (newsFilter === 'sentiment' && selectedSentiment) {
       setFilteredNews(getNewsByFilter({ sentiment: selectedSentiment }));
     } else {
@@ -90,6 +107,12 @@ export default function FeedsScreen() {
     setSelectedTab(tab);
     const scrollToX = tab === 'feed' ? 0 : SCREEN_WIDTH;
     scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
+    // Animate the sliding indicator
+    Animated.timing(slideAnim, {
+      toValue: tab === 'feed' ? 0 : 1,
+      duration: 200,
+      useNativeDriver: false, // We need to animate layout properties
+    }).start();
   };
 
   const handleScroll = (event: any) => {
@@ -98,6 +121,12 @@ export default function FeedsScreen() {
     const newTab = pageIndex === 0 ? 'feed' : 'news';
     if (newTab !== selectedTab) {
       setSelectedTab(newTab);
+      // Animate the sliding indicator
+      Animated.timing(slideAnim, {
+        toValue: newTab === 'feed' ? 0 : 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
     }
   };
 
@@ -111,40 +140,54 @@ export default function FeedsScreen() {
   
   const hasFollowedUsers = followedUsers.size > 0;
 
-  const renderHeader = () => (
-    <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <View style={[styles.segmentedControl, { backgroundColor: '#E8E8F5' }]}>
-        <TouchableOpacity
-          style={[
-            styles.segmentButton,
-            selectedTab === 'feed' && styles.segmentButtonActive
-          ]}
-          onPress={() => handleTabChange('feed')}
-        >
-          <Text style={[
-            styles.segmentButtonText,
-            selectedTab === 'feed' && styles.segmentButtonTextActive
-          ]}>
-            Feed
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.segmentButton,
-            selectedTab === 'news' && styles.segmentButtonActive
-          ]}
-          onPress={() => handleTabChange('news')}
-        >
-          <Text style={[
-            styles.segmentButtonText,
-            selectedTab === 'news' && styles.segmentButtonTextActive
-          ]}>
-            News
-          </Text>
-        </TouchableOpacity>
+  const renderHeader = () => {
+    // Fixed button width for smaller, centered buttons
+    const buttonWidth = 120;
+    const gap = 8;
+    
+    const slidePosition = slideAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, buttonWidth + gap],
+    });
+
+    return (
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={[styles.segmentedControl, { backgroundColor: 'transparent' }]}>
+          {/* Sliding background indicator */}
+          <Animated.View
+            style={[
+              styles.slidingIndicator,
+              {
+                transform: [{ translateX: slidePosition }],
+              },
+            ]}
+          />
+          <TouchableOpacity
+            style={styles.segmentButton}
+            onPress={() => handleTabChange('feed')}
+          >
+            <Text style={[
+              styles.segmentButtonText,
+              selectedTab === 'feed' && styles.segmentButtonTextActive
+            ]}>
+              Feed
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.segmentButton}
+            onPress={() => handleTabChange('news')}
+          >
+            <Text style={[
+              styles.segmentButtonText,
+              selectedTab === 'news' && styles.segmentButtonTextActive
+            ]}>
+              News
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderFilterTabs = () => {
     // Only show filter tabs on Feed tab
@@ -245,7 +288,7 @@ export default function FeedsScreen() {
   );
 
   const renderNewsFilterTabs = () => {
-    const categories = ['Tech', 'Politics', 'Events', 'People', 'General'];
+    const categories = ['Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
     const sentiments = [
       { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
       { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },
@@ -514,7 +557,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 0,
+    paddingHorizontal: 16,
     paddingTop: 0,
     paddingBottom: 0,
     borderBottomWidth: 1,
@@ -523,18 +566,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 0,
     padding: 4,
-    alignSelf: 'stretch',
-    width: '100%',
+    alignSelf: 'center',
     gap: 8,
     justifyContent: 'center',
+    position: 'relative',
+  },
+  slidingIndicator: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    width: 120,
+    height: 36, // Match button height (paddingVertical 10 + text height ~16)
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    zIndex: 0,
   },
   segmentButton: {
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 0,
+    width: 120,
+    zIndex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   segmentButtonActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderRadius: 8,
   },
   segmentButtonText: {
