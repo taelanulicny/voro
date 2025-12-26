@@ -22,6 +22,7 @@ export class MoroBackendStack extends cdk.Stack {
         email: true,
         username: true,
       },
+      selfSignUpEnabled: true, // Allow users to sign up themselves
       autoVerify: {
         email: true,
       },
@@ -191,7 +192,27 @@ export class MoroBackendStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // Lambda execution role
+    // Separate role for pre-signup Lambda (to avoid circular dependencies)
+    const preSignUpLambdaRole = new iam.Role(this, 'PreSignUpLambdaRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // Pre-signup Lambda trigger for auto-confirming users
+    const preSignUpLambda = new lambda.Function(this, 'PreSignUpLambda', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'src/handlers/cognitoTriggers.preSignUp',
+      code: lambda.Code.fromAsset('bundle'),
+      role: preSignUpLambdaRole,
+      timeout: cdk.Duration.seconds(10),
+    });
+
+    // Add the pre-signup trigger to the user pool
+    userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, preSignUpLambda);
+
+    // Lambda execution role for API handlers
     const lambdaRole = new iam.Role(this, 'LambdaExecutionRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [

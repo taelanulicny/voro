@@ -27,10 +27,10 @@ export async function signup(
   displayName: string
 ): Promise<{ success: boolean; userId?: string; error?: string }> {
   try {
-    // Sign up user in Cognito
+    // Sign up user in Cognito - use username as Cognito Username since email is configured as alias
     const signUpCommand = new SignUpCommand({
       ClientId: CLIENT_ID,
-      Username: email,
+      Username: username, // Use username, not email (email is an alias)
       Password: password,
       UserAttributes: [
         { Name: 'email', Value: email },
@@ -115,7 +115,9 @@ export async function login(
     });
 
     const userResponse = await cognitoClient.send(getUserCommand);
-    const userId = userResponse.Username;
+    // Get the 'sub' attribute which is the actual userId we store in DynamoDB
+    const subAttr = userResponse.UserAttributes?.find(attr => attr.Name === 'sub');
+    const userId = subAttr?.Value || userResponse.Username;
 
     // Get user profile from DynamoDB
     const userResult = await docClient.send(
