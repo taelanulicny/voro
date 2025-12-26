@@ -5,9 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "bundle": "npm run build && rm -rf bundle && mkdir -p bundle && cp -r dist/* bundle/ && cp package.json bundle/ && cd bundle && npm install --production --ignore-scripts && cd ..",
     "watch": "tsc -w",
     "test": "jest",
-    "deploy": "cdk deploy",
+    "deploy": "npm run bundle && cdk deploy",
     "synth": "cdk synth",
     "diff": "cdk diff",
     "seed": "ts-node scripts/seed.ts"

@@ -220,8 +220,8 @@ export class MoroBackendStack extends cdk.Stack {
     // The handler routes to appropriate functions based on the path
     const apiLambda = new lambda.Function(this, 'ApiLambda', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('dist'),
+      handler: 'src/index.handler',
+      code: lambda.Code.fromAsset('bundle'),
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
       environment: {
@@ -248,8 +248,8 @@ export class MoroBackendStack extends cdk.Stack {
     // Lambda function for price updates
     const priceUpdateHandler = new lambda.Function(this, 'PriceUpdateHandler', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers.priceUpdates.updatePrices',
-      code: lambda.Code.fromAsset('dist'),
+      handler: 'src/handlers/priceUpdates.updatePrices',
+      code: lambda.Code.fromAsset('bundle'),
       role: lambdaRole,
       environment: {
         ENTITIES_TABLE: entitiesTable.tableName,
