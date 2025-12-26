@@ -285,12 +285,12 @@ export default function WatchlistScreen() {
         </View>
         
         <View style={styles.headerRight}>
-          <TouchableOpacity
+        <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => setShowSortModal(true)}
-          >
+          onPress={() => setShowSortModal(true)}
+        >
             <Ionicons name="swap-vertical" size={24} color={theme.text} />
-          </TouchableOpacity>
+        </TouchableOpacity>
         </View>
       </View>
 

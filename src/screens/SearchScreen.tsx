@@ -227,7 +227,7 @@ export default function SearchScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="close" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>Search</Text>

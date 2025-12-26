@@ -378,8 +378,78 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
       return <Text style={{ fontSize: 15, lineHeight: 22 }}>{parts}</Text>;
     }
     
-    // Regular feed (no special formatting)
-    return <Text style={[styles.contentText, { color: theme.text }]}>{post.content}</Text>;
+    // Regular feed - parse @mentions but no category/entity prefix
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
+    let match;
+    
+    while ((match = mentionRegex.exec(post.content)) !== null) {
+      const mention = match[0]; // e.g., "@TaylorSwift"
+      const mentionName = match[1]; // e.g., "TaylorSwift"
+      const startIndex = match.index;
+      
+      // Check if mention has possessive "'s" at the end
+      const possessiveMatch = mention.match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
+      const entityMention = possessiveMatch ? possessiveMatch[1] : mention;
+      const possessiveText = possessiveMatch ? possessiveMatch[2] : '';
+      
+      // Clean mention name for lookup
+      const cleanedMentionName = cleanMentionName(mentionName);
+      
+      // Add text before the mention
+      if (startIndex > lastIndex) {
+        const textBefore = post.content.substring(lastIndex, startIndex);
+        if (textBefore) {
+          parts.push(
+            <Text key={`text-${lastIndex}`} style={[styles.contentText, { color: theme.text }]}>
+              {textBefore}
+            </Text>
+          );
+        }
+      }
+      
+      // Add the clickable entity mention (blue)
+      parts.push(
+        <Text
+          key={`mention-${startIndex}`}
+          style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+          onPress={() => {
+            if (cleanedMentionName) {
+              handleEntityPress(cleanedMentionName);
+            }
+          }}
+        >
+          {entityMention}
+        </Text>
+      );
+      
+      // If there's possessive text, render it as regular text (not blue)
+      if (possessiveText) {
+        parts.push(
+          <Text key={`possessive-${startIndex}`} style={[styles.contentText, { color: theme.text }]}>
+            {possessiveText}
+          </Text>
+        );
+      }
+      
+      lastIndex = startIndex + mention.length;
+    }
+    
+    // Add any remaining text after the last mention
+    if (lastIndex < post.content.length) {
+      const textAfter = post.content.substring(lastIndex);
+      if (textAfter) {
+        parts.push(
+          <Text key={`text-${lastIndex}`} style={[styles.contentText, { color: theme.text }]}>
+            {textAfter}
+          </Text>
+        );
+      }
+    }
+    
+    // Return all parts wrapped in a Text component
+    return <Text style={{ fontSize: 15, lineHeight: 22 }}>{parts}</Text>;
   };
 
   return (

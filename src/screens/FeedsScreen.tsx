@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -16,28 +18,48 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useNews } from '../context/NewsContext';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
-import { Post } from '../types';
+import NewsCard from '../components/NewsCard';
+import { Post, NewsArticle } from '../types';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FeedsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const { activityFeed, isLoadingFeed, refreshActivityFeed } = useSocial();
+  const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser } = useSocial();
+  const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
   const { theme } = useTheme();
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'trending' | 'following'>('trending');
   const [refreshing, setRefreshing] = useState(false);
+  const [newsRefreshing, setNewsRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'feed' | 'news'>('feed');
+  const [newsFilter, setNewsFilter] = useState<'all' | 'breaking' | 'category' | 'sentiment'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [selectedSentiment, setSelectedSentiment] = useState<'positive' | 'negative' | 'neutral' | undefined>();
+  const [filteredNews, setFilteredNews] = useState<NewsArticle[]>(news);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadFeed();
+    loadNews();
   }, []);
+
+  useEffect(() => {
+    applyNewsFilters();
+  }, [newsFilter, selectedCategory, selectedSentiment, news, breakingNews]);
 
   const loadFeed = async () => {
     await refreshActivityFeed();
+  };
+
+  const loadNews = async () => {
+    await refreshNews();
   };
 
   const handleRefresh = async () => {
@@ -46,7 +68,48 @@ export default function FeedsScreen() {
     setRefreshing(false);
   };
 
-  const filteredFeed = activityFeed; // In a real app, filter by followed users when selectedFilter === 'following'
+  const handleNewsRefresh = async () => {
+    setNewsRefreshing(true);
+    await refreshNews();
+    setNewsRefreshing(false);
+  };
+
+  const applyNewsFilters = () => {
+    if (newsFilter === 'breaking') {
+      setFilteredNews(breakingNews);
+    } else if (newsFilter === 'category' && selectedCategory) {
+      setFilteredNews(getNewsByFilter({ category: selectedCategory }));
+    } else if (newsFilter === 'sentiment' && selectedSentiment) {
+      setFilteredNews(getNewsByFilter({ sentiment: selectedSentiment }));
+    } else {
+      setFilteredNews(news);
+    }
+  };
+
+  const handleTabChange = (tab: 'feed' | 'news') => {
+    setSelectedTab(tab);
+    const scrollToX = tab === 'feed' ? 0 : SCREEN_WIDTH;
+    scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
+  };
+
+  const handleScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
+    const newTab = pageIndex === 0 ? 'feed' : 'news';
+    if (newTab !== selectedTab) {
+      setSelectedTab(newTab);
+    }
+  };
+
+  // Filter feed based on selected filter
+  const filteredFeed = useMemo(() => {
+    if (selectedFilter === 'following') {
+      return activityFeed.filter(post => isFollowingUser(post.userId));
+    }
+    return activityFeed;
+  }, [activityFeed, selectedFilter, isFollowingUser]);
+  
+  const hasFollowedUsers = followedUsers.size > 0;
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -56,7 +119,7 @@ export default function FeedsScreen() {
             styles.segmentButton,
             selectedTab === 'feed' && styles.segmentButtonActive
           ]}
-          onPress={() => setSelectedTab('feed')}
+          onPress={() => handleTabChange('feed')}
         >
           <Text style={[
             styles.segmentButtonText,
@@ -70,7 +133,7 @@ export default function FeedsScreen() {
             styles.segmentButton,
             selectedTab === 'news' && styles.segmentButtonActive
           ]}
-          onPress={() => navigation.navigate('NewsFeed')}
+          onPress={() => handleTabChange('news')}
         >
           <Text style={[
             styles.segmentButtonText,
@@ -83,41 +146,46 @@ export default function FeedsScreen() {
     </View>
   );
 
-  const renderFilterTabs = () => (
-    <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <TouchableOpacity
-        style={styles.filterTab}
-        onPress={() => setSelectedFilter('trending')}
-      >
-        <Text
-          style={[
-            styles.filterTabText,
-            { color: selectedFilter === 'trending' ? theme.primary : theme.textSecondary },
-            selectedFilter === 'trending' && { fontWeight: '600' },
-          ]}
+  const renderFilterTabs = () => {
+    // Only show filter tabs on Feed tab
+    if (selectedTab !== 'feed') return null;
+    
+    return (
+      <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <TouchableOpacity
+          style={styles.filterTab}
+          onPress={() => setSelectedFilter('trending')}
         >
-          Trending
-        </Text>
-        {selectedFilter === 'trending' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.filterTabText,
+              { color: selectedFilter === 'trending' ? theme.primary : theme.textSecondary },
+              selectedFilter === 'trending' && { fontWeight: '600' },
+            ]}
+          >
+            Trending
+          </Text>
+          {selectedFilter === 'trending' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.filterTab}
-        onPress={() => setSelectedFilter('following')}
-      >
-        <Text
-          style={[
-            styles.filterTabText,
-            { color: selectedFilter === 'following' ? theme.primary : theme.textSecondary },
-            selectedFilter === 'following' && { fontWeight: '600' },
-          ]}
+        <TouchableOpacity
+          style={styles.filterTab}
+          onPress={() => setSelectedFilter('following')}
         >
-          Following
-        </Text>
-        {selectedFilter === 'following' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
-      </TouchableOpacity>
-    </View>
-  );
+          <Text
+            style={[
+              styles.filterTabText,
+              { color: selectedFilter === 'following' ? theme.primary : theme.textSecondary },
+              selectedFilter === 'following' && { fontWeight: '600' },
+            ]}
+          >
+            Following
+          </Text>
+          {selectedFilter === 'following' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderPost = ({ item }: { item: Post }) => (
     <PostCard post={item} />
@@ -129,55 +197,306 @@ export default function FeedsScreen() {
       <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No posts yet</Text>
       <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
         {selectedFilter === 'following'
-          ? 'Posts from people you follow will appear here'
+          ? (hasFollowedUsers 
+              ? 'Posts from people you follow will appear here'
+              : 'Once you start following people, their comments will be shown here')
           : 'Trending posts will appear here'}
       </Text>
-      <TouchableOpacity
-        style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-        onPress={() => setShowCreatePost(true)}
-      >
-        <Text style={styles.emptyStateButtonText}>Create Post</Text>
-      </TouchableOpacity>
+      {selectedFilter === 'trending' && (
+        <TouchableOpacity
+          style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
+          onPress={() => setShowCreatePost(true)}
+        >
+          <Text style={styles.emptyStateButtonText}>Create Post</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
-  if (isLoadingFeed && activityFeed.length === 0) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
-        {renderHeader()}
+  const renderFeedContent = () => (
+    <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+      {renderFilterTabs()}
+      {isLoadingFeed && activityFeed.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
           <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading feed...</Text>
         </View>
-      </SafeAreaView>
+      ) : (
+        <FlatList
+          data={filteredFeed}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={renderEmptyState}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.primary}
+            />
+          }
+          contentContainerStyle={[
+            filteredFeed.length === 0 && styles.emptyListContent,
+            filteredFeed.length > 0 && { paddingBottom: 100 }
+          ]}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </View>
+  );
+
+  const renderNewsFilterTabs = () => {
+    const categories = ['Tech', 'Politics', 'Events', 'People', 'General'];
+    const sentiments = [
+      { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
+      { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },
+      { key: 'neutral', label: 'Neutral', color: '#6B7280', icon: 'remove' },
+    ] as const;
+
+    return (
+      <View style={[styles.newsFilterSection, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.newsFilterTabs}
+        >
+          <TouchableOpacity
+            style={[
+              styles.newsFilterTab,
+              { 
+                backgroundColor: newsFilter === 'all' ? theme.primaryLight : theme.backgroundSecondary,
+                borderColor: newsFilter === 'all' ? theme.primary : theme.border,
+              },
+            ]}
+            onPress={() => {
+              setNewsFilter('all');
+              setSelectedCategory(undefined);
+              setSelectedSentiment(undefined);
+            }}
+          >
+            <Text
+              style={[
+                styles.newsFilterTabText,
+                { color: newsFilter === 'all' ? theme.primary : theme.textSecondary },
+                newsFilter === 'all' && { fontWeight: '600' },
+              ]}
+            >
+              All News
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.newsFilterTab,
+              { 
+                backgroundColor: newsFilter === 'breaking' ? theme.primaryLight : theme.backgroundSecondary,
+                borderColor: newsFilter === 'breaking' ? theme.primary : theme.border,
+              },
+            ]}
+            onPress={() => {
+              setNewsFilter('breaking');
+              setSelectedCategory(undefined);
+              setSelectedSentiment(undefined);
+            }}
+          >
+            <Ionicons
+              name="flash"
+              size={14}
+              color={newsFilter === 'breaking' ? theme.primary : theme.textSecondary}
+            />
+            <Text
+              style={[
+                styles.newsFilterTabText,
+                { color: newsFilter === 'breaking' ? theme.primary : theme.textSecondary },
+                newsFilter === 'breaking' && { fontWeight: '600' },
+              ]}
+            >
+              Breaking ({breakingNews.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.newsFilterTab,
+              { 
+                backgroundColor: newsFilter === 'category' ? theme.primaryLight : theme.backgroundSecondary,
+                borderColor: newsFilter === 'category' ? theme.primary : theme.border,
+              },
+            ]}
+            onPress={() => setNewsFilter('category')}
+          >
+            <Ionicons
+              name="grid-outline"
+              size={14}
+              color={newsFilter === 'category' ? theme.primary : theme.textSecondary}
+            />
+            <Text
+              style={[
+                styles.newsFilterTabText,
+                { color: newsFilter === 'category' ? theme.primary : theme.textSecondary },
+                newsFilter === 'category' && { fontWeight: '600' },
+              ]}
+            >
+              Category
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.newsFilterTab,
+              { 
+                backgroundColor: newsFilter === 'sentiment' ? theme.primaryLight : theme.backgroundSecondary,
+                borderColor: newsFilter === 'sentiment' ? theme.primary : theme.border,
+              },
+            ]}
+            onPress={() => setNewsFilter('sentiment')}
+          >
+            <Ionicons
+              name="pulse-outline"
+              size={14}
+              color={newsFilter === 'sentiment' ? theme.primary : theme.textSecondary}
+            />
+            <Text
+              style={[
+                styles.newsFilterTabText,
+                { color: newsFilter === 'sentiment' ? theme.primary : theme.textSecondary },
+                newsFilter === 'sentiment' && { fontWeight: '600' },
+              ]}
+            >
+              Sentiment
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Category Selector */}
+        {newsFilter === 'category' && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.newsSubFilterContainer}
+          >
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.newsCategoryChip,
+                  { 
+                    backgroundColor: selectedCategory === category ? theme.primary : theme.backgroundSecondary,
+                    borderColor: selectedCategory === category ? theme.primary : theme.border,
+                  },
+                ]}
+                onPress={() => setSelectedCategory(category === selectedCategory ? undefined : category)}
+              >
+                <Text
+                  style={[
+                    styles.newsCategoryChipText,
+                    { color: selectedCategory === category ? '#FFFFFF' : theme.textSecondary },
+                    selectedCategory === category && { fontWeight: '600' },
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Sentiment Selector */}
+        {newsFilter === 'sentiment' && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.newsSubFilterContainer}
+          >
+            {sentiments.map((sentiment) => (
+              <TouchableOpacity
+                key={sentiment.key}
+                style={[
+                  styles.newsSentimentChip,
+                  { 
+                    backgroundColor: selectedSentiment === sentiment.key ? sentiment.color + '20' : theme.backgroundSecondary,
+                    borderColor: selectedSentiment === sentiment.key ? sentiment.color : theme.border,
+                  },
+                ]}
+                onPress={() => setSelectedSentiment(sentiment.key === selectedSentiment ? undefined : sentiment.key)}
+              >
+                <Ionicons
+                  name={sentiment.icon}
+                  size={14}
+                  color={selectedSentiment === sentiment.key ? sentiment.color : theme.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.newsSentimentChipText,
+                    { color: selectedSentiment === sentiment.key ? sentiment.color : theme.textSecondary },
+                  ]}
+                >
+                  {sentiment.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
     );
-  }
+  };
+
+  const renderNewsContent = () => {
+    return (
+      <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+        {renderNewsFilterTabs()}
+        {isLoadingNews && news.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading news...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredNews}
+            renderItem={({ item }) => <NewsCard article={item} />}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyState}>
+                <Ionicons name="newspaper-outline" size={64} color={theme.textTertiary} />
+                <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No news found</Text>
+                <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+                  Try adjusting your filters or check back later for updates
+                </Text>
+              </View>
+            )}
+            refreshControl={
+              <RefreshControl
+                refreshing={newsRefreshing}
+                onRefresh={handleNewsRefresh}
+                tintColor={theme.primary}
+              />
+            }
+            contentContainerStyle={[
+              filteredNews.length === 0 && styles.emptyListContent,
+              filteredNews.length > 0 && { paddingBottom: 100, paddingHorizontal: 16 }
+            ]}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
-      <FlatList
-        data={filteredFeed}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={
-          <>
-            {renderHeader()}
-            {renderFilterTabs()}
-          </>
-        }
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={theme.primary}
-          />
-        }
-        contentContainerStyle={
-          filteredFeed.length === 0 && styles.emptyListContent
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      {renderHeader()}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        scrollEventThrottle={16}
+        style={styles.horizontalScroll}
+        contentContainerStyle={styles.horizontalScrollContent}
+      >
+        {renderFeedContent()}
+        {renderNewsContent()}
+      </ScrollView>
 
       <CreatePostModal
         visible={showCreatePost}
@@ -289,5 +608,63 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  horizontalScroll: {
+    flex: 1,
+  },
+  horizontalScrollContent: {
+    flexDirection: 'row',
+  },
+  newsFilterSection: {
+    paddingTop: 12,
+    paddingBottom: 8,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+  },
+  newsFilterTabs: {
+    paddingHorizontal: 16,
+    gap: 8,
+    paddingBottom: 8,
+  },
+  newsFilterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  newsFilterTabText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  newsSubFilterContainer: {
+    paddingHorizontal: 16,
+    gap: 8,
+    paddingTop: 8,
+  },
+  newsCategoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  newsCategoryChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  newsSentimentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+  },
+  newsSentimentChipText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

@@ -107,16 +107,16 @@ export default function AllCategoriesScreen() {
       {renderFilterTabs()}
 
       {viewType === 'treemap' ? (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.treemapWrapper}>
-            <Treemap
-              data={categoryTradeVolumes}
-              onItemPress={handleCategoryPress}
-              containerHeight={TREEMAP_HEIGHT}
-              padding={8}
-            />
-          </View>
-        </ScrollView>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.treemapWrapper}>
+          <Treemap
+            data={categoryTradeVolumes}
+            onItemPress={handleCategoryPress}
+            containerHeight={TREEMAP_HEIGHT}
+            padding={8}
+          />
+        </View>
+      </ScrollView>
       ) : (
         <FlatList
           data={categoryTradeVolumes}

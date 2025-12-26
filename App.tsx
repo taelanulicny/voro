@@ -51,7 +51,14 @@ function RootNavigator() {
           <Stack.Screen name="Main" component={BottomTabNavigator} />
           <Stack.Screen name="Entity" component={EntityScreen} />
           <Stack.Screen name="Category" component={CategoryScreen} />
-          <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen 
+            name="Search" 
+            component={SearchScreen}
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
           <Stack.Screen name="FollowersList" component={FollowersListScreen} />
@@ -73,10 +80,10 @@ export default function App() {
               <TradingProvider>
                 <WatchlistProvider>
                   <SideMenuProvider>
-                    <NavigationContainer>
-                      <StatusBar style="auto" />
-                      <RootNavigator />
-                    </NavigationContainer>
+                  <NavigationContainer>
+                    <StatusBar style="auto" />
+                    <RootNavigator />
+                  </NavigationContainer>
                   </SideMenuProvider>
                 </WatchlistProvider>
               </TradingProvider>
