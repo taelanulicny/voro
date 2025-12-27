@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -22,6 +23,8 @@ import PostCard from '../components/PostCard';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type CategoryRouteProp = RouteProp<RootStackParamList, 'Category'>;
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function CategoryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CategoryRouteProp>();
@@ -29,7 +32,8 @@ export default function CategoryScreen() {
   const { getEntityPrice } = useTrading();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'entities' | 'about' | 'feed'>('entities');
+  const [selectedTab, setSelectedTab] = useState<'entities' | 'about' | 'feed' | 'news'>('entities');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Category-specific feed posts
   const categoryFeedPosts = useMemo(() => {
@@ -831,6 +835,32 @@ export default function CategoryScreen() {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
+  // Reset tab when categoryId changes
+  useEffect(() => {
+    setSelectedTab('entities');
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [categoryId]);
+
+  const handleTabChange = (tab: 'entities' | 'about' | 'feed' | 'news') => {
+    setSelectedTab(tab);
+    const tabIndex = tab === 'entities' ? 0 : tab === 'about' ? 1 : tab === 'feed' ? 2 : 3;
+    const scrollToX = tabIndex * SCREEN_WIDTH;
+    scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
+  };
+
+  const handleScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
+    const tabs: ('entities' | 'about' | 'feed' | 'news')[] = ['entities', 'about', 'feed', 'news'];
+    const newTab = tabs[pageIndex];
+    if (newTab && newTab !== selectedTab) {
+      setSelectedTab(newTab);
+    }
+  };
+
   const handleEntityPress = (entityId: number, entityCategory: string) => {
     navigation.navigate('Entity', {
       entityId,
@@ -913,7 +943,7 @@ export default function CategoryScreen() {
         >
           <TouchableOpacity
             style={styles.tabButton}
-            onPress={() => setSelectedTab('entities')}
+            onPress={() => handleTabChange('entities')}
           >
             <Text
               style={[
@@ -929,7 +959,7 @@ export default function CategoryScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.tabButton}
-            onPress={() => setSelectedTab('about')}
+            onPress={() => handleTabChange('about')}
           >
             <Text
               style={[
@@ -945,7 +975,7 @@ export default function CategoryScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.tabButton}
-            onPress={() => setSelectedTab('feed')}
+            onPress={() => handleTabChange('feed')}
           >
             <Text
               style={[
@@ -959,46 +989,88 @@ export default function CategoryScreen() {
               Feed
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tabButton}
+            onPress={() => handleTabChange('news')}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                {
+                  color: selectedTab === 'news' ? theme.text : theme.textSecondary,
+                  fontWeight: selectedTab === 'news' ? '600' : '400',
+                }
+              ]}
+            >
+              News
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
 
-      {/* Content based on selected tab */}
-      {selectedTab === 'entities' && (
-        <FlatList
-          data={entities}
-          renderItem={renderEntity}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={renderEmptyState}
-        />
-      )}
-
-      {selectedTab === 'about' && (
-        <View style={styles.comingSoonContainer}>
-          <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
-            Coming soon
-          </Text>
+      {/* Content with horizontal swipe */}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        style={styles.horizontalScrollView}
+      >
+        {/* Entities Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <FlatList
+            data={entities}
+            renderItem={renderEntity}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={styles.listContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ListEmptyComponent={renderEmptyState}
+          />
         </View>
-      )}
 
-      {selectedTab === 'feed' && (
-        <FlatList
-          data={categoryFeedPosts}
-          renderItem={({ item }) => <PostCard post={item} isCategoryFeed={true} categoryId={categoryId} categoryName={displayName} />}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.feedContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyState}>
-              <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyStateText, { color: theme.text }]}>
-                No posts yet in this category
+        {/* About Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.comingSoonContainer}>
+              <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
+                Coming soon
               </Text>
             </View>
-          )}
-        />
-      )}
+          </ScrollView>
+        </View>
+
+        {/* Feed Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <FlatList
+            data={categoryFeedPosts}
+            renderItem={({ item }) => <PostCard post={item} isCategoryFeed={true} categoryId={categoryId} categoryName={displayName} />}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.feedContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyState}>
+                <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
+                <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                  No posts yet in this category
+                </Text>
+              </View>
+            )}
+          />
+        </View>
+
+        {/* News Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.comingSoonContainer}>
+              <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
+                {displayName} news coming soon
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -1118,6 +1190,9 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     marginTop: 16,
+  },
+  horizontalScrollView: {
+    flex: 1,
   },
   tabSelectorContainer: {
     borderBottomWidth: 1,

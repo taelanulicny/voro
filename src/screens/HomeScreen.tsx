@@ -340,7 +340,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
             style={styles.menuButton}
@@ -364,7 +364,9 @@ export default function HomeScreen() {
           
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => navigation.navigate('Notifications')}
+            onPress={() => {
+              navigation.navigate('Notifications');
+            }}
           >
             <Ionicons name="notifications-outline" size={24} color={theme.text} />
           </TouchableOpacity>
@@ -763,7 +765,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
   },
   headerLeft: {
     flexDirection: 'row',

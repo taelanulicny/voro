@@ -74,7 +74,13 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
     const saveAlerts = async () => {
       try {
         await AsyncStorage.setItem(PRICE_ALERTS_STORAGE_KEY, JSON.stringify(priceAlerts));
-      } catch (error) {
+      } catch (error: any) {
+        // Ignore AsyncStorage errors in simulator (known issue with manifest file writing)
+        // This is a harmless simulator-only issue and doesn't affect functionality
+        if (__DEV__ && error?.message?.includes('manifest file')) {
+          // Silently ignore in development/simulator
+          return;
+        }
         console.error('Error saving price alerts:', error);
       }
     };

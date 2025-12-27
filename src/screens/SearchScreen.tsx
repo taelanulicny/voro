@@ -174,49 +174,49 @@ export default function SearchScreen() {
     };
 
     return (
-      <TouchableOpacity
-        style={[styles.entityCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-        onPress={() => handleSelectEntity(item)}
-      >
-        <View style={styles.entityLeft}>
-          <View style={[styles.entityIcon, { backgroundColor: theme.primaryLight }]}>
+    <TouchableOpacity
+      style={[styles.entityCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+      onPress={() => handleSelectEntity(item)}
+    >
+      <View style={styles.entityLeft}>
+        <View style={[styles.entityIcon, { backgroundColor: theme.primaryLight }]}>
             <Text style={[styles.entityIconText, { color: theme.primary }]}>{getInitials(item.name)}</Text>
-          </View>
-          <View style={styles.entityInfo}>
-            <View style={styles.entityHeaderRow}>
+        </View>
+        <View style={styles.entityInfo}>
+          <View style={styles.entityHeaderRow}>
               <Text style={[styles.entityName, { color: theme.text }]}>{item.name}</Text>
-              <TouchableOpacity
-                style={styles.watchlistIconButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (isInWatchlist(item.id)) {
-                    removeFromWatchlist(item.id);
-                  } else {
-                    addToWatchlist(item.id);
-                  }
-                }}
-              >
-                <Ionicons
-                  name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
-                  size={18}
-                  color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
-              <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{item.category}</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.watchlistIconButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (isInWatchlist(item.id)) {
+                  removeFromWatchlist(item.id);
+                } else {
+                  addToWatchlist(item.id);
+                }
+              }}
+            >
+              <Ionicons
+                name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
+                size={18}
+                color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
+            <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{item.category}</Text>
           </View>
         </View>
-        <View style={styles.entityRight}>
-          <Text style={[styles.entityPrice, { color: theme.text }]}>{formatCurrency(item.currentPrice)}</Text>
-          <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
-            {item.change24h >= 0 ? '+' : ''}
-            {item.changePercent24h.toFixed(2)}%
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
+      </View>
+      <View style={styles.entityRight}>
+        <Text style={[styles.entityPrice, { color: theme.text }]}>{formatCurrency(item.currentPrice)}</Text>
+        <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
+          {item.change24h >= 0 ? '+' : ''}
+          {item.changePercent24h.toFixed(2)}%
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
   };
 
   return (
@@ -230,7 +230,7 @@ export default function SearchScreen() {
           <Ionicons name="close" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Search</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Search</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
