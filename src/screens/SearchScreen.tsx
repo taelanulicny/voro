@@ -72,6 +72,27 @@ export default function SearchScreen() {
     return categoryMap[displayCategory] || null;
   };
 
+  // Get display category helper (converts entity categories to display categories)
+  const getDisplayCategory = (entityId: number, category: string): string => {
+    // Distinguish between Influencers (IDs 11-20) and Music Artists (IDs 21-30) in People category
+    if (category === 'People') {
+      if (entityId >= 11 && entityId <= 20) {
+        return 'Influencers';
+      } else if (entityId >= 21 && entityId <= 30) {
+        return 'Music Artists';
+      }
+      return 'Influencers'; // Default for other People entities
+    }
+    
+    const categoryMap: Record<string, string> = {
+      'Politics': 'Political Figures',
+      'Tech': 'Startups',
+      'Events': 'Sports',
+    };
+    
+    return categoryMap[category] || category;
+  };
+
   // Filter and sort entities
   const filteredEntities = useMemo(() => {
     let filtered = entities;
@@ -130,7 +151,7 @@ export default function SearchScreen() {
   const handleSelectEntity = (entity: any) => {
     navigation.navigate('Entity', {
       entityId: entity.id,
-      categoryId: entity.category,
+      categoryId: getDisplayCategory(entity.id, entity.category),
     });
   };
 
@@ -173,6 +194,17 @@ export default function SearchScreen() {
       return name.substring(0, 2).toUpperCase();
     };
 
+    // Truncate text to 15 characters with ellipsis
+    const truncateText = (text: string) => {
+      if (text.length > 15) {
+        return text.substring(0, 15) + '...';
+      }
+      return text;
+    };
+
+    const displayName = truncateText(item.name);
+    const displayCategory = truncateText(getDisplayCategory(item.id, item.category));
+
     return (
     <TouchableOpacity
       style={[styles.entityCard, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -184,7 +216,7 @@ export default function SearchScreen() {
         </View>
         <View style={styles.entityInfo}>
           <View style={styles.entityHeaderRow}>
-              <Text style={[styles.entityName, { color: theme.text }]}>{item.name}</Text>
+              <Text style={[styles.entityName, { color: theme.text }]}>{displayName}</Text>
             <TouchableOpacity
               style={styles.watchlistIconButton}
               onPress={(e) => {
@@ -204,7 +236,7 @@ export default function SearchScreen() {
             </TouchableOpacity>
           </View>
           <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
-            <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{item.category}</Text>
+            <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{displayCategory}</Text>
           </View>
         </View>
       </View>

@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   FlatList,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -588,6 +589,33 @@ export default function HomeScreen() {
       },
     },
   ], []);
+
+  // Spotlight auto-rotation state (isolated to spotlights only)
+  const [currentSpotlightIndex, setCurrentSpotlightIndex] = useState(0);
+  const spotlightFadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Auto-rotate spotlights with fade animation (isolated effect)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fade out
+      Animated.timing(spotlightFadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        // Change spotlight after fade out
+        setCurrentSpotlightIndex((prev) => (prev + 1) % spotlights.length);
+        // Fade in
+        Animated.timing(spotlightFadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 3000); // Change every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [spotlights.length, spotlightFadeAnim]);
 
 
   return (
@@ -1416,41 +1444,42 @@ export default function HomeScreen() {
         {/* Spotlights Section */}
         <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Spotlights</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.spotlightsScrollContent}
-            style={styles.spotlightsScroll}
-          >
-            {spotlights.map((spotlight) => (
+          <View style={styles.spotlightsContainer}>
+            <Animated.View
+              style={[
+                styles.spotlightCardContainer,
+                {
+                  opacity: spotlightFadeAnim,
+                },
+              ]}
+            >
               <TouchableOpacity
-                key={spotlight.id}
                 style={[
                   styles.spotlightCard,
                   {
-                    backgroundColor: spotlight.backgroundColor,
+                    backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
                   },
                 ]}
-                onPress={spotlight.onPress}
+                onPress={spotlights[currentSpotlightIndex].onPress}
               >
                 <View style={styles.spotlightCardContent}>
-                  {spotlight.icon && (
-                    <Text style={styles.spotlightIcon}>{spotlight.icon}</Text>
+                  {spotlights[currentSpotlightIndex].icon && (
+                    <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
                   )}
                   <Text
                     style={[
                       styles.spotlightCardTitle,
                       {
-                        color: spotlight.textColor,
+                        color: spotlights[currentSpotlightIndex].textColor,
                       },
                     ]}
                   >
-                    {spotlight.title}
+                    {spotlights[currentSpotlightIndex].title}
                   </Text>
                 </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </Animated.View>
+          </View>
         </View>
 
         {/* Watchlist Section */}
@@ -1820,23 +1849,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
   },
-  spotlightsScroll: {
-    marginHorizontal: -16,
-  },
-  spotlightsScrollContent: {
+  spotlightsContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
-    gap: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  spotlightCardContainer: {
+    width: SCREEN_WIDTH - 32, // Full width minus padding
   },
   spotlightCard: {
-    width: 140,
+    width: SCREEN_WIDTH - 32, // Full width minus padding
     height: 140,
     borderRadius: 16,
     padding: 16,
     justifyContent: 'center',
     alignItems: 'flex-start',
-    marginRight: 12,
   },
   spotlightCardContent: {
     flexDirection: 'row',
