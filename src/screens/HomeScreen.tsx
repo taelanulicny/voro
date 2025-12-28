@@ -1396,7 +1396,7 @@ export default function HomeScreen() {
           </ScrollView>
           
           {/* Page Indicator Dots */}
-          <View style={[styles.pageIndicatorContainer, { backgroundColor: '#F5F5F5' }]}>
+          <View style={styles.pageIndicatorContainer}>
             {Array.from({ length: TOTAL_PAGES }, (_, index) => (
               <View
                 key={index}
@@ -2379,9 +2379,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingTop: 4,
+    paddingBottom: 0,
     gap: 8,
-    backgroundColor: 'transparent',
+    backgroundColor: '#F5F5F5',
   },
   pageIndicatorDot: {
     borderRadius: 4,
