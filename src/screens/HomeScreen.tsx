@@ -816,23 +816,69 @@ export default function HomeScreen() {
                       {/* Chart - full width now */}
                       <View style={styles.chartWithLabelsWrapper}>
                         <View style={styles.chartContainerClipped}>
-                          {/* Grid lines */}
-                          {[0, 1, 2].map((segment) => {
-                            const yPos = 20 + (segment * ((220 - 40) / 2));
+                          {/* Grid lines - horizontal dotted lines from Y-axis labels to left edge */}
+                          {[
+                            { label: topLabel, index: 0 },
+                            { label: middleLabel, index: 1 },
+                            { label: bottomLabel, index: 2 },
+                          ].map(({ label, index }) => {
+                            const chartHeight = 220;
+                            const paddingTop = 20;
+                            const paddingBottom = 20;
+                            const plotHeight = chartHeight - paddingTop - paddingBottom;
+                            const chartWidth = SCREEN_WIDTH;
+                            const paddingRight = 100; // Space for Y-axis labels (for chart elements)
+                            const paddingLeft = 32;
+                            const gridLinePaddingRight = 60; // Grid lines extend closer to Y-axis labels (middle of 100 and 20)
+                            
+                            // Calculate Y position matching the label positions
+                            // yAxisLabelsRight container: top: 20, bottom: 40, justifyContent: 'space-between'
+                            // Container spans from 20px to (220 - 40) = 180px from top
+                            // Labels are spaced between these points: top (20px), middle (~100px), bottom (180px)
+                            let yPos: number;
+                            if (index === 0) {
+                              // Top label - moved down a bit from 20px
+                              yPos = 28;
+                            } else if (index === 1) {
+                              // Middle label - middle of container (100px from chart top) - DO NOT CHANGE
+                              yPos = 100;
+                            } else {
+                              // Bottom label - moved up a bit from 180px
+                              yPos = 172;
+                            }
+                            
+                            // Width spans from left padding to almost touching Y-axis labels
+                            const gridLineWidth = chartWidth - paddingLeft - gridLinePaddingRight;
+                            
+                            // Create dashed line using multiple small Views
+                            const dashLength = 4;
+                            const dashGap = 4;
+                            const numDashes = Math.floor(gridLineWidth / (dashLength + dashGap));
+                            
                             return (
                               <View
-                                key={`grid-${segment}`}
+                                key={`grid-${index}`}
                                 style={{
                                   position: 'absolute',
-                                  left: 32, // Match paddingLeft
+                                  left: paddingLeft,
                                   top: yPos,
-                                  width: SCREEN_WIDTH - 100 - 32,
+                                  width: gridLineWidth,
                                   height: 1,
-                                  borderTopWidth: 1,
-                                  borderTopColor: '#E5E7EB',
-                                  borderStyle: 'dashed',
+                                  flexDirection: 'row',
                                 }}
-                              />
+                              >
+                                {Array.from({ length: numDashes }).map((_, dashIndex) => (
+                                  <View
+                                    key={dashIndex}
+                                    style={{
+                                      width: dashLength,
+                                      height: 1,
+                                      backgroundColor: '#9CA3AF',
+                                      marginRight: dashIndex < numDashes - 1 ? dashGap : 0,
+                                    }}
+                                  />
+                                ))}
+                              </View>
                             );
                           })}
                           
@@ -2386,7 +2432,7 @@ const styles = StyleSheet.create({
   swipeablePage: {
     width: SCREEN_WIDTH,
     paddingVertical: 0,
-    height: 320, // Fixed height - locked
+    height: 360, // Fixed height - locked
     paddingHorizontal: 0,
     backgroundColor: '#F5F5F5', // Light grey background
   },
@@ -2409,7 +2455,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 4,
-    paddingBottom: 0,
+    paddingBottom: 12,
     gap: 8,
     backgroundColor: '#F5F5F5',
   },
@@ -2507,7 +2553,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: SCREEN_WIDTH,
     height: 24,
-    marginTop: 8,
+    marginTop: 2,
     paddingLeft: 0,
   },
   xAxisDateLabel: {
