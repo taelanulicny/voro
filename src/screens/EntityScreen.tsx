@@ -528,11 +528,11 @@ export default function EntityScreen() {
           >
             Chart
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+          </TouchableOpacity>
+          <TouchableOpacity
           style={styles.tabButton}
           onPress={() => handleTabChange('about')}
-        >
+          >
           <Text
             style={[
               styles.tabButtonText,
@@ -544,7 +544,7 @@ export default function EntityScreen() {
           >
             About
           </Text>
-        </TouchableOpacity>
+          </TouchableOpacity>
         <TouchableOpacity
           style={styles.tabButton}
           onPress={() => handleTabChange('feed')}
@@ -578,7 +578,7 @@ export default function EntityScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+        </View>
   );
 
   const renderChartContent = () => (
@@ -736,7 +736,7 @@ export default function EntityScreen() {
             color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
           />
         </TouchableOpacity>
-      </View>
+        </View>
 
       {/* Tab Selector */}
       {renderTabSelector()}
@@ -758,7 +758,7 @@ export default function EntityScreen() {
             {/* Spacer for bottom buttons */}
             <View style={{ height: 100 }} />
           </ScrollView>
-        </View>
+            </View>
 
         {/* About Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
@@ -795,8 +795,8 @@ export default function EntityScreen() {
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
                   No posts yet for this entity
                 </Text>
-              </View>
-            )}
+          </View>
+        )}
           />
         </View>
 
@@ -825,10 +825,10 @@ export default function EntityScreen() {
       {/* Fixed Bottom Trade Buttons */}
       <View style={[styles.bottomBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
         <View style={styles.bottomButtonsContainer}>
-          <TouchableOpacity
+        <TouchableOpacity
             style={[styles.tradeButton, styles.halfWidthButton, { backgroundColor: theme.primary }]}
-            onPress={() => setTradeModalVisible(true)}
-          >
+          onPress={() => setTradeModalVisible(true)}
+        >
             <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -836,7 +836,7 @@ export default function EntityScreen() {
             onPress={() => setShareOpinionModalVisible(true)}
           >
             <Text style={[styles.shareOpinionButtonText, { color: theme.text }]}>Share Your Opinion</Text>
-          </TouchableOpacity>
+        </TouchableOpacity>
         </View>
       </View>
 

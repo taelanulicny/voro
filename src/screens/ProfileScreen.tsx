@@ -48,12 +48,12 @@ export default function ProfileScreen() {
           >
             <Ionicons name="add" size={24} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerSettingsButton}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerSettingsButton}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
+        </TouchableOpacity>
         </View>
       </View>
 
@@ -61,9 +61,9 @@ export default function ProfileScreen() {
       <Text style={[styles.username, { color: theme.textSecondary }]}>@{user?.username}</Text>
       
       <View style={styles.bioContainer}>
-        {user?.bio && (
-          <Text style={[styles.bio, { color: theme.textSecondary }]}>{user.bio}</Text>
-        )}
+      {user?.bio && (
+        <Text style={[styles.bio, { color: theme.textSecondary }]}>{user.bio}</Text>
+      )}
         <TouchableOpacity
           style={styles.editProfileButton}
           onPress={() => {

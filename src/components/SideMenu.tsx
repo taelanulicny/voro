@@ -103,10 +103,22 @@ export default function SideMenu({ onClose }: SideMenuProps) {
             </TouchableOpacity>
           </View>
 
-          {/* Menu Content - Will be filled later */}
+          {/* Menu Content */}
           <View style={styles.menuBody}>
             <Text style={[styles.menuTitle, { color: theme.text }]}>Menu</Text>
-            {/* Menu items will be added here */}
+            
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                handleClose();
+                navigation.navigate('DiscoverNewAdditions');
+              }}
+            >
+              <View style={[styles.menuItemIcon, { borderColor: theme.textSecondary, borderWidth: 1 }]}>
+                <Ionicons name="bulb-outline" size={16} color={theme.text} />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text }]}>New Additions</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Settings Button at Bottom */}
@@ -175,6 +187,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     marginBottom: 16,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  menuItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  menuItemText: {
+    fontSize: 18,
+    fontWeight: '500',
   },
   menuFooter: {
     borderTopWidth: 1,

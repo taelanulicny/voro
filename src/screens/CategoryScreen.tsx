@@ -1020,12 +1020,12 @@ export default function CategoryScreen() {
       >
         {/* Entities Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
-          <FlatList
-            data={entities}
-            renderItem={renderEntity}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.listContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      <FlatList
+        data={entities}
+        renderItem={renderEntity}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={renderEmptyState}
           />
         </View>
@@ -1050,14 +1050,14 @@ export default function CategoryScreen() {
             contentContainerStyle={styles.feedContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={() => (
-              <View style={styles.emptyState}>
+          <View style={styles.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
                   No posts yet in this category
                 </Text>
-              </View>
+          </View>
             )}
-          />
+      />
         </View>
 
         {/* News Tab */}

@@ -151,7 +151,7 @@ export default function FeedsScreen() {
     });
 
     return (
-      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+    <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={[styles.segmentedControl, { backgroundColor: 'transparent' }]}>
           {/* Sliding background indicator */}
           <Animated.View
@@ -173,61 +173,61 @@ export default function FeedsScreen() {
               Feed
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
+      <TouchableOpacity
             style={styles.segmentButton}
             onPress={() => handleTabChange('news')}
-          >
+      >
             <Text style={[
               styles.segmentButtonText,
               selectedTab === 'news' && styles.segmentButtonTextActive
             ]}>
               News
             </Text>
-          </TouchableOpacity>
+      </TouchableOpacity>
         </View>
-      </View>
-    );
+    </View>
+  );
   };
 
   const renderFilterTabs = () => {
     // Only show filter tabs on Feed tab
     if (selectedTab !== 'feed') return null;
-    
+
     return (
-      <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <TouchableOpacity
-          style={styles.filterTab}
+    <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <TouchableOpacity
+        style={styles.filterTab}
           onPress={() => setSelectedFilter('trending')}
-        >
-          <Text
-            style={[
-              styles.filterTabText,
+      >
+        <Text
+          style={[
+            styles.filterTabText,
               { color: selectedFilter === 'trending' ? theme.primary : theme.textSecondary },
               selectedFilter === 'trending' && { fontWeight: '600' },
-            ]}
-          >
-            Trending
-          </Text>
-          {selectedFilter === 'trending' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.filterTab}
-          onPress={() => setSelectedFilter('following')}
+          ]}
         >
-          <Text
-            style={[
-              styles.filterTabText,
-              { color: selectedFilter === 'following' ? theme.primary : theme.textSecondary },
-              selectedFilter === 'following' && { fontWeight: '600' },
-            ]}
-          >
-            Following
-          </Text>
-          {selectedFilter === 'following' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
-        </TouchableOpacity>
-      </View>
-    );
+            Trending
+        </Text>
+          {selectedFilter === 'trending' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.filterTab}
+        onPress={() => setSelectedFilter('following')}
+      >
+        <Text
+          style={[
+            styles.filterTabText,
+            { color: selectedFilter === 'following' ? theme.primary : theme.textSecondary },
+            selectedFilter === 'following' && { fontWeight: '600' },
+          ]}
+        >
+          Following
+        </Text>
+        {selectedFilter === 'following' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+      </TouchableOpacity>
+    </View>
+  );
   };
 
   const renderPost = ({ item }: { item: Post }) => (
@@ -241,17 +241,17 @@ export default function FeedsScreen() {
       <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
         {selectedFilter === 'following'
           ? (hasFollowedUsers 
-              ? 'Posts from people you follow will appear here'
+          ? 'Posts from people you follow will appear here'
               : 'Once you start following people, their comments will be shown here')
           : 'Trending posts will appear here'}
       </Text>
       {selectedFilter === 'trending' && (
-        <TouchableOpacity
-          style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-          onPress={() => setShowCreatePost(true)}
-        >
-          <Text style={styles.emptyStateButtonText}>Create Post</Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
+        onPress={() => setShowCreatePost(true)}
+      >
+        <Text style={styles.emptyStateButtonText}>Create Post</Text>
+      </TouchableOpacity>
       )}
     </View>
   );
@@ -265,18 +265,18 @@ export default function FeedsScreen() {
           <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading feed...</Text>
         </View>
       ) : (
-        <FlatList
-          data={filteredFeed}
-          renderItem={renderPost}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={renderEmptyState}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={theme.primary}
-            />
-          }
+      <FlatList
+        data={filteredFeed}
+        renderItem={renderPost}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={renderEmptyState}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.primary}
+          />
+        }
           contentContainerStyle={[
             filteredFeed.length === 0 && styles.emptyListContent,
             filteredFeed.length > 0 && { paddingBottom: 100 }
@@ -517,8 +517,8 @@ export default function FeedsScreen() {
               filteredNews.length === 0 && styles.emptyListContent,
               filteredNews.length > 0 && { paddingBottom: 100, paddingHorizontal: 16 }
             ]}
-            showsVerticalScrollIndicator={false}
-          />
+        showsVerticalScrollIndicator={false}
+      />
         )}
       </View>
     );
