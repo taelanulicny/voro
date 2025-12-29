@@ -4,6 +4,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+// Error Boundary
+import ErrorBoundary from './src/components/ErrorBoundary';
+
 // Context Providers
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
@@ -107,26 +110,37 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <SocialProvider>
-            <NewsProvider>
-              <TradingProvider>
-                <WatchlistProvider>
-                  <SideMenuProvider>
-                  <NavigationContainer>
-                    <StatusBar style="auto" />
-                    <RootNavigator />
-                  </NavigationContainer>
-                  </SideMenuProvider>
-                </WatchlistProvider>
-              </TradingProvider>
-            </NewsProvider>
-          </SocialProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        // In production, you could send this to a crash reporting service
+        // e.g., Sentry, Bugsnag, Firebase Crashlytics
+        if (__DEV__) {
+          console.error('App Error:', error);
+          console.error('Component Stack:', errorInfo.componentStack);
+        }
+      }}
+    >
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SocialProvider>
+              <NewsProvider>
+                <TradingProvider>
+                  <WatchlistProvider>
+                    <SideMenuProvider>
+                      <NavigationContainer>
+                        <StatusBar style="auto" />
+                        <RootNavigator />
+                      </NavigationContainer>
+                    </SideMenuProvider>
+                  </WatchlistProvider>
+                </TradingProvider>
+              </NewsProvider>
+            </SocialProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 

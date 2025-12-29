@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { PostSchema, CommentSchema, validateArrayLoose, safeValidate, FeedResponseSchema } from '../validators';
 
 interface SocialContextType {
   // Posts state
@@ -328,17 +329,27 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoadingFeed(true);
       const response = await authenticatedRequest<{
-        posts: Post[];
+        posts: any[];
         lastEvaluatedKey?: string;
       }>('/api/social/feed?limit=20', token, {
         method: 'GET',
       });
 
       if (response.success && response.data && response.data.posts.length > 0) {
-        const mappedPosts: Post[] = response.data.posts.map(mapBackendPost);
-        setActivityFeed(mappedPosts);
-        setLastKey(response.data.lastEvaluatedKey || null);
-        setHasMorePosts(!!response.data.lastEvaluatedKey);
+        // Validate posts - filter out invalid ones instead of failing completely
+        const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
+        
+        if (validatedPosts.length > 0) {
+          const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
+          setActivityFeed(mappedPosts);
+          setLastKey(response.data.lastEvaluatedKey || null);
+          setHasMorePosts(!!response.data.lastEvaluatedKey);
+        } else {
+          console.warn('All posts failed validation, using mock data');
+          setActivityFeed(MOCK_POSTS);
+          setHasMorePosts(false);
+          setLastKey(null);
+        }
       } else {
         // Use mock posts if backend returns empty
         setActivityFeed(MOCK_POSTS);
@@ -370,17 +381,25 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoadingMore(true);
       const response = await authenticatedRequest<{
-        posts: Post[];
+        posts: any[];
         lastEvaluatedKey?: string;
       }>(`/api/social/feed?limit=20&lastKey=${encodeURIComponent(lastKey)}`, token, {
         method: 'GET',
       });
 
       if (response.success && response.data && response.data.posts.length > 0) {
-        const mappedPosts: Post[] = response.data.posts.map(mapBackendPost);
-        setActivityFeed(prev => [...prev, ...mappedPosts]);
-        setLastKey(response.data.lastEvaluatedKey || null);
-        setHasMorePosts(!!response.data.lastEvaluatedKey);
+        // Validate posts - filter out invalid ones
+        const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
+        
+        if (validatedPosts.length > 0) {
+          const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
+          setActivityFeed(prev => [...prev, ...mappedPosts]);
+          setLastKey(response.data.lastEvaluatedKey || null);
+          setHasMorePosts(!!response.data.lastEvaluatedKey);
+        } else {
+          setHasMorePosts(false);
+          setLastKey(null);
+        }
       } else {
         setHasMorePosts(false);
         setLastKey(null);
@@ -559,7 +578,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     if (!token) return;
 
     try {
-      const response = await authenticatedRequest<Comment[]>(
+      const response = await authenticatedRequest<any[]>(
         `/api/social/posts/${postId}/comments`,
         token,
         {
@@ -568,7 +587,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        const mappedComments: Comment[] = response.data.map((c: any) => ({
+        // Validate comments - filter out invalid ones
+        const validatedComments = validateArrayLoose(CommentSchema, response.data);
+        
+        const mappedComments: Comment[] = validatedComments.map((c: any) => ({
           id: c.commentId || c.id,
           postId: c.postId,
           userId: c.userId,
