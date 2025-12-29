@@ -67,7 +67,7 @@ export default function SettingsScreen() {
   const dynamicStyles = {
     container: {
       ...styles.container,
-      backgroundColor: theme.background,
+      backgroundColor: theme.card,
     },
     section: {
       ...styles.section,
@@ -162,7 +162,7 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={[
                 styles.themeButton,
-                themeMode === 'light' && styles.themeButtonActive,
+                { backgroundColor: theme.card, borderColor: theme.border },
                 themeMode === 'light' && { backgroundColor: theme.primaryLight, borderColor: theme.primary },
               ]}
               onPress={() => handleThemeChange('light')}
@@ -185,7 +185,7 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={[
                 styles.themeButton,
-                themeMode === 'dark' && styles.themeButtonActive,
+                { backgroundColor: theme.card, borderColor: theme.border },
                 themeMode === 'dark' && { backgroundColor: theme.primaryLight, borderColor: theme.primary },
               ]}
               onPress={() => handleThemeChange('dark')}
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={[
                 styles.themeButton,
-                themeMode === 'auto' && styles.themeButtonActive,
+                { backgroundColor: theme.card, borderColor: theme.border },
                 themeMode === 'auto' && { backgroundColor: theme.primaryLight, borderColor: theme.primary },
               ]}
               onPress={() => handleThemeChange('auto')}
@@ -499,12 +499,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
     gap: 6,
-  },
-  themeButtonActive: {
-    // Active styles applied dynamically
   },
   themeButtonText: {
     fontSize: 14,
