@@ -7,7 +7,11 @@ const cognitoClient = new CognitoIdentityProviderClient({
 });
 
 // JWT secret for OAuth tokens (should match oauth.ts)
-const JWT_SECRET = process.env.JWT_SECRET || 'moro-oauth-secret-key-change-in-production';
+// SECURITY: Must be set via environment variable - never use a hardcoded fallback
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set');
+}
 
 // Verify token - supports both Cognito tokens and our custom OAuth JWT tokens
 async function verifyToken(token: string): Promise<any> {
@@ -67,6 +71,9 @@ async function verifyCognitoToken(token: string): Promise<any> {
 
 // Verify our custom OAuth JWT token
 function verifyOAuthToken(token: string): any {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
   try {
     const payload = jwt.verify(token, JWT_SECRET) as any;
     return {

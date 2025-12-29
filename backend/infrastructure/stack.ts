@@ -13,6 +13,15 @@ export class MoroBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // SECURITY: Require JWT_SECRET to be set - never deploy with a hardcoded secret
+    if (!process.env.JWT_SECRET) {
+      throw new Error(
+        'JWT_SECRET environment variable is required for deployment.\n' +
+        'Generate one with: export JWT_SECRET=$(openssl rand -hex 32)\n' +
+        'Then run: npx cdk deploy'
+      );
+    }
+
     const tablePrefix = this.node.tryGetContext('tablePrefix') || 'moro';
 
     // Cognito User Pool
@@ -264,7 +273,7 @@ export class MoroBackendStack extends cdk.Stack {
         S3_BUCKET_NAME: assetsBucket.bucketName,
         DYNAMODB_TABLE_PREFIX: tablePrefix,
         NEWS_API_KEY: process.env.NEWS_API_KEY || '', // Set via: export NEWS_API_KEY=your-key before deploy
-        JWT_SECRET: process.env.JWT_SECRET || 'moro-oauth-secret-key-change-in-production',
+        JWT_SECRET: process.env.JWT_SECRET!, // REQUIRED: Set via export JWT_SECRET=$(openssl rand -hex 32) before deploy
       },
     });
 

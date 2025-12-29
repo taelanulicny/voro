@@ -235,8 +235,11 @@ function generateSessionToken(user: User): string {
     exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 7), // 7 days
   };
 
-  // In production, use a proper secret from environment
-  const secret = process.env.JWT_SECRET || 'moro-oauth-secret-key-change-in-production';
+  // SECURITY: JWT_SECRET must be set via environment variable
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
   return jwt.sign(payload, secret);
 }
 

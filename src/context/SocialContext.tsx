@@ -7,6 +7,10 @@ interface SocialContextType {
   // Posts state
   activityFeed: Post[];
   isLoadingFeed: boolean;
+  
+  // Pagination state
+  hasMorePosts: boolean;
+  isLoadingMore: boolean;
 
   // Comments state
   postComments: Record<string, Comment[]>;
@@ -34,6 +38,7 @@ interface SocialContextType {
 
   // Feed actions
   refreshActivityFeed: () => Promise<void>;
+  loadMorePosts: () => Promise<void>;
   
   // Comment actions
   getComments: (postId: string) => Promise<void>;
@@ -87,6 +92,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
+  
+  // Pagination state
+  const [lastKey, setLastKey] = useState<string | null>(null);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Mock posts for trending feed (fallback when backend not available)
   const MOCK_POSTS: Post[] = [
@@ -278,17 +288,40 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     },
   ];
 
-  // Fetch activity feed from backend
+  // Helper to map backend post format to frontend format
+  const mapBackendPost = (p: any): Post => ({
+    id: p.postId || p.id,
+    userId: p.userId,
+    username: p.username,
+    displayName: p.displayName,
+    avatarUrl: p.avatarUrl,
+    content: p.content,
+    entityId: p.entityId,
+    entityTicker: p.entityTicker,
+    entityName: p.entityName,
+    sentiment: p.sentiment,
+    likes: p.likes || 0,
+    comments: p.comments || 0,
+    isLiked: p.isLiked || false,
+    isBookmarked: p.isBookmarked || false,
+    timestamp: p.timestamp,
+  });
+
+  // Fetch activity feed from backend (resets pagination)
   const refreshActivityFeed = useCallback(async () => {
     if (!token || !isAuthenticated) {
       // Use mock posts if not authenticated or backend not configured
       setActivityFeed(MOCK_POSTS);
+      setHasMorePosts(false);
+      setLastKey(null);
       return;
     }
 
     if (!isBackendConfigured()) {
       // Use mock posts as fallback when backend not configured
       setActivityFeed(MOCK_POSTS);
+      setHasMorePosts(false);
+      setLastKey(null);
       return;
     }
 
@@ -297,42 +330,68 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       const response = await authenticatedRequest<{
         posts: Post[];
         lastEvaluatedKey?: string;
-      }>('/api/social/feed', token, {
+      }>('/api/social/feed?limit=20', token, {
         method: 'GET',
       });
 
       if (response.success && response.data && response.data.posts.length > 0) {
-        // Map backend post format to frontend format
-        const mappedPosts: Post[] = response.data.posts.map((p: any) => ({
-          id: p.postId || p.id,
-          userId: p.userId,
-          username: p.username,
-          displayName: p.displayName,
-          avatarUrl: p.avatarUrl,
-          content: p.content,
-          entityId: p.entityId,
-          entityTicker: p.entityTicker,
-          entityName: p.entityName,
-          sentiment: p.sentiment,
-          likes: p.likes || 0,
-          comments: p.comments || 0,
-          isLiked: p.isLiked || false,
-          isBookmarked: p.isBookmarked || false,
-          timestamp: p.timestamp,
-        }));
+        const mappedPosts: Post[] = response.data.posts.map(mapBackendPost);
         setActivityFeed(mappedPosts);
+        setLastKey(response.data.lastEvaluatedKey || null);
+        setHasMorePosts(!!response.data.lastEvaluatedKey);
       } else {
         // Use mock posts if backend returns empty
         setActivityFeed(MOCK_POSTS);
+        setHasMorePosts(false);
+        setLastKey(null);
       }
     } catch (error) {
       // Use mock posts as fallback on error
       console.debug('Error fetching feed (backend may not be running):', error);
       setActivityFeed(MOCK_POSTS);
+      setHasMorePosts(false);
+      setLastKey(null);
     } finally {
       setIsLoadingFeed(false);
     }
   }, [token, isAuthenticated]);
+
+  // Load more posts (pagination)
+  const loadMorePosts = useCallback(async () => {
+    // Don't load more if already loading, no more posts, or no lastKey
+    if (isLoadingMore || !hasMorePosts || !lastKey || !token || !isAuthenticated) {
+      return;
+    }
+
+    if (!isBackendConfigured()) {
+      return;
+    }
+
+    try {
+      setIsLoadingMore(true);
+      const response = await authenticatedRequest<{
+        posts: Post[];
+        lastEvaluatedKey?: string;
+      }>(`/api/social/feed?limit=20&lastKey=${encodeURIComponent(lastKey)}`, token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data && response.data.posts.length > 0) {
+        const mappedPosts: Post[] = response.data.posts.map(mapBackendPost);
+        setActivityFeed(prev => [...prev, ...mappedPosts]);
+        setLastKey(response.data.lastEvaluatedKey || null);
+        setHasMorePosts(!!response.data.lastEvaluatedKey);
+      } else {
+        setHasMorePosts(false);
+        setLastKey(null);
+      }
+    } catch (error) {
+      console.debug('Error loading more posts:', error);
+      // Don't clear hasMorePosts on error - user can retry
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [token, isAuthenticated, lastKey, hasMorePosts, isLoadingMore]);
 
   // Load feed on mount and when auth changes
   useEffect(() => {
@@ -357,7 +416,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await authenticatedRequest<Post>('/api/social/posts', token, {
+      // Backend returns postId, but frontend uses id - use any for flexibility
+      const response = await authenticatedRequest<any>('/api/social/posts', token, {
         method: 'POST',
         body: JSON.stringify(params),
       });
@@ -534,7 +594,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await authenticatedRequest<Comment>(
+      // Backend returns commentId, but frontend uses id - use any for flexibility
+      const response = await authenticatedRequest<any>(
         `/api/social/posts/${postId}/comments`,
         token,
         {
@@ -720,6 +781,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const value: SocialContextType = {
     activityFeed,
     isLoadingFeed,
+    hasMorePosts,
+    isLoadingMore,
     postComments,
     groups,
     isLoadingGroups,
@@ -731,6 +794,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     toggleBookmarkPost,
     deletePost,
     refreshActivityFeed,
+    loadMorePosts,
     getComments,
     addComment,
     toggleLikeComment,

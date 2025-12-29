@@ -32,7 +32,16 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function FeedsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser } = useSocial();
+  const { 
+    activityFeed, 
+    isLoadingFeed, 
+    refreshActivityFeed, 
+    followedUsers, 
+    isFollowingUser,
+    loadMorePosts,
+    hasMorePosts,
+    isLoadingMore,
+  } = useSocial();
   const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
   const { theme } = useTheme();
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -256,6 +265,23 @@ export default function FeedsScreen() {
     </View>
   );
 
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={theme.primary} />
+        <Text style={[styles.footerLoaderText, { color: theme.textSecondary }]}>Loading more...</Text>
+      </View>
+    );
+  };
+
+  const handleEndReached = () => {
+    // Only load more when on trending feed (not following filter, as that's client-side filtered)
+    if (selectedFilter === 'trending' && hasMorePosts && !isLoadingMore) {
+      loadMorePosts();
+    }
+  };
+
   const renderFeedContent = () => (
     <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
       {renderFilterTabs()}
@@ -270,6 +296,7 @@ export default function FeedsScreen() {
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={renderEmptyState}
+        ListFooterComponent={renderFooter}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -277,6 +304,8 @@ export default function FeedsScreen() {
             tintColor={theme.primary}
           />
         }
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
           contentContainerStyle={[
             filteredFeed.length === 0 && styles.emptyListContent,
             filteredFeed.length > 0 && { paddingBottom: 100 }
@@ -723,5 +752,15 @@ const styles = StyleSheet.create({
   newsSentimentChipText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  footerLoaderText: {
+    fontSize: 14,
   },
 });

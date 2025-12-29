@@ -86,6 +86,20 @@ export async function getFeed(
     const followingUserIds = ((followsResult.Items || []) as Follow[]).map((f) => f.followingUserId);
     followingUserIds.push(userId); // Include own posts
 
+    // Parse cursor if provided (format: "timestamp:postId")
+    let cursorTimestamp: string | undefined;
+    let cursorPostId: string | undefined;
+    if (lastKey) {
+      try {
+        const decoded = Buffer.from(lastKey, 'base64').toString('utf-8');
+        const [ts, pid] = decoded.split(':');
+        cursorTimestamp = ts;
+        cursorPostId = pid;
+      } catch {
+        // Invalid cursor, ignore
+      }
+    }
+
     // Get posts from followed users
     const posts: Post[] = [];
     for (const followedUserId of followingUserIds) {
@@ -98,7 +112,8 @@ export async function getFeed(
             ':userId': followedUserId,
           },
           ScanIndexForward: false,
-          Limit: limit,
+          // Fetch extra to account for filtering
+          Limit: limit * 2,
         })
       );
 
@@ -107,13 +122,33 @@ export async function getFeed(
       }
     }
 
-    // Sort by timestamp and limit
+    // Sort by timestamp descending
     posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    const limitedPosts = posts.slice(0, limit);
+
+    // Apply cursor-based pagination: skip posts until we find the cursor position
+    let startIndex = 0;
+    if (cursorTimestamp && cursorPostId) {
+      const cursorIndex = posts.findIndex(
+        (p) => p.timestamp === cursorTimestamp && p.postId === cursorPostId
+      );
+      if (cursorIndex >= 0) {
+        startIndex = cursorIndex + 1;
+      }
+    }
+
+    // Get the page of posts
+    const paginatedPosts = posts.slice(startIndex, startIndex + limit);
+
+    // Calculate next cursor
+    let nextLastEvaluatedKey: string | undefined;
+    if (startIndex + limit < posts.length && paginatedPosts.length > 0) {
+      const lastPost = paginatedPosts[paginatedPosts.length - 1];
+      nextLastEvaluatedKey = Buffer.from(`${lastPost.timestamp}:${lastPost.postId}`).toString('base64');
+    }
 
     // Get like status for each post
     const postsWithLikes = await Promise.all(
-      limitedPosts.map(async (post) => {
+      paginatedPosts.map(async (post) => {
         const likeResult = await docClient.send(
           new QueryCommand({
             TableName: TABLE_NAMES.LIKES,
@@ -134,7 +169,7 @@ export async function getFeed(
       })
     );
 
-    return { posts: postsWithLikes };
+    return { posts: postsWithLikes, lastEvaluatedKey: nextLastEvaluatedKey };
   } catch (error: any) {
     console.error('Error getting feed:', error);
     return { posts: [] };
