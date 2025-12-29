@@ -319,7 +319,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   });
 
   // Fetch activity feed from backend (resets pagination)
-  const refreshActivityFeed = useCallback(async () => {
+  const refreshActivityFeed = useCallback(async (signal?: AbortSignal) => {
     if (!token || !isAuthenticated) {
       // Use mock posts if not authenticated or backend not configured
       setActivityFeed(MOCK_POSTS);
@@ -343,6 +343,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         lastEvaluatedKey?: string;
       }>('/api/social/feed?limit=20', token, {
         method: 'GET',
+        signal,
       });
 
       if (response.success && response.data) {
@@ -377,7 +378,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token, isAuthenticated]);
 
   // Load more posts (pagination)
-  const loadMorePosts = useCallback(async () => {
+  const loadMorePosts = useCallback(async (signal?: AbortSignal) => {
     // Don't load more if already loading, no more posts, or no lastKey
     if (isLoadingMore || !hasMorePosts || !lastKey || !token || !isAuthenticated) {
       return;
@@ -394,6 +395,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         lastEvaluatedKey?: string;
       }>(`/api/social/feed?limit=20&lastKey=${encodeURIComponent(lastKey)}`, token, {
         method: 'GET',
+        signal,
       });
 
       if (response.success && response.data) {
@@ -769,7 +771,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     createdAt: validatedGroup.createdAt,
   });
 
-  const refreshGroups = useCallback(async () => {
+  const refreshGroups = useCallback(async (signal?: AbortSignal) => {
     setIsLoadingGroups(true);
     try {
       if (!isBackendConfigured() || !token || !isAuthenticated) {
@@ -783,6 +785,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         lastEvaluatedKey?: string;
       }>('/api/groups?limit=50', token, {
         method: 'GET',
+        signal,
       });
 
       if (response.success && response.data) {

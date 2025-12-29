@@ -273,18 +273,38 @@ export default function FeedsScreen() {
   );
 
   const renderFooter = () => {
-    if (!isLoadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={theme.primary} />
-        <Text style={[styles.footerLoaderText, { color: theme.textSecondary }]}>Loading more...</Text>
-      </View>
-    );
+    // Show loading indicator when loading more posts
+    if (isLoadingMore) {
+      return (
+        <View style={styles.footerLoader}>
+          <ActivityIndicator size="small" color={theme.primary} />
+          <Text style={[styles.footerLoaderText, { color: theme.textSecondary }]}>Loading more...</Text>
+        </View>
+      );
+    }
+    
+    // Show end of feed message when no more posts available (only for trending feed)
+    if (selectedFilter === 'trending' && !hasMorePosts && filteredFeed.length > 0) {
+      return (
+        <View style={styles.footerEnd}>
+          <Text style={[styles.footerEndText, { color: theme.textSecondary }]}>You're all caught up!</Text>
+        </View>
+      );
+    }
+    
+    return null;
   };
 
   const handleEndReached = () => {
     // Only load more when on trending feed (not following filter, as that's client-side filtered)
-    if (selectedFilter === 'trending' && hasMorePosts && !isLoadingMore) {
+    // Also check that we have posts to avoid loading on empty feed
+    if (
+      selectedFilter === 'trending' && 
+      hasMorePosts && 
+      !isLoadingMore && 
+      !isLoadingFeed &&
+      filteredFeed.length > 0
+    ) {
       loadMorePosts();
     }
   };
@@ -766,5 +786,14 @@ const styles = StyleSheet.create({
   },
   footerLoaderText: {
     fontSize: 14,
+  },
+  footerEnd: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  footerEndText: {
+    fontSize: 14,
+    fontStyle: 'italic',
   },
 });

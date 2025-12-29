@@ -1,5 +1,6 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import ErrorFallback from './ErrorFallback';
+import { reportReactError } from '../services/errorReporting';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -55,13 +56,15 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       console.error('Error info:', errorInfo);
     }
 
-    // Call the optional error callback (e.g., for crash reporting)
+    // Report error to error reporting service
+    reportReactError(error, errorInfo, {
+      errorBoundary: true,
+    });
+
+    // Call the optional error callback (e.g., for additional custom reporting)
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
-    // In production, you might want to log to a crash reporting service:
-    // crashReportingService.recordError(error, { componentStack: errorInfo.componentStack });
   }
 
   handleRetry = (): void => {

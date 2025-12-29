@@ -2,37 +2,61 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, Theme } from '../context/ThemeContext';
 
 interface ErrorFallbackProps {
   error?: Error;
   onRetry?: () => void;
 }
 
+// Fallback theme in case ThemeProvider is not available
+const fallbackTheme: Partial<Theme> = {
+  background: '#FFFFFF',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  error: '#EF4444',
+  primary: '#3B82F6',
+  backgroundSecondary: '#FEF2F2',
+};
+
 export default function ErrorFallback({ error, onRetry }: ErrorFallbackProps) {
+  // Use theme with fallback in case ThemeProvider is not available (edge case)
+  let theme: Partial<Theme>;
+  try {
+    const themeContext = useTheme();
+    theme = themeContext.theme;
+  } catch {
+    // Fallback to light theme if theme context is not available
+    theme = fallbackTheme;
+  }
+  
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
+        <View style={[styles.iconContainer, { backgroundColor: theme.backgroundSecondary || '#FEF2F2' }]}>
+          <Ionicons name="alert-circle-outline" size={64} color={theme.error || '#EF4444'} />
         </View>
 
-        <Text style={styles.title}>Something went wrong</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Something went wrong</Text>
         
-        <Text style={styles.message}>
+        <Text style={[styles.message, { color: theme.textSecondary }]}>
           We're sorry, but something unexpected happened. Please try again.
         </Text>
 
         {__DEV__ && error && (
-          <View style={styles.errorDetails}>
-            <Text style={styles.errorLabel}>Error Details (DEV only):</Text>
-            <Text style={styles.errorText} numberOfLines={5}>
+          <View style={[styles.errorDetails, { backgroundColor: theme.backgroundSecondary || '#FEF2F2' }]}>
+            <Text style={[styles.errorLabel, { color: theme.error || '#EF4444' }]}>Error Details (DEV only):</Text>
+            <Text style={[styles.errorText, { color: theme.textSecondary }]} numberOfLines={5}>
               {error.message}
             </Text>
           </View>
         )}
 
         {onRetry && (
-          <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: theme.primary }]} 
+            onPress={onRetry}
+          >
             <Ionicons name="refresh" size={20} color="#FFFFFF" />
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
@@ -47,7 +71,7 @@ export default function ErrorFallback({ error, onRetry }: ErrorFallbackProps) {
             }
           }}
         >
-          <Text style={styles.homeButtonText}>Go Back Home</Text>
+          <Text style={[styles.homeButtonText, { color: theme.primary }]}>Go Back Home</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -57,7 +81,6 @@ export default function ErrorFallback({ error, onRetry }: ErrorFallbackProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -77,19 +100,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
     fontSize: 16,
-    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
   },
   errorDetails: {
-    backgroundColor: '#FEF2F2',
     padding: 16,
     borderRadius: 8,
     marginBottom: 24,
@@ -98,19 +118,16 @@ const styles = StyleSheet.create({
   errorLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#EF4444',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 12,
-    color: '#7F1D1D',
     fontFamily: 'monospace',
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3B82F6',
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -128,7 +145,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   homeButtonText: {
-    color: '#3B82F6',
     fontSize: 16,
     fontWeight: '500',
   },

@@ -172,7 +172,7 @@ export function NewsProvider({ children }: { children: ReactNode }) {
   const breakingNews = news.filter(article => article.isBreaking);
 
   // Fetch news from backend
-  const refreshNews = useCallback(async () => {
+  const refreshNews = useCallback(async (signal?: AbortSignal) => {
     console.log('=== NEWS DEBUG ===');
     console.log('Backend configured:', isBackendConfigured());
     console.log('API URL:', process.env.EXPO_PUBLIC_API_URL);
@@ -187,7 +187,9 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     setIsLoadingNews(true);
     try {
       console.log('Fetching news from API...');
-      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/news?limit=30');
+      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/news?limit=30', {
+        signal,
+      });
       console.log('News API response:', response.success, 'articles:', response.data?.length);
       
       if (response.success && response.data && Array.isArray(response.data)) {
@@ -235,7 +237,15 @@ export function NewsProvider({ children }: { children: ReactNode }) {
 
   // Load news on mount
   useEffect(() => {
-    refreshNews();
+    const abortController = new AbortController();
+    refreshNews(abortController.signal).catch(err => {
+      if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
+        console.error('Error fetching news:', err);
+      }
+    });
+    return () => {
+      abortController.abort();
+    };
   }, [refreshNews]);
 
   // Fetch news for a specific entity from backend

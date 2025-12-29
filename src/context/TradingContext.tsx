@@ -112,7 +112,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const maxHistoryLength = 100;
 
   // Fetch portfolio from backend
-  const fetchPortfolio = useCallback(async () => {
+  const fetchPortfolio = useCallback(async (signal?: AbortSignal) => {
     if (!token || !isAuthenticated || !isBackendConfigured()) return;
 
     try {
@@ -125,6 +125,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         todayChangePercent: number;
       }>('/api/portfolio', token, {
         method: 'GET',
+        signal,
       });
 
       if (response.success && response.data) {
@@ -158,7 +159,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   }, [token, isAuthenticated]);
 
   // Fetch transactions from backend
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = useCallback(async (signal?: AbortSignal) => {
     if (!token || !isAuthenticated || !isBackendConfigured()) return;
 
     try {
@@ -167,6 +168,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         lastEvaluatedKey?: string;
       }>('/api/transactions', token, {
         method: 'GET',
+        signal,
       });
 
       if (response.success && response.data) {
@@ -197,13 +199,14 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   }, [token, isAuthenticated]);
 
   // Fetch entity prices - public endpoint, no auth required
-  const fetchEntityPrices = useCallback(async () => {
+  const fetchEntityPrices = useCallback(async (signal?: AbortSignal) => {
     if (!isBackendConfigured()) return;
 
     try {
       // Use apiRequest (not authenticated) since entities are public
       const response = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/entities', {
         method: 'GET',
+        signal,
       });
 
       if (response.success && response.data) {
@@ -228,31 +231,67 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch entity prices on mount (public endpoint, no auth required)
   useEffect(() => {
-    fetchEntityPrices().catch(err => console.debug('Error fetching entity prices:', err));
+    const abortController = new AbortController();
+    fetchEntityPrices(abortController.signal).catch(err => {
+      if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
+        console.debug('Error fetching entity prices:', err);
+      }
+    });
+    return () => {
+      abortController.abort();
+    };
   }, [fetchEntityPrices]);
 
   // Load portfolio and transactions when auth changes (requires auth)
   useEffect(() => {
-    if (isAuthenticated && token) {
-      // Wrap in try-catch to prevent app crashes
-      fetchPortfolio().catch(err => console.debug('Error fetching portfolio:', err));
-      fetchTransactions().catch(err => console.debug('Error fetching transactions:', err));
-    }
+    if (!isAuthenticated || !token) return;
+    
+    const abortController = new AbortController();
+    
+    // Wrap in try-catch to prevent app crashes
+    fetchPortfolio(abortController.signal).catch(err => {
+      if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
+        console.debug('Error fetching portfolio:', err);
+      }
+    });
+    fetchTransactions(abortController.signal).catch(err => {
+      if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
+        console.debug('Error fetching transactions:', err);
+      }
+    });
+    
+    return () => {
+      abortController.abort();
+    };
   }, [isAuthenticated, token, fetchPortfolio, fetchTransactions]);
 
   // Poll for price updates every 30 seconds (entities are public)
   useEffect(() => {
     if (!isBackendConfigured()) return;
 
+    const abortController = new AbortController();
+    
     const interval = setInterval(() => {
-      fetchEntityPrices().catch(err => console.debug('Error fetching entity prices:', err));
+      if (abortController.signal.aborted) return;
+      fetchEntityPrices(abortController.signal).catch(err => {
+        if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
+          console.debug('Error fetching entity prices:', err);
+        }
+      });
       // Only fetch portfolio if authenticated
-      if (isAuthenticated && token) {
-        fetchPortfolio().catch(err => console.debug('Error fetching portfolio:', err));
+      if (isAuthenticated && token && !abortController.signal.aborted) {
+        fetchPortfolio(abortController.signal).catch(err => {
+          if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
+            console.debug('Error fetching portfolio:', err);
+          }
+        });
       }
     }, 30000); // Reduced from 5s to 30s to avoid excessive API calls
 
-    return () => clearInterval(interval);
+    return () => {
+      abortController.abort();
+      clearInterval(interval);
+    };
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
 
   // Update portfolio history

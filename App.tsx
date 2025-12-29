@@ -7,6 +7,9 @@ import { StatusBar } from 'expo-status-bar';
 // Error Boundary
 import ErrorBoundary from './src/components/ErrorBoundary';
 
+// Error Reporting
+import { initErrorReporting } from './src/services/errorReporting';
+
 // Context Providers
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
@@ -48,60 +51,145 @@ function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
         <>
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
+          <Stack.Screen name="Welcome">
+            {() => (
+              <ErrorBoundary>
+                <WelcomeScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Login">
+            {() => (
+              <ErrorBoundary>
+                <LoginScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Signup">
+            {() => (
+              <ErrorBoundary>
+                <SignupScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
         </>
       ) : (
         <>
-          <Stack.Screen name="Main" component={BottomTabNavigator} />
-          <Stack.Screen name="Entity" component={EntityScreen} />
-          <Stack.Screen name="Category" component={CategoryScreen} />
+          <Stack.Screen name="Main">
+            {() => (
+              <ErrorBoundary>
+                <BottomTabNavigator />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Entity">
+            {(props) => (
+              <ErrorBoundary>
+                <EntityScreen {...props} />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Category">
+            {(props) => (
+              <ErrorBoundary>
+                <CategoryScreen {...props} />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="Search" 
-            component={SearchScreen}
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <SearchScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="Settings" 
-            component={SettingsScreen}
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',
               headerShown: false,
             }}
-          />
-          <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
-          <Stack.Screen name="FollowersList" component={FollowersListScreen} />
-          <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
-          <Stack.Screen name="NewsFeed" component={NewsFeedScreen} />
+          >
+            {() => (
+              <ErrorBoundary>
+                <SettingsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="GroupDetail">
+            {(props) => (
+              <ErrorBoundary>
+                <GroupDetailScreen {...props} />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="FollowersList">
+            {(props) => (
+              <ErrorBoundary>
+                <FollowersListScreen {...props} />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="NewsDetail">
+            {(props) => (
+              <ErrorBoundary>
+                <NewsDetailScreen {...props} />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="NewsFeed">
+            {() => (
+              <ErrorBoundary>
+                <NewsFeedScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="Notifications" 
-            component={NotificationsScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <NotificationsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="DiscoverNewAdditions" 
-            component={DiscoverNewAdditionsScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <DiscoverNewAdditionsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="AccountValue" 
-            component={AccountValueScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <AccountValueScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
         </>
       )}
     </Stack.Navigator>
@@ -109,17 +197,13 @@ function RootNavigator() {
 }
 
 export default function App() {
+  // Initialize error reporting on app startup
+  React.useEffect(() => {
+    initErrorReporting();
+  }, []);
+
   return (
-    <ErrorBoundary
-      onError={(error, errorInfo) => {
-        // In production, you could send this to a crash reporting service
-        // e.g., Sentry, Bugsnag, Firebase Crashlytics
-        if (__DEV__) {
-          console.error('App Error:', error);
-          console.error('Component Stack:', errorInfo.componentStack);
-        }
-      }}
-    >
+    <ErrorBoundary>
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>

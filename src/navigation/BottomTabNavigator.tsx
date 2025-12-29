@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList, RootStackParamList } from '../types';
 import FloatingBottomNav from '../components/FloatingBottomNav';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -122,25 +123,75 @@ export default function BottomTabNavigator() {
               React.useEffect(() => {
                 setTabNavigation(nav);
               }, [nav]);
-              return <HomeScreen />;
+              return (
+                <ErrorBoundary>
+                  <HomeScreen />
+                </ErrorBoundary>
+              );
             }}
           </Tab.Screen>
-          <Tab.Screen name="News" component={NewsScreen} />
+          <Tab.Screen name="News">
+            {() => (
+              <ErrorBoundary>
+                <NewsScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
           <Tab.Screen name="Feeds">
             {() => {
               const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
               React.useEffect(() => {
                 setTabNavigation(nav);
               }, [nav]);
-              return <FeedsScreen />;
+              return (
+                <ErrorBoundary>
+                  <FeedsScreen />
+                </ErrorBoundary>
+              );
             }}
           </Tab.Screen>
-          <Tab.Screen name="Groups" component={GroupsScreen} />
-          <Tab.Screen name="Portfolio" component={PortfolioScreen} />
-          <Tab.Screen name="Watchlist" component={WatchlistScreen} />
-          <Tab.Screen name="Categories" component={AllCategoriesScreen} />
-          <Tab.Screen name="SeasonalCompetition" component={SeasonalCompetitionScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
+          <Tab.Screen name="Groups">
+            {() => (
+              <ErrorBoundary>
+                <GroupsScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Portfolio">
+            {() => (
+              <ErrorBoundary>
+                <PortfolioScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Watchlist">
+            {() => (
+              <ErrorBoundary>
+                <WatchlistScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Categories">
+            {() => (
+              <ErrorBoundary>
+                <AllCategoriesScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="SeasonalCompetition">
+            {() => (
+              <ErrorBoundary>
+                <SeasonalCompetitionScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Profile">
+            {() => (
+              <ErrorBoundary>
+                <ProfileScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
         </Tab.Navigator>
         
         <FloatingNavWrapper activeTab={activeTab} />
