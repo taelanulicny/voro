@@ -267,12 +267,14 @@ export default function LoginScreen() {
         </ScrollView>
 
         {/* DEV ONLY - Skip Sign In Button */}
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkipAuth}
-        >
-          <Text style={styles.skipButtonText}>Skip</Text>
-        </TouchableOpacity>
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleSkipAuth}
+          >
+            <Text style={styles.skipButtonText}>Skip (DEV)</Text>
+          </TouchableOpacity>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

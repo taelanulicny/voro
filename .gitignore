@@ -216,3 +216,6 @@ Pods/
 # Backup files
 *.backup
 package.json.backup
+
+# my personal code review report w cursor
+AUDIT_REPORT.md
