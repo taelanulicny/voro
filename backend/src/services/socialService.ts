@@ -72,83 +72,44 @@ export async function getFeed(
   lastKey?: string
 ): Promise<{ posts: Post[]; lastEvaluatedKey?: string }> {
   try {
-    // Get users being followed
-    const followsResult = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAMES.FOLLOWS,
-        KeyConditionExpression: 'userId = :userId',
-        ExpressionAttributeValues: {
-          ':userId': userId,
-        },
+    // Global Feed implementation (Scan)
+    // This retrieves posts from all users to populate the "Trending" feed
+
+    let exclusiveStartKey;
+    if (lastKey) {
+      try {
+        exclusiveStartKey = JSON.parse(Buffer.from(lastKey, 'base64').toString('utf-8'));
+      } catch (e) {
+        console.warn('Invalid lastKey:', lastKey);
+      }
+    }
+
+    // Scan posts table to get global activity
+    // Note: In a real production app, you would use a GSI on timestamp (e.g., 'type-timestamp-index') 
+    // to efficiently query recent posts across the system.
+    // For now, Scan with a limit works for the MVP scale.
+    const scanResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAMES.POSTS,
+        Limit: limit,
+        ExclusiveStartKey: exclusiveStartKey,
       })
     );
 
-    const followingUserIds = ((followsResult.Items || []) as Follow[]).map((f) => f.followingUserId);
-    followingUserIds.push(userId); // Include own posts
+    const posts = (scanResult.Items || []) as Post[];
 
-    // Parse cursor if provided (format: "timestamp:postId")
-    let cursorTimestamp: string | undefined;
-    let cursorPostId: string | undefined;
-    if (lastKey) {
-      try {
-        const decoded = Buffer.from(lastKey, 'base64').toString('utf-8');
-        const [ts, pid] = decoded.split(':');
-        cursorTimestamp = ts;
-        cursorPostId = pid;
-      } catch {
-        // Invalid cursor, ignore
-      }
-    }
-
-    // Get posts from followed users
-    const posts: Post[] = [];
-    for (const followedUserId of followingUserIds) {
-      const postsResult = await docClient.send(
-        new QueryCommand({
-          TableName: TABLE_NAMES.POSTS,
-          IndexName: 'userId-timestamp-index',
-          KeyConditionExpression: 'userId = :userId',
-          ExpressionAttributeValues: {
-            ':userId': followedUserId,
-          },
-          ScanIndexForward: false,
-          // Fetch extra to account for filtering
-          Limit: limit * 2,
-        })
-      );
-
-      if (postsResult.Items) {
-        posts.push(...(postsResult.Items as Post[]));
-      }
-    }
-
-    // Sort by timestamp descending
+    // Sort by timestamp descending (in-memory sort of the scanned batch)
     posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    // Apply cursor-based pagination: skip posts until we find the cursor position
-    let startIndex = 0;
-    if (cursorTimestamp && cursorPostId) {
-      const cursorIndex = posts.findIndex(
-        (p) => p.timestamp === cursorTimestamp && p.postId === cursorPostId
-      );
-      if (cursorIndex >= 0) {
-        startIndex = cursorIndex + 1;
-      }
-    }
-
-    // Get the page of posts
-    const paginatedPosts = posts.slice(startIndex, startIndex + limit);
-
-    // Calculate next cursor
+    // Prepare next cursor
     let nextLastEvaluatedKey: string | undefined;
-    if (startIndex + limit < posts.length && paginatedPosts.length > 0) {
-      const lastPost = paginatedPosts[paginatedPosts.length - 1];
-      nextLastEvaluatedKey = Buffer.from(`${lastPost.timestamp}:${lastPost.postId}`).toString('base64');
+    if (scanResult.LastEvaluatedKey) {
+      nextLastEvaluatedKey = Buffer.from(JSON.stringify(scanResult.LastEvaluatedKey)).toString('base64');
     }
 
     // Get like status for each post
     const postsWithLikes = await Promise.all(
-      paginatedPosts.map(async (post) => {
+      posts.map(async (post) => {
         const likeResult = await docClient.send(
           new QueryCommand({
             TableName: TABLE_NAMES.LIKES,
@@ -164,7 +125,7 @@ export async function getFeed(
         return {
           ...post,
           isLiked: (likeResult.Items?.length || 0) > 0,
-          isBookmarked: false, // TODO: Implement bookmarks
+          isBookmarked: false, // TODO: Implement bookmarks check
         };
       })
     );
@@ -520,9 +481,9 @@ export async function toggleBookmarkPost(
       await docClient.send(
         new DeleteCommand({
           TableName: TABLE_NAMES.WATCHLISTS,
-          Key: { 
-            userId, 
-            entityId: parseInt(existingBookmark.entityId || '0', 10) 
+          Key: {
+            userId,
+            entityId: parseInt(existingBookmark.entityId || '0', 10)
           },
         })
       );
