@@ -23,17 +23,13 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { login, loginWithGoogle: authLoginWithGoogle, loginWithApple: authLoginWithApple, skipAuth } = useAuth();
+  const { login, loginWithGoogle: authLoginWithGoogle, loginWithApple: authLoginWithApple } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const handleSkipAuth = async () => {
-    await skipAuth();
-  };
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -265,16 +261,6 @@ export default function LoginScreen() {
             </View>
           </View>
         </ScrollView>
-
-        {/* DEV ONLY - Skip Sign In Button */}
-        {__DEV__ && (
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkipAuth}
-          >
-            <Text style={styles.skipButtonText}>Skip (DEV)</Text>
-          </TouchableOpacity>
-        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -301,22 +287,6 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  // DEV ONLY
-  skipButton: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#EF4444',
-    borderRadius: 6,
-    zIndex: 999,
-  },
-  skipButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
   },
   content: {
     flex: 1,

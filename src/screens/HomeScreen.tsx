@@ -31,6 +31,9 @@ import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { getEntityById, getAllEntities, MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
 import SideMenu from '../components/SideMenu';
+import HomeHeader from '../components/HomeHeader';
+import CategoryCarousel from '../components/CategoryCarousel';
+import EntityList, { EntityListItem } from '../components/EntityList';
 
 type NavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -622,79 +625,26 @@ export default function HomeScreen() {
   }, [spotlights.length, spotlightFadeAnim]);
 
 
+  const handleCategoryPress = (category: string) => {
+    if (category === 'For You') {
+      setSelectedCategory(category);
+    } else {
+      navigation.navigate('Category', { categoryId: category });
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
-      {/* Header */}
-        <View style={[styles.header, { backgroundColor: theme.card }]}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => setSideMenuVisible(true)}
-          >
-            <Ionicons name="menu" size={24} color={theme.text} />
-          </TouchableOpacity>
-          
-          <Text style={[styles.logoText, { color: theme.text }]}>moro</Text>
-        </View>
-        
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => {
-              // Will be linked later
-            }}
-          >
-            <Ionicons name="gift-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => {
-              navigation.navigate('Notifications');
-            }}
-          >
-            <Ionicons name="notifications-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <HomeHeader
+        onMenuPress={() => setSideMenuVisible(true)}
+        onNotificationsPress={() => navigation.navigate('Notifications')}
+      />
 
-      {/* Category Selector */}
-      <View style={[styles.categorySelectorContainer, { backgroundColor: theme.card, borderBottomColor: theme.border, borderTopWidth: 0 }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categorySelector}
-          contentContainerStyle={styles.categorySelectorContent}
-        >
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category}
-              style={styles.categoryButton}
-              onPress={() => {
-                if (category === 'For You') {
-                  // Keep "For You" on the home page
-                  setSelectedCategory(category);
-                } else {
-                  // Navigate to the Category screen for other categories
-                  navigation.navigate('Category', { categoryId: category });
-                }
-              }}
-            >
-              <Text
-                style={[
-                  styles.categoryButtonText,
-                  {
-                    color: selectedCategory === category ? theme.text : theme.textSecondary,
-                    fontWeight: selectedCategory === category ? '600' : '400',
-                  }
-                ]}
-              >
-                {category}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <CategoryCarousel
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryPress={handleCategoryPress}
+      />
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -1543,124 +1493,48 @@ export default function HomeScreen() {
         </View>
 
         {/* Watchlist Section */}
-        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Watchlist</Text>
-            <TouchableOpacity onPress={() => {
-              // Navigate to Watchlist tab
-              navigation.navigate('Watchlist');
-            }}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-
-          {watchlist.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="star-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No watchlist items yet</Text>
-              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-                Add entities to your watchlist to track them
-              </Text>
-            </View>
-          ) : (
-            <>
-              {watchlist.slice(0, 5).map((item) => {
-                return (
-                  <TouchableOpacity
-                    key={item.entityId}
-                    style={[styles.watchlistCard, { borderBottomColor: theme.borderLight }]}
-                    onPress={() => handleHoldingPress(item.entityId, item.category)}
-                  >
-                    <View style={styles.watchlistLeft}>
-                      <View style={[styles.watchlistIcon, { backgroundColor: theme.primaryLight }]}>
-                        <Text style={[styles.watchlistIconText, { color: theme.primary }]}>
-                          {item.entityName.substring(0, 2).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View style={styles.watchlistInfo}>
-                        <Text style={[styles.watchlistName, { color: theme.text }]}>{item.entityName}</Text>
-                        <Text style={[styles.watchlistCategory, { color: theme.textSecondary }]}>
-                          {getDisplayCategory(item.entityId, item.category)}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.watchlistRight}>
-                      <Text style={[styles.watchlistPrice, { color: theme.text }]}>
-                        {formatCurrency(item.currentPrice)}
-                      </Text>
-                      <Text style={[styles.watchlistChange, { color: getChangeColor(item.change24h) }]}>
-                        {item.change24h >= 0 ? '+' : ''}
-                        {item.changePercent24h.toFixed(2)}%
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </>
-          )}
-        </View>
+        <EntityList
+          title="Watchlist"
+          items={watchlist.map((item) => ({
+            id: item.entityId,
+            name: item.entityName,
+            category: item.category,
+            displayCategory: getDisplayCategory(item.entityId, item.category),
+            price: item.currentPrice,
+            change: item.change24h,
+            changePercent: item.changePercent24h,
+          }))}
+          onSeeAll={() => navigation.navigate('Watchlist')}
+          onItemPress={(item) => handleHoldingPress(item.id, item.category)}
+          emptyIcon="star-outline"
+          emptyTitle="No watchlist items yet"
+          emptyText="Add entities to your watchlist to track them"
+        />
 
         {/* Open Positions Section */}
-        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Open Positions</Text>
-            <TouchableOpacity onPress={() => {
-              // Navigate to Portfolio tab
-              navigation.navigate('Portfolio');
-            }}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-
-          {portfolio.holdings.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="wallet-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No open positions</Text>
-              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-                Start trading to see your positions here
-              </Text>
-            </View>
-          ) : (
-            <>
-              {portfolio.holdings.slice(0, 5).map((holding) => {
-                const entity = MOCK_ENTITIES.find(e => e.id === holding.entityId);
-                const entityCategory = entity?.category || '';
-                return (
-                  <TouchableOpacity
-                    key={holding.entityId}
-                    style={[styles.watchlistCard, { borderBottomColor: theme.borderLight }]}
-                    onPress={() => handleHoldingPress(holding.entityId, entityCategory)}
-                  >
-                    <View style={styles.watchlistLeft}>
-                      <View style={[styles.watchlistIcon, { backgroundColor: theme.primaryLight }]}>
-                        <Text style={[styles.watchlistIconText, { color: theme.primary }]}>
-                          {holding.entityName.substring(0, 2).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View style={styles.watchlistInfo}>
-                        <Text style={[styles.watchlistName, { color: theme.text }]}>{holding.entityName}</Text>
-                        <Text style={[styles.watchlistCategory, { color: theme.textSecondary }]}>
-                          {getDisplayCategory(holding.entityId, entityCategory)}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.watchlistRight}>
-                      <Text style={[styles.watchlistPrice, { color: theme.text }]}>
-                        {formatCurrency(holding.totalValue)}
-                      </Text>
-                      <Text style={[styles.watchlistChange, { color: getChangeColor(holding.profitLoss) }]}>
-                        {holding.profitLoss >= 0 ? '+' : ''}
-                        {formatCurrency(holding.profitLoss)}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </>
-          )}
-        </View>
+        <EntityList
+          title="Open Positions"
+          items={portfolio.holdings.map((holding) => {
+            const entity = MOCK_ENTITIES.find(e => e.id === holding.entityId);
+            const entityCategory = entity?.category || '';
+            return {
+              id: holding.entityId,
+              name: holding.entityName,
+              category: entityCategory,
+              displayCategory: getDisplayCategory(holding.entityId, entityCategory),
+              price: holding.totalValue,
+              change: holding.profitLoss,
+              changePercent: holding.profitLossPercent,
+              profitLoss: holding.profitLoss,
+            };
+          })}
+          onSeeAll={() => navigation.navigate('Portfolio')}
+          onItemPress={(item) => handleHoldingPress(item.id, item.category)}
+          emptyIcon="wallet-outline"
+          emptyTitle="No open positions"
+          emptyText="Start trading to see your positions here"
+          showProfitLoss
+        />
 
         {/* Added Category Modules */}
         {addedCategories.map((category) => {
@@ -1801,70 +1675,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 0,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
-    // Note: Bukhari Script font should be loaded via expo-font
-    // For now using italic style as placeholder
-    // fontFamily: 'BukhariScript', // Uncomment when font is loaded
-  },
-  categorySelectorContainer: {
-    borderBottomWidth: 1,
-    borderTopWidth: 0,
-    paddingTop: 4,
-    paddingBottom: 4,
-  },
-  categorySelector: {
-    maxHeight: 20,
-  },
-  categorySelectorContent: {
-    paddingHorizontal: 16,
-    paddingTop: 0,
-    paddingBottom: 0,
-    alignItems: 'flex-end',
-  },
-  categoryButton: {
-    marginRight: 18,
-    paddingVertical: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryButtonText: {
-    fontSize: 15,
-    lineHeight: 18,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -1949,27 +1759,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontStyle: 'italic',
     // For a cursive look, you may want to use a custom font
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3B82F6',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
   },
   holdingCard: {
     flexDirection: 'row',
@@ -2128,59 +1917,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginTop: 2,
-  },
-  watchlistCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  watchlistLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  watchlistIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  watchlistIconText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-  },
-  watchlistInfo: {
-    flex: 1,
-  },
-  watchlistName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  watchlistCategory: {
-    fontSize: 12,
-    marginTop: 2,
-    color: '#6B7280',
-  },
-  watchlistRight: {
-    alignItems: 'flex-end',
-  },
-  watchlistPrice: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  watchlistChange: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   cashCard: {
     flexDirection: 'row',

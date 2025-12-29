@@ -4,17 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import { useAuth } from '../context/AuthContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { skipAuth } = useAuth();
-
-  const handleSkipAuth = async () => {
-    await skipAuth();
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -38,16 +32,6 @@ export default function WelcomeScreen() {
           <Text style={styles.secondaryButtonText}>Sign Up</Text>
         </TouchableOpacity>
       </View>
-
-      {/* DEV ONLY - Skip Sign In Button */}
-      {__DEV__ && (
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={handleSkipAuth}
-        >
-          <Text style={styles.skipButtonText}>Skip (DEV)</Text>
-        </TouchableOpacity>
-      )}
     </SafeAreaView>
   );
 }
@@ -103,22 +87,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  // DEV ONLY
-  skipButton: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#EF4444',
-    borderRadius: 6,
-    zIndex: 999,
-  },
-  skipButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
   },
 });
 
