@@ -39,7 +39,7 @@ export default function TradeModal({
   category,
   existingQuantity = 0,
 }: TradeModalProps) {
-  const { portfolio, executeTrade, getHolding } = useTrading();
+  const { portfolio, executeTrade, getHolding, isMarketOpen, marketStatusMessage, lastPriceUpdateTime } = useTrading();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
   const [quantity, setQuantity] = useState('');
@@ -72,7 +72,8 @@ export default function TradeModal({
 
   const canBuy = activeTab === 'buy' && quantityNum > 0 && hasSufficientFunds;
   const canSell = activeTab === 'sell' && quantityNum > 0 && hasSufficientShares;
-  const canExecute = canBuy || canSell;
+  const isPriceStale = lastPriceUpdateTime ? (Date.now() - lastPriceUpdateTime) > 60000 : false;
+  const canExecute = (canBuy || canSell) && isMarketOpen;
 
   const handleQuantityChange = (text: string) => {
     // Only allow numbers and one decimal point
@@ -97,11 +98,16 @@ export default function TradeModal({
   const handleExecuteTrade = () => {
     if (!canExecute) return;
 
+    if (!isMarketOpen) {
+      Alert.alert('Market Closed', marketStatusMessage);
+      return;
+    }
+
     setIsProcessing(true);
 
     // Simulate slight delay for realistic feel
-    setTimeout(() => {
-      const success = executeTrade(
+    setTimeout(async () => {
+      const success = await executeTrade(
         entityId,
         entityName,
         entityTicker,
@@ -184,6 +190,15 @@ export default function TradeModal({
               </View>
             </View>
           </View>
+
+          {/* Market Status & Staleness Warning */}
+          {(!isMarketOpen || isPriceStale) && (
+            <View style={{ marginHorizontal: 20, marginBottom: 12, padding: 8, backgroundColor: isMarketOpen ? '#FEF3C7' : '#FEE2E2', borderRadius: 8 }}>
+              <Text style={{ color: isMarketOpen ? '#D97706' : '#DC2626', textAlign: 'center', fontSize: 12, fontWeight: '600' }}>
+                {!isMarketOpen ? marketStatusMessage : '⚠️ Price may be outdated. Check connection.'}
+              </Text>
+            </View>
+          )}
 
           {/* Buy/Sell Tabs */}
           <View style={[styles.tabs, { backgroundColor: theme.backgroundSecondary }]}>
@@ -334,7 +349,7 @@ export default function TradeModal({
               disabled={!canExecute || isProcessing}
             >
               <Text style={styles.buttonTextPrimary}>
-                {isProcessing ? 'Processing...' : 'Confirm'}
+                {isProcessing ? 'Processing...' : (!isMarketOpen ? 'Market Closed' : 'Confirm')}
               </Text>
             </TouchableOpacity>
           </View>

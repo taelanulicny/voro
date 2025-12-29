@@ -15,6 +15,19 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       return createErrorResponse(401, 'Unauthorized');
     }
 
+    // Market Hours Logic (Server-Side Enforcement)
+    // EST is UTC-5
+    const now = new Date();
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const estOffset = -5 * 60 * 60 * 1000;
+    const estTime = new Date(utcTime + estOffset);
+    const hours = estTime.getHours();
+
+    // Market Closed: 2:00 AM - 8:00 AM EST
+    if (hours >= 2 && hours < 8) {
+      return createErrorResponse(400, 'Market is closed (2am-8am EST)');
+    }
+
     const userId = auth.event.userId!;
     const body = JSON.parse(event.body || '{}');
 

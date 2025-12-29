@@ -25,6 +25,9 @@ interface TradingContextType {
   portfolioHistory: number[];
   fetchPortfolio: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
+  isMarketOpen: boolean;
+  marketStatusMessage: string;
+  lastPriceUpdateTime: number | null;
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
@@ -39,7 +42,35 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [todayChange, setTodayChange] = useState(0);
   const [todayChangePercent, setTodayChangePercent] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [lastPriceUpdateTime, setLastPriceUpdateTime] = useState<number | null>(Date.now());
+
+  // Market Hours Logic
+  const [isMarketOpen, setIsMarketOpen] = useState(true);
+  const [marketStatusMessage, setMarketStatusMessage] = useState('');
+
+  const checkMarketHours = useCallback(() => {
+    // Get current time in EST
+    const now = new Date();
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const estOffset = -5 * 60 * 60 * 1000; // EST is UTC-5
+    const estTime = new Date(utcTime + estOffset);
+
+    const hours = estTime.getHours();
+
+    // Market Closed: 2:00 AM - 8:00 AM EST
+    const isClosed = hours >= 2 && hours < 8;
+
+    setIsMarketOpen(!isClosed);
+    setMarketStatusMessage(isClosed ? 'Market Closed (2am-8am EST)' : 'Market Open');
+  }, []);
+
+  // Check market hours every minute
+  useEffect(() => {
+    checkMarketHours();
+    const interval = setInterval(checkMarketHours, 60000);
+    return () => clearInterval(interval);
+  }, [checkMarketHours]);
+
   // Global entity prices - fetched from backend or initialized with hardcoded 3-5% moves
   const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
     // Initialize prices with hardcoded percentage changes (3-5% moves)
@@ -51,7 +82,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       31: 4.5, 32: -3.4, 33: 4.8, 34: -3.9, 35: 4.0, 36: -4.2, 37: 3.8, 38: -4.4, 39: 3.5,
       40: 4.6, 41: -3.7, 42: 4.3, 43: -4.1, 44: 3.9, 45: -4.5, 46: 4.2, 47: -3.8, 48: 4.4, 49: -3.6,
     };
-    
+
     MOCK_ENTITIES.forEach((entity) => {
       // Get hardcoded percentage change (3-5% range), default to 0 if not specified
       const changePercent = changePercentages[entity.id] || 0;
@@ -67,7 +98,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     });
     return initialPrices;
   });
-  
+
   // Portfolio value history for chart animation
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
   const portfolioHistoryRef = useRef<number[]>([]);
@@ -163,6 +194,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           prices[entity.entityId] = entity.currentPrice || entity.basePrice;
         });
         setEntityPrices(prices);
+        setLastPriceUpdateTime(Date.now());
       }
     } catch (error) {
       // Silently handle errors - don't crash the app
@@ -202,7 +234,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   // Update portfolio history
   useEffect(() => {
     const totalValue = holdings.reduce((sum, h) => sum + h.totalValue, 0) + cashBalance;
-    
+
     portfolioHistoryRef.current = [...portfolioHistoryRef.current, totalValue];
     if (portfolioHistoryRef.current.length > maxHistoryLength) {
       portfolioHistoryRef.current = portfolioHistoryRef.current.slice(-maxHistoryLength);
@@ -219,6 +251,12 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     pricePerToken: number,
     category: string
   ): Promise<boolean> => {
+    // Check Market Hours
+    if (!isMarketOpen) {
+      console.warn('Trade rejected: ' + marketStatusMessage);
+      return false;
+    }
+
     if (!token) {
       console.error('No authentication token');
       return false;
@@ -235,9 +273,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       }>('/api/trade/execute', token, {
         method: 'POST',
         body: JSON.stringify({
-            entityId,
+          entityId,
           type,
-            quantity,
+          quantity,
           pricePerToken,
         }),
       });
@@ -255,12 +293,14 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           prices[holding.entityId] = holding.currentPrice;
         });
         setEntityPrices((prev) => ({ ...prev, ...prices }));
+        setLastPriceUpdateTime(Date.now());
+
 
         // Refresh transactions
         await fetchTransactions();
 
         return true;
-    } else {
+      } else {
         console.error('Trade execution failed:', response.error);
         return false;
       }
@@ -277,8 +317,17 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updatePrices = (entityId: number, newPrice: number) => {
+    /**
+     * TODO: Implement Custom Price Formula
+     * 
+     * Future implementation will use a specific formula to calculate price changes
+     * based on market events, user activity, and randomized factors.
+     * 
+     * For now, this function updates the local state with the provided price.
+     */
     setEntityPrices((prev) => ({ ...prev, [entityId]: newPrice }));
-    
+    setLastPriceUpdateTime(Date.now());
+
     // Update holdings with new price
     setHoldings((prev) =>
       prev.map(h => {
@@ -358,6 +407,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         portfolioHistory,
         fetchPortfolio,
         fetchTransactions,
+        isMarketOpen,
+        marketStatusMessage,
+        lastPriceUpdateTime,
       }}
     >
       {children}
