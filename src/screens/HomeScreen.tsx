@@ -34,6 +34,7 @@ import SideMenu from '../components/SideMenu';
 import HomeHeader from '../components/HomeHeader';
 import CategoryCarousel from '../components/CategoryCarousel';
 import EntityList, { EntityListItem } from '../components/EntityList';
+import SpotlightSection from '../components/SpotlightSection';
 
 type NavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -597,32 +598,7 @@ export default function HomeScreen() {
     },
   ], []);
 
-  // Spotlight auto-rotation state (isolated to spotlights only)
-  const [currentSpotlightIndex, setCurrentSpotlightIndex] = useState(0);
-  const spotlightFadeAnim = useRef(new Animated.Value(1)).current;
-
-  // Auto-rotate spotlights with fade animation (isolated effect)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Fade out
-      Animated.timing(spotlightFadeAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => {
-        // Change spotlight after fade out
-        setCurrentSpotlightIndex((prev) => (prev + 1) % spotlights.length);
-        // Fade in
-        Animated.timing(spotlightFadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-      });
-    }, 3000); // Change every 3 seconds
-
-    return () => clearInterval(interval);
-  }, [spotlights.length, spotlightFadeAnim]);
+  // Spotlight auto-rotation is now handled inside SpotlightSection component
 
 
   const handleCategoryPress = (category: string) => {
@@ -1442,55 +1418,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Spotlights Section */}
-        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Spotlights</Text>
-          <View style={styles.spotlightsContainer}>
-            <Animated.View
-              style={[
-                styles.spotlightCardContainer,
-                {
-                  opacity: spotlightFadeAnim,
-                },
-              ]}
-            >
-              <TouchableOpacity
-                style={styles.spotlightCard}
-                onPress={spotlights[currentSpotlightIndex].onPress}
-              >
-                {spotlights[currentSpotlightIndex].imageSource ? (
-                  <Image
-                    source={spotlights[currentSpotlightIndex].imageSource}
-                    style={styles.spotlightImage}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.spotlightCardContent,
-                      {
-                        backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
-                      },
-                    ]}
-                  >
-                    {spotlights[currentSpotlightIndex].icon && (
-                      <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
-                    )}
-                    <Text
-                      style={[
-                        styles.spotlightCardTitle,
-                        {
-                          color: spotlights[currentSpotlightIndex].textColor,
-                        },
-                      ]}
-                    >
-                      {spotlights[currentSpotlightIndex].title}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </View>
+        <SpotlightSection spotlights={spotlights} />
 
         {/* Watchlist Section */}
         <EntityList

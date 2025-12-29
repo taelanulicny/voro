@@ -829,7 +829,7 @@ export default function EntityScreen() {
             style={[styles.tradeButton, styles.halfWidthButton, { backgroundColor: theme.primary }]}
           onPress={() => setTradeModalVisible(true)}
         >
-            <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
+            <Text style={styles.tradeButtonText}>Trade {entityData.entity.ticker}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.shareOpinionButton, styles.halfWidthButton, { backgroundColor: theme.card, borderColor: theme.border }]}
