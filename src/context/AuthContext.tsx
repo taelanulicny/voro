@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout } from '../services/authService';
+
+// Keys for secure storage (tokens) and async storage (non-sensitive data)
+const SECURE_AUTH_TOKEN_KEY = 'moro_auth_token';
+const SECURE_REFRESH_TOKEN_KEY = 'moro_refresh_token';
+const ASYNC_USER_KEY = 'moro_user'; // User profile data (not sensitive)
 
 export interface User {
   id: string;
@@ -39,8 +45,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loadAuthData = async () => {
     try {
-      const savedToken = await AsyncStorage.getItem('authToken');
-      const savedUser = await AsyncStorage.getItem('user');
+      // Get token from secure storage, user from async storage
+      const savedToken = await SecureStore.getItemAsync(SECURE_AUTH_TOKEN_KEY);
+      const savedUser = await AsyncStorage.getItem(ASYNC_USER_KEY);
       
       if (savedToken && savedUser) {
         // Verify token is still valid
@@ -66,11 +73,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const saveAuthData = async (newToken: string, newUser: User, refreshToken?: string) => {
     try {
-      await AsyncStorage.setItem('authToken', newToken);
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
+      // Store tokens in secure storage (encrypted)
+      await SecureStore.setItemAsync(SECURE_AUTH_TOKEN_KEY, newToken);
       if (refreshToken) {
-        await AsyncStorage.setItem('refreshToken', refreshToken);
+        await SecureStore.setItemAsync(SECURE_REFRESH_TOKEN_KEY, refreshToken);
       }
+      // Store user profile in async storage (not sensitive, larger data)
+      await AsyncStorage.setItem(ASYNC_USER_KEY, JSON.stringify(newUser));
+      
       setToken(newToken);
       setUser(newUser);
     } catch (error) {
@@ -80,9 +90,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearAuthData = async () => {
     try {
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('refreshToken');
+      // Clear tokens from secure storage
+      await SecureStore.deleteItemAsync(SECURE_AUTH_TOKEN_KEY);
+      await SecureStore.deleteItemAsync(SECURE_REFRESH_TOKEN_KEY);
+      // Clear user from async storage
+      await AsyncStorage.removeItem(ASYNC_USER_KEY);
+      
       setToken(null);
       setUser(null);
     } catch (error) {
