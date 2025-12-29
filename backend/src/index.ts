@@ -3,6 +3,7 @@
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import * as authHandlers from './handlers/auth';
+import * as oauthHandlers from './handlers/oauth';
 import * as tradingHandlers from './handlers/trading';
 import * as socialHandlers from './handlers/social';
 import * as userHandlers from './handlers/user';
@@ -24,6 +25,12 @@ export const handler = async (
     }
     if (path.endsWith('/login') && method === 'POST') {
       return authHandlers.login(event);
+    }
+    if (path.endsWith('/google') && method === 'POST') {
+      return oauthHandlers.googleLogin(event);
+    }
+    if (path.endsWith('/apple') && method === 'POST') {
+      return oauthHandlers.appleLogin(event);
     }
     if (path.endsWith('/refresh') && method === 'POST') {
       return authHandlers.refreshToken(event);

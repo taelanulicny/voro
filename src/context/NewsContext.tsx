@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { NewsArticle, NewsFilter } from '../types';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { apiRequest, isBackendConfigured } from '../config/api';
 
 interface NewsContextType {
   news: NewsArticle[];
@@ -9,7 +9,7 @@ interface NewsContextType {
   
   // Actions
   refreshNews: () => Promise<void>;
-  getNewsByEntity: (entityId: number) => NewsArticle[];
+  getNewsByEntity: (entityId: number, entityName?: string) => Promise<NewsArticle[]>;
   getNewsByFilter: (filter: NewsFilter) => NewsArticle[];
   markAsRead: (articleId: string) => void;
 }
@@ -166,20 +166,129 @@ const MOCK_NEWS = generateMockNews();
 export function NewsProvider({ children }: { children: ReactNode }) {
   const [news, setNews] = useState<NewsArticle[]>(MOCK_NEWS);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
+  const [entityNewsCache, setEntityNewsCache] = useState<Record<string, NewsArticle[]>>({});
 
   const breakingNews = news.filter(article => article.isBreaking);
 
+  // Fetch news from backend
   const refreshNews = useCallback(async () => {
+    console.log('=== NEWS DEBUG ===');
+    console.log('Backend configured:', isBackendConfigured());
+    console.log('API URL:', process.env.EXPO_PUBLIC_API_URL);
+    
+    if (!isBackendConfigured()) {
+      // Use mock news if backend not configured
+      console.log('Using mock news - backend not configured');
+      setNews(MOCK_NEWS);
+      return;
+    }
+
     setIsLoadingNews(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setNews(MOCK_NEWS);
-    setIsLoadingNews(false);
+    try {
+      console.log('Fetching news from API...');
+      const response = await apiRequest<NewsArticle[]>('/api/news?limit=30');
+      console.log('News API response:', response.success, 'articles:', response.data?.length);
+      
+      if (response.success && response.data && response.data.length > 0) {
+        // Map backend format to frontend format
+        const mappedNews: NewsArticle[] = response.data.map((article: any) => ({
+          id: article.articleId || article.id,
+          title: article.title,
+          summary: article.summary,
+          content: article.content,
+          source: article.source,
+          sourceUrl: article.sourceUrl,
+          imageUrl: article.imageUrl,
+          author: article.author,
+          publishedAt: article.publishedAt,
+          category: article.category,
+          entityId: article.entityId,
+          entityTicker: article.entityTicker,
+          entityName: article.entityName,
+          sentiment: article.sentiment,
+          sentimentScore: article.sentimentScore,
+          impactLevel: article.impactLevel,
+          tags: article.tags || [],
+          viewCount: article.viewCount || 0,
+          isBreaking: article.isBreaking || false,
+        }));
+        setNews(mappedNews);
+      } else {
+        // Fallback to mock news
+        setNews(MOCK_NEWS);
+      }
+    } catch (error) {
+      console.error('Error fetching news:', error);
+      setNews(MOCK_NEWS);
+    } finally {
+      setIsLoadingNews(false);
+    }
   }, []);
 
-  const getNewsByEntity = useCallback((entityId: number): NewsArticle[] => {
-    return news.filter(article => article.entityId === entityId);
-  }, [news]);
+  // Load news on mount
+  useEffect(() => {
+    refreshNews();
+  }, [refreshNews]);
+
+  // Fetch news for a specific entity from backend
+  const getNewsByEntity = useCallback(async (entityId: number, entityName?: string): Promise<NewsArticle[]> => {
+    // Check cache first
+    const cacheKey = entityName || entityId.toString();
+    if (entityNewsCache[cacheKey]) {
+      return entityNewsCache[cacheKey];
+    }
+
+    // Filter from existing news first
+    const localNews = news.filter(article => article.entityId === entityId);
+    
+    if (!isBackendConfigured()) {
+      return localNews;
+    }
+
+    try {
+      const params = new URLSearchParams({ limit: '15' });
+      if (entityName) {
+        params.set('entityName', entityName);
+      }
+      if (entityId) {
+        params.set('entityId', entityId.toString());
+      }
+
+      const response = await apiRequest<NewsArticle[]>(`/api/news?${params}`);
+      
+      if (response.success && response.data && response.data.length > 0) {
+        const mappedNews: NewsArticle[] = response.data.map((article: any) => ({
+          id: article.articleId || article.id,
+          title: article.title,
+          summary: article.summary,
+          content: article.content,
+          source: article.source,
+          sourceUrl: article.sourceUrl,
+          imageUrl: article.imageUrl,
+          author: article.author,
+          publishedAt: article.publishedAt,
+          category: article.category,
+          entityId: entityId,
+          entityTicker: article.entityTicker,
+          entityName: entityName || article.entityName,
+          sentiment: article.sentiment,
+          sentimentScore: article.sentimentScore,
+          impactLevel: article.impactLevel,
+          tags: article.tags || [],
+          viewCount: article.viewCount || 0,
+          isBreaking: article.isBreaking || false,
+        }));
+        
+        // Cache the results
+        setEntityNewsCache(prev => ({ ...prev, [cacheKey]: mappedNews }));
+        return mappedNews;
+      }
+    } catch (error) {
+      console.error('Error fetching entity news:', error);
+    }
+
+    return localNews;
+  }, [news, entityNewsCache]);
 
   const getNewsByFilter = useCallback((filter: NewsFilter): NewsArticle[] => {
     return news.filter(article => {

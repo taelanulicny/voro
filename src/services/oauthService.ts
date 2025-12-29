@@ -31,12 +31,18 @@ export const loginWithGoogle = async (): Promise<OAuthResult> => {
       };
     }
 
-    // Create a redirect URI
+    // Create a redirect URI - use Expo's auth proxy for better compatibility
     const redirectUri = AuthSession.makeRedirectUri({
-      scheme: 'moro', // Match the scheme in app.json
+      scheme: 'moro',
+      // Use Expo's proxy for better reliability in development
+      useProxy: true,
     });
 
+    console.log('=== GOOGLE OAUTH DEBUG ===');
     console.log('Redirect URI:', redirectUri);
+    console.log('Client ID:', clientId);
+    console.log('Add this redirect URI to Google Cloud Console!');
+    console.log('========================');
 
     // Create the auth request with Code flow (more reliable)
     const request = new AuthSession.AuthRequest({
@@ -56,8 +62,8 @@ export const loginWithGoogle = async (): Promise<OAuthResult> => {
       revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
     };
 
-    // Start the authentication flow
-    const result = await request.promptAsync(discovery);
+    // Start the authentication flow with Expo proxy for better compatibility
+    const result = await request.promptAsync(discovery, { useProxy: true });
 
     if (result.type === 'cancel') {
       return {

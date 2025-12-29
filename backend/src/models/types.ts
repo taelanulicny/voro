@@ -17,6 +17,9 @@ export interface User {
   privacyPolicyAccepted?: boolean;
   privacyPolicyAcceptedAt?: string;
   onboardingCompleted?: boolean;
+  // OAuth provider IDs
+  googleId?: string;
+  appleId?: string;
   createdAt: string;
   updatedAt: string;
 }

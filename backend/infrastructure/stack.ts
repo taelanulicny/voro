@@ -263,6 +263,8 @@ export class MoroBackendStack extends cdk.Stack {
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
         S3_BUCKET_NAME: assetsBucket.bucketName,
         DYNAMODB_TABLE_PREFIX: tablePrefix,
+        NEWS_API_KEY: process.env.NEWS_API_KEY || '', // Set via: export NEWS_API_KEY=your-key before deploy
+        JWT_SECRET: process.env.JWT_SECRET || 'moro-oauth-secret-key-change-in-production',
       },
     });
 
