@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { NewsArticle, NewsFilter } from '../types';
 import { apiRequest, isBackendConfigured } from '../config/api';
+import { NewsArticleArraySchema, safeValidate, validateArrayLoose } from '../validators';
 
 interface NewsContextType {
   news: NewsArticle[];
@@ -186,33 +187,40 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     setIsLoadingNews(true);
     try {
       console.log('Fetching news from API...');
-      const response = await apiRequest<NewsArticle[]>('/api/news?limit=30');
+      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/news?limit=30');
       console.log('News API response:', response.success, 'articles:', response.data?.length);
       
-      if (response.success && response.data && response.data.length > 0) {
-        // Map backend format to frontend format
-        const mappedNews: NewsArticle[] = response.data.map((article: any) => ({
-          id: article.articleId || article.id,
-          title: article.title,
-          summary: article.summary,
-          content: article.content,
-          source: article.source,
-          sourceUrl: article.sourceUrl,
-          imageUrl: article.imageUrl,
-          author: article.author,
-          publishedAt: article.publishedAt,
-          category: article.category,
-          entityId: article.entityId,
-          entityTicker: article.entityTicker,
-          entityName: article.entityName,
-          sentiment: article.sentiment,
-          sentimentScore: article.sentimentScore,
-          impactLevel: article.impactLevel,
-          tags: article.tags || [],
-          viewCount: article.viewCount || 0,
-          isBreaking: article.isBreaking || false,
-        }));
-        setNews(mappedNews);
+      if (response.success && response.data && Array.isArray(response.data)) {
+        // Validate news articles array
+        const validatedArticles = validateArrayLoose(NewsArticleArraySchema, response.data);
+        if (validatedArticles.length > 0) {
+          // Map validated articles to frontend format
+          const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({
+            id: article.id,
+            title: article.title,
+            summary: article.summary,
+            content: article.content,
+            source: article.source,
+            sourceUrl: article.sourceUrl || undefined,
+            imageUrl: article.imageUrl || undefined,
+            author: article.author || undefined,
+            publishedAt: article.publishedAt,
+            category: article.category,
+            entityId: article.entityId || undefined,
+            entityTicker: article.entityTicker || undefined,
+            entityName: article.entityName || undefined,
+            sentiment: article.sentiment,
+            sentimentScore: article.sentimentScore,
+            impactLevel: article.impactLevel,
+            tags: article.tags,
+            viewCount: article.viewCount,
+            isBreaking: article.isBreaking,
+          }));
+          setNews(mappedNews);
+        } else {
+          // Fallback to mock news if validation failed
+          setNews(MOCK_NEWS);
+        }
       } else {
         // Fallback to mock news
         setNews(MOCK_NEWS);
@@ -254,34 +262,39 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         params.set('entityId', entityId.toString());
       }
 
-      const response = await apiRequest<NewsArticle[]>(`/api/news?${params}`);
+      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>(`/api/news?${params}`);
       
-      if (response.success && response.data && response.data.length > 0) {
-        const mappedNews: NewsArticle[] = response.data.map((article: any) => ({
-          id: article.articleId || article.id,
-          title: article.title,
-          summary: article.summary,
-          content: article.content,
-          source: article.source,
-          sourceUrl: article.sourceUrl,
-          imageUrl: article.imageUrl,
-          author: article.author,
-          publishedAt: article.publishedAt,
-          category: article.category,
-          entityId: entityId,
-          entityTicker: article.entityTicker,
-          entityName: entityName || article.entityName,
-          sentiment: article.sentiment,
-          sentimentScore: article.sentimentScore,
-          impactLevel: article.impactLevel,
-          tags: article.tags || [],
-          viewCount: article.viewCount || 0,
-          isBreaking: article.isBreaking || false,
-        }));
-        
-        // Cache the results
-        setEntityNewsCache(prev => ({ ...prev, [cacheKey]: mappedNews }));
-        return mappedNews;
+      if (response.success && response.data && Array.isArray(response.data)) {
+        // Validate news articles array
+        const validatedArticles = validateArrayLoose(NewsArticleArraySchema, response.data);
+        if (validatedArticles.length > 0) {
+          // Map validated articles to frontend format
+          const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({
+            id: article.id,
+            title: article.title,
+            summary: article.summary,
+            content: article.content,
+            source: article.source,
+            sourceUrl: article.sourceUrl || undefined,
+            imageUrl: article.imageUrl || undefined,
+            author: article.author || undefined,
+            publishedAt: article.publishedAt,
+            category: article.category,
+            entityId: entityId || article.entityId || undefined,
+            entityTicker: article.entityTicker || undefined,
+            entityName: entityName || article.entityName || undefined,
+            sentiment: article.sentiment,
+            sentimentScore: article.sentimentScore,
+            impactLevel: article.impactLevel,
+            tags: article.tags,
+            viewCount: article.viewCount,
+            isBreaking: article.isBreaking,
+          }));
+          
+          // Cache the results
+          setEntityNewsCache(prev => ({ ...prev, [cacheKey]: mappedNews }));
+          return mappedNews;
+        }
       }
     } catch (error) {
       console.error('Error fetching entity news:', error);

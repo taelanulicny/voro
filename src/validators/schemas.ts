@@ -132,6 +132,137 @@ export type ValidatedNewsArticle = z.infer<typeof NewsArticleSchema>;
 export const NewsArticleArraySchema = z.array(NewsArticleSchema);
 
 // ============================================
+// Transaction Schemas
+// ============================================
+
+export const TransactionSchema = z.object({
+  // Backend uses transactionId, frontend uses id - accept both
+  id: z.string().optional(),
+  transactionId: z.string().optional(),
+  entityId: z.number(),
+  entityName: z.string(),
+  entityTicker: z.string(),
+  type: z.enum(['buy', 'sell']),
+  quantity: z.number().positive(),
+  pricePerToken: z.number().positive(),
+  totalAmount: z.number().positive(),
+  timestamp: z.string(),
+  category: z.string(),
+}).transform((data) => ({
+  ...data,
+  // Normalize id field
+  id: data.transactionId || data.id || '',
+}));
+
+export type ValidatedTransaction = z.infer<typeof TransactionSchema>;
+
+export const TransactionArraySchema = z.array(TransactionSchema);
+
+export const TransactionsResponseSchema = z.object({
+  transactions: TransactionArraySchema,
+  lastEvaluatedKey: z.string().optional().nullable(),
+});
+
+// ============================================
+// Portfolio Schemas
+// ============================================
+
+export const HoldingSchema = z.object({
+  entityId: z.number(),
+  entityName: z.string(),
+  entityTicker: z.string(),
+  quantity: z.number().nonnegative(),
+  averageCost: z.number().nonnegative(),
+  currentPrice: z.number().nonnegative(),
+  totalValue: z.number().nonnegative(),
+  totalCost: z.number().nonnegative(),
+  profitLoss: z.number(),
+  profitLossPercent: z.number(),
+  category: z.string(),
+});
+
+export type ValidatedHolding = z.infer<typeof HoldingSchema>;
+
+export const PortfolioSchema = z.object({
+  cashBalance: z.number().nonnegative(),
+  totalValue: z.number().nonnegative(),
+  holdings: z.array(HoldingSchema),
+  todayChange: z.number(),
+  todayChangePercent: z.number(),
+});
+
+export type ValidatedPortfolio = z.infer<typeof PortfolioSchema>;
+
+export const PortfolioResponseSchema = PortfolioSchema;
+
+// ============================================
+// Group Schemas
+// ============================================
+
+export const GroupSchema = z.object({
+  // Backend uses groupId, frontend uses id - accept both
+  id: z.string().optional(),
+  groupId: z.string().optional(),
+  name: z.string(),
+  description: z.string(),
+  category: z.string(),
+  memberCount: z.number().nonnegative().default(0),
+  isPrivate: z.boolean().default(false),
+  isMember: z.boolean().optional().default(false),
+  coverImage: z.string().url().optional().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string().optional(),
+  ownerId: z.string().optional(),
+}).transform((data) => ({
+  ...data,
+  // Normalize id field
+  id: data.groupId || data.id || '',
+}));
+
+export type ValidatedGroup = z.infer<typeof GroupSchema>;
+
+export const GroupArraySchema = z.array(GroupSchema);
+
+export const GroupsResponseSchema = z.object({
+  groups: GroupArraySchema,
+  lastEvaluatedKey: z.string().optional().nullable(),
+});
+
+export const GroupResponseSchema = z.object({
+  group: GroupSchema,
+});
+
+// ============================================
+// Watchlist Schemas
+// ============================================
+
+export const WatchlistItemSchema = z.object({
+  entityId: z.number(),
+  entityTicker: z.string().optional(),
+  entityName: z.string().optional(),
+  category: z.string().optional(),
+  addedAt: z.string().optional(),
+  currentPrice: z.number().optional(),
+  change24h: z.number().optional(),
+  changePercent24h: z.number().optional(),
+});
+
+export type ValidatedWatchlistItem = z.infer<typeof WatchlistItemSchema>;
+
+export const WatchlistArraySchema = z.array(WatchlistItemSchema);
+
+export const WatchlistResponseSchema = z.array(WatchlistItemSchema);
+
+// ============================================
+// Entities Response Schema
+// ============================================
+
+export const EntitiesResponseSchema = z.object({
+  success: z.boolean().optional(),
+  data: z.array(EntitySchema),
+});
+
+// ============================================
 // API Response Schemas
 // ============================================
 
@@ -145,6 +276,30 @@ export const CommentsResponseSchema = z.array(CommentSchema);
 export const EntityPricesResponseSchema = z.record(z.string(), z.number());
 
 // ============================================
+// Backend Entity Schema (different from frontend Entity)
+// ============================================
+
+export const BackendEntitySchema = z.object({
+  entityId: z.number(),
+  ticker: z.string(),
+  name: z.string(),
+  category: z.string(),
+  basePrice: z.number(),
+  description: z.string().optional(),
+  logoUrl: z.string().url().optional().nullable(),
+  createdAt: z.string().optional(),
+  currentPrice: z.number().optional(),
+  change24h: z.number().optional(),
+  changePercent24h: z.number().optional(),
+  volume24h: z.number().optional(),
+  marketCap: z.number().optional(),
+});
+
+export type ValidatedBackendEntity = z.infer<typeof BackendEntitySchema>;
+
+export const BackendEntityArraySchema = z.array(BackendEntitySchema);
+
+// ============================================
 // Validation Helpers
 // ============================================
 
@@ -152,11 +307,20 @@ export const EntityPricesResponseSchema = z.record(z.string(), z.number());
  * Safely validate data with a schema, returning null on failure
  */
 export function safeValidate<T>(schema: z.ZodSchema<T>, data: unknown): T | null {
+  // Early return if data is undefined or null (unless schema allows it)
+  if (data === undefined || data === null) {
+    return null;
+  }
+  
   try {
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.warn('Validation failed:', error.errors);
+      // Only log validation errors in development to reduce noise
+      if (__DEV__) {
+        const errorDetails = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+        console.debug('Validation failed:', errorDetails);
+      }
     }
     return null;
   }
@@ -181,7 +345,13 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
  * Validate an array, filtering out invalid items instead of throwing
  */
 export function validateArrayLoose<T>(schema: z.ZodSchema<T>, data: unknown[]): T[] {
+  // Early return if data is not an array
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  
   return data
+    .filter(item => item !== undefined && item !== null) // Filter out undefined/null first
     .map(item => safeValidate(schema, item))
     .filter((item): item is T => item !== null);
 }

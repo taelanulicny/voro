@@ -2,7 +2,16 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
-import { PostSchema, CommentSchema, validateArrayLoose, safeValidate, FeedResponseSchema } from '../validators';
+import {
+  PostSchema,
+  CommentSchema,
+  validateArrayLoose,
+  safeValidate,
+  FeedResponseSchema,
+  GroupsResponseSchema,
+  GroupResponseSchema,
+  ValidatedGroup,
+} from '../validators';
 
 interface SocialContextType {
   // Posts state
@@ -289,22 +298,23 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     },
   ];
 
-  // Helper to map backend post format to frontend format
-  const mapBackendPost = (p: any): Post => ({
-    id: p.postId || p.id,
+  // Helper to map validated post format to frontend format
+  const mapValidatedPost = (p: ReturnType<typeof PostSchema.parse>): Post => ({
+    id: p.id,
     userId: p.userId,
     username: p.username,
     displayName: p.displayName,
-    avatarUrl: p.avatarUrl,
+    avatarUrl: p.avatarUrl || undefined,
     content: p.content,
-    entityId: p.entityId,
-    entityTicker: p.entityTicker,
-    entityName: p.entityName,
-    sentiment: p.sentiment,
-    likes: p.likes || 0,
-    comments: p.comments || 0,
-    isLiked: p.isLiked || false,
-    isBookmarked: p.isBookmarked || false,
+    entityId: p.entityId || undefined,
+    entityTicker: p.entityTicker || undefined,
+    entityName: p.entityName || undefined,
+    sentiment: p.sentiment || undefined,
+    images: p.images,
+    likes: p.likes,
+    comments: p.comments,
+    isLiked: p.isLiked,
+    isBookmarked: p.isBookmarked,
     timestamp: p.timestamp,
   });
 
@@ -329,21 +339,20 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoadingFeed(true);
       const response = await authenticatedRequest<{
-        posts: any[];
+        posts?: unknown[];
         lastEvaluatedKey?: string;
       }>('/api/social/feed?limit=20', token, {
         method: 'GET',
       });
 
-      if (response.success && response.data && response.data.posts.length > 0) {
-        // Validate posts - filter out invalid ones instead of failing completely
-        const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
-
-        if (validatedPosts.length > 0) {
-          const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
+      if (response.success && response.data) {
+        // Validate feed response
+        const validatedResponse = safeValidate(FeedResponseSchema, response.data);
+        if (validatedResponse && validatedResponse.posts.length > 0) {
+          const mappedPosts = validatedResponse.posts.map(mapValidatedPost);
           setActivityFeed(mappedPosts);
-          setLastKey(response.data.lastEvaluatedKey || null);
-          setHasMorePosts(!!response.data.lastEvaluatedKey);
+          setLastKey(validatedResponse.lastEvaluatedKey || null);
+          setHasMorePosts(!!validatedResponse.lastEvaluatedKey);
         } else {
           console.warn('All posts failed validation');
           setActivityFeed([]);
@@ -381,21 +390,20 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoadingMore(true);
       const response = await authenticatedRequest<{
-        posts: any[];
+        posts?: unknown[];
         lastEvaluatedKey?: string;
       }>(`/api/social/feed?limit=20&lastKey=${encodeURIComponent(lastKey)}`, token, {
         method: 'GET',
       });
 
-      if (response.success && response.data && response.data.posts.length > 0) {
-        // Validate posts - filter out invalid ones
-        const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
-
-        if (validatedPosts.length > 0) {
-          const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
+      if (response.success && response.data) {
+        // Validate feed response
+        const validatedResponse = safeValidate(FeedResponseSchema, response.data);
+        if (validatedResponse && validatedResponse.posts.length > 0) {
+          const mappedPosts = validatedResponse.posts.map(mapValidatedPost);
           setActivityFeed(prev => [...prev, ...mappedPosts]);
-          setLastKey(response.data.lastEvaluatedKey || null);
-          setHasMorePosts(!!response.data.lastEvaluatedKey);
+          setLastKey(validatedResponse.lastEvaluatedKey || null);
+          setHasMorePosts(!!validatedResponse.lastEvaluatedKey);
         } else {
           setHasMorePosts(false);
           setLastKey(null);
@@ -436,38 +444,30 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Backend returns postId, but frontend uses id - use any for flexibility
-      const response = await authenticatedRequest<any>('/api/social/posts', token, {
+      // Backend returns post
+      const response = await authenticatedRequest<{ post?: unknown }>('/api/social/posts', token, {
         method: 'POST',
         body: JSON.stringify(params),
       });
 
       if (response.success && response.data) {
-        const newPost: Post = {
-          id: response.data.postId || response.data.id,
-          userId: response.data.userId,
-          username: response.data.username,
-          displayName: response.data.displayName,
-          avatarUrl: response.data.avatarUrl,
-          content: response.data.content,
-          entityId: response.data.entityId,
-          entityTicker: response.data.entityTicker,
-          entityName: response.data.entityName,
-          sentiment: response.data.sentiment,
-          likes: response.data.likes || 0,
-          comments: response.data.comments || 0,
-          isLiked: false,
-          isBookmarked: false,
-          timestamp: response.data.timestamp,
-        };
-
-        setActivityFeed(prev => [newPost, ...prev]);
-        return { success: true, post: newPost };
+        // Validate post response
+        const postData = (response.data as { post?: unknown }).post || response.data;
+        const validatedPost = safeValidate(PostSchema, postData);
+        if (validatedPost) {
+          const newPost = mapValidatedPost(validatedPost);
+          setActivityFeed(prev => [newPost, ...prev]);
+          return { success: true, post: newPost };
+        } else {
+          console.warn('Invalid post response format');
+          return { success: false, error: 'Invalid response format' };
+        }
       }
 
       return { success: false, error: response.error || 'Failed to create post' };
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Failed to create post' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create post';
+      return { success: false, error: errorMessage };
     }
   }, [token, user]);
 
@@ -579,7 +579,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     if (!token) return;
 
     try {
-      const response = await authenticatedRequest<any[]>(
+      const response = await authenticatedRequest<unknown[]>(
         `/api/social/posts/${postId}/comments`,
         token,
         {
@@ -591,16 +591,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         // Validate comments - filter out invalid ones
         const validatedComments = validateArrayLoose(CommentSchema, response.data);
 
-        const mappedComments: Comment[] = validatedComments.map((c: any) => ({
-          id: c.commentId || c.id,
+        const mappedComments: Comment[] = validatedComments.map((c) => ({
+          id: c.id,
           postId: c.postId,
           userId: c.userId,
           username: c.username,
           displayName: c.displayName,
-          avatarUrl: c.avatarUrl,
+          avatarUrl: c.avatarUrl || undefined,
           content: c.content,
-          likes: c.likes || 0,
-          isLiked: c.isLiked || false,
+          likes: c.likes,
+          isLiked: c.isLiked,
           timestamp: c.timestamp,
         }));
 
@@ -617,8 +617,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Backend returns commentId, but frontend uses id - use any for flexibility
-      const response = await authenticatedRequest<any>(
+      // Backend returns comment
+      const response = await authenticatedRequest<{ comment?: unknown }>(
         `/api/social/posts/${postId}/comments`,
         token,
         {
@@ -628,29 +628,37 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        const newComment: Comment = {
-          id: response.data.commentId || response.data.id,
-          postId: response.data.postId,
-          userId: response.data.userId,
-          username: response.data.username,
-          displayName: response.data.displayName,
-          avatarUrl: response.data.avatarUrl,
-          content: response.data.content,
-          likes: response.data.likes || 0,
-          isLiked: false,
-          timestamp: response.data.timestamp,
-        };
+        // Validate comment response
+        const commentData = (response.data as { comment?: unknown }).comment || response.data;
+        const validatedComment = safeValidate(CommentSchema, commentData);
+        if (validatedComment) {
+          const newComment: Comment = {
+            id: validatedComment.id,
+            postId: validatedComment.postId,
+            userId: validatedComment.userId,
+            username: validatedComment.username,
+            displayName: validatedComment.displayName,
+            avatarUrl: validatedComment.avatarUrl || undefined,
+            content: validatedComment.content,
+            likes: validatedComment.likes,
+            isLiked: validatedComment.isLiked,
+            timestamp: validatedComment.timestamp,
+          };
 
-        setPostComments(prev => ({
-          ...prev,
-          [postId]: [...(prev[postId] || []), newComment],
-        }));
+          setPostComments(prev => ({
+            ...prev,
+            [postId]: [...(prev[postId] || []), newComment],
+          }));
 
-        setActivityFeed(prev =>
-          prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
-        );
+          setActivityFeed(prev =>
+            prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
+          );
 
-        return { success: true, comment: newComment };
+          return { success: true, comment: newComment };
+        } else {
+          console.warn('Invalid comment response format');
+          return { success: false };
+        }
       }
 
       return { success: false };
@@ -748,17 +756,17 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     [followedUsers]
   );
 
-  // Helper to map backend group to frontend Group type
-  const mapBackendGroup = (backendGroup: any): Group => ({
-    id: backendGroup.groupId,
-    name: backendGroup.name,
-    description: backendGroup.description,
-    category: backendGroup.category,
-    memberCount: backendGroup.memberCount || 0,
-    isPrivate: backendGroup.isPrivate || false,
-    isMember: backendGroup.isMember || false,
-    coverImage: backendGroup.coverImage,
-    createdAt: backendGroup.createdAt,
+  // Helper to map validated group to frontend Group type
+  const mapValidatedGroup = (validatedGroup: ValidatedGroup): Group => ({
+    id: validatedGroup.id,
+    name: validatedGroup.name,
+    description: validatedGroup.description,
+    category: validatedGroup.category,
+    memberCount: validatedGroup.memberCount,
+    isPrivate: validatedGroup.isPrivate,
+    isMember: validatedGroup.isMember,
+    coverImage: validatedGroup.coverImage || undefined,
+    createdAt: validatedGroup.createdAt,
   });
 
   const refreshGroups = useCallback(async () => {
@@ -771,15 +779,22 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       }
 
       const response = await authenticatedRequest<{
-        groups: any[];
+        groups?: unknown[];
         lastEvaluatedKey?: string;
       }>('/api/groups?limit=50', token, {
         method: 'GET',
       });
 
-      if (response.success && response.data && response.data.groups) {
-        const mappedGroups = response.data.groups.map(mapBackendGroup);
-        setGroups(mappedGroups);
+      if (response.success && response.data) {
+        // Validate groups response
+        const validatedResponse = safeValidate(GroupsResponseSchema, response.data);
+        if (validatedResponse) {
+          const mappedGroups = validatedResponse.groups.map(mapValidatedGroup);
+          setGroups(mappedGroups);
+        } else {
+          console.warn('Invalid groups response format');
+          setGroups([]);
+        }
       } else {
         // Fallback to mock if backend fails
         setGroups(MOCK_GROUPS);
@@ -828,16 +843,23 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      if (response.success && response.data && response.data.group) {
-        const mappedGroup = mapBackendGroup({ ...response.data.group, isMember: true });
-        setGroups(prev => [mappedGroup, ...prev]);
-        return { success: true, group: mappedGroup };
+      if (response.success && response.data) {
+        // Validate group response
+        const validatedResponse = safeValidate(GroupResponseSchema, response.data);
+        if (validatedResponse) {
+          const mappedGroup = mapValidatedGroup({ ...validatedResponse.group, isMember: true });
+          setGroups(prev => [mappedGroup, ...prev]);
+          return { success: true, group: mappedGroup };
+        } else {
+          console.warn('Invalid group response format');
+        }
       }
 
       return { success: false, error: 'Failed to create group' };
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating group:', error);
-      return { success: false, error: error.message || 'Failed to create group' };
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create group';
+      return { success: false, error: errorMessage };
     }
   }, [token, isAuthenticated]);
 

@@ -3,6 +3,13 @@ import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, apiRequest, isBackendConfigured } from '../config/api';
 import { useAuth } from './AuthContext';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
+import {
+  PortfolioResponseSchema,
+  TransactionsResponseSchema,
+  BackendEntityArraySchema,
+  safeValidate,
+  validateArrayLoose,
+} from '../validators';
 
 interface TradingContextType {
   portfolio: Portfolio;
@@ -121,17 +128,23 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (response.success && response.data) {
-        setCashBalance(response.data.cashBalance);
-        setHoldings(response.data.holdings);
-        setTodayChange(response.data.todayChange);
-        setTodayChangePercent(response.data.todayChangePercent);
+        // Validate portfolio response
+        const validatedPortfolio = safeValidate(PortfolioResponseSchema, response.data);
+        if (validatedPortfolio) {
+          setCashBalance(validatedPortfolio.cashBalance);
+          setHoldings(validatedPortfolio.holdings);
+          setTodayChange(validatedPortfolio.todayChange);
+          setTodayChangePercent(validatedPortfolio.todayChangePercent);
 
-        // Update entity prices from holdings
-        const prices: Record<number, number> = {};
-        response.data.holdings.forEach((holding) => {
-          prices[holding.entityId] = holding.currentPrice;
-        });
-        setEntityPrices((prev) => ({ ...prev, ...prices }));
+          // Update entity prices from holdings
+          const prices: Record<number, number> = {};
+          validatedPortfolio.holdings.forEach((holding) => {
+            prices[holding.entityId] = holding.currentPrice;
+          });
+          setEntityPrices((prev) => ({ ...prev, ...prices }));
+        } else {
+          console.warn('Invalid portfolio response format');
+        }
       } else if (response.error && response.error.includes('not configured')) {
         // Backend not configured - use default values
         console.log('Backend not configured, using default portfolio values');
@@ -157,20 +170,25 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (response.success && response.data) {
-        // Map backend transaction format to frontend format
-        const mappedTransactions: UserTransaction[] = response.data.transactions.map((t: any) => ({
-          id: t.transactionId || t.id,
-          entityId: t.entityId,
-          entityName: t.entityName,
-          entityTicker: t.entityTicker,
-          type: t.type,
-          quantity: t.quantity,
-          pricePerToken: t.pricePerToken,
-          totalAmount: t.totalAmount,
-          timestamp: t.timestamp,
-          category: t.category,
-        }));
-        setTransactions(mappedTransactions);
+        // Validate transactions response
+        const validatedResponse = safeValidate(TransactionsResponseSchema, response.data);
+        if (validatedResponse) {
+          const mappedTransactions: UserTransaction[] = validatedResponse.transactions.map((t) => ({
+            id: t.id,
+            entityId: t.entityId,
+            entityName: t.entityName,
+            entityTicker: t.entityTicker,
+            type: t.type,
+            quantity: t.quantity,
+            pricePerToken: t.pricePerToken,
+            totalAmount: t.totalAmount,
+            timestamp: t.timestamp,
+            category: t.category,
+          }));
+          setTransactions(mappedTransactions);
+        } else {
+          console.warn('Invalid transactions response format');
+        }
       }
     } catch (error) {
       // Silently handle errors - don't crash the app
@@ -184,17 +202,23 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       // Use apiRequest (not authenticated) since entities are public
-      const response = await apiRequest<any[]>('/api/entities', {
+      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/entities', {
         method: 'GET',
       });
 
       if (response.success && response.data) {
-        const prices: Record<number, number> = {};
-        response.data.forEach((entity: any) => {
-          prices[entity.entityId] = entity.currentPrice || entity.basePrice;
-        });
-        setEntityPrices(prices);
-        setLastPriceUpdateTime(Date.now());
+        // Ensure response.data is an array before validating
+        const dataArray = Array.isArray(response.data) ? response.data : [];
+        // BackendEntityArraySchema is already an array schema, so use safeValidate
+        const validatedEntities = safeValidate(BackendEntityArraySchema, dataArray);
+        if (validatedEntities && validatedEntities.length > 0) {
+          const prices: Record<number, number> = {};
+          validatedEntities.forEach((entity) => {
+            prices[entity.entityId] = entity.currentPrice || entity.basePrice;
+          });
+          setEntityPrices(prices);
+          setLastPriceUpdateTime(Date.now());
+        }
       }
     } catch (error) {
       // Silently handle errors - don't crash the app
@@ -365,6 +389,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       return entityPrices[entityId];
     }
     // Fallback: calculate price with 3-5% move from basePrice
+    // Don't update state here - just return the calculated price
+    // State updates should happen in useEffect, not during render
     const entity = MOCK_ENTITIES.find(e => e.id === entityId);
     if (entity) {
       // Use entity ID to determine a consistent change percentage (alternating pattern)
@@ -373,8 +399,6 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       let price = entity.basePrice * (1 + cappedChangePercent / 100);
       price = Math.max(80, Math.min(200, price));
       price = Math.round(price * 100) / 100;
-      // Cache it
-      setEntityPrices(prev => ({ ...prev, [entityId]: price }));
       return price;
     }
     return 100; // Ultimate fallback
