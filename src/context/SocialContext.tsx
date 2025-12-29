@@ -8,14 +8,14 @@ interface SocialContextType {
   // Posts state
   activityFeed: Post[];
   isLoadingFeed: boolean;
-  
+
   // Pagination state
   hasMorePosts: boolean;
   isLoadingMore: boolean;
 
   // Comments state
   postComments: Record<string, Comment[]>;
-  
+
   // Groups state
   groups: Group[];
   isLoadingGroups: boolean;
@@ -40,7 +40,7 @@ interface SocialContextType {
   // Feed actions
   refreshActivityFeed: () => Promise<void>;
   loadMorePosts: () => Promise<void>;
-  
+
   // Comment actions
   getComments: (postId: string) => Promise<void>;
   addComment: (postId: string, content: string) => Promise<{ success: boolean; comment?: Comment }>;
@@ -93,7 +93,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
-  
+
   // Pagination state
   const [lastKey, setLastKey] = useState<string | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
@@ -338,21 +338,21 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data && response.data.posts.length > 0) {
         // Validate posts - filter out invalid ones instead of failing completely
         const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
-        
+
         if (validatedPosts.length > 0) {
           const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
           setActivityFeed(mappedPosts);
           setLastKey(response.data.lastEvaluatedKey || null);
           setHasMorePosts(!!response.data.lastEvaluatedKey);
         } else {
-          console.warn('All posts failed validation, using mock data');
-          setActivityFeed(MOCK_POSTS);
+          console.warn('All posts failed validation');
+          setActivityFeed([]);
           setHasMorePosts(false);
           setLastKey(null);
         }
       } else {
-        // Use mock posts if backend returns empty
-        setActivityFeed(MOCK_POSTS);
+        // Backend returned empty (no posts yet)
+        setActivityFeed([]);
         setHasMorePosts(false);
         setLastKey(null);
       }
@@ -390,7 +390,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data && response.data.posts.length > 0) {
         // Validate posts - filter out invalid ones
         const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
-        
+
         if (validatedPosts.length > 0) {
           const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
           setActivityFeed(prev => [...prev, ...mappedPosts]);
@@ -427,8 +427,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     sentiment?: 'positive' | 'negative' | 'neutral';
   }) => {
     if (!token || !user) {
-        return { success: false, error: 'User not authenticated' };
-      }
+      return { success: false, error: 'User not authenticated' };
+    }
 
     if (!isBackendConfigured()) {
       return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
@@ -442,7 +442,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.success && response.data) {
-      const newPost: Post = {
+        const newPost: Post = {
           id: response.data.postId || response.data.id,
           userId: response.data.userId,
           username: response.data.username,
@@ -455,13 +455,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           sentiment: response.data.sentiment,
           likes: response.data.likes || 0,
           comments: response.data.comments || 0,
-        isLiked: false,
-        isBookmarked: false,
+          isLiked: false,
+          isBookmarked: false,
           timestamp: response.data.timestamp,
-      };
-      
-      setActivityFeed(prev => [newPost, ...prev]);
-      return { success: true, post: newPost };
+        };
+
+        setActivityFeed(prev => [newPost, ...prev]);
+        return { success: true, post: newPost };
       }
 
       return { success: false, error: response.error || 'Failed to create post' };
@@ -487,16 +487,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data) {
         setActivityFeed(prev =>
           prev.map(post =>
-      post.id === postId 
+            post.id === postId
               ? {
-                  ...post,
-                  isLiked: response.data!.isLiked,
-                  likes: response.data!.isLiked ? post.likes + 1 : post.likes - 1,
-                }
-        : post
+                ...post,
+                isLiked: response.data!.isLiked,
+                likes: response.data!.isLiked ? post.likes + 1 : post.likes - 1,
+              }
+              : post
           )
         );
-    return { success: true };
+        return { success: true };
       }
 
       return { success: false };
@@ -589,7 +589,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data) {
         // Validate comments - filter out invalid ones
         const validatedComments = validateArrayLoose(CommentSchema, response.data);
-        
+
         const mappedComments: Comment[] = validatedComments.map((c: any) => ({
           id: c.commentId || c.id,
           postId: c.postId,
@@ -604,7 +604,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         }));
 
         setPostComments(prev => ({ ...prev, [postId]: mappedComments }));
-    }
+      }
     } catch (error) {
       console.error('Error fetching comments:', error);
     }
@@ -627,7 +627,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-    const newComment: Comment = {
+        const newComment: Comment = {
           id: response.data.commentId || response.data.id,
           postId: response.data.postId,
           userId: response.data.userId,
@@ -636,20 +636,20 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           avatarUrl: response.data.avatarUrl,
           content: response.data.content,
           likes: response.data.likes || 0,
-      isLiked: false,
+          isLiked: false,
           timestamp: response.data.timestamp,
-    };
-    
-    setPostComments(prev => ({
-      ...prev,
-      [postId]: [...(prev[postId] || []), newComment],
-    }));
-    
+        };
+
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), newComment],
+        }));
+
         setActivityFeed(prev =>
           prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
         );
-    
-    return { success: true, comment: newComment };
+
+        return { success: true, comment: newComment };
       }
 
       return { success: false };
@@ -678,10 +678,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           [postId]: (prev[postId] || []).map(comment =>
             comment.id === commentId
               ? {
-                  ...comment,
-                  isLiked: response.data!.isLiked,
-                  likes: response.data!.isLiked ? comment.likes + 1 : comment.likes - 1,
-                }
+                ...comment,
+                isLiked: response.data!.isLiked,
+                likes: response.data!.isLiked ? comment.likes + 1 : comment.likes - 1,
+              }
               : comment
           ),
         }));
@@ -696,10 +696,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         [postId]: (prev[postId] || []).map(comment =>
           comment.id === commentId
             ? {
-                ...comment,
-                isLiked: !comment.isLiked,
-                likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
-              }
+              ...comment,
+              isLiked: !comment.isLiked,
+              likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
+            }
             : comment
         ),
       }));
@@ -722,16 +722,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-    setFollowedUsers(prev => {
-      const newSet = new Set(prev);
+        setFollowedUsers(prev => {
+          const newSet = new Set(prev);
           if (response.data!.isFollowing) {
             newSet.add(userId);
           } else {
-        newSet.delete(userId);
-      }
-      return newSet;
-    });
-    return { success: true };
+            newSet.delete(userId);
+          }
+          return newSet;
+        });
+        return { success: true };
       }
 
       return { success: false };
@@ -742,7 +742,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
   const isFollowingUser = useCallback(
     (userId: string) => {
-    return followedUsers.has(userId);
+      return followedUsers.has(userId);
     },
     [followedUsers]
   );
@@ -771,7 +771,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       isMember: true,
       createdAt: new Date().toISOString(),
     };
-    
+
     setGroups(prev => [newGroup, ...prev]);
     return { success: true, group: newGroup };
   }, []);
@@ -780,9 +780,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     // TODO: Implement groups in backend
     setGroups(prev =>
       prev.map(group =>
-      group.id === groupId
-        ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
-        : group
+        group.id === groupId
+          ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
+          : group
       )
     );
     return { success: true };
@@ -792,9 +792,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     // TODO: Implement groups in backend
     setGroups(prev =>
       prev.map(group =>
-      group.id === groupId
-        ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
-        : group
+        group.id === groupId
+          ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
+          : group
       )
     );
     return { success: true };
