@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   TextInput,
   Alert,
   FlatList,
+  Animated,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,11 +20,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList, MainTabParamList, Entity } from '../types';
+import { LineChart } from 'react-native-chart-kit';
+import { RootStackParamList, MainTabParamList, Entity, PriceDataPoint } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useSideMenu } from '../context/SideMenuContext';
+import { useSocial } from '../context/SocialContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { getEntityById, getAllEntities, MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
@@ -41,11 +45,17 @@ export default function HomeScreen() {
   const { theme } = useTheme();
   const { watchlist } = useWatchlist();
   const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
+  const { activityFeed } = useSocial();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('Trending');
+  const [selectedCategory, setSelectedCategory] = useState<string>('For You');
   const [addedCategories, setAddedCategories] = useState<string[]>([]);
   
-  const categories = ['Trending', 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
+  // Swipeable section state
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const swipeableScrollRef = useRef<ScrollView>(null);
+  const TOTAL_PAGES = 5;
+  
+  const categories = ['For You', 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
   const customizableCategories = ['Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
   
   // Get live entity prices
@@ -101,6 +111,89 @@ export default function HomeScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  // Calculate page width - full screen width since section has no padding
+  const PAGE_WIDTH = SCREEN_WIDTH;
+
+  // Handle swipeable section scroll
+  const handleSwipeableScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / PAGE_WIDTH);
+    
+    // Handle circular scrolling with duplicate pages
+    if (pageIndex === 0) {
+      setCurrentPageIndex(4);
+    } else if (pageIndex === TOTAL_PAGES + 1) {
+      setCurrentPageIndex(0);
+    } else if (pageIndex >= 1 && pageIndex <= TOTAL_PAGES) {
+      setCurrentPageIndex(pageIndex - 1);
+    }
+  };
+
+  // Handle scroll end for circular scrolling
+  const handleSwipeableScrollEnd = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / PAGE_WIDTH);
+    
+    if (pageIndex === 0) {
+      swipeableScrollRef.current?.scrollTo({ x: PAGE_WIDTH * TOTAL_PAGES, animated: false });
+      setCurrentPageIndex(4);
+    } else if (pageIndex === TOTAL_PAGES + 1) {
+      swipeableScrollRef.current?.scrollTo({ x: PAGE_WIDTH, animated: false });
+      setCurrentPageIndex(0);
+    } else if (pageIndex >= 1 && pageIndex <= TOTAL_PAGES) {
+      setCurrentPageIndex(pageIndex - 1);
+    }
+  };
+
+  // Initialize scroll position on mount
+  useEffect(() => {
+    setTimeout(() => {
+      swipeableScrollRef.current?.scrollTo({ x: PAGE_WIDTH, animated: false });
+    }, 100);
+  }, []);
+
+  // Helper to convert hex to rgba
+  const hexToRgba = (hex: string, opacity: number) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+
+  // Generate price history for comparison chart (last week, multiple points per day)
+  const generateComparisonPriceHistory = (entityId: number, basePrice: number, currentPrice: number): PriceDataPoint[] => {
+    const history: PriceDataPoint[] = [];
+    const now = Date.now();
+    
+    let price = basePrice + (Math.random() - 0.5) * 20;
+    const targetPrice = currentPrice;
+    const totalChange = targetPrice - price;
+    
+    const pointsPerDay = 6;
+    const totalPoints = 7 * pointsPerDay;
+    
+    for (let i = 0; i <= totalPoints; i++) {
+      const daysAgo = i / pointsPerDay;
+      const timestamp = now - daysAgo * 24 * 60 * 60 * 1000;
+      
+      const progress = i / totalPoints;
+      const interpolatedPrice = price + (totalChange * progress);
+      const variance = (Math.random() - 0.5) * 5;
+      const finalPrice = interpolatedPrice + variance;
+      
+      history.push({
+        timestamp,
+        price: Math.max(80, Math.min(220, finalPrice)),
+      });
+    }
+    
+    if (history.length > 0) {
+      history[history.length - 1].price = currentPrice;
+    }
+    
+    return history.reverse();
   };
 
   const handleHoldingPress = (entityId: number, category: string) => {
@@ -225,6 +318,78 @@ export default function HomeScreen() {
     });
   };
 
+  // Get top 3 influencers for comparison chart
+  const topInfluencers = useMemo(() => {
+    const top5 = getTopEntitiesForCategory('Influencers');
+    return top5.slice(0, 3);
+  }, [entityPrices, getEntityPrice]);
+
+  // Generate comparison chart data
+  const comparisonChartData = useMemo(() => {
+    if (topInfluencers.length < 3) return null;
+
+    const histories = topInfluencers.map(entity => ({
+      entity,
+      history: generateComparisonPriceHistory(
+        entity.id,
+        getEntityById(entity.id)?.basePrice || entity.currentPrice,
+        entity.currentPrice
+      ),
+    }));
+
+    const minTimestamp = Math.min(...histories.map(h => h.history[0]?.timestamp || Date.now()));
+    const alignedHistories = histories.map(({ entity, history }) => {
+      const filtered = history.filter(point => point.timestamp >= minTimestamp);
+      return { entity, history: filtered };
+    });
+
+    const labels: string[] = [];
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const now = Date.now();
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now - i * 24 * 60 * 60 * 1000);
+      labels.push(days[date.getDay()]);
+    }
+
+    const allDatasets = alignedHistories.map(({ entity, history }) => {
+      const data: number[] = [];
+      for (let day = 0; day < 7; day++) {
+        const targetTime = now - (6 - day) * 24 * 60 * 60 * 1000;
+        const closestPoint = history.reduce((prev, curr) => 
+          Math.abs(curr.timestamp - targetTime) < Math.abs(prev.timestamp - targetTime) ? curr : prev
+        );
+        data.push(closestPoint.price);
+      }
+      // Ensure the last data point is exactly the current price so the line ends at the correct position
+      if (data.length > 0) {
+        data[data.length - 1] = entity.currentPrice;
+      }
+      return data;
+    });
+
+    const colors = ['#1F2937', '#3B82F6', '#10B981'];
+
+    return {
+      labels: labels.slice(0, 7),
+      datasets: allDatasets.map((data, index) => ({
+        data,
+        color: (opacity = 1) => {
+          const color = colors[index] || '#6B7280';
+          if (color.startsWith('#')) {
+            const r = parseInt(color.slice(1, 3), 16);
+            const g = parseInt(color.slice(3, 5), 16);
+            const b = parseInt(color.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+          }
+          return color;
+        },
+        strokeWidth: 2,
+      })),
+      entities: topInfluencers,
+      colors,
+    };
+  }, [topInfluencers, getEntityPrice]);
+
   // Handle adding a category to home screen
   const handleAddCategory = (category: string) => {
     if (!addedCategories.includes(category)) {
@@ -236,6 +401,96 @@ export default function HomeScreen() {
   const handleRemoveCategory = (category: string) => {
     setAddedCategories(addedCategories.filter(c => c !== category));
   };
+
+  // Get top 3 most liked posts of the day (only posts with entityId)
+  const topLikedPosts = useMemo(() => {
+    const sorted = [...activityFeed]
+      .filter(post => post.entityId) // Only posts about entities
+      .sort((a, b) => b.likes - a.likes)
+      .slice(0, 3);
+    return sorted;
+  }, [activityFeed]);
+
+  // Get dates from this week (newest to oldest: today to 6 days ago)
+  const getDatesThisWeek = () => {
+    const dates: string[] = [];
+    const today = new Date();
+    for (let i = 0; i <= 6; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const year = date.getFullYear();
+      dates.push(`${month}/${day}/${year}`);
+    }
+    return dates;
+  };
+
+  // Static entity selection for "Discover New Additions" (same as DiscoverNewAdditionsScreen)
+  // Same entities are always shown, sorted by date (newest first)
+  const discoverNewAdditions = useMemo(() => {
+    const weekDates = getDatesThisWeek();
+    
+    // Fixed entity IDs (not random - these stay the same)
+    // Get 1 entity from Influencers (IDs 11-20) - using a fixed index
+    const influencers = MOCK_ENTITIES.filter(e => e.id >= 11 && e.id <= 20);
+    const fixedInfluencer = influencers[0]; // Always use first one
+    
+    // Get 1 entity from Music Artists (IDs 21-30) - using a fixed index
+    const musicArtists = MOCK_ENTITIES.filter(e => e.id >= 21 && e.id <= 30);
+    const fixedMusicArtist = musicArtists[0]; // Always use first one
+    
+    // Get 1 entity from Political Figures (IDs 31-39) - using a fixed index
+    const politicalFigures = MOCK_ENTITIES.filter(e => e.category === 'Politics' && e.id >= 31 && e.id <= 39);
+    const fixedPolitical = politicalFigures[0]; // Always use first one
+    
+    // Get 1 more entity from any of these categories - using a fixed index
+    const allCandidates = [...influencers, ...musicArtists, ...politicalFigures];
+    const fixedFourth = allCandidates[3]; // Always use same one
+    
+    const entities = [
+      fixedInfluencer,
+      fixedMusicArtist,
+      fixedPolitical,
+      fixedFourth,
+    ].filter(Boolean); // Remove any undefined values
+    
+    // Assign dates from this week to each entity (newest dates first)
+    const itemsWithDates = entities.map((entity, index) => ({
+      id: entity.id,
+      name: entity.name,
+      ticker: entity.ticker,
+      category: entity.category,
+      displayCategory: getDisplayCategory(entity.id, entity.category),
+      currentPrice: getEntityPrice(entity.id),
+      change24h: getEntityPrice(entity.id) - entity.basePrice,
+      changePercent24h: ((getEntityPrice(entity.id) - entity.basePrice) / entity.basePrice) * 100,
+      addedDate: weekDates[index], // Assign dates in order (newest first)
+      isCategory: false,
+    }));
+    
+    // Add Startups category as 5th item
+    itemsWithDates.push({
+      id: -1, // Special ID for category
+      name: 'Startups',
+      ticker: '',
+      category: 'Startups',
+      displayCategory: 'Startups',
+      currentPrice: 0,
+      change24h: 0,
+      changePercent24h: 0,
+      addedDate: weekDates[4], // 5th date (5 days ago)
+      isCategory: true,
+      volumePercentage: 10.0, // Volume percentage like in treemap
+    });
+    
+    // Sort by date (newest first) - this ensures the 5 most recent are at the top
+    return itemsWithDates.sort((a, b) => {
+      const dateA = new Date(a.addedDate);
+      const dateB = new Date(b.addedDate);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [getEntityPrice]); // Only recalculate if getEntityPrice changes
 
   // Calculate trending entities (top 5 by absolute percentage change)
   const topGainers = useMemo(() => {
@@ -301,6 +556,7 @@ export default function HomeScreen() {
       id: '1',
       type: 'ad' as const,
       title: 'bonus',
+      imageSource: require('../../assets/spotlight1.png'),
       backgroundColor: '#000000',
       textColor: '#F5F5DC',
       subtitle: '',
@@ -312,7 +568,8 @@ export default function HomeScreen() {
     {
       id: '2',
       type: 'entity' as const,
-      title: 'Cal AI',
+      title: 'Elon Musk',
+      imageSource: require('../../assets/spotlight2.png'),
       backgroundColor: '#E5E5E5',
       textColor: '#1E3A8A',
       subtitle: '',
@@ -325,7 +582,8 @@ export default function HomeScreen() {
     {
       id: '3',
       type: 'entity' as const,
-      title: 'Dodgers',
+      title: 'moro & X',
+      imageSource: require('../../assets/spotlight3.png'),
       backgroundColor: '#1E3A8A',
       textColor: '#FFFFFF',
       subtitle: '',
@@ -336,11 +594,38 @@ export default function HomeScreen() {
     },
   ], []);
 
+  // Spotlight auto-rotation state (isolated to spotlights only)
+  const [currentSpotlightIndex, setCurrentSpotlightIndex] = useState(0);
+  const spotlightFadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Auto-rotate spotlights with fade animation (isolated effect)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fade out
+      Animated.timing(spotlightFadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        // Change spotlight after fade out
+        setCurrentSpotlightIndex((prev) => (prev + 1) % spotlights.length);
+        // Fade in
+        Animated.timing(spotlightFadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 3000); // Change every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [spotlights.length, spotlightFadeAnim]);
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={[styles.header, { backgroundColor: theme.card }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
             style={styles.menuButton}
@@ -364,7 +649,9 @@ export default function HomeScreen() {
           
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => navigation.navigate('Notifications')}
+            onPress={() => {
+              navigation.navigate('Notifications');
+            }}
           >
             <Ionicons name="notifications-outline" size={24} color={theme.text} />
           </TouchableOpacity>
@@ -372,7 +659,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Category Selector */}
-      <View style={[styles.categorySelectorContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <View style={[styles.categorySelectorContainer, { backgroundColor: theme.card, borderBottomColor: theme.border, borderTopWidth: 0 }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -384,8 +671,8 @@ export default function HomeScreen() {
               key={category}
               style={styles.categoryButton}
               onPress={() => {
-                if (category === 'Trending') {
-                  // Keep "Trending" on the home page
+                if (category === 'For You') {
+                  // Keep "For You" on the home page
                   setSelectedCategory(category);
                 } else {
                   // Navigate to the Category screen for other categories
@@ -414,87 +701,845 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* Top Gainers Section */}
-        {topGainers.length > 0 && (
-          <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-                {topGainers.map((entity) => {
-                      const livePrice = getEntityPrice(entity.id);
-                      const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
-                      const liveChange = livePrice - basePrice;
-                      const liveChangePercent = (liveChange / basePrice) * 100;
-                      
-                      // Get initials from name (first 2 letters)
-                      const getInitials = (name: string) => {
-                        return name.substring(0, 2).toUpperCase();
-                      };
+        {/* Swipeable Section with 5 Pages */}
+        <View style={[styles.section, { backgroundColor: 'transparent', borderBottomColor: theme.backgroundSecondary, paddingHorizontal: 0, paddingVertical: 0 }]}>
+          <ScrollView
+            ref={swipeableScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleSwipeableScroll}
+            onMomentumScrollEnd={handleSwipeableScrollEnd}
+            scrollEventThrottle={16}
+            style={styles.swipeableScrollView}
+            contentContainerStyle={styles.swipeableScrollContent}
+          >
+            {/* Duplicate of page 5 at the start for circular scrolling */}
+            <View key="duplicate-5" style={styles.swipeablePage}>
+              <View style={styles.swipeablePageContent}>
+                <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
+                  Page 5
+                </Text>
+                <Text style={[styles.swipeablePageMessage, { color: theme.text }]}>
+                  Content coming soon
+                </Text>
+              </View>
+            </View>
+            
+            {/* Real pages 1-5 */}
+            {Array.from({ length: TOTAL_PAGES }, (_, index) => {
+              // Page 1: Comparison chart for top 3 influencers
+              if (index === 0 && comparisonChartData) {
+                // Get current prices from entities to determine Y-axis range
+                const currentPrices = comparisonChartData.entities.map(e => e.currentPrice);
+                const minCurrentPrice = Math.min(...currentPrices);
+                const maxCurrentPrice = Math.max(...currentPrices);
+                
+                // Y-axis range: $10 above highest current price, $10 below lowest current price
+                const yMin = Math.round((minCurrentPrice - 10) * 100) / 100;
+                const yMax = Math.round((maxCurrentPrice + 10) * 100) / 100;
+                
+                // Clamp historical data points (but preserve the last point which is the current price)
+                const clampedDatasets = comparisonChartData.datasets.map((dataset, datasetIndex) => {
+                  const currentPrice = comparisonChartData.entities[datasetIndex].currentPrice;
+                  return {
+                    ...dataset,
+                    data: dataset.data.map((value, dataIndex) => {
+                      // Keep the last point (current price) as-is, clamp all others
+                      const isLastPoint = dataIndex === dataset.data.length - 1;
+                      if (isLastPoint) {
+                        return currentPrice; // Ensure last point is exactly current price
+                      }
+                      return Math.max(yMin, Math.min(yMax, value)); // Clamp historical points
+                    }),
+                  };
+                });
+                
+                // Calculate the three Y-axis labels: top, middle, bottom
+                const topLabel = yMax;
+                const bottomLabel = yMin;
+                const middleLabel = Math.round(((yMax + yMin) / 2) * 100) / 100;
+                
+                const chartConfig = {
+                  backgroundColor: theme.card,
+                  backgroundGradientFrom: theme.card,
+                  backgroundGradientTo: theme.card,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
+                  labelColor: (opacity = 1) => hexToRgba(theme.textSecondary, opacity),
+                  style: {
+                    borderRadius: 0,
+                  },
+                  fillShadowGradientOpacity: 0, // Remove fill shading
+                  fillShadowGradientFromOpacity: 0,
+                  fillShadowGradientToOpacity: 0,
+                  propsForDots: {
+                    r: '4', // Dot radius
+                    strokeWidth: '2',
+                  },
+                  formatYLabel: () => '', // Hide Y-axis labels
+                  yAxisMin: yMin,
+                  yAxisMax: yMax,
+                };
 
-                      return (
-                        <TouchableOpacity
-                          key={entity.id}
-                          style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
-                          onPress={() => handleHoldingPress(entity.id, entity.category)}
-                        >
-                          <View style={styles.miniCardLeft}>
-                            <View style={[styles.miniIcon, { backgroundColor: theme.primaryLight }]}>
-                              <Text style={[styles.miniIconText, { color: theme.primary }]}>
-                                {getInitials(entity.name)}
+                return (
+                  <View key={index} style={styles.swipeablePage}>
+                    <View style={styles.comparisonChartContainer}>
+                      {/* Header */}
+                      <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
+                        Influencers - Top 3
+                      </Text>
+                      
+                      {/* Legend/Key showing entities horizontally */}
+                      <View style={styles.chartLegend}>
+                        {comparisonChartData.entities.map((entity, entityIndex) => (
+                          <View key={entity.id} style={styles.legendItem}>
+                            <View
+                              style={[
+                                styles.legendColorDot,
+                                { backgroundColor: comparisonChartData.colors[entityIndex] },
+                              ]}
+                            />
+                            <View style={styles.legendText}>
+                              <Text style={[styles.legendName, { color: theme.text }]}>
+                                {entity.name}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.legendPrice,
+                                  { color: comparisonChartData.colors[entityIndex] },
+                                ]}
+                              >
+                                {formatCurrency(entity.currentPrice)}
                               </Text>
                             </View>
-                            <View style={styles.miniNameContainer}>
-                              <Text style={[styles.miniName, { color: theme.text }]}>{entity.name}</Text>
-                              <Text style={[styles.miniCategory, { color: theme.textSecondary }]}>{entity.displayCategory}</Text>
-                            </View>
                           </View>
-                          <View style={styles.miniCardRight}>
-                            <Text style={[styles.miniPrice, { color: theme.text }]}>{formatCurrency(livePrice)}</Text>
-                            <Text style={[styles.miniChange, { color: getChangeColor(liveChange) }]}>
-                              {liveChangePercent >= 0 ? '+' : ''}{liveChangePercent.toFixed(2)}%
+                        ))}
+                      </View>
+                      
+                      {/* Chart - full width now */}
+                      <View style={styles.chartWithLabelsWrapper}>
+                        <View style={styles.chartContainerClipped}>
+                          {/* Grid lines - horizontal dotted lines from Y-axis labels to left edge */}
+                          {[
+                            { label: topLabel, index: 0 },
+                            { label: middleLabel, index: 1 },
+                            { label: bottomLabel, index: 2 },
+                          ].map(({ label, index }) => {
+                            const chartHeight = 220;
+                            const paddingTop = 20;
+                            const paddingBottom = 20;
+                            const plotHeight = chartHeight - paddingTop - paddingBottom;
+                            const chartWidth = SCREEN_WIDTH;
+                            const paddingRight = 100; // Space for Y-axis labels (for chart elements)
+                            const paddingLeft = 32;
+                            const gridLinePaddingRight = 60; // Grid lines extend closer to Y-axis labels (middle of 100 and 20)
+                            
+                            // Calculate Y position matching the label positions
+                            // yAxisLabelsRight container: top: 20, bottom: 40, justifyContent: 'space-between'
+                            // Container spans from 20px to (220 - 40) = 180px from top
+                            // Labels are spaced between these points: top (20px), middle (~100px), bottom (180px)
+                            let yPos: number;
+                            if (index === 0) {
+                              // Top label - moved down a bit from 20px
+                              yPos = 28;
+                            } else if (index === 1) {
+                              // Middle label - middle of container (100px from chart top) - DO NOT CHANGE
+                              yPos = 100;
+                            } else {
+                              // Bottom label - moved up a bit from 180px
+                              yPos = 172;
+                            }
+                            
+                            // Width spans from left padding to almost touching Y-axis labels
+                            const gridLineWidth = chartWidth - paddingLeft - gridLinePaddingRight;
+                            
+                            // Create dashed line using multiple small Views
+                            const dashLength = 4;
+                            const dashGap = 4;
+                            const numDashes = Math.floor(gridLineWidth / (dashLength + dashGap));
+                            
+                            return (
+                              <View
+                                key={`grid-${index}`}
+                                style={{
+                                  position: 'absolute',
+                                  left: paddingLeft,
+                                  top: yPos,
+                                  width: gridLineWidth,
+                                  height: 1,
+                                  flexDirection: 'row',
+                                }}
+                              >
+                                {Array.from({ length: numDashes }).map((_, dashIndex) => (
+                                  <View
+                                    key={dashIndex}
+                                    style={{
+                                      width: dashLength,
+                                      height: 1,
+                                      backgroundColor: '#9CA3AF',
+                                      marginRight: dashIndex < numDashes - 1 ? dashGap : 0,
+                                    }}
+                                  />
+                                ))}
+                              </View>
+                            );
+                          })}
+                          
+                          {/* Custom lines using many points across the week */}
+                          {clampedDatasets.map((dataset, datasetIndex) => {
+                            const lastIndex = dataset.data.length - 1;
+                            const lastValue = dataset.data[lastIndex];
+                            const chartWidth = SCREEN_WIDTH;
+                            const chartHeight = 220;
+                            const paddingRight = 100;
+                            const paddingTop = 20;
+                            const paddingBottom = 20;
+                            const paddingLeft = 32; // Align with date labels
+                            const plotWidth = chartWidth - paddingLeft - paddingRight;
+                            const plotHeight = chartHeight - paddingTop - paddingBottom;
+                            
+                            // Calculate end position (where dot will be)
+                            const endX = paddingLeft + plotWidth;
+                            const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+                            const endY = paddingTop + plotHeight - (normalizedValue * plotHeight);
+                            
+                            // Check if this is Alix Earle (entity id 11) - she should start in third and jump to first
+                            const isAlixEarle = comparisonChartData.entities[datasetIndex]?.id === 11;
+                            
+                            // Start position (left side)
+                            // For Alix Earle: start at third position (bottom), others start at varied positions
+                            let startY: number;
+                            if (isAlixEarle) {
+                              // Start at third position (bottom of the three lines)
+                              startY = paddingTop + plotHeight * 0.75;
+                            } else {
+                              const startYVariations = [
+                                paddingTop + plotHeight * 0.25, // First position (top)
+                                paddingTop + plotHeight * 0.45, // Second position (middle)
+                              ];
+                              startY = startYVariations[datasetIndex] || paddingTop + plotHeight * 0.35;
+                            }
+                            
+                            // Generate many points across the week (7 days * multiple points per day)
+                            const pointsPerDay = 8;
+                            const totalPoints = 7 * pointsPerDay + 1; // +1 for the final point
+                            const points: Array<{ x: number; y: number }> = [];
+                            
+                            // Generate points from left to right, ensuring the LAST point matches endY exactly
+                            for (let i = 0; i < totalPoints; i++) {
+                              const progress = i / (totalPoints - 1);
+                              const x = paddingLeft + plotWidth * progress;
+                              
+                              // Calculate base Y position
+                              let baseY: number;
+                              if (isAlixEarle) {
+                                // Alix: starts low, jumps up in second half
+                                if (progress < 0.5) {
+                                  baseY = startY; // Stay at bottom
+                                } else {
+                                  const jumpProgress = (progress - 0.5) / 0.5; // 0 to 1
+                                  const jumpCurve = jumpProgress * jumpProgress;
+                                  baseY = startY + (endY - startY) * jumpCurve;
+                                }
+                              } else {
+                                // Normal interpolation - mostly flat with very subtle variation
+                                baseY = startY + (endY - startY) * progress;
+                              }
+                              
+                              // Add very small, less frequent variation for subtle movement
+                              // Much smaller amplitude and less frequent oscillation
+                              const dayProgress = progress * 7;
+                              const sineVariation = Math.sin(dayProgress * Math.PI * 0.5) * 3; // Reduced frequency and amplitude
+                              
+                              let y = baseY + sineVariation;
+                              
+                              // CRITICAL: Last point must be exactly endY (where dot is)
+                              if (i === totalPoints - 1) {
+                                y = endY;
+                              }
+                              
+                              points.push({ x, y });
+                            }
+                            
+                            const lineColor = comparisonChartData.colors[datasetIndex];
+                            
+                            // Render line using many small View components connecting adjacent points
+                            return (
+                              <View key={`line-${datasetIndex}`} style={{ position: 'absolute', top: 0, left: 0 }}>
+                                {points.map((point, pointIndex) => {
+                                  if (pointIndex === 0) return null;
+                                  const prevPoint = points[pointIndex - 1];
+                                  const dx = point.x - prevPoint.x;
+                                  const dy = point.y - prevPoint.y;
+                                  const length = Math.sqrt(dx * dx + dy * dy);
+                                  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                                  
+                                  return (
+                                    <View
+                                      key={`segment-${pointIndex}`}
+                                      style={{
+                                        position: 'absolute',
+                                        left: prevPoint.x,
+                                        top: prevPoint.y,
+                                        width: length,
+                                        height: 2,
+                                        backgroundColor: lineColor,
+                                        transform: [{ rotate: `${angle}deg` }],
+                                        transformOrigin: 'left center',
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </View>
+                            );
+                          })}
+                        </View>
+                        {/* Custom dots at the end of each line */}
+                        {clampedDatasets.map((dataset, datasetIndex) => {
+                          const lastIndex = dataset.data.length - 1;
+                          const lastValue = dataset.data[lastIndex];
+                          const chartWidth = SCREEN_WIDTH;
+                          const chartHeight = 220;
+                          const paddingRight = 100; // Space for Y-axis labels
+                          const paddingTop = 20;
+                          const paddingBottom = 20;
+                          const paddingLeft = 0; // Start at left edge
+                          const plotWidth = chartWidth - paddingLeft - paddingRight;
+                          const plotHeight = chartHeight - paddingTop - paddingBottom;
+                          
+                          // Calculate X position of last point (rightmost edge of plot area)
+                          const lastX = paddingLeft + plotWidth - 4;
+                          
+                          // Calculate Y position based on value and range
+                          const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+                          const yPosition = paddingTop + plotHeight - (normalizedValue * plotHeight) - 4;
+                          
+                          const dotColor = comparisonChartData.colors[datasetIndex];
+                          
+                          return (
+                            <View
+                              key={datasetIndex}
+                              style={[
+                                styles.chartEndDot,
+                                {
+                                  left: lastX,
+                                  top: yPosition,
+                                  backgroundColor: dotColor,
+                                  borderColor: theme.card,
+                                },
+                              ]}
+                            />
+                          );
+                        })}
+                        
+                        {/* Custom Y-axis labels on the right side */}
+                        <View style={styles.yAxisLabelsRight}>
+                          <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                            {formatCurrency(topLabel)}
+                          </Text>
+                          <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                            {formatCurrency(middleLabel)}
+                          </Text>
+                          <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                            {formatCurrency(bottomLabel)}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {/* Date labels under x-axis */}
+                      <View style={styles.xAxisDateLabels}>
+                        {['12/21', '12/22', '12/23', '12/24', '12/25', '12/26', '12/27'].map((date, index) => {
+                          const chartWidth = SCREEN_WIDTH;
+                          const paddingRight = 100;
+                          const leftPadding = 32; // More padding on the left
+                          const plotWidth = chartWidth - paddingRight; // Full width minus right padding (where dots are)
+                          const spacing = (plotWidth - leftPadding) / 6; // Space them out to align 12/27 with dots
+                          const xPosition = leftPadding + spacing * index;
+                          
+                          return (
+                            <Text
+                              key={date}
+                              style={[
+                                styles.xAxisDateLabel,
+                                { 
+                                  color: theme.textSecondary,
+                                  left: xPosition,
+                                },
+                              ]}
+                            >
+                              {date}
                             </Text>
-                          </View>
-                        </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  </View>
+                );
+              }
+              
+              // Page 2: Top Movers (top 5 by absolute percentage change)
+              if (index === 1) {
+                const getInitials = (name: string) => {
+                  return name.substring(0, 2).toUpperCase();
+                };
+                
+                return (
+                  <View key={index} style={styles.swipeablePage}>
+                    <View style={styles.topMoversContainer}>
+                      <Text style={[styles.topMoversHeader, { color: theme.text }]}>
+                        Today's Top Movers
+                      </Text>
+                      <ScrollView
+                        style={styles.topMoversScroll}
+                        contentContainerStyle={styles.topMoversScrollContent}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {topGainers.map((entity, entityIndex) => (
+                          <TouchableOpacity
+                            key={entity.id}
+                            style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                            onPress={() => handleHoldingPress(entity.id, entity.displayCategory)}
+                          >
+                            <View style={styles.discoverCardLeft}>
+                              <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
+                                <Text style={[styles.discoverIconText, { color: theme.primary }]}>
+                                  {getInitials(entity.name)}
+                                </Text>
+                              </View>
+                              <View style={styles.discoverInfo}>
+                                <Text style={[styles.discoverName, { color: theme.text }]}>
+                                  {entity.name}
+                                </Text>
+                                <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
+                                  {entity.displayCategory}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={styles.discoverCardRight}>
+                              <Text style={[styles.discoverPrice, { color: theme.text }]}>
+                                {formatCurrency(entity.currentPrice)}
+                              </Text>
+                              <Text style={[styles.discoverChange, { color: getChangeColor(entity.change24h) }]}>
+                                {entity.change24h >= 0 ? '+' : ''}
+                                {entity.changePercent24h.toFixed(2)}%
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+                );
+              }
+              
+              // Page 3: Featured IMO
+              if (index === 2) {
+                const abridgeEntity = getEntityById(42); // Abridge entity ID
+                const handleAbridgePress = () => {
+                  if (abridgeEntity) {
+                    navigation.navigate('Entity', { 
+                      entityId: abridgeEntity.id, 
+                      categoryId: 'Startups' 
+                    });
+                  }
+                };
+                
+                const renderTextWithMentions = (text: string) => {
+                  const parts: React.ReactNode[] = [];
+                  let lastIndex = 0;
+                  const mentionRegex = /@([a-zA-Z0-9]+)/g;
+                  let match;
+                  
+                  while ((match = mentionRegex.exec(text)) !== null) {
+                    const startIndex = match.index;
+                    const mention = match[0];
+                    
+                    // Add text before the mention
+                    if (startIndex > lastIndex) {
+                      const textBefore = text.substring(lastIndex, startIndex);
+                      parts.push(
+                        <Text key={`text-${lastIndex}`} style={[styles.imoText, { color: theme.text }]}>
+                          {textBefore}
+                        </Text>
                       );
-                    })}
+                    }
+                    
+                    // Add the mention (blue and clickable)
+                    parts.push(
+                      <Text
+                        key={`mention-${startIndex}`}
+                        style={[styles.imoText, styles.imoMention, { color: theme.primary }]}
+                        onPress={handleAbridgePress}
+                      >
+                        {mention}
+                      </Text>
+                    );
+                    
+                    lastIndex = startIndex + mention.length;
+                  }
+                  
+                  // Add any remaining text after the last mention
+                  if (lastIndex < text.length) {
+                    const textAfter = text.substring(lastIndex);
+                    if (textAfter) {
+                      parts.push(
+                        <Text key={`text-${lastIndex}`} style={[styles.imoText, { color: theme.text }]}>
+                          {textAfter}
+                        </Text>
+                      );
+                    }
+                  }
+                  
+                  return <Text style={{ fontSize: 15, lineHeight: 22 }}>{parts}</Text>;
+                };
+                
+                return (
+                  <View key={index} style={styles.swipeablePage}>
+                    <View style={styles.imoContainer}>
+                      {/* Header with badge-style tag */}
+                      <View style={styles.imoHeader}>
+                        <Text style={[styles.imoHeaderText, { color: theme.text }]}>
+                          Featured IMO
+                        </Text>
+                        <TouchableOpacity 
+                          onPress={handleAbridgePress}
+                          style={[styles.imoTagButton, { backgroundColor: theme.primaryLight }]}
+                        >
+                          <Text style={[styles.imoTag, { color: theme.primary }]}>
+                            @Abridge
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      
+                      {/* Content card */}
+                      <View style={[styles.imoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <View style={styles.imoContent}>
+                          <Text style={[styles.imoWelcomeText, { color: theme.text }]}>
+                            We would like to welcome Abridge onto Moro and are excited to see what the public's opinion is!
+                          </Text>
+                          
+                          <View style={styles.imoDivider} />
+                          
+                          <View style={styles.imoTextContainer}>
+                            {renderTextWithMentions('To be a part of the "Initial Moro Offering", click the tag and decide if you feel positively or negatively about @Abridge.')}
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                );
+              }
+              
+              // Page 4: Most Liked Posts
+              if (index === 3) {
+                const formatTimestamp = (timestamp: string) => {
+                  const now = new Date();
+                  const postDate = new Date(timestamp);
+                  const diffMs = now.getTime() - postDate.getTime();
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMs / 3600000);
+                  const diffDays = Math.floor(diffMs / 86400000);
+
+                  if (diffMins < 1) return 'Just now';
+                  if (diffMins < 60) return `${diffMins}m ago`;
+                  if (diffHours < 24) return `${diffHours}h ago`;
+                  if (diffDays < 7) return `${diffDays}d ago`;
+                  
+                  return postDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                };
+
+                const handlePostPress = (post: any) => {
+                  if (post.entityId) {
+                    // Map entity category to categoryId format
+                    const entity = getEntityById(post.entityId);
+                    let categoryId = 'Influencers';
+                    
+                    if (entity) {
+                      if (entity.category === 'People') {
+                        if (entity.id >= 11 && entity.id <= 20) {
+                          categoryId = 'Influencers';
+                        } else if (entity.id >= 21 && entity.id <= 30) {
+                          categoryId = 'Music Artists';
+                        }
+                      } else {
+                        const categoryMap: Record<string, string> = {
+                          'Politics': 'Political Figures',
+                          'Tech': 'Startups',
+                          'Events': 'Sports',
+                        };
+                        categoryId = categoryMap[entity.category] || entity.category;
+                      }
+                    }
+                    
+                    navigation.navigate('Entity', {
+                      entityId: post.entityId,
+                      categoryId: categoryId,
+                    });
+                  }
+                };
+
+                return (
+                  <View key={index} style={styles.swipeablePage}>
+                    <View style={styles.mostLikedContainer}>
+                      <Text style={[styles.mostLikedHeader, { color: theme.text }]}>
+                        Most Liked Today
+                      </Text>
+                      <ScrollView
+                        style={styles.mostLikedScroll}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {topLikedPosts.map((post, postIndex) => (
+                          <TouchableOpacity
+                            key={post.id}
+                            style={[styles.mostLikedCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                            onPress={() => handlePostPress(post)}
+                          >
+                            <View style={styles.mostLikedCardHeader}>
+                              <View style={styles.mostLikedUserInfo}>
+                                <View style={[styles.mostLikedAvatar, { backgroundColor: theme.primaryLight }]}>
+                                  <Text style={[styles.mostLikedAvatarText, { color: theme.primary }]}>
+                                    {post.displayName.substring(0, 2).toUpperCase()}
+                                  </Text>
+                                </View>
+                                <View style={styles.mostLikedUserText}>
+                                  <Text style={[styles.mostLikedUsername, { color: theme.text }]}>
+                                    {post.displayName}
+                                  </Text>
+                                  <Text style={[styles.mostLikedTimestamp, { color: theme.textSecondary }]}>
+                                    {formatTimestamp(post.timestamp)}
+                                  </Text>
+                                </View>
+                              </View>
+                              {post.entityName && (
+                                <Text style={[styles.mostLikedEntityTag, { color: theme.primary }]}>
+                                  @{post.entityName.replace(/\s+/g, '')}
+                                </Text>
+                              )}
+                            </View>
+                            <Text 
+                              style={[styles.mostLikedContent, { color: theme.text }]}
+                              numberOfLines={3}
+                            >
+                              {post.content}
+                            </Text>
+                            <View style={styles.mostLikedStats}>
+                              <View style={styles.mostLikedStat}>
+                                <Ionicons name="heart" size={16} color={theme.textSecondary} />
+                                <Text style={[styles.mostLikedStatText, { color: theme.textSecondary }]}>
+                                  {post.likes}
+                                </Text>
+                              </View>
+                              <View style={styles.mostLikedStat}>
+                                <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} />
+                                <Text style={[styles.mostLikedStatText, { color: theme.textSecondary }]}>
+                                  {post.comments}
+                                </Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+                );
+              }
+              
+              // Page 5: Discover New Additions
+              if (index === 4) {
+                const handleEntityPress = (entityId: number, displayCategory: string) => {
+                  navigation.navigate('Entity', {
+                    entityId,
+                    categoryId: displayCategory,
+                  });
+                };
+
+                const handleCategoryPress = (categoryId: string) => {
+                  navigation.navigate('Category', {
+                    categoryId,
+                  });
+                };
+
+                return (
+                  <View key={index} style={styles.swipeablePage}>
+                    <View style={styles.discoverContainer}>
+                      <View style={styles.discoverHeader}>
+                        <Text style={[styles.discoverHeaderText, { color: theme.text }]}>
+                          Discover New Additions
+                        </Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('DiscoverNewAdditions')}>
+                          <Text style={[styles.seeMoreText, { color: theme.primary }]}>
+                            See More
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      <ScrollView
+                        style={styles.discoverScroll}
+                        contentContainerStyle={styles.discoverScrollContent}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {/* Show 5 most recent items (top 5) */}
+                        {discoverNewAdditions.map((item) => (
+                          item.isCategory ? (
+                            <TouchableOpacity
+                              key="startups"
+                              style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                              onPress={() => handleCategoryPress('Startups')}
+                            >
+                              <View style={styles.discoverCardLeft}>
+                                <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
+                                  <Ionicons name="rocket-outline" size={20} color={theme.primary} />
+                                </View>
+                                <View style={styles.discoverInfo}>
+                                  <Text style={[styles.discoverName, { color: theme.text }]}>
+                                    {item.name}
+                                  </Text>
+                                  <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
+                                    New Category
+                                  </Text>
+                                </View>
+                              </View>
+                              <View style={styles.discoverCardRight}>
+                                <Text style={[styles.discoverPrice, { color: theme.text }]}>
+                                  {(item as any).volumePercentage?.toFixed(1)}%
+                                </Text>
+                                <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                              </View>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              key={item.id}
+                              style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                              onPress={() => handleEntityPress(item.id, item.displayCategory)}
+                            >
+                              <View style={styles.discoverCardLeft}>
+                                <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
+                                  <Text style={[styles.discoverIconText, { color: theme.primary }]}>
+                                    {item.name.substring(0, 2).toUpperCase()}
+                                  </Text>
+                                </View>
+                                <View style={styles.discoverInfo}>
+                                  <Text style={[styles.discoverName, { color: theme.text }]}>
+                                    {item.name}
+                                  </Text>
+                                  <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
+                                    {item.displayCategory}
+                                  </Text>
+                                </View>
+                              </View>
+                              <View style={styles.discoverCardRight}>
+                                <Text style={[styles.discoverPrice, { color: theme.text }]}>
+                                  {formatCurrency(item.currentPrice)}
+                                </Text>
+                                <Text style={[styles.discoverChange, { color: getChangeColor(item.change24h) }]}>
+                                  {item.change24h >= 0 ? '+' : ''}
+                                  {item.changePercent24h.toFixed(2)}%
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          )
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+                );
+              }
+              
+              // Other pages: placeholder
+              return (
+                <View key={index} style={styles.swipeablePage}>
+                  <View style={styles.swipeablePageContent}>
+                    <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
+                      Page {index + 1}
+                    </Text>
+                    <Text style={[styles.swipeablePageMessage, { color: theme.text }]}>
+                      Content coming soon
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+            
+            {/* Duplicate of page 1 at the end for circular scrolling */}
+            <View key="duplicate-1" style={styles.swipeablePage}>
+              <View style={styles.swipeablePageContent}>
+                <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
+                  Page 1
+                </Text>
+                <Text style={[styles.swipeablePageMessage, { color: theme.text }]}>
+                  Content coming soon
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+          
+          {/* Page Indicator Dots */}
+          <View style={styles.pageIndicatorContainer}>
+            {Array.from({ length: TOTAL_PAGES }, (_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.pageIndicatorDot,
+                  {
+                    backgroundColor: currentPageIndex === index ? theme.primary : theme.border,
+                    width: currentPageIndex === index ? 8 : 6,
+                    height: currentPageIndex === index ? 8 : 6,
+                  },
+                ]}
+              />
+            ))}
           </View>
-        )}
+        </View>
 
         {/* Spotlights Section */}
         <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Spotlights</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.spotlightsScrollContent}
-            style={styles.spotlightsScroll}
-          >
-            {spotlights.map((spotlight) => (
+          <View style={styles.spotlightsContainer}>
+            <Animated.View
+              style={[
+                styles.spotlightCardContainer,
+                {
+                  opacity: spotlightFadeAnim,
+                },
+              ]}
+            >
               <TouchableOpacity
-                key={spotlight.id}
-                style={[
-                  styles.spotlightCard,
-                  {
-                    backgroundColor: spotlight.backgroundColor,
-                  },
-                ]}
-                onPress={spotlight.onPress}
+                style={styles.spotlightCard}
+                onPress={spotlights[currentSpotlightIndex].onPress}
               >
-                <View style={styles.spotlightCardContent}>
-                  {spotlight.icon && (
-                    <Text style={styles.spotlightIcon}>{spotlight.icon}</Text>
-                  )}
-                  <Text
+                {spotlights[currentSpotlightIndex].imageSource ? (
+                  <Image
+                    source={spotlights[currentSpotlightIndex].imageSource}
+                    style={styles.spotlightImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View
                     style={[
-                      styles.spotlightCardTitle,
+                      styles.spotlightCardContent,
                       {
-                        color: spotlight.textColor,
+                        backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
                       },
                     ]}
                   >
-                    {spotlight.title}
-                  </Text>
-                </View>
+                    {spotlights[currentSpotlightIndex].icon && (
+                      <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
+                    )}
+                    <Text
+                      style={[
+                        styles.spotlightCardTitle,
+                        {
+                          color: spotlights[currentSpotlightIndex].textColor,
+                        },
+                      ]}
+                    >
+                      {spotlights[currentSpotlightIndex].title}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </Animated.View>
+          </View>
         </View>
 
         {/* Watchlist Section */}
@@ -763,7 +1808,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -786,6 +1831,7 @@ const styles = StyleSheet.create({
   },
   categorySelectorContainer: {
     borderBottomWidth: 1,
+    borderTopWidth: 0,
     paddingTop: 4,
     paddingBottom: 4,
   },
@@ -863,28 +1909,37 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
   },
-  spotlightsScroll: {
-    marginHorizontal: -16,
-  },
-  spotlightsScrollContent: {
+  spotlightsContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
-    gap: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  spotlightCardContainer: {
+    width: SCREEN_WIDTH - 32, // Full width minus padding
   },
   spotlightCard: {
-    width: 140,
+    width: SCREEN_WIDTH - 32, // Full width minus padding
     height: 140,
     borderRadius: 16,
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginRight: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  spotlightImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F5F5F5',
   },
   spotlightCardContent: {
+    width: '100%',
+    height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    padding: 16,
+    justifyContent: 'center',
   },
   spotlightIcon: {
     fontSize: 24,
@@ -1388,6 +2443,377 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   trendingChange: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  swipeableScrollView: {
+    flex: 1,
+  },
+  swipeableScrollContent: {
+    flexDirection: 'row',
+  },
+  swipeablePage: {
+    width: SCREEN_WIDTH,
+    paddingVertical: 0,
+    height: 360, // Fixed height - locked
+    paddingHorizontal: 0,
+    backgroundColor: '#F5F5F5', // Light grey background
+  },
+  swipeablePageContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  swipeablePageLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  swipeablePageMessage: {
+    fontSize: 16,
+  },
+  pageIndicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 12,
+    gap: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  pageIndicatorDot: {
+    borderRadius: 4,
+  },
+  comparisonChartContainer: {
+    flex: 1,
+    paddingTop: 12,
+    paddingBottom: 0,
+  },
+  comparisonChartHeader: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  chartLegend: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 24,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    flexDirection: 'column',
+  },
+  legendName: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  legendPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  chartWithLabelsWrapper: {
+    position: 'relative',
+    width: SCREEN_WIDTH,
+    height: 220,
+    overflow: 'visible',
+  },
+  chartContainerClipped: {
+    width: SCREEN_WIDTH,
+    height: 220,
+    overflow: 'hidden',
+    paddingLeft: 32,
+  },
+  comparisonChart: {
+    marginVertical: 0,
+    marginLeft: 0,
+  },
+  customChartSvg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  customChartSvg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  yAxisLabelsRight: {
+    position: 'absolute',
+    right: 16,
+    top: 20,
+    bottom: 40,
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    width: 80,
+  },
+  yAxisLabelText: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  chartEndDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 2,
+  },
+  xAxisDateLabels: {
+    position: 'relative',
+    width: SCREEN_WIDTH,
+    height: 24,
+    marginTop: 2,
+    paddingLeft: 0,
+  },
+  xAxisDateLabel: {
+    position: 'absolute',
+    fontSize: 11,
+    fontWeight: '400',
+    transform: [{ translateX: -20 }], // Center the text on its position
+  },
+  topMoversContainer: {
+    flex: 1,
+    paddingTop: 12,
+  },
+  topMoversHeader: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  topMoversScroll: {
+    flex: 1,
+  },
+  topMoversScrollContent: {
+    paddingBottom: 12,
+  },
+  imoContainer: {
+    flex: 1,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+  },
+  imoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  imoHeaderText: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  imoTagButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  imoTag: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  imoCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  imoContent: {
+    gap: 20,
+  },
+  imoWelcomeText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+  imoDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 4,
+  },
+  imoTextContainer: {
+    marginTop: 4,
+  },
+  imoText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  imoMention: {
+    fontWeight: '600',
+  },
+  mostLikedContainer: {
+    flex: 1,
+    paddingTop: 12,
+  },
+  mostLikedHeader: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  mostLikedScroll: {
+    flex: 1,
+    paddingBottom: 12,
+  },
+  mostLikedCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  mostLikedCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  mostLikedUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  mostLikedAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  mostLikedAvatarText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  mostLikedUserText: {
+    flex: 1,
+  },
+  mostLikedUsername: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  mostLikedTimestamp: {
+    fontSize: 12,
+  },
+  mostLikedEntityTag: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  mostLikedContent: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  mostLikedStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  mostLikedStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  mostLikedStatText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  discoverContainer: {
+    flex: 1,
+    paddingTop: 12,
+  },
+  discoverHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  discoverHeaderText: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  seeMoreText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  discoverScroll: {
+    flex: 1,
+  },
+  discoverScrollContent: {
+    paddingBottom: 40,
+  },
+  discoverCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  discoverCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  discoverIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  discoverIconText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  discoverInfo: {
+    flex: 1,
+  },
+  discoverName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  discoverCategory: {
+    fontSize: 12,
+  },
+  discoverCardRight: {
+    alignItems: 'flex-end',
+  },
+  discoverPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  discoverChange: {
     fontSize: 13,
     fontWeight: '600',
   },

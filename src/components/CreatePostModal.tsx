@@ -127,13 +127,13 @@ export default function CreatePostModal({
             onPress={handleClose}
           />
         )}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={[
             slideFromBottom ? styles.modalContentBottom : styles.modalContent,
             { backgroundColor: theme.card }
           ]}
-        >
+      >
         <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity
             onPress={handleClose}
@@ -278,7 +278,7 @@ export default function CreatePostModal({
             </View>
           </View>
         </ScrollView>
-        </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
       </View>
     </Modal>
   );

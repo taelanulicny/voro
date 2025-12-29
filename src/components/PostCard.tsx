@@ -285,7 +285,9 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
     
     if (isCategoryFeed) {
       // Category feed: Start with @CategoryName prefix, then parse entity mentions (no-space format)
-      const categoryMention = categoryName ? `@${categoryName} ` : '';
+      // Remove spaces from category name, e.g., "Music Artists" -> "@MusicArtists"
+      const categoryMentionName = categoryName ? categoryName.replace(/\s+/g, '') : '';
+      const categoryMention = categoryMentionName ? `@${categoryMentionName} ` : '';
       const fullContent = categoryMention + post.content;
       
       // Parse all @mentions in the full content (entity mentions use no-space format)
@@ -319,8 +321,9 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         // Clean mention name for comparison (remove possessive)
         const cleanedMentionName = cleanMentionName(mentionName);
         
-        // Check if this is the category mention
-        const isCategoryMention = categoryName && cleanedMentionName.toLowerCase() === categoryName.toLowerCase();
+        // Check if this is the category mention (compare with no-space version)
+        const categoryMentionNameForComparison = categoryName ? categoryName.replace(/\s+/g, '') : '';
+        const isCategoryMention = categoryMentionNameForComparison && cleanedMentionName.toLowerCase() === categoryMentionNameForComparison.toLowerCase();
         
         if (isCategoryMention) {
           // Category mention - clickable, navigates to category

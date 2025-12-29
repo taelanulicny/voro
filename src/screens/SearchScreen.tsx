@@ -72,6 +72,27 @@ export default function SearchScreen() {
     return categoryMap[displayCategory] || null;
   };
 
+  // Get display category helper (converts entity categories to display categories)
+  const getDisplayCategory = (entityId: number, category: string): string => {
+    // Distinguish between Influencers (IDs 11-20) and Music Artists (IDs 21-30) in People category
+    if (category === 'People') {
+      if (entityId >= 11 && entityId <= 20) {
+        return 'Influencers';
+      } else if (entityId >= 21 && entityId <= 30) {
+        return 'Music Artists';
+      }
+      return 'Influencers'; // Default for other People entities
+    }
+    
+    const categoryMap: Record<string, string> = {
+      'Politics': 'Political Figures',
+      'Tech': 'Startups',
+      'Events': 'Sports',
+    };
+    
+    return categoryMap[category] || category;
+  };
+
   // Filter and sort entities
   const filteredEntities = useMemo(() => {
     let filtered = entities;
@@ -130,7 +151,7 @@ export default function SearchScreen() {
   const handleSelectEntity = (entity: any) => {
     navigation.navigate('Entity', {
       entityId: entity.id,
-      categoryId: entity.category,
+      categoryId: getDisplayCategory(entity.id, entity.category),
     });
   };
 
@@ -173,50 +194,61 @@ export default function SearchScreen() {
       return name.substring(0, 2).toUpperCase();
     };
 
+    // Truncate text to 15 characters with ellipsis
+    const truncateText = (text: string) => {
+      if (text.length > 15) {
+        return text.substring(0, 15) + '...';
+      }
+      return text;
+    };
+
+    const displayName = truncateText(item.name);
+    const displayCategory = truncateText(getDisplayCategory(item.id, item.category));
+
     return (
-      <TouchableOpacity
-        style={[styles.entityCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-        onPress={() => handleSelectEntity(item)}
-      >
-        <View style={styles.entityLeft}>
-          <View style={[styles.entityIcon, { backgroundColor: theme.primaryLight }]}>
+    <TouchableOpacity
+      style={[styles.entityCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+      onPress={() => handleSelectEntity(item)}
+    >
+      <View style={styles.entityLeft}>
+        <View style={[styles.entityIcon, { backgroundColor: theme.primaryLight }]}>
             <Text style={[styles.entityIconText, { color: theme.primary }]}>{getInitials(item.name)}</Text>
+        </View>
+        <View style={styles.entityInfo}>
+          <View style={styles.entityHeaderRow}>
+              <Text style={[styles.entityName, { color: theme.text }]}>{displayName}</Text>
+            <TouchableOpacity
+              style={styles.watchlistIconButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (isInWatchlist(item.id)) {
+                  removeFromWatchlist(item.id);
+                } else {
+                  addToWatchlist(item.id);
+                }
+              }}
+            >
+              <Ionicons
+                name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
+                size={18}
+                color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
+              />
+            </TouchableOpacity>
           </View>
-          <View style={styles.entityInfo}>
-            <View style={styles.entityHeaderRow}>
-              <Text style={[styles.entityName, { color: theme.text }]}>{item.name}</Text>
-              <TouchableOpacity
-                style={styles.watchlistIconButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (isInWatchlist(item.id)) {
-                    removeFromWatchlist(item.id);
-                  } else {
-                    addToWatchlist(item.id);
-                  }
-                }}
-              >
-                <Ionicons
-                  name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
-                  size={18}
-                  color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
-              <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{item.category}</Text>
-            </View>
+          <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundTertiary }]}>
+            <Text style={[styles.categoryBadgeText, { color: theme.textSecondary }]}>{displayCategory}</Text>
           </View>
         </View>
-        <View style={styles.entityRight}>
-          <Text style={[styles.entityPrice, { color: theme.text }]}>{formatCurrency(item.currentPrice)}</Text>
-          <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
-            {item.change24h >= 0 ? '+' : ''}
-            {item.changePercent24h.toFixed(2)}%
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
+      </View>
+      <View style={styles.entityRight}>
+        <Text style={[styles.entityPrice, { color: theme.text }]}>{formatCurrency(item.currentPrice)}</Text>
+        <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
+          {item.change24h >= 0 ? '+' : ''}
+          {item.changePercent24h.toFixed(2)}%
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
   };
 
   return (
@@ -230,7 +262,7 @@ export default function SearchScreen() {
           <Ionicons name="close" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Search</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Search</Text>
         </View>
         <View style={styles.headerRight} />
       </View>

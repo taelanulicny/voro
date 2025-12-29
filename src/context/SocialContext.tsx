@@ -97,6 +97,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       displayName: 'Sarah Chen',
       avatarUrl: undefined,
       content: '@TaylorSwift just announced her new tour dates and the demand is absolutely insane. Ticket prices are through the roof but fans are still buying. This is a no-brainer investment right now.',
+      entityId: 21,
+      entityName: 'Taylor Swift',
+      entityTicker: 'TSWFT',
       sentiment: 'positive',
       likes: 823,
       comments: 156,
@@ -111,6 +114,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       displayName: 'Mike Johnson',
       avatarUrl: undefined,
       content: '@MrBeast and @KaiCenat just did a massive collab stream. Both of their engagement metrics are exploding. This is what smart creators do - cross-pollinate audiences.',
+      entityId: 12,
+      entityName: 'MrBeast',
+      entityTicker: 'MRBST',
       sentiment: 'positive',
       likes: 542,
       comments: 89,
@@ -153,6 +159,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       displayName: 'Emma Davis',
       avatarUrl: undefined,
       content: '@KanyeWest new album drop is generating massive buzz. Streaming numbers are through the roof. This could be a major comeback moment.',
+      entityId: 23,
+      entityName: 'Kanye West',
+      entityTicker: 'KANYE',
       sentiment: 'positive',
       likes: 945,
       comments: 201,
@@ -195,6 +204,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       displayName: 'Taylor Brown',
       avatarUrl: undefined,
       content: '@Drake new single is climbing the charts fast. His streaming numbers are insane. Music industry is watching closely.',
+      entityId: 22,
+      entityName: 'Drake',
+      entityTicker: 'DRAKE',
       sentiment: 'positive',
       likes: 834,
       comments: 178,
@@ -209,6 +221,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       displayName: 'Morgan Lee',
       avatarUrl: undefined,
       content: '@TuckerCarlson latest segment is generating controversy. His influence on certain demographics remains strong despite recent changes.',
+      entityId: 38,
+      entityName: 'Tucker Carlson',
+      entityTicker: 'TCARS',
       sentiment: 'neutral',
       likes: 456,
       comments: 123,
@@ -237,6 +252,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       displayName: 'Riley Chen',
       avatarUrl: undefined,
       content: '@TheWeekend new tour announcement is huge. Ticket sales are breaking records. Live music is back in a big way.',
+      entityId: 29,
+      entityName: 'The Weeknd',
+      entityTicker: 'WKEND',
       sentiment: 'positive',
       likes: 723,
       comments: 156,
@@ -331,8 +349,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     sentiment?: 'positive' | 'negative' | 'neutral';
   }) => {
     if (!token || !user) {
-      return { success: false, error: 'User not authenticated' };
-    }
+        return { success: false, error: 'User not authenticated' };
+      }
 
     if (!isBackendConfigured()) {
       return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
@@ -345,7 +363,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.success && response.data) {
-        const newPost: Post = {
+      const newPost: Post = {
           id: response.data.postId || response.data.id,
           userId: response.data.userId,
           username: response.data.username,
@@ -358,13 +376,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           sentiment: response.data.sentiment,
           likes: response.data.likes || 0,
           comments: response.data.comments || 0,
-          isLiked: false,
-          isBookmarked: false,
+        isLiked: false,
+        isBookmarked: false,
           timestamp: response.data.timestamp,
-        };
-        
-        setActivityFeed(prev => [newPost, ...prev]);
-        return { success: true, post: newPost };
+      };
+      
+      setActivityFeed(prev => [newPost, ...prev]);
+      return { success: true, post: newPost };
       }
 
       return { success: false, error: response.error || 'Failed to create post' };
@@ -390,16 +408,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data) {
         setActivityFeed(prev =>
           prev.map(post =>
-            post.id === postId
+      post.id === postId 
               ? {
                   ...post,
                   isLiked: response.data!.isLiked,
                   likes: response.data!.isLiked ? post.likes + 1 : post.likes - 1,
                 }
-              : post
+        : post
           )
         );
-        return { success: true };
+    return { success: true };
       }
 
       return { success: false };
@@ -451,7 +469,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         }));
 
         setPostComments(prev => ({ ...prev, [postId]: mappedComments }));
-      }
+    }
     } catch (error) {
       console.error('Error fetching comments:', error);
     }
@@ -473,7 +491,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        const newComment: Comment = {
+    const newComment: Comment = {
           id: response.data.commentId || response.data.id,
           postId: response.data.postId,
           userId: response.data.userId,
@@ -482,20 +500,20 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           avatarUrl: response.data.avatarUrl,
           content: response.data.content,
           likes: response.data.likes || 0,
-          isLiked: false,
+      isLiked: false,
           timestamp: response.data.timestamp,
-        };
-
-        setPostComments(prev => ({
-          ...prev,
-          [postId]: [...(prev[postId] || []), newComment],
-        }));
-
+    };
+    
+    setPostComments(prev => ({
+      ...prev,
+      [postId]: [...(prev[postId] || []), newComment],
+    }));
+    
         setActivityFeed(prev =>
           prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
         );
-
-        return { success: true, comment: newComment };
+    
+    return { success: true, comment: newComment };
       }
 
       return { success: false };
@@ -536,16 +554,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        setFollowedUsers(prev => {
-          const newSet = new Set(prev);
+    setFollowedUsers(prev => {
+      const newSet = new Set(prev);
           if (response.data!.isFollowing) {
             newSet.add(userId);
           } else {
-            newSet.delete(userId);
-          }
-          return newSet;
-        });
-        return { success: true };
+        newSet.delete(userId);
+      }
+      return newSet;
+    });
+    return { success: true };
       }
 
       return { success: false };
@@ -556,7 +574,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
   const isFollowingUser = useCallback(
     (userId: string) => {
-      return followedUsers.has(userId);
+    return followedUsers.has(userId);
     },
     [followedUsers]
   );
@@ -585,7 +603,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       isMember: true,
       createdAt: new Date().toISOString(),
     };
-
+    
     setGroups(prev => [newGroup, ...prev]);
     return { success: true, group: newGroup };
   }, []);
@@ -594,9 +612,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     // TODO: Implement groups in backend
     setGroups(prev =>
       prev.map(group =>
-        group.id === groupId
-          ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
-          : group
+      group.id === groupId
+        ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
+        : group
       )
     );
     return { success: true };
@@ -606,9 +624,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     // TODO: Implement groups in backend
     setGroups(prev =>
       prev.map(group =>
-        group.id === groupId
-          ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
-          : group
+      group.id === groupId
+        ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
+        : group
       )
     );
     return { success: true };

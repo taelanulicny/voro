@@ -15,6 +15,8 @@ export type RootStackParamList = {
   Search: undefined;
   Settings: undefined;
   Notifications: undefined;
+  DiscoverNewAdditions: undefined;
+  AccountValue: undefined;
 };
 
 export type MainTabParamList = {

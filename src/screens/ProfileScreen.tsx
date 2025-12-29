@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { useSocial } from '../context/SocialContext';
 import { useTheme } from '../context/ThemeContext';
+import { useTrading } from '../context/TradingContext';
 import { RootStackParamList } from '../types';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
+import { formatCurrency } from '../utils/dataGenerator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -25,7 +28,9 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { activityFeed, followedUsers } = useSocial();
   const { theme } = useTheme();
+  const { portfolio } = useTrading();
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [accountValueVisible, setAccountValueVisible] = useState(true);
 
   // Get current user's posts
   const userPosts = activityFeed.filter(post => post.userId === user?.id);
@@ -34,6 +39,32 @@ export default function ProfileScreen() {
   const followersCount = 245; // Mock count
   const followingCount = followedUsers.size;
   const postsCount = userPosts.length;
+
+  // Load account value visibility preference
+  useEffect(() => {
+    const loadVisibilityPreference = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('accountValueVisible');
+        if (saved !== null) {
+          setAccountValueVisible(JSON.parse(saved));
+        }
+      } catch (error) {
+        console.error('Error loading account value visibility:', error);
+      }
+    };
+    loadVisibilityPreference();
+  }, []);
+
+  // Save account value visibility preference
+  const toggleAccountValueVisibility = async () => {
+    const newVisibility = !accountValueVisible;
+    setAccountValueVisible(newVisibility);
+    try {
+      await AsyncStorage.setItem('accountValueVisible', JSON.stringify(newVisibility));
+    } catch (error) {
+      console.error('Error saving account value visibility:', error);
+    }
+  };
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
@@ -48,12 +79,12 @@ export default function ProfileScreen() {
           >
             <Ionicons name="add" size={24} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerSettingsButton}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerSettingsButton}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
+        </TouchableOpacity>
         </View>
       </View>
 
@@ -61,9 +92,9 @@ export default function ProfileScreen() {
       <Text style={[styles.username, { color: theme.textSecondary }]}>@{user?.username}</Text>
       
       <View style={styles.bioContainer}>
-        {user?.bio && (
-          <Text style={[styles.bio, { color: theme.textSecondary }]}>{user.bio}</Text>
-        )}
+      {user?.bio && (
+        <Text style={[styles.bio, { color: theme.textSecondary }]}>{user.bio}</Text>
+      )}
         <TouchableOpacity
           style={styles.editProfileButton}
           onPress={() => {
@@ -73,6 +104,43 @@ export default function ProfileScreen() {
         >
           <Ionicons name="pencil-outline" size={16} color={theme.text} />
           <Text style={[styles.editProfileText, { color: theme.text }]}>Edit Profile</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Account Value Module */}
+      <View style={[styles.accountValueContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+        <TouchableOpacity
+          style={styles.accountValueContent}
+          onPress={() => navigation.navigate('AccountValue')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.accountValueHeader}>
+            <Text style={[styles.accountValueLabel, { color: theme.textSecondary }]}>Account Value</Text>
+            <View style={styles.accountValueHeaderRight}>
+              <TouchableOpacity
+                onPress={() => toggleAccountValueVisibility()}
+                style={styles.visibilityButton}
+              >
+                <Ionicons
+                  name={accountValueVisible ? 'eye' : 'eye-off'}
+                  size={20}
+                  color={theme.textSecondary}
+                />
+              </TouchableOpacity>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={theme.textSecondary}
+                style={styles.chevronIcon}
+              />
+            </View>
+          </View>
+          <Text style={[styles.accountValueAmount, { color: theme.text }]}>
+            {accountValueVisible ? formatCurrency(portfolio.totalValue) : '••••••'}
+          </Text>
+          <Text style={[styles.accountValuePositions, { color: theme.textTertiary }]}>
+            {portfolio.holdings.length} {portfolio.holdings.length === 1 ? 'open position' : 'open positions'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -245,6 +313,45 @@ const styles = StyleSheet.create({
   editProfileText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  accountValueContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  accountValueContent: {
+    padding: 16,
+  },
+  accountValueHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  accountValueHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  accountValueLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  visibilityButton: {
+    padding: 4,
+  },
+  chevronIcon: {
+    opacity: 0.6,
+  },
+  accountValueAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  accountValuePositions: {
+    fontSize: 13,
+    marginTop: 4,
   },
   stats: {
     flexDirection: 'row',

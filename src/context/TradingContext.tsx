@@ -227,9 +227,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       }>('/api/trade/execute', token, {
         method: 'POST',
         body: JSON.stringify({
-          entityId,
+            entityId,
           type,
-          quantity,
+            quantity,
           pricePerToken,
         }),
       });
@@ -252,7 +252,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         await fetchTransactions();
 
         return true;
-      } else {
+    } else {
         console.error('Trade execution failed:', response.error);
         return false;
       }

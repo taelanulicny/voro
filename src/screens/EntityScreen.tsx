@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ import CreatePostModal from '../components/CreatePostModal';
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Chart config will be created dynamically based on theme
 
@@ -152,13 +152,37 @@ export default function EntityScreen() {
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
   const [refreshing, setRefreshing] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Update price history and reset tab whenever entityId changes (ensures we always show Chart when navigating to an entity)
   useEffect(() => {
     setSelectedTab('chart');
     setPriceHistory(entityData.priceHistory);
     setChartUpdateKey(prev => prev + 1); // Force chart to re-render with new data
+    // Reset scroll position to chart tab
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
+    }, 100);
+    return () => clearTimeout(timer);
   }, [entityId, entityData.priceHistory]);
+
+
+  const handleTabChange = (tab: 'chart' | 'about' | 'feed' | 'news') => {
+    setSelectedTab(tab);
+    const tabIndex = tab === 'chart' ? 0 : tab === 'about' ? 1 : tab === 'feed' ? 2 : 3;
+    const scrollToX = tabIndex * SCREEN_WIDTH;
+    scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
+  };
+
+  const handleScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
+    const tabs: ('chart' | 'about' | 'feed' | 'news')[] = ['chart', 'about', 'feed', 'news'];
+    const newTab = tabs[pageIndex];
+    if (newTab && newTab !== selectedTab) {
+      setSelectedTab(newTab);
+    }
+  };
 
   const holding = getHolding(entityId);
   const entityNews = getNewsByEntity(entityId);
@@ -491,7 +515,7 @@ export default function EntityScreen() {
       >
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => setSelectedTab('chart')}
+          onPress={() => handleTabChange('chart')}
         >
           <Text
             style={[
@@ -504,11 +528,11 @@ export default function EntityScreen() {
           >
             Chart
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+          </TouchableOpacity>
+          <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => setSelectedTab('about')}
-        >
+          onPress={() => handleTabChange('about')}
+          >
           <Text
             style={[
               styles.tabButtonText,
@@ -520,10 +544,10 @@ export default function EntityScreen() {
           >
             About
           </Text>
-        </TouchableOpacity>
+          </TouchableOpacity>
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => setSelectedTab('feed')}
+          onPress={() => handleTabChange('feed')}
         >
           <Text
             style={[
@@ -539,7 +563,7 @@ export default function EntityScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => setSelectedTab('news')}
+          onPress={() => handleTabChange('news')}
         >
           <Text
             style={[
@@ -554,7 +578,7 @@ export default function EntityScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+        </View>
   );
 
   const renderChartContent = () => (
@@ -579,7 +603,7 @@ export default function EntityScreen() {
           <LineChart
             key={`entity-${entityId}-${timeRange}-${filteredPriceHistory.length}-${currentPrice.toFixed(2)}-${chartUpdateKey}`}
             data={chartData}
-            width={width - 32}
+            width={SCREEN_WIDTH - 32}
             height={220}
             chartConfig={chartConfig}
             bezier
@@ -712,68 +736,99 @@ export default function EntityScreen() {
             color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
           />
         </TouchableOpacity>
-      </View>
+        </View>
 
       {/* Tab Selector */}
       {renderTabSelector()}
 
-      {/* Content based on selected tab */}
-      {selectedTab === 'feed' ? (
-        <FlatList
-          data={entityFeedPosts}
-          renderItem={({ item }) => (
-            <PostCard 
-              post={item} 
-              isEntityFeed={true}
-              entityId={entityId}
-              entityName={entity?.name}
-              categoryId={categoryId}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.feedContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyState}>
-              <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyStateText, { color: theme.text }]}>
-                No posts yet for this entity
-              </Text>
+      {/* Content with horizontal swipe */}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        style={styles.horizontalScrollView}
+      >
+        {/* Chart Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {renderChartContent()}
+            {/* Spacer for bottom buttons */}
+            <View style={{ height: 100 }} />
+          </ScrollView>
             </View>
-          )}
-        />
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {selectedTab === 'chart' && renderChartContent()}
 
-          {selectedTab === 'about' && (
+        {/* About Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.comingSoonContainer}>
               <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
                 About coming soon
               </Text>
             </View>
-          )}
+            {/* Spacer for bottom buttons */}
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </View>
 
-          {selectedTab === 'news' && (
-            <View style={styles.comingSoonContainer}>
-              <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
-                News coming soon
-              </Text>
-            </View>
-          )}
+        {/* Feed Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <FlatList
+            data={entityFeedPosts}
+            renderItem={({ item }) => (
+              <PostCard 
+                post={item} 
+                isEntityFeed={true}
+                entityId={entityId}
+                entityName={entity?.name}
+                categoryId={categoryId}
+              />
+            )}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.feedContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyState}>
+                <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
+                <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                  No posts yet for this entity
+                </Text>
+          </View>
+        )}
+          />
+        </View>
 
-          {/* Spacer for bottom buttons */}
-          {selectedTab === 'chart' && <View style={{ height: 100 }} />}
-        </ScrollView>
-      )}
+        {/* News Tab */}
+        <View style={{ width: SCREEN_WIDTH }}>
+          <FlatList
+            data={entityNews}
+            renderItem={({ item }) => (
+              <NewsCard article={item} showEntity={false} />
+            )}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.feedContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyState}>
+                <Ionicons name="newspaper-outline" size={48} color={theme.textTertiary} />
+                <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                  No news yet for this entity
+                </Text>
+              </View>
+            )}
+          />
+        </View>
+      </ScrollView>
 
       {/* Fixed Bottom Trade Buttons */}
       <View style={[styles.bottomBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
         <View style={styles.bottomButtonsContainer}>
-          <TouchableOpacity
+        <TouchableOpacity
             style={[styles.tradeButton, styles.halfWidthButton, { backgroundColor: theme.primary }]}
-            onPress={() => setTradeModalVisible(true)}
-          >
+          onPress={() => setTradeModalVisible(true)}
+        >
             <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -781,7 +836,7 @@ export default function EntityScreen() {
             onPress={() => setShareOpinionModalVisible(true)}
           >
             <Text style={[styles.shareOpinionButtonText, { color: theme.text }]}>Share Your Opinion</Text>
-          </TouchableOpacity>
+        </TouchableOpacity>
         </View>
       </View>
 
@@ -1029,6 +1084,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  horizontalScrollView: {
+    flex: 1,
   },
   tabSelectorContainer: {
     borderBottomWidth: 1,
