@@ -12,6 +12,7 @@ import {
   Alert,
   FlatList,
   Animated,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -555,6 +556,7 @@ export default function HomeScreen() {
       id: '1',
       type: 'ad' as const,
       title: 'bonus',
+      imageSource: require('../../assets/spotlight1.png'),
       backgroundColor: '#000000',
       textColor: '#F5F5DC',
       subtitle: '',
@@ -566,7 +568,8 @@ export default function HomeScreen() {
     {
       id: '2',
       type: 'entity' as const,
-      title: 'Cal AI',
+      title: 'Elon Musk',
+      imageSource: require('../../assets/spotlight2.png'),
       backgroundColor: '#E5E5E5',
       textColor: '#1E3A8A',
       subtitle: '',
@@ -579,7 +582,8 @@ export default function HomeScreen() {
     {
       id: '3',
       type: 'entity' as const,
-      title: 'Dodgers',
+      title: 'moro & X',
+      imageSource: require('../../assets/spotlight3.png'),
       backgroundColor: '#1E3A8A',
       textColor: '#FFFFFF',
       subtitle: '',
@@ -1500,29 +1504,39 @@ export default function HomeScreen() {
               ]}
             >
               <TouchableOpacity
-                style={[
-                  styles.spotlightCard,
-                  {
-                    backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
-                  },
-                ]}
+                style={styles.spotlightCard}
                 onPress={spotlights[currentSpotlightIndex].onPress}
               >
-                <View style={styles.spotlightCardContent}>
-                  {spotlights[currentSpotlightIndex].icon && (
-                    <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
-                  )}
-                  <Text
+                {spotlights[currentSpotlightIndex].imageSource ? (
+                  <Image
+                    source={spotlights[currentSpotlightIndex].imageSource}
+                    style={styles.spotlightImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View
                     style={[
-                      styles.spotlightCardTitle,
+                      styles.spotlightCardContent,
                       {
-                        color: spotlights[currentSpotlightIndex].textColor,
+                        backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
                       },
                     ]}
                   >
-                    {spotlights[currentSpotlightIndex].title}
-                  </Text>
-                </View>
+                    {spotlights[currentSpotlightIndex].icon && (
+                      <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
+                    )}
+                    <Text
+                      style={[
+                        styles.spotlightCardTitle,
+                        {
+                          color: spotlights[currentSpotlightIndex].textColor,
+                        },
+                      ]}
+                    >
+                      {spotlights[currentSpotlightIndex].title}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </Animated.View>
           </View>
@@ -1909,14 +1923,23 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH - 32, // Full width minus padding
     height: 140,
     borderRadius: 16,
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  spotlightImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F5F5F5',
   },
   spotlightCardContent: {
+    width: '100%',
+    height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    padding: 16,
+    justifyContent: 'center',
   },
   spotlightIcon: {
     fontSize: 24,
