@@ -167,6 +167,7 @@ export default function FeedsScreen() {
             style={[
               styles.slidingIndicator,
               {
+                backgroundColor: theme.backgroundSecondary,
                 transform: [{ translateX: slidePosition }],
               },
             ]}
@@ -177,6 +178,9 @@ export default function FeedsScreen() {
           >
             <Text style={[
               styles.segmentButtonText,
+              {
+                color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
+              },
               selectedTab === 'feed' && styles.segmentButtonTextActive
             ]}>
               Feed
@@ -188,6 +192,9 @@ export default function FeedsScreen() {
       >
             <Text style={[
               styles.segmentButtonText,
+              {
+                color: selectedTab === 'news' ? theme.text : theme.textSecondary,
+              },
               selectedTab === 'news' && styles.segmentButtonTextActive
             ]}>
               News
@@ -606,7 +613,6 @@ const styles = StyleSheet.create({
     left: 4,
     width: 120,
     height: 36, // Match button height (paddingVertical 10 + text height ~16)
-    backgroundColor: '#F5F5F5',
     borderRadius: 8,
     zIndex: 0,
   },
@@ -626,11 +632,9 @@ const styles = StyleSheet.create({
   segmentButtonText: {
     fontSize: 17,
     fontWeight: '400',
-    color: '#374151',
   },
   segmentButtonTextActive: {
     fontWeight: '600',
-    color: '#111827',
   },
   filterTabs: {
     flexDirection: 'row',

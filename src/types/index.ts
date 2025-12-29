@@ -63,6 +63,7 @@ export interface Entity {
   marketCap: number;
   description?: string;
   logoUrl?: string;
+  category?: string; // Category field for entities
 }
 
 export interface Position {
