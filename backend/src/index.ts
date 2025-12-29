@@ -62,13 +62,22 @@ export const handler = async (
     if (path.includes('/like') && method === 'POST') {
       return socialHandlers.toggleLikePost(event);
     }
+    if (path.includes('/bookmark') && method === 'POST') {
+      return socialHandlers.toggleBookmarkPost(event);
+    }
     if (path.includes('/comments')) {
+      if (path.includes('/like') && method === 'POST') {
+        return socialHandlers.toggleLikeComment(event);
+      }
       if (method === 'POST') {
         return socialHandlers.addComment(event);
       }
       if (method === 'GET') {
         return socialHandlers.getComments(event);
       }
+    }
+    if (method === 'DELETE') {
+      return socialHandlers.deletePost(event);
     }
     if (method === 'POST') {
       return socialHandlers.createPost(event);

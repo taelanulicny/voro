@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { Portfolio, Holding, UserTransaction } from '../types';
-import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { authenticatedRequest, apiRequest, isBackendConfigured } from '../config/api';
 import { useAuth } from './AuthContext';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
 
@@ -147,12 +147,13 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, isAuthenticated]);
 
-  // Fetch entity prices
+  // Fetch entity prices - public endpoint, no auth required
   const fetchEntityPrices = useCallback(async () => {
-    if (!token || !isAuthenticated || !isBackendConfigured()) return;
+    if (!isBackendConfigured()) return;
 
     try {
-      const response = await authenticatedRequest<any[]>('/api/entities', token, {
+      // Use apiRequest (not authenticated) since entities are public
+      const response = await apiRequest<any[]>('/api/entities', {
         method: 'GET',
       });
 
@@ -167,26 +168,33 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       // Silently handle errors - don't crash the app
       console.debug('Error fetching entity prices (backend may not be running):', error);
     }
-  }, [token, isAuthenticated]);
+  }, []);
 
-  // Load portfolio and transactions on mount and when auth changes
+  // Fetch entity prices on mount (public endpoint, no auth required)
+  useEffect(() => {
+    fetchEntityPrices().catch(err => console.debug('Error fetching entity prices:', err));
+  }, [fetchEntityPrices]);
+
+  // Load portfolio and transactions when auth changes (requires auth)
   useEffect(() => {
     if (isAuthenticated && token) {
       // Wrap in try-catch to prevent app crashes
-      fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
-      fetchTransactions().catch(err => console.error('Error fetching transactions:', err));
-      fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
+      fetchPortfolio().catch(err => console.debug('Error fetching portfolio:', err));
+      fetchTransactions().catch(err => console.debug('Error fetching transactions:', err));
     }
-  }, [isAuthenticated, token, fetchPortfolio, fetchTransactions, fetchEntityPrices]);
+  }, [isAuthenticated, token, fetchPortfolio, fetchTransactions]);
 
-  // Poll for price updates every 5 seconds
+  // Poll for price updates every 30 seconds (entities are public)
   useEffect(() => {
-    if (!isAuthenticated || !token || !isBackendConfigured()) return;
+    if (!isBackendConfigured()) return;
 
     const interval = setInterval(() => {
-      fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
-      fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
-    }, 5000);
+      fetchEntityPrices().catch(err => console.debug('Error fetching entity prices:', err));
+      // Only fetch portfolio if authenticated
+      if (isAuthenticated && token) {
+        fetchPortfolio().catch(err => console.debug('Error fetching portfolio:', err));
+      }
+    }, 30000); // Reduced from 5s to 30s to avoid excessive API calls
 
     return () => clearInterval(interval);
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);

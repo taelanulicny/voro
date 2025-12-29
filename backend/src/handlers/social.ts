@@ -8,6 +8,9 @@ import {
   getComments as getCommentsService,
   toggleFollowUser as toggleFollowUserService,
   searchUsers as searchUsersService,
+  deletePost as deletePostService,
+  toggleBookmarkPost as toggleBookmarkPostService,
+  toggleLikeComment as toggleLikeCommentService,
 } from '../services/socialService';
 
 export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -215,6 +218,95 @@ export async function searchUsers(event: APIGatewayProxyEvent): Promise<APIGatew
     });
   } catch (error: any) {
     console.error('Error searching users:', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function deletePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const userId = auth.event.userId!;
+    const postId = event.pathParameters?.postId;
+
+    if (!postId) {
+      return createErrorResponse(400, 'Missing postId');
+    }
+
+    const result = await deletePostService(userId, postId);
+
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to delete post');
+    }
+
+    return createResponse(200, {
+      success: true,
+    });
+  } catch (error: any) {
+    console.error('Error deleting post:', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function toggleBookmarkPost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const userId = auth.event.userId!;
+    const postId = event.pathParameters?.postId;
+
+    if (!postId) {
+      return createErrorResponse(400, 'Missing postId');
+    }
+
+    const result = await toggleBookmarkPostService(userId, postId);
+
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to toggle bookmark');
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: { isBookmarked: result.isBookmarked },
+    });
+  } catch (error: any) {
+    console.error('Error toggling bookmark:', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function toggleLikeComment(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const userId = auth.event.userId!;
+    const commentId = event.pathParameters?.commentId;
+
+    if (!commentId) {
+      return createErrorResponse(400, 'Missing commentId');
+    }
+
+    const result = await toggleLikeCommentService(userId, commentId);
+
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to toggle like');
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: { isLiked: result.isLiked },
+    });
+  } catch (error: any) {
+    console.error('Error toggling comment like:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

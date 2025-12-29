@@ -427,20 +427,73 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const toggleBookmarkPost = useCallback(async (postId: string) => {
-    // TODO: Implement bookmark functionality in backend
-    setActivityFeed(prev =>
-      prev.map(post =>
-        post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
-      )
-    );
-    return { success: true };
-  }, []);
+    if (!token) {
+      return { success: false };
+    }
+
+    try {
+      const response = await authenticatedRequest<{ isBookmarked: boolean }>(
+        `/api/social/posts/${postId}/bookmark`,
+        token,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (response.success && response.data) {
+        setActivityFeed(prev =>
+          prev.map(post =>
+            post.id === postId
+              ? { ...post, isBookmarked: response.data!.isBookmarked }
+              : post
+          )
+        );
+        return { success: true };
+      }
+
+      // Fallback to local toggle if backend fails
+      setActivityFeed(prev =>
+        prev.map(post =>
+          post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
+        )
+      );
+      return { success: true };
+    } catch (error) {
+      // Fallback to local toggle on error
+      setActivityFeed(prev =>
+        prev.map(post =>
+          post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
+        )
+      );
+      return { success: true };
+    }
+  }, [token]);
 
   const deletePost = useCallback(async (postId: string) => {
-    // TODO: Implement delete post in backend
-    setActivityFeed(prev => prev.filter(post => post.id !== postId));
-    return { success: true };
-  }, []);
+    if (!token) {
+      return { success: false };
+    }
+
+    try {
+      const response = await authenticatedRequest<void>(
+        `/api/social/posts/${postId}`,
+        token,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      if (response.success) {
+        setActivityFeed(prev => prev.filter(post => post.id !== postId));
+        return { success: true };
+      }
+
+      return { success: false };
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      return { success: false };
+    }
+  }, [token]);
 
   const getComments = useCallback(async (postId: string) => {
     if (!token) return;
@@ -523,21 +576,53 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token, user]);
 
   const toggleLikeComment = useCallback(async (postId: string, commentId: string) => {
-    // TODO: Implement like comment in backend
-    setPostComments(prev => ({
-      ...prev,
-      [postId]: (prev[postId] || []).map(comment =>
-        comment.id === commentId
-          ? {
-              ...comment,
-              isLiked: !comment.isLiked,
-              likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
-            }
-          : comment
-      ),
-    }));
-    return { success: true };
-  }, []);
+    if (!token) {
+      return { success: false };
+    }
+
+    try {
+      const response = await authenticatedRequest<{ isLiked: boolean }>(
+        `/api/social/comments/${commentId}/like`,
+        token,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (response.success && response.data) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: (prev[postId] || []).map(comment =>
+            comment.id === commentId
+              ? {
+                  ...comment,
+                  isLiked: response.data!.isLiked,
+                  likes: response.data!.isLiked ? comment.likes + 1 : comment.likes - 1,
+                }
+              : comment
+          ),
+        }));
+        return { success: true };
+      }
+
+      return { success: false };
+    } catch (error) {
+      // Fallback to local toggle on error
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                isLiked: !comment.isLiked,
+                likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
+              }
+            : comment
+        ),
+      }));
+      return { success: true };
+    }
+  }, [token]);
 
   const toggleFollowUser = useCallback(async (userId: string) => {
     if (!token) {

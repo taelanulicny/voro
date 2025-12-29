@@ -103,6 +103,20 @@ export interface Like {
   createdAt: string;
 }
 
+export interface CommentLike {
+  likeId: string;
+  commentId: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface Bookmark {
+  bookmarkId: string;
+  postId: string;
+  userId: string;
+  createdAt: string;
+}
+
 export interface Watchlist {
   userId: string;
   entityId: number;
