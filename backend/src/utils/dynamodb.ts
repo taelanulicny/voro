@@ -21,5 +21,7 @@ export const TABLE_NAMES = {
   PRICE_HISTORY: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-PriceHistory`,
   BLOCKS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-Blocks`,
   REPORTS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-Reports`,
+  GROUPS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-Groups`,
+  GROUP_MEMBERS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-GroupMembers`,
 };
 

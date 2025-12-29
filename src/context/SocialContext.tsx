@@ -416,8 +416,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isAuthenticated && token) {
       refreshActivityFeed().catch(err => console.error('Error refreshing feed:', err));
+      refreshGroups().catch(err => console.error('Error refreshing groups:', err));
     }
-  }, [isAuthenticated, token, refreshActivityFeed]);
+  }, [isAuthenticated, token, refreshActivityFeed, refreshGroups]);
 
   const createPost = useCallback(async (params: {
     content: string;
@@ -747,12 +748,49 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     [followedUsers]
   );
 
+  // Helper to map backend group to frontend Group type
+  const mapBackendGroup = (backendGroup: any): Group => ({
+    id: backendGroup.groupId,
+    name: backendGroup.name,
+    description: backendGroup.description,
+    category: backendGroup.category,
+    memberCount: backendGroup.memberCount || 0,
+    isPrivate: backendGroup.isPrivate || false,
+    isMember: backendGroup.isMember || false,
+    coverImage: backendGroup.coverImage,
+    createdAt: backendGroup.createdAt,
+  });
+
   const refreshGroups = useCallback(async () => {
     setIsLoadingGroups(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setGroups(MOCK_GROUPS);
-    setIsLoadingGroups(false);
-  }, []);
+    try {
+      if (!isBackendConfigured() || !token || !isAuthenticated) {
+        setGroups(MOCK_GROUPS);
+        setIsLoadingGroups(false);
+        return;
+      }
+
+      const response = await authenticatedRequest<{
+        groups: any[];
+        lastEvaluatedKey?: string;
+      }>('/api/groups?limit=50', token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data && response.data.groups) {
+        const mappedGroups = response.data.groups.map(mapBackendGroup);
+        setGroups(mappedGroups);
+      } else {
+        // Fallback to mock if backend fails
+        setGroups(MOCK_GROUPS);
+      }
+    } catch (error) {
+      console.error('Error refreshing groups:', error);
+      setGroups(MOCK_GROUPS);
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  }, [token, isAuthenticated]);
 
   const createGroup = useCallback(async (params: {
     name: string;
@@ -760,45 +798,136 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     category: string;
     isPrivate: boolean;
   }) => {
-    // TODO: Implement groups in backend
-    const newGroup: Group = {
-      id: Date.now().toString(),
-      name: params.name,
-      description: params.description,
-      category: params.category,
-      memberCount: 1,
-      isPrivate: params.isPrivate,
-      isMember: true,
-      createdAt: new Date().toISOString(),
-    };
+    if (!token || !isAuthenticated) {
+      return { success: false, error: 'Not authenticated' };
+    }
 
-    setGroups(prev => [newGroup, ...prev]);
-    return { success: true, group: newGroup };
-  }, []);
+    try {
+      if (!isBackendConfigured()) {
+        // Fallback to mock
+        const newGroup: Group = {
+          id: Date.now().toString(),
+          name: params.name,
+          description: params.description,
+          category: params.category,
+          memberCount: 1,
+          isPrivate: params.isPrivate,
+          isMember: true,
+          createdAt: new Date().toISOString(),
+        };
+        setGroups(prev => [newGroup, ...prev]);
+        return { success: true, group: newGroup };
+      }
+
+      const response = await authenticatedRequest<{ group: any }>(
+        '/api/groups',
+        token,
+        {
+          method: 'POST',
+          body: JSON.stringify(params),
+        }
+      );
+
+      if (response.success && response.data && response.data.group) {
+        const mappedGroup = mapBackendGroup({ ...response.data.group, isMember: true });
+        setGroups(prev => [mappedGroup, ...prev]);
+        return { success: true, group: mappedGroup };
+      }
+
+      return { success: false, error: 'Failed to create group' };
+    } catch (error: any) {
+      console.error('Error creating group:', error);
+      return { success: false, error: error.message || 'Failed to create group' };
+    }
+  }, [token, isAuthenticated]);
 
   const joinGroup = useCallback(async (groupId: string) => {
-    // TODO: Implement groups in backend
-    setGroups(prev =>
-      prev.map(group =>
-        group.id === groupId
-          ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
-          : group
-      )
-    );
-    return { success: true };
-  }, []);
+    if (!token || !isAuthenticated) {
+      return { success: false };
+    }
+
+    try {
+      if (!isBackendConfigured()) {
+        // Fallback to mock
+        setGroups(prev =>
+          prev.map(group =>
+            group.id === groupId
+              ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
+              : group
+          )
+        );
+        return { success: true };
+      }
+
+      const response = await authenticatedRequest<{ success: boolean }>(
+        `/api/groups/${groupId}/join`,
+        token,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (response.success) {
+        setGroups(prev =>
+          prev.map(group =>
+            group.id === groupId
+              ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
+              : group
+          )
+        );
+        return { success: true };
+      }
+
+      return { success: false };
+    } catch (error) {
+      console.error('Error joining group:', error);
+      return { success: false };
+    }
+  }, [token, isAuthenticated]);
 
   const leaveGroup = useCallback(async (groupId: string) => {
-    // TODO: Implement groups in backend
-    setGroups(prev =>
-      prev.map(group =>
-        group.id === groupId
-          ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
-          : group
-      )
-    );
-    return { success: true };
-  }, []);
+    if (!token || !isAuthenticated) {
+      return { success: false };
+    }
+
+    try {
+      if (!isBackendConfigured()) {
+        // Fallback to mock
+        setGroups(prev =>
+          prev.map(group =>
+            group.id === groupId
+              ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
+              : group
+          )
+        );
+        return { success: true };
+      }
+
+      const response = await authenticatedRequest<{ success: boolean }>(
+        `/api/groups/${groupId}/leave`,
+        token,
+        {
+          method: 'POST',
+        }
+      );
+
+      if (response.success) {
+        setGroups(prev =>
+          prev.map(group =>
+            group.id === groupId
+              ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
+              : group
+          )
+        );
+        return { success: true };
+      }
+
+      return { success: false };
+    } catch (error) {
+      console.error('Error leaving group:', error);
+      return { success: false };
+    }
+  }, [token, isAuthenticated]);
 
   const value: SocialContextType = {
     activityFeed,

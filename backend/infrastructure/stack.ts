@@ -201,6 +201,26 @@ export class MoroBackendStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
+    const groupsTable = new dynamodb.Table(this, 'GroupsTable', {
+      tableName: `${tablePrefix}-Groups`,
+      partitionKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    const groupMembersTable = new dynamodb.Table(this, 'GroupMembersTable', {
+      tableName: `${tablePrefix}-GroupMembers`,
+      partitionKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    groupMembersTable.addGlobalSecondaryIndex({
+      indexName: 'userId-groupId-index',
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
+    });
+
     // Separate role for pre-signup Lambda (to avoid circular dependencies)
     const preSignUpLambdaRole = new iam.Role(this, 'PreSignUpLambdaRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -243,6 +263,8 @@ export class MoroBackendStack extends cdk.Stack {
     priceHistoryTable.grantReadWriteData(lambdaRole);
     blocksTable.grantReadWriteData(lambdaRole);
     reportsTable.grantReadWriteData(lambdaRole);
+    groupsTable.grantReadWriteData(lambdaRole);
+    groupMembersTable.grantReadWriteData(lambdaRole);
     assetsBucket.grantReadWrite(lambdaRole);
     userPool.grant(lambdaRole, 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDeleteUser');
 
@@ -268,6 +290,8 @@ export class MoroBackendStack extends cdk.Stack {
         PRICE_HISTORY_TABLE: priceHistoryTable.tableName,
         BLOCKS_TABLE: blocksTable.tableName,
         REPORTS_TABLE: reportsTable.tableName,
+        GROUPS_TABLE: groupsTable.tableName,
+        GROUP_MEMBERS_TABLE: groupMembersTable.tableName,
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
         S3_BUCKET_NAME: assetsBucket.bucketName,

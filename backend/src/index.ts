@@ -10,6 +10,8 @@ import * as userHandlers from './handlers/user';
 import * as newsHandlers from './handlers/news';
 import * as watchlistHandlers from './handlers/watchlist';
 import * as accountHandlers from './handlers/account';
+import * as leaderboardHandlers from './handlers/leaderboard';
+import * as groupHandlers from './handlers/groups';
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -123,6 +125,36 @@ export const handler = async (
     }
     if (method === 'DELETE') {
       return watchlistHandlers.removeFromWatchlist(event);
+    }
+  }
+
+  if (path.includes('/api/leaderboard') && method === 'GET') {
+    return leaderboardHandlers.getLeaderboardHandler(event);
+  }
+
+  if (path.includes('/api/groups')) {
+    const groupId = event.pathParameters?.groupId;
+    
+    if (path.endsWith('/join') && method === 'POST' && groupId) {
+      return groupHandlers.joinGroupHandler(event);
+    }
+    if (path.endsWith('/leave') && method === 'POST' && groupId) {
+      return groupHandlers.leaveGroupHandler(event);
+    }
+    if (method === 'DELETE' && groupId) {
+      return groupHandlers.deleteGroupHandler(event);
+    }
+    if (path.includes('/user') && method === 'GET') {
+      return groupHandlers.getUserGroupsHandler(event);
+    }
+    if (method === 'GET' && groupId) {
+      return groupHandlers.getGroupHandler(event);
+    }
+    if (method === 'GET') {
+      return groupHandlers.getGroupsHandler(event);
+    }
+    if (method === 'POST') {
+      return groupHandlers.createGroupHandler(event);
     }
   }
 

@@ -169,3 +169,23 @@ export interface Report {
   status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
 }
 
+export interface Group {
+  groupId: string;
+  name: string;
+  description: string;
+  category: string;
+  ownerId: string;
+  isPrivate: boolean;
+  memberCount: number;
+  coverImage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupMember {
+  groupId: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
+}
+
