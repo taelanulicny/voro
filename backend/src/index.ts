@@ -12,6 +12,7 @@ import * as watchlistHandlers from './handlers/watchlist';
 import * as accountHandlers from './handlers/account';
 import * as leaderboardHandlers from './handlers/leaderboard';
 import * as groupHandlers from './handlers/groups';
+import * as categoryHandlers from './handlers/categories';
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -155,6 +156,24 @@ export const handler = async (
     }
     if (method === 'POST') {
       return groupHandlers.createGroupHandler(event);
+    }
+  }
+
+  if (path.includes('/api/categories')) {
+    if (path.includes('/trending') && method === 'GET') {
+      return categoryHandlers.getTrendingHandler(event);
+    }
+    if (path.includes('/movers') && method === 'GET') {
+      return categoryHandlers.getMoversHandler(event);
+    }
+    if (path.includes('/discussed') && method === 'GET') {
+      return categoryHandlers.getDiscussedHandler(event);
+    }
+    if (path.includes('/discover') && method === 'GET') {
+      return categoryHandlers.getDiscoverHandler(event);
+    }
+    if (path.includes('/for-you') && method === 'GET') {
+      return categoryHandlers.getForYouHandler(event);
     }
   }
 
