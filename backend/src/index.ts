@@ -52,6 +52,9 @@ export const handler = async (
   if (path.includes('/api/transactions') && method === 'GET') {
     return tradingHandlers.getTransactionsHandler(event);
   }
+  if (path.includes('/api/prices') && method === 'GET') {
+    return tradingHandlers.getAllPricesHandler(event);
+  }
   if (path.includes('/api/entities')) {
     if (path.includes('/price-history') && method === 'GET') {
       return tradingHandlers.getPriceHistoryHandler(event);

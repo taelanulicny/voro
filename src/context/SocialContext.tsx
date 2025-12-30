@@ -408,7 +408,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     if (!isBackendConfigured()) {
-      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+      return { success: false, error: 'This feature requires a backend connection.' };
     }
 
     try {
@@ -780,7 +780,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     if (!isBackendConfigured()) {
-      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+      return { success: false, error: 'This feature requires a backend connection.' };
     }
 
     try {

@@ -159,7 +159,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (!isBackendConfigured()) {
-      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+      return { success: false, error: 'This feature requires a backend connection.' };
     }
 
     // Check if already in watchlist
@@ -202,7 +202,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (!isBackendConfigured()) {
-      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+      return { success: false, error: 'This feature requires a backend connection.' };
     }
 
     try {

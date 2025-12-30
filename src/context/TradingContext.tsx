@@ -179,24 +179,41 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     if (!isBackendConfigured()) return;
 
     try {
-      // Use apiRequest (not authenticated) since entities are public
-      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/entities', {
+      // Use the new dedicated prices endpoint for better performance
+      const response = await apiRequest<{ 
+        success?: boolean; 
+        data?: Record<number, number>;
+        timestamp?: string;
+      }>('/api/prices', {
         method: 'GET',
         signal,
       });
 
       if (response.success && response.data) {
-        // Ensure response.data is an array before validating
-        const dataArray = Array.isArray(response.data) ? response.data : [];
-        // BackendEntityArraySchema is already an array schema, so use safeValidate
-        const validatedEntities = safeValidate(BackendEntityArraySchema, dataArray);
-        if (validatedEntities && validatedEntities.length > 0) {
-          const prices: Record<number, number> = {};
-          validatedEntities.forEach((entity) => {
-            prices[entity.entityId] = entity.currentPrice || entity.basePrice;
-          });
+        // response.data is a Record<number, number> (entityId -> price)
+        const prices = response.data;
+        if (Object.keys(prices).length > 0) {
           setEntityPrices(prices);
           setLastPriceUpdateTime(Date.now());
+        }
+      } else {
+        // Fallback to old endpoint if new one doesn't exist yet
+        const fallbackResponse = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/entities', {
+          method: 'GET',
+          signal,
+        });
+
+        if (fallbackResponse.success && fallbackResponse.data) {
+          const dataArray = Array.isArray(fallbackResponse.data) ? fallbackResponse.data : [];
+          const validatedEntities = safeValidate(BackendEntityArraySchema, dataArray);
+          if (validatedEntities && validatedEntities.length > 0) {
+            const prices: Record<number, number> = {};
+            validatedEntities.forEach((entity) => {
+              prices[entity.entityId] = entity.currentPrice || entity.basePrice;
+            });
+            setEntityPrices(prices);
+            setLastPriceUpdateTime(Date.now());
+          }
         }
       }
     } catch (error) {

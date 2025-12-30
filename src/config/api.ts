@@ -1,16 +1,21 @@
 /**
  * API Configuration
  * 
- * Set your backend API URL in .env file:
- * EXPO_PUBLIC_API_URL=https://your-api.com
+ * The app can work in two modes:
+ * 1. With backend: Set EXPO_PUBLIC_API_URL=https://your-api.com in .env file
+ * 2. Standalone: Works without backend using local/mock data
  */
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
-// Check if backend is configured
+// Check if backend is configured (optional - app works without it)
 export const isBackendConfigured = () => {
   const url = process.env.EXPO_PUBLIC_API_URL;
-  return url && url !== 'http://localhost:3000/api' && url.trim() !== '';
+  // Backend is considered configured if:
+  // 1. EXPO_PUBLIC_API_URL is set AND
+  // 2. It's not localhost (which won't work on a phone) AND
+  // 3. It's not empty
+  return !!(url && !url.includes('localhost') && url.trim() !== '');
 };
 
 export const API_CONFIG = {
@@ -92,11 +97,11 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  // If backend is not configured, return error gracefully
+  // If backend is not configured, return gracefully (app works in standalone mode)
   if (!isBackendConfigured()) {
     return {
       success: false,
-      error: 'Backend API not configured. Please set EXPO_PUBLIC_API_URL in your .env file.',
+      error: 'Backend not available. App is running in standalone mode.',
     };
   }
 
@@ -150,7 +155,7 @@ export async function apiRequest<T = any>(
       if (API_CONFIG.baseURL.includes('localhost')) {
         return {
           success: false,
-          error: 'Backend not available. Please start the backend server or configure EXPO_PUBLIC_API_URL.',
+          error: 'Backend not available. App is running in standalone mode.',
         };
       }
       return {

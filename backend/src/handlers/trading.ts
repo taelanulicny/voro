@@ -7,6 +7,7 @@ import {
   getAllEntities,
   getEntityPrice,
   getPriceHistory,
+  getAllEntityPrices,
 } from '../services/tradingService';
 
 export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -195,6 +196,25 @@ export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promi
     });
   } catch (error: any) {
     console.error('Error getting price history:', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+/**
+ * Get all entity prices (public endpoint, no auth required)
+ * More efficient than fetching all entities when you only need prices
+ */
+export async function getAllPricesHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const prices = await getAllEntityPrices();
+
+    return createResponse(200, {
+      success: true,
+      data: prices,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Error getting all prices:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

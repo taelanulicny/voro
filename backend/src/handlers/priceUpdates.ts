@@ -46,12 +46,25 @@ export async function updatePrices(event: EventBridgeEvent<'Scheduled Event', an
         currentPrice = (priceResult.Items[0] as PriceHistory).price;
       }
 
-      // Simulate price change: ±1% to ±3% per update
-      const changePercent = (Math.random() - 0.5) * 0.06; // -3% to +3%
-      const change = currentPrice * changePercent;
+      // Simulate realistic price changes
+      // Use a random walk with slight mean reversion to base price
+      // Volatility: ±0.5% to ±2% per update (every 5 minutes)
+      const volatility = 0.02; // 2% max change per update
+      const meanReversion = 0.1; // 10% pull toward base price
+      
+      // Random walk component
+      const randomChange = (Math.random() - 0.5) * 2 * volatility;
+      
+      // Mean reversion component (pull price toward base price)
+      const deviationFromBase = (currentPrice - entity.basePrice) / entity.basePrice;
+      const reversionForce = -deviationFromBase * meanReversion;
+      
+      // Combine both forces
+      const totalChangePercent = randomChange + reversionForce;
+      const change = currentPrice * totalChangePercent;
       const newPrice = Math.max(
-        entity.basePrice * 0.5,
-        Math.min(entity.basePrice * 1.5, currentPrice + change)
+        entity.basePrice * 0.3, // Allow prices to drop to 30% of base
+        Math.min(entity.basePrice * 2.0, currentPrice + change) // Allow prices to rise to 200% of base
       );
       const roundedPrice = Math.round(newPrice * 100) / 100;
 

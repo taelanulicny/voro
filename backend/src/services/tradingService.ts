@@ -378,6 +378,39 @@ export async function getEntityPrice(entityId: number): Promise<number | null> {
   return null;
 }
 
+/**
+ * Get all entity prices efficiently
+ * Returns a map of entityId -> currentPrice
+ */
+export async function getAllEntityPrices(): Promise<Record<number, number>> {
+  try {
+    // Get all entities first
+    const entities = await getAllEntities();
+    
+    // Get prices for all entities in parallel
+    const pricePromises = entities.map(async (entity) => {
+      const price = await getEntityPrice(entity.entityId);
+      return {
+        entityId: entity.entityId,
+        price: price || entity.basePrice,
+      };
+    });
+    
+    const prices = await Promise.all(pricePromises);
+    
+    // Convert to record
+    const priceMap: Record<number, number> = {};
+    prices.forEach(({ entityId, price }) => {
+      priceMap[entityId] = price;
+    });
+    
+    return priceMap;
+  } catch (error) {
+    console.error('Error getting all entity prices:', error);
+    return {};
+  }
+}
+
 export async function getPriceHistory(
   entityId: number,
   timeRange: '1D' | '1W' | '1M' | 'ALL' = 'ALL',
