@@ -44,9 +44,11 @@ export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promis
         joinedDate: user.joinedDate,
       },
     });
-  } catch (error: any) {
-    console.error('Error getting user profile:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error getting user profile:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -91,9 +93,11 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
         bio: result.user?.bio,
       },
     });
-  } catch (error: any) {
-    console.error('Error updating profile:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error updating profile:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -127,9 +131,11 @@ export async function getAvatarUploadUrlHandler(event: APIGatewayProxyEvent): Pr
         avatarUrl, // Return the URL that should be stored in the user profile
       },
     });
-  } catch (error: any) {
-    console.error('Error generating upload URL:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error generating upload URL:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 

@@ -57,9 +57,11 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       success: true,
       data: result.portfolio,
     });
-  } catch (error: any) {
-    console.error('Error executing trade:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error executing trade:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -77,9 +79,11 @@ export async function getPortfolio(event: APIGatewayProxyEvent): Promise<APIGate
       success: true,
       data: portfolio,
     });
-  } catch (error: any) {
-    console.error('Error getting portfolio:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error getting portfolio:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -103,9 +107,11 @@ export async function getTransactionsHandler(event: APIGatewayProxyEvent): Promi
         lastEvaluatedKey: result.lastEvaluatedKey,
       },
     });
-  } catch (error: any) {
-    console.error('Error getting transactions:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error getting transactions:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -133,9 +139,11 @@ export async function getAllEntitiesHandler(event: APIGatewayProxyEvent): Promis
       success: true,
       data: entitiesWithPrices,
     });
-  } catch (error: any) {
-    console.error('Error getting entities:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error getting entities:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -157,9 +165,11 @@ export async function getEntityPriceHandler(event: APIGatewayProxyEvent): Promis
       success: true,
       data: { entityId, price },
     });
-  } catch (error: any) {
-    console.error('Error getting entity price:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error getting entity price:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -194,9 +204,11 @@ export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promi
         price: item.price,
       })),
     });
-  } catch (error: any) {
-    console.error('Error getting price history:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error getting price history:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -213,9 +225,11 @@ export async function getAllPricesHandler(event: APIGatewayProxyEvent): Promise<
       data: prices,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error('Error getting all prices:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Error getting all prices:', errorMessage, errorDetails);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 

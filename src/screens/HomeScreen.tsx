@@ -42,7 +42,7 @@ type NavigationProp = CompositeNavigationProp<
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export default function HomeScreen() {
+function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { portfolio, getEntityPrice, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
@@ -2429,6 +2429,7 @@ export default function HomeScreen() {
   );
 }
 
+export default React.memo(HomeScreen);
 
 const styles = StyleSheet.create({
   container: {

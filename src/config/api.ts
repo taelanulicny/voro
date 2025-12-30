@@ -333,7 +333,7 @@ export async function apiRequest<T = any>(
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
         return {
           success: false,
-          error: 'Request timeout. Please check your connection and try again.',
+          error: 'Request timed out. The server is taking too long to respond. Please check your connection and try again.',
         };
       }
 
@@ -346,9 +346,24 @@ export async function apiRequest<T = any>(
           };
         }
         // Re-throw network errors for retry logic
-        const networkError: any = new Error('Network error. Please check your internet connection.');
+        const networkError: any = new Error('Unable to connect to the server. Please check your internet connection and try again.');
         networkError.status = 0;
         throw networkError;
+      }
+      
+      // Provide user-friendly messages for common HTTP errors
+      if (error.status >= 500) {
+        return {
+          success: false,
+          error: 'Server error. Our team has been notified. Please try again in a moment.',
+        };
+      }
+      
+      if (error.status === 429) {
+        return {
+          success: false,
+          error: 'Too many requests. Please wait a moment and try again.',
+        };
       }
 
       // Re-throw for retry logic
