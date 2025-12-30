@@ -151,11 +151,17 @@ export default function BottomTabNavigator() {
             }}
           </Tab.Screen>
           <Tab.Screen name="Groups">
-            {() => (
-              <ErrorBoundary>
-                <GroupsScreen />
-              </ErrorBoundary>
-            )}
+            {() => {
+              const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+              React.useEffect(() => {
+                setTabNavigation(nav);
+              }, [nav]);
+              return (
+                <ErrorBoundary>
+                  <GroupsScreen />
+                </ErrorBoundary>
+              );
+            }}
           </Tab.Screen>
           <Tab.Screen name="Portfolio">
             {() => (

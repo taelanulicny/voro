@@ -52,6 +52,9 @@ interface SocialContextType {
 
   // Group actions
   refreshGroups: () => Promise<void>;
+  refreshUserGroups: () => Promise<void>;
+  myGroups: Group[];
+  isLoadingMyGroups: boolean;
   createGroup: (params: { name: string; description: string; category: string; isPrivate: boolean }) => Promise<{ success: boolean; group?: Group }>;
   joinGroup: (groupId: string) => Promise<{ success: boolean }>;
   leaveGroup: (groupId: string) => Promise<{ success: boolean }>;
@@ -66,6 +69,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [myGroups, setMyGroups] = useState<Group[]>([]);
+  const [isLoadingMyGroups, setIsLoadingMyGroups] = useState(false);
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
@@ -769,6 +774,35 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
   }, [token, isAuthenticated]);
 
+  const refreshUserGroups = useCallback(async () => {
+    setIsLoadingMyGroups(true);
+    try {
+      if (!isBackendConfigured() || !token || !isAuthenticated) {
+        setMyGroups([]);
+        setIsLoadingMyGroups(false);
+        return;
+      }
+
+      const response = await authenticatedRequest<{
+        groups: any[];
+      }>('/api/groups/user', token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data && response.data.groups) {
+        const mappedGroups = response.data.groups.map(mapBackendGroup);
+        setMyGroups(mappedGroups);
+      } else {
+        setMyGroups([]);
+      }
+    } catch (error) {
+      console.error('Error refreshing user groups:', error);
+      setMyGroups([]);
+    } finally {
+      setIsLoadingMyGroups(false);
+    }
+  }, [token, isAuthenticated]);
+
   const createGroup = useCallback(async (params: {
     name: string;
     description: string;
@@ -832,6 +866,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
               : group
           )
         );
+        // Refresh user groups to include the newly joined group
+        await refreshUserGroups();
         return { success: true };
       }
 
@@ -840,7 +876,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       console.error('Error joining group:', error);
       return { success: false };
     }
-  }, [token, isAuthenticated]);
+  }, [token, isAuthenticated, refreshUserGroups]);
 
   const leaveGroup = useCallback(async (groupId: string) => {
     if (!token || !isAuthenticated) {
@@ -868,6 +904,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
               : group
           )
         );
+        // Refresh user groups to remove the left group
+        await refreshUserGroups();
         return { success: true };
       }
 
@@ -876,7 +914,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       console.error('Error leaving group:', error);
       return { success: false };
     }
-  }, [token, isAuthenticated]);
+  }, [token, isAuthenticated, refreshUserGroups]);
 
   const value: SocialContextType = {
     activityFeed,
@@ -901,6 +939,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     toggleFollowUser,
     isFollowingUser,
     refreshGroups,
+    refreshUserGroups,
+    myGroups,
+    isLoadingMyGroups,
     createGroup,
     joinGroup,
     leaveGroup,
