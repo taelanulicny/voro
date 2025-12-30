@@ -180,27 +180,32 @@ export const handler = async (
 
   if (path.includes('/api/groups')) {
     const groupId = event.pathParameters?.groupId;
+    // Normalize path (remove trailing slash)
+    const normalizedPath = path.replace(/\/$/, '');
     
+    // Check specific routes first (most specific to least specific)
     if (path.endsWith('/join') && method === 'POST' && groupId) {
       return groupHandlers.joinGroupHandler(event);
     }
     if (path.endsWith('/leave') && method === 'POST' && groupId) {
       return groupHandlers.leaveGroupHandler(event);
     }
-    if (method === 'DELETE' && groupId) {
-      return groupHandlers.deleteGroupHandler(event);
-    }
     if (path.includes('/user') && method === 'GET') {
       return groupHandlers.getUserGroupsHandler(event);
+    }
+    if (method === 'DELETE' && groupId) {
+      return groupHandlers.deleteGroupHandler(event);
     }
     if (method === 'GET' && groupId) {
       return groupHandlers.getGroupHandler(event);
     }
+    // POST to /api/groups - create group (check exact path match)
+    if (method === 'POST' && (normalizedPath === '/api/groups')) {
+      console.log('[Router] Routing POST /api/groups to createGroupHandler');
+      return groupHandlers.createGroupHandler(event);
+    }
     if (method === 'GET') {
       return groupHandlers.getGroupsHandler(event);
-    }
-    if (method === 'POST') {
-      return groupHandlers.createGroupHandler(event);
     }
   }
 

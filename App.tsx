@@ -37,6 +37,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import DiscoverNewAdditionsScreen from './src/screens/DiscoverNewAdditionsScreen';
 import AccountValueScreen from './src/screens/AccountValueScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -202,6 +203,19 @@ function RootNavigator() {
             {() => (
               <ErrorBoundary>
                 <EditProfileScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="UserProfile" 
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          >
+            {(props) => (
+              <ErrorBoundary>
+                <UserProfileScreen {...props} />
               </ErrorBoundary>
             )}
           </Stack.Screen>

@@ -12,9 +12,11 @@ import { Post } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 import CommentSection from './CommentSection';
-import { getEntityByName } from '../utils/mockEntities';
+import { getEntityByName, getEntityByTicker } from '../utils/mockEntities';
 
 interface PostCardProps {
   post: Post;
@@ -32,7 +34,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
   const { toggleLikePost, deletePost } = useSocial();
   const { theme } = useTheme();
   const [showComments, setShowComments] = useState(false);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const formatTimestamp = (timestamp: string) => {
     const now = new Date();
@@ -180,92 +182,189 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
     }
   };
 
+  const handleProfilePress = () => {
+    // Check if clicking on own profile
+    if (user?.id === post.userId) {
+      // Navigate to Profile tab in the Main tab navigator
+      // React Navigation supports nested navigation with params
+      navigation.dispatch(
+        CommonActions.navigate({
+          name: 'Main',
+          params: {
+            screen: 'Profile',
+          },
+        } as any)
+      );
+    } else {
+      // Navigate to other user's profile
+      navigation.navigate('UserProfile', {
+        userId: post.userId,
+      });
+    }
+  };
+
+  const handleTickerPress = (ticker: string) => {
+    const entity = getEntityByTicker(ticker);
+    if (!entity) {
+      console.warn(`Entity not found for ticker: ${ticker}`);
+      return;
+    }
+    
+    // Map entity category to categoryId format used in navigation
+    let entityCategoryId: string;
+    if (entity.category === 'People') {
+      if (entity.id >= 11 && entity.id <= 20) {
+        entityCategoryId = 'Influencers';
+      } else if (entity.id >= 21 && entity.id <= 30) {
+        entityCategoryId = 'Music Artists';
+      } else {
+        entityCategoryId = 'Influencers'; // Default
+      }
+    } else {
+      const categoryMap: Record<string, string> = {
+        'Politics': 'Political Figures',
+        'Tech': 'Startups',
+        'Events': 'Sports',
+      };
+      entityCategoryId = categoryMap[entity.category] || entity.category;
+    }
+    
+    navigation.navigate('Entity' as never, {
+      entityId: entity.id,
+      categoryId: entityCategoryId,
+    } as never);
+  };
+
   const isOwnPost = user?.id === post.userId;
 
-  // Parse content to find @mentions and make them clickable
+  // Helper function to parse content and find all @mentions and $tickers, returning sorted matches
+  const parseMentionsAndTickers = (content: string): Array<{
+    type: 'mention' | 'ticker';
+    match: string;
+    name: string;
+    index: number;
+    possessiveText?: string;
+  }> => {
+    const matches: Array<{
+      type: 'mention' | 'ticker';
+      match: string;
+      name: string;
+      index: number;
+      possessiveText?: string;
+    }> = [];
+
+    // Find all @mentions
+    const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
+    let match;
+    while ((match = mentionRegex.exec(content)) !== null) {
+      const possessiveMatch = match[0].match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
+      matches.push({
+        type: 'mention',
+        match: possessiveMatch ? possessiveMatch[1] : match[0],
+        name: cleanMentionName(match[1]),
+        index: match.index,
+        possessiveText: possessiveMatch ? possessiveMatch[2] : undefined,
+      });
+    }
+
+    // Find all $tickers (uppercase letters, 1-6 chars typically)
+    const tickerRegex = /\$([A-Z]{1,6})\b/g;
+    while ((match = tickerRegex.exec(content)) !== null) {
+      matches.push({
+        type: 'ticker',
+        match: match[0],
+        name: match[1],
+        index: match.index,
+      });
+    }
+
+    // Sort by index
+    return matches.sort((a, b) => a.index - b.index);
+  };
+
+  // Parse content to find @mentions, $tickers, and make them clickable
   const renderContentWithMentions = () => {
     if (isEntityFeed) {
       // Entity feed: Start with @EntityName prefix (no spaces) - e.g., @KanyeWest not @Kanye West
       const entityMentionFormatted = entityName ? `@${entityNameToMention(entityName)} ` : '';
       const fullContent = entityMentionFormatted + post.content;
       
-      // Use regex to find all @mentions - now matches single word format (no spaces)
       const parts: React.ReactNode[] = [];
       let lastIndex = 0;
-      // Match @ followed by word characters (letters, numbers, dots, hyphens) but NO spaces
-      // Stop at: punctuation, spaces, or end of string
-      const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
-      let match;
+      const matches = parseMentionsAndTickers(fullContent);
       
-      while ((match = mentionRegex.exec(fullContent)) !== null) {
-        const mention = match[0]; // e.g., "@Drake" or "@Drake's"
-        const mentionName = match[1]; // e.g., "Drake" or "Drake's"
-        const startIndex = match.index;
-        
-        // Add text before the mention
-        if (startIndex > lastIndex) {
-          const textBefore = fullContent.substring(lastIndex, startIndex);
+      matches.forEach((item) => {
+        // Add text before the match
+        if (item.index > lastIndex) {
+          const textBefore = fullContent.substring(lastIndex, item.index);
           if (textBefore) {
             parts.push(
-              <Text key={`text-${lastIndex}`} style={[styles.contentText, { color: theme.text }]}>
+              <Text key={`text-${item.index}`} style={[styles.contentText, { color: theme.text }]}>
                 {textBefore}
               </Text>
             );
           }
         }
         
-        // Check if mention has possessive "'s" at the end
-        const possessiveMatch = mention.match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
-        const entityMention = possessiveMatch ? possessiveMatch[1] : mention; // "@Drake" or "@Drake"
-        const possessiveText = possessiveMatch ? possessiveMatch[2] : ''; // "'s" or ""
-        
-        // Clean mention name for comparison and lookup (remove possessive)
-        const cleanedMentionName = cleanMentionName(mentionName);
-        
-        // Check if this is the main entity mention
-        const isMainEntityMention = cleanedMentionName.toLowerCase() === entityNameToMention(entityName || '').toLowerCase();
-        
-        // Capture values in closure to ensure correct value
-        const capturedMentionName = cleanedMentionName;
-        const isMainMention = isMainEntityMention;
-        
-        // Render the entity mention (blue, clickable)
-        parts.push(
-          <Text
-            key={`mention-${startIndex}`}
-            style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
-            onPress={() => {
-              if (capturedMentionName) {
-                if (isMainMention && entityId) {
-                  // Main entity mention - navigate to current entity page (the entity whose feed we're in)
+        // Render the match based on type
+        if (item.type === 'mention') {
+          // Check if this is the main entity mention
+          const isMainEntityMention = item.name.toLowerCase() === entityNameToMention(entityName || '').toLowerCase();
+          
+          if (isMainEntityMention && entityId) {
+            // Main entity mention - navigate to current entity page
+            parts.push(
+              <Text
+                key={`mention-${item.index}`}
+                style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+                onPress={() => {
                   navigation.navigate('Entity' as never, {
                     entityId: entityId,
                     categoryId: categoryId || 'Influencers',
                   } as never);
-                } else {
-                  // Other entity mentions - navigate to their entity page (NOT the current entity)
-                  handleEntityPress(capturedMentionName);
-                }
-              }
-            }}
-          >
-            {entityMention}
-          </Text>
-        );
-        
-        // If there's possessive text, render it as regular text (not blue)
-        if (possessiveText) {
+                }}
+              >
+                {item.match}
+              </Text>
+            );
+          } else {
+            // Other entity mentions - navigate to their entity page
+            parts.push(
+              <Text
+                key={`mention-${item.index}`}
+                style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+                onPress={() => handleEntityPress(item.name)}
+              >
+                {item.match}
+              </Text>
+            );
+          }
+        } else if (item.type === 'ticker') {
+          // Ticker - clickable, navigates to entity
           parts.push(
-            <Text key={`possessive-${startIndex}`} style={[styles.contentText, { color: theme.text }]}>
-              {possessiveText}
+            <Text
+              key={`ticker-${item.index}`}
+              style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+              onPress={() => handleTickerPress(item.name)}
+            >
+              {item.match}
             </Text>
           );
         }
         
-        lastIndex = startIndex + mention.length;
-      }
+        // If there's possessive text, render it as regular text
+        if (item.possessiveText) {
+          parts.push(
+            <Text key={`possessive-${item.index}`} style={[styles.contentText, { color: theme.text }]}>
+              {item.possessiveText}
+            </Text>
+          );
+        }
+        
+        lastIndex = item.index + item.match.length + (item.possessiveText?.length || 0);
+      });
       
-      // Add any remaining text after the last mention
+      // Add any remaining text after the last match
       if (lastIndex < fullContent.length) {
         const textAfter = fullContent.substring(lastIndex);
         if (textAfter) {
@@ -277,9 +376,6 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         }
       }
       
-      // Return all parts wrapped in a Text component (required in React Native for nested Text)
-      // Outer wrapper only has fontSize/lineHeight - no color to prevent cascading
-      // Each part explicitly specifies its own color (theme.text for regular text, theme.primary for mentions)
       return <Text style={{ fontSize: 15, lineHeight: 22 }}>{parts}</Text>;
     }
     
@@ -290,82 +386,78 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
       const categoryMention = categoryMentionName ? `@${categoryMentionName} ` : '';
       const fullContent = categoryMention + post.content;
       
-      // Parse all @mentions in the full content (entity mentions use no-space format)
       const parts: React.ReactNode[] = [];
       let lastIndex = 0;
-      const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
-      let match;
+      const matches = parseMentionsAndTickers(fullContent);
+      const categoryMentionNameForComparison = categoryName ? categoryName.replace(/\s+/g, '') : '';
       
-      while ((match = mentionRegex.exec(fullContent)) !== null) {
-        const mention = match[0]; // e.g., "@Influencers" or "@AlixEarle"
-        const mentionName = match[1]; // e.g., "Influencers" or "AlixEarle"
-        const startIndex = match.index;
-        
-        // Add text before the mention
-        if (startIndex > lastIndex) {
-          const textBefore = fullContent.substring(lastIndex, startIndex);
+      matches.forEach((item) => {
+        // Add text before the match
+        if (item.index > lastIndex) {
+          const textBefore = fullContent.substring(lastIndex, item.index);
           if (textBefore) {
             parts.push(
-              <Text key={`text-${lastIndex}`} style={[styles.contentText, { color: theme.text }]}>
+              <Text key={`text-${item.index}`} style={[styles.contentText, { color: theme.text }]}>
                 {textBefore}
               </Text>
             );
           }
         }
         
-        // Check if mention has possessive "'s" at the end
-        const possessiveMatch = mention.match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
-        const entityMention = possessiveMatch ? possessiveMatch[1] : mention; // "@Drake" or "@Drake"
-        const possessiveText = possessiveMatch ? possessiveMatch[2] : ''; // "'s" or ""
-        
-        // Clean mention name for comparison (remove possessive)
-        const cleanedMentionName = cleanMentionName(mentionName);
-        
-        // Check if this is the category mention (compare with no-space version)
-        const categoryMentionNameForComparison = categoryName ? categoryName.replace(/\s+/g, '') : '';
-        const isCategoryMention = categoryMentionNameForComparison && cleanedMentionName.toLowerCase() === categoryMentionNameForComparison.toLowerCase();
-        
-        if (isCategoryMention) {
-          // Category mention - clickable, navigates to category
+        // Render the match based on type
+        if (item.type === 'mention') {
+          // Check if this is the category mention
+          const isCategoryMention = categoryMentionNameForComparison && item.name.toLowerCase() === categoryMentionNameForComparison.toLowerCase();
+          
+          if (isCategoryMention) {
+            // Category mention - clickable, navigates to category
+            parts.push(
+              <Text
+                key={`mention-${item.index}`}
+                style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+                onPress={handleCategoryPress}
+              >
+                {item.match}
+              </Text>
+            );
+          } else {
+            // Entity mention - clickable, navigates to entity
+            parts.push(
+              <Text
+                key={`mention-${item.index}`}
+                style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+                onPress={() => handleEntityPress(item.name)}
+              >
+                {item.match}
+              </Text>
+            );
+          }
+        } else if (item.type === 'ticker') {
+          // Ticker - clickable, navigates to entity
           parts.push(
             <Text
-              key={`mention-${startIndex}`}
+              key={`ticker-${item.index}`}
               style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
-              onPress={handleCategoryPress}
+              onPress={() => handleTickerPress(item.name)}
             >
-              {entityMention}
-            </Text>
-          );
-        } else {
-          // Entity mention - clickable, navigates to entity
-          parts.push(
-            <Text
-              key={`mention-${startIndex}`}
-              style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
-              onPress={() => {
-                if (cleanedMentionName) {
-                  handleEntityPress(cleanedMentionName);
-                }
-              }}
-            >
-              {entityMention}
+              {item.match}
             </Text>
           );
         }
         
-        // If there's possessive text, render it as regular text (not blue)
-        if (possessiveText) {
+        // If there's possessive text, render it as regular text
+        if (item.possessiveText) {
           parts.push(
-            <Text key={`possessive-${startIndex}`} style={[styles.contentText, { color: theme.text }]}>
-              {possessiveText}
+            <Text key={`possessive-${item.index}`} style={[styles.contentText, { color: theme.text }]}>
+              {item.possessiveText}
             </Text>
           );
         }
         
-        lastIndex = startIndex + mention.length;
-      }
+        lastIndex = item.index + item.match.length + (item.possessiveText?.length || 0);
+      });
       
-      // Add any remaining text after the last mention
+      // Add any remaining text after the last match
       if (lastIndex < fullContent.length) {
         const textAfter = fullContent.substring(lastIndex);
         if (textAfter) {
@@ -377,69 +469,65 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         }
       }
       
-      // Return all parts wrapped in a Text component
       return <Text style={{ fontSize: 15, lineHeight: 22 }}>{parts}</Text>;
     }
     
-    // Regular feed - parse @mentions but no category/entity prefix
+    // Regular feed - parse @mentions and $tickers but no category/entity prefix
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
-    const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
-    let match;
+    const matches = parseMentionsAndTickers(post.content);
     
-    while ((match = mentionRegex.exec(post.content)) !== null) {
-      const mention = match[0]; // e.g., "@TaylorSwift"
-      const mentionName = match[1]; // e.g., "TaylorSwift"
-      const startIndex = match.index;
-      
-      // Check if mention has possessive "'s" at the end
-      const possessiveMatch = mention.match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
-      const entityMention = possessiveMatch ? possessiveMatch[1] : mention;
-      const possessiveText = possessiveMatch ? possessiveMatch[2] : '';
-      
-      // Clean mention name for lookup
-      const cleanedMentionName = cleanMentionName(mentionName);
-      
-      // Add text before the mention
-      if (startIndex > lastIndex) {
-        const textBefore = post.content.substring(lastIndex, startIndex);
+    matches.forEach((item, idx) => {
+      // Add text before the match
+      if (item.index > lastIndex) {
+        const textBefore = post.content.substring(lastIndex, item.index);
         if (textBefore) {
           parts.push(
-            <Text key={`text-${lastIndex}`} style={[styles.contentText, { color: theme.text }]}>
+            <Text key={`text-${item.index}`} style={[styles.contentText, { color: theme.text }]}>
               {textBefore}
             </Text>
           );
         }
       }
       
-      // Add the clickable entity mention (blue)
-      parts.push(
-        <Text
-          key={`mention-${startIndex}`}
-          style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
-          onPress={() => {
-            if (cleanedMentionName) {
-              handleEntityPress(cleanedMentionName);
-            }
-          }}
-        >
-          {entityMention}
-        </Text>
-      );
-      
-      // If there's possessive text, render it as regular text (not blue)
-      if (possessiveText) {
+      // Render the match based on type
+      if (item.type === 'mention') {
+        // Entity mention - clickable, navigates to entity
         parts.push(
-          <Text key={`possessive-${startIndex}`} style={[styles.contentText, { color: theme.text }]}>
-            {possessiveText}
+          <Text
+            key={`mention-${item.index}`}
+            style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+            onPress={() => handleEntityPress(item.name)}
+          >
+            {item.match}
+          </Text>
+        );
+      } else if (item.type === 'ticker') {
+        // Ticker - clickable, navigates to entity
+        parts.push(
+          <Text
+            key={`ticker-${item.index}`}
+            style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+            onPress={() => handleTickerPress(item.name)}
+          >
+            {item.match}
           </Text>
         );
       }
       
-      lastIndex = startIndex + mention.length;
-    }
+      // If there's possessive text, render it as regular text
+      if (item.possessiveText) {
+        parts.push(
+          <Text key={`possessive-${item.index}`} style={[styles.contentText, { color: theme.text }]}>
+            {item.possessiveText}
+          </Text>
+        );
+      }
+      
+      lastIndex = item.index + item.match.length + (item.possessiveText?.length || 0);
+    });
     
-    // Add any remaining text after the last mention
+    // Add any remaining text after the last match
     if (lastIndex < post.content.length) {
       const textAfter = post.content.substring(lastIndex);
       if (textAfter) {
@@ -459,16 +547,24 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
     <View style={[styles.container, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: theme.backgroundSecondary }]}>
+        <TouchableOpacity 
+          style={[styles.avatar, { backgroundColor: theme.backgroundSecondary }]}
+          onPress={handleProfilePress}
+          activeOpacity={0.7}
+        >
           <Ionicons name="person" size={24} color={theme.textTertiary} />
-        </View>
+        </TouchableOpacity>
         
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
-            <View style={styles.userInfo}>
+            <TouchableOpacity 
+              style={styles.userInfo}
+              onPress={handleProfilePress}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.displayName, { color: theme.text }]}>{post.displayName}</Text>
               <Text style={[styles.username, { color: theme.textSecondary }]}>@{post.username}</Text>
-            </View>
+            </TouchableOpacity>
             
             {isOwnPost && (
               <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
