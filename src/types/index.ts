@@ -194,6 +194,32 @@ export interface NewsArticle {
   isBreaking: boolean;
 }
 
+// Notification Types
+export interface Notification {
+  notificationId: string;
+  userId: string;
+  type: 'like' | 'comment' | 'reply' | 'follow' | 'mention' | 'trade' | 'price_alert' | 'group_invite' | 'group_post' | 'system';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  actorUserId?: string;
+  actorUsername?: string;
+  actorDisplayName?: string;
+  actorAvatarUrl?: string;
+  postId?: string;
+  commentId?: string;
+  entityId?: number;
+  entityTicker?: string;
+  entityName?: string;
+  groupId?: string;
+  groupName?: string;
+  targetPrice?: number;
+  currentPrice?: number;
+  actionUrl?: string;
+  metadata?: Record<string, any>;
+}
+
 export interface NewsFilter {
   category?: string;
   sentiment?: 'positive' | 'negative' | 'neutral';

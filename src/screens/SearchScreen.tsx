@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,45 +19,39 @@ import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { apiRequest, isBackendConfigured } from '../config/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type SortOption = 'name' | 'price_high' | 'price_low' | 'gainers' | 'losers';
 
+interface SearchEntity {
+  entityId: number;
+  ticker: string;
+  name: string;
+  category: string;
+  description?: string;
+  basePrice: number;
+  currentPrice: number;
+  change24h: number;
+  changePercent24h: number;
+  searchScore?: number;
+  matchType?: 'exact' | 'fuzzy' | 'partial';
+  matchedFields?: string[];
+}
+
 export default function SearchScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { getEntityPrice, getAllEntityPrices } = useTrading();
+  const { getEntityPrice } = useTrading();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('gainers');
-  
-  // Get live entity prices
-  const entityPrices = getAllEntityPrices();
-  
-  // Generate entity list with live prices
-  const entities = useMemo(() => {
-    return MOCK_ENTITIES.map((entity) => {
-      const currentPrice = getEntityPrice(entity.id);
-      const change24h = currentPrice - entity.basePrice;
-      const changePercent24h = (change24h / entity.basePrice) * 100;
-      return {
-        id: entity.id,
-        ticker: entity.ticker,
-        name: entity.name,
-        type: 'stock' as const,
-        currentPrice,
-        change24h,
-        changePercent24h,
-        volume24h: Math.floor(Math.random() * 50000000) + 5000000,
-        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-        description: entity.description,
-        category: entity.category,
-      };
-    });
-  }, [entityPrices, getEntityPrice]);
+  const [entities, setEntities] = useState<SearchEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
 
   const categories = ['All', 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
@@ -94,65 +89,141 @@ export default function SearchScreen() {
     return categoryMap[category] || category;
   };
 
-  // Filter and sort entities
+  // Search entities from backend
+  const searchEntities = useCallback(async (query: string, category?: string | null) => {
+    if (!isBackendConfigured()) {
+      setError('Backend not configured. Search requires a backend connection.');
+      setEntities([]);
+      return;
+    }
+
+    if (!query || query.trim().length === 0) {
+      setEntities([]);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Map sortBy to backend sortBy
+      const backendSortBy = sortBy === 'gainers' ? 'change_high' : 
+                           sortBy === 'losers' ? 'change_low' :
+                           sortBy === 'name' ? 'name' :
+                           sortBy === 'price_high' ? 'price_high' :
+                           sortBy === 'price_low' ? 'price_low' : 'relevance';
+
+      // Map display category to entity category
+      const entityCategory = category && category !== 'All' ? getEntityCategory(category) : undefined;
+
+      const queryParams = new URLSearchParams({
+        q: query.trim(),
+        limit: '50',
+        sortBy: backendSortBy,
+      });
+
+      if (entityCategory) {
+        queryParams.append('category', entityCategory);
+      }
+
+      const response = await apiRequest<{
+        success: boolean;
+        data: SearchEntity[];
+        count: number;
+      }>(`/api/search?${queryParams.toString()}`, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data) {
+        setEntities(response.data);
+      } else {
+        setError(response.error || 'Failed to search entities');
+        setEntities([]);
+      }
+    } catch (err: any) {
+      console.error('Error searching entities:', err);
+      setError(err.message || 'Failed to search entities');
+      setEntities([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sortBy]);
+
+  // Debounced search
+  useEffect(() => {
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // If query is empty, clear results
+    if (!searchQuery.trim()) {
+      setEntities([]);
+      setIsLoading(false);
+      return;
+    }
+
+    // Set loading state immediately
+    setIsLoading(true);
+
+    // Debounce the search
+    debounceTimerRef.current = setTimeout(() => {
+      searchEntities(searchQuery, selectedCategory);
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchQuery, selectedCategory, searchEntities]);
+
+  // Filter entities by category (client-side for People subcategories)
   const filteredEntities = useMemo(() => {
     let filtered = entities;
 
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (e) =>
-          e.ticker.toLowerCase().includes(query) ||
-          e.name.toLowerCase().includes(query) ||
-          e.category.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply category filter
+    // Apply category filter for People subcategories (client-side)
     if (selectedCategory && selectedCategory !== 'All') {
       const entityCategory = getEntityCategory(selectedCategory);
-      if (entityCategory) {
-        // For People category, need to distinguish between Influencers and Music Artists
-        if (entityCategory === 'People') {
-          if (selectedCategory === 'Influencers') {
-            filtered = filtered.filter((e) => e.category === 'People' && e.id >= 11 && e.id <= 20);
-          } else if (selectedCategory === 'Music Artists') {
-            filtered = filtered.filter((e) => e.category === 'People' && e.id >= 21 && e.id <= 30);
-          }
-        } else {
-          filtered = filtered.filter((e) => e.category === entityCategory);
+      if (entityCategory === 'People') {
+        if (selectedCategory === 'Influencers') {
+          filtered = filtered.filter((e) => e.category === 'People' && e.entityId >= 11 && e.entityId <= 20);
+        } else if (selectedCategory === 'Music Artists') {
+          filtered = filtered.filter((e) => e.category === 'People' && e.entityId >= 21 && e.entityId <= 30);
         }
       }
     }
 
-    // Apply sorting
+    // Apply client-side sorting if needed (backend already sorts, but we can re-sort for People subcategories)
     const sorted = [...filtered];
-    switch (sortBy) {
-      case 'name':
-        sorted.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'price_high':
-        sorted.sort((a, b) => b.currentPrice - a.currentPrice);
-        break;
-      case 'price_low':
-        sorted.sort((a, b) => a.currentPrice - b.currentPrice);
-        break;
-      case 'gainers':
-        sorted.sort((a, b) => b.changePercent24h - a.changePercent24h);
-        break;
-      case 'losers':
-        sorted.sort((a, b) => a.changePercent24h - b.changePercent24h);
-        break;
+    if (selectedCategory && getEntityCategory(selectedCategory) === 'People') {
+      // Re-sort after client-side filtering
+      switch (sortBy) {
+        case 'name':
+          sorted.sort((a, b) => a.name.localeCompare(b.name));
+          break;
+        case 'price_high':
+          sorted.sort((a, b) => b.currentPrice - a.currentPrice);
+          break;
+        case 'price_low':
+          sorted.sort((a, b) => a.currentPrice - b.currentPrice);
+          break;
+        case 'gainers':
+          sorted.sort((a, b) => b.changePercent24h - a.changePercent24h);
+          break;
+        case 'losers':
+          sorted.sort((a, b) => a.changePercent24h - b.changePercent24h);
+          break;
+      }
     }
 
     return sorted;
-  }, [entities, searchQuery, selectedCategory, sortBy]);
+  }, [entities, selectedCategory, sortBy]);
 
-  const handleSelectEntity = (entity: any) => {
+  const handleSelectEntity = (entity: SearchEntity) => {
     navigation.navigate('Entity', {
-      entityId: entity.id,
-      categoryId: getDisplayCategory(entity.id, entity.category),
+      entityId: entity.entityId,
+      categoryId: getDisplayCategory(entity.entityId, entity.category),
     });
   };
 
@@ -189,7 +260,7 @@ export default function SearchScreen() {
     </TouchableOpacity>
   );
 
-  const renderEntityItem = ({ item }: { item: any }) => {
+  const renderEntityItem = ({ item }: { item: SearchEntity }) => {
     // Get initials from name (first 2 letters)
     const getInitials = (name: string) => {
       return name.substring(0, 2).toUpperCase();
@@ -204,7 +275,7 @@ export default function SearchScreen() {
     };
 
     const displayName = truncateText(item.name);
-    const displayCategory = truncateText(getDisplayCategory(item.id, item.category));
+    const displayCategory = truncateText(getDisplayCategory(item.entityId, item.category));
 
     return (
     <TouchableOpacity
@@ -222,13 +293,13 @@ export default function SearchScreen() {
               style={styles.watchlistIconButton}
               onPress={async (e) => {
                 e.stopPropagation();
-                if (isInWatchlist(item.id)) {
-                  const result = await removeFromWatchlist(item.id);
+                if (isInWatchlist(item.entityId)) {
+                  const result = await removeFromWatchlist(item.entityId);
                   if (!result.success && result.error) {
                     Alert.alert('Error', result.error);
                   }
                 } else {
-                  const result = await addToWatchlist(item.id);
+                  const result = await addToWatchlist(item.entityId);
                   if (!result.success && result.error) {
                     Alert.alert('Error', result.error);
                   }
@@ -236,9 +307,9 @@ export default function SearchScreen() {
               }}
             >
               <Ionicons
-                name={isInWatchlist(item.id) ? 'star' : 'star-outline'}
+                name={isInWatchlist(item.entityId) ? 'star' : 'star-outline'}
                 size={18}
-                color={isInWatchlist(item.id) ? theme.primary : theme.textTertiary}
+                color={isInWatchlist(item.entityId) ? theme.primary : theme.textTertiary}
               />
             </TouchableOpacity>
           </View>
@@ -353,29 +424,48 @@ export default function SearchScreen() {
       </View>
 
       {/* Results Count */}
-      <View style={[styles.resultsBar, { backgroundColor: theme.card }]}>
-        <Text style={[styles.resultsText, { color: theme.textSecondary }]}>
-          {filteredEntities.length} {filteredEntities.length === 1 ? 'entity' : 'entities'}
-        </Text>
-      </View>
+      {!isLoading && searchQuery.trim() && (
+        <View style={[styles.resultsBar, { backgroundColor: theme.card }]}>
+          <Text style={[styles.resultsText, { color: theme.textSecondary }]}>
+            {filteredEntities.length} {filteredEntities.length === 1 ? 'entity' : 'entities'} found
+          </Text>
+        </View>
+      )}
 
       {/* Entity List */}
-      <FlatList
-        data={filteredEntities}
-        renderItem={renderEntityItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color={theme.textTertiary} />
-            <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No results found</Text>
-            <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-              Try adjusting your search or filters
-            </Text>
-          </View>
-        }
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Searching...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="alert-circle-outline" size={64} color={theme.error} />
+          <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Search Error</Text>
+          <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>{error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredEntities}
+          renderItem={renderEntityItem}
+          keyExtractor={(item) => item.entityId.toString()}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={64} color={theme.textTertiary} />
+              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+                {searchQuery.trim() ? 'No results found' : 'Start searching...'}
+              </Text>
+              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+                {searchQuery.trim()
+                  ? 'Try adjusting your search or filters'
+                  : 'Enter a search query to find entities'}
+              </Text>
+            </View>
+          }
+        />
+      )}
 
     </SafeAreaView>
   );
@@ -586,6 +676,16 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
   },
 });
 

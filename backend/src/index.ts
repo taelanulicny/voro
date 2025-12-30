@@ -13,6 +13,8 @@ import * as accountHandlers from './handlers/account';
 import * as leaderboardHandlers from './handlers/leaderboard';
 import * as groupHandlers from './handlers/groups';
 import * as categoryHandlers from './handlers/categories';
+import * as searchHandlers from './handlers/search';
+import * as notificationHandlers from './handlers/notifications';
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -20,6 +22,11 @@ export const handler = async (
 ): Promise<APIGatewayProxyResult> => {
   const path = event.path || '';
   const method = event.httpMethod || '';
+  
+  // Debug logging for troubleshooting
+  if (path.includes('search')) {
+    console.log('[Router] Search request - Path:', path, 'Method:', method, 'Query:', event.queryStringParameters);
+  }
 
   // Route based on path
   if (path.includes('/api/auth/')) {
@@ -92,11 +99,31 @@ export const handler = async (
       return socialHandlers.createPost(event);
     }
   }
+  // Search endpoint - check early to avoid conflicts with other routes
+  // Match /api/search or /search (depending on API Gateway base path)
+  const isSearchPath = path === '/api/search' || 
+                       path.startsWith('/api/search') || 
+                       path === '/search' ||
+                       path.startsWith('/search');
+  
+  if (isSearchPath) {
+    const isSuggestions = path.includes('/suggestions') || path.endsWith('/suggestions');
+    if (isSuggestions && method === 'GET') {
+      console.log('[Router] Routing to searchSuggestionsHandler');
+      return searchHandlers.searchSuggestionsHandler(event);
+    }
+    if (method === 'GET') {
+      console.log('[Router] Routing to searchHandler');
+      return searchHandlers.searchHandler(event);
+    }
+  }
+
   if (path.includes('/api/social/feed') && method === 'GET') {
     return socialHandlers.getFeed(event);
   }
   if (path.includes('/api/social/users')) {
-    if (path.includes('/search') && method === 'GET') {
+    // Make sure this is specifically /api/social/users/search, not just any path with /search
+    if (path.includes('/api/social/users/search') && method === 'GET') {
       return socialHandlers.searchUsers(event);
     }
     if (path.includes('/follow') && method === 'POST') {
@@ -183,7 +210,31 @@ export const handler = async (
     }
   }
 
-  // Default 404
+  if (path.includes('/api/notifications')) {
+    if (path.includes('/count') && method === 'GET') {
+      return notificationHandlers.getUnreadCountHandler(event);
+    }
+    if (path.includes('/read-all') && method === 'POST') {
+      return notificationHandlers.markAllAsReadHandler(event);
+    }
+    if (path.includes('/delete-all') && method === 'DELETE') {
+      return notificationHandlers.deleteAllNotificationsHandler(event);
+    }
+    if (path.match(/\/api\/notifications\/(.+)\/read/) && method === 'POST') {
+      return notificationHandlers.markAsReadHandler(event);
+    }
+    if (path.match(/\/api\/notifications\/(.+)/) && method === 'DELETE') {
+      return notificationHandlers.deleteNotificationHandler(event);
+    }
+    if (method === 'GET') {
+      return notificationHandlers.getNotificationsHandler(event);
+    }
+  }
+
+  // Default 404 - log for debugging
+  console.log('[Router] 404 - Path not matched:', path, 'Method:', method);
+  console.log('[Router] Available routes include: /api/auth, /api/trade, /api/portfolio, /api/entities, /api/search, /api/social, /api/user, /api/news, /api/watchlist, /api/groups, /api/categories');
+  
   return {
     statusCode: 404,
     headers: {
@@ -193,6 +244,8 @@ export const handler = async (
     body: JSON.stringify({
       success: false,
       error: 'Endpoint not found',
+      path: path,
+      method: method,
     }),
   };
 };

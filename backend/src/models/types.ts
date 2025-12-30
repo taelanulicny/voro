@@ -189,3 +189,34 @@ export interface GroupMember {
   joinedAt: string;
 }
 
+export interface Notification {
+  notificationId: string;
+  userId: string; // Recipient user ID
+  type: 'like' | 'comment' | 'reply' | 'follow' | 'mention' | 'trade' | 'price_alert' | 'group_invite' | 'group_post' | 'system';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  // Context data (varies by type)
+  actorUserId?: string; // User who triggered the notification
+  actorUsername?: string;
+  actorDisplayName?: string;
+  actorAvatarUrl?: string;
+  // For post/comment notifications
+  postId?: string;
+  commentId?: string;
+  // For entity/trade notifications
+  entityId?: number;
+  entityTicker?: string;
+  entityName?: string;
+  // For group notifications
+  groupId?: string;
+  groupName?: string;
+  // For price alerts
+  targetPrice?: number;
+  currentPrice?: number;
+  // For system notifications
+  actionUrl?: string; // Deep link URL
+  metadata?: Record<string, any>; // Additional flexible data
+}
+

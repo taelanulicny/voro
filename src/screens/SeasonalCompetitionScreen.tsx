@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,8 @@ import { apiRequest, authenticatedRequest } from '../config/api';
 import { LeaderboardEntry } from '../types';
 
 type Timeframe = 'daily' | 'weekly' | 'monthly' | 'alltime';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function SeasonalCompetitionScreen() {
   const { theme } = useTheme();
@@ -183,37 +186,36 @@ export default function SeasonalCompetitionScreen() {
       </View>
 
       {/* Timeframe Selector */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[styles.timeframeContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}
-        contentContainerStyle={styles.timeframeContent}
-      >
-        {timeframes.map((tf) => (
-          <TouchableOpacity
-            key={tf.key}
-            style={[
-              styles.timeframeTab,
-              {
-                backgroundColor: selectedTimeframe === tf.key ? theme.primary : 'transparent',
-                borderColor: selectedTimeframe === tf.key ? theme.primary : theme.border,
-              },
-            ]}
-            onPress={() => setSelectedTimeframe(tf.key)}
-          >
-            <Text
+      <View style={[styles.timeframeContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={styles.timeframeContent}>
+          {timeframes.map((tf) => (
+            <TouchableOpacity
+              key={tf.key}
               style={[
-                styles.timeframeTabText,
+                styles.timeframeTab,
                 {
-                  color: selectedTimeframe === tf.key ? '#FFFFFF' : theme.textSecondary,
+                  backgroundColor: selectedTimeframe === tf.key ? theme.primary : 'transparent',
+                  borderColor: selectedTimeframe === tf.key ? theme.primary : theme.border,
+                  width: (SCREEN_WIDTH - 32 - 24) / 4, // Screen width minus padding and gaps, divided by 4
                 },
               ]}
+              onPress={() => setSelectedTimeframe(tf.key)}
+              activeOpacity={0.7}
             >
-              {tf.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text
+                style={[
+                  styles.timeframeTabText,
+                  {
+                    color: selectedTimeframe === tf.key ? '#FFFFFF' : theme.textSecondary,
+                  },
+                ]}
+              >
+                {tf.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* Leaderboard List */}
       {isLoading && !refreshing ? (
@@ -273,20 +275,28 @@ const styles = StyleSheet.create({
   },
   timeframeContainer: {
     borderBottomWidth: 1,
+    maxHeight: 50,
   },
   timeframeContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  timeframeTab: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  timeframeTab: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
   timeframeTabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   listContent: {

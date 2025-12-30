@@ -232,6 +232,21 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
     });
 
+    // Notifications Table
+    const notificationsTable = new dynamodb.Table(this, 'NotificationsTable', {
+      tableName: `${tablePrefix}-Notifications`,
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'notificationId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    // GSI for querying by read status and creation time
+    notificationsTable.addGlobalSecondaryIndex({
+      indexName: 'userId-createdAt-index',
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+    });
+
     // Separate role for pre-signup Lambda (to avoid circular dependencies)
     const preSignUpLambdaRole = new iam.Role(this, 'PreSignUpLambdaRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -276,6 +291,7 @@ export class MoroBackendStack extends cdk.Stack {
     reportsTable.grantReadWriteData(lambdaRole);
     groupsTable.grantReadWriteData(lambdaRole);
     groupMembersTable.grantReadWriteData(lambdaRole);
+    notificationsTable.grantReadWriteData(lambdaRole);
     assetsBucket.grantReadWrite(lambdaRole);
     userPool.grant(lambdaRole, 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDeleteUser');
 
@@ -303,6 +319,7 @@ export class MoroBackendStack extends cdk.Stack {
         REPORTS_TABLE: reportsTable.tableName,
         GROUPS_TABLE: groupsTable.tableName,
         GROUP_MEMBERS_TABLE: groupMembersTable.tableName,
+        NOTIFICATIONS_TABLE: notificationsTable.tableName,
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
         S3_BUCKET_NAME: assetsBucket.bucketName,

@@ -18,6 +18,7 @@ import { NewsProvider } from './src/context/NewsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { WatchlistProvider } from './src/context/WatchlistContext';
 import { SideMenuProvider } from './src/context/SideMenuContext';
+import { NotificationsProvider } from './src/context/NotificationsContext';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -225,12 +226,14 @@ export default function App() {
               <NewsProvider>
                 <TradingProvider>
                   <WatchlistProvider>
-                    <SideMenuProvider>
-                      <NavigationContainer>
-                        <StatusBar style="auto" />
-                        <RootNavigator />
-                      </NavigationContainer>
-                    </SideMenuProvider>
+                    <NotificationsProvider>
+                      <SideMenuProvider>
+                        <NavigationContainer>
+                          <StatusBar style="auto" />
+                          <RootNavigator />
+                        </NavigationContainer>
+                      </SideMenuProvider>
+                    </NotificationsProvider>
                   </WatchlistProvider>
                 </TradingProvider>
               </NewsProvider>

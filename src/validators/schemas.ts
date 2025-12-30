@@ -255,6 +255,39 @@ export const WatchlistItemSchema = z.object({
 
 export type ValidatedWatchlistItem = z.infer<typeof WatchlistItemSchema>;
 
+// ============================================
+// Notification Schemas
+// ============================================
+
+export const NotificationSchema = z.object({
+  notificationId: z.string(),
+  userId: z.string(),
+  type: z.enum(['like', 'comment', 'reply', 'follow', 'mention', 'trade', 'price_alert', 'group_invite', 'group_post', 'system']),
+  title: z.string(),
+  message: z.string(),
+  isRead: z.boolean().default(false),
+  createdAt: z.string(),
+  actorUserId: z.string().optional(),
+  actorUsername: z.string().optional(),
+  actorDisplayName: z.string().optional(),
+  actorAvatarUrl: z.string().url().optional().nullable(),
+  postId: z.string().optional(),
+  commentId: z.string().optional(),
+  entityId: z.number().optional(),
+  entityTicker: z.string().optional(),
+  entityName: z.string().optional(),
+  groupId: z.string().optional(),
+  groupName: z.string().optional(),
+  targetPrice: z.number().optional(),
+  currentPrice: z.number().optional(),
+  actionUrl: z.string().url().optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
+export const NotificationArraySchema = z.array(NotificationSchema);
+
+export type ValidatedNotification = z.infer<typeof NotificationSchema>;
+
 export const WatchlistArraySchema = z.array(WatchlistItemSchema);
 
 export const WatchlistResponseSchema = z.array(WatchlistItemSchema);
