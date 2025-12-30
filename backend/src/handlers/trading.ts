@@ -18,16 +18,20 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
     }
 
     // Market Hours Logic (Server-Side Enforcement)
-    // EST is UTC-5
+    // Use Intl API to get proper EST/EDT time (handles DST automatically)
     const now = new Date();
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const estOffset = -5 * 60 * 60 * 1000;
-    const estTime = new Date(utcTime + estOffset);
-    const hours = estTime.getHours();
+    const estTimeString = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      hour12: false,
+      timeZoneName: 'short',
+    }).formatToParts(now);
+    
+    const hours = parseInt(estTimeString.find(part => part.type === 'hour')?.value || '0', 10);
 
-    // Market Closed: 2:00 AM - 8:00 AM EST
+    // Market Closed: 2:00 AM - 8:00 AM EST/EDT
     if (hours >= 2 && hours < 8) {
-      return createErrorResponse(400, 'Market is closed (2am-8am EST)');
+      return createErrorResponse(400, 'Market is closed (2am-8am EST/EDT)');
     }
 
     const userId = auth.event.userId!;
@@ -47,15 +51,45 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       return createErrorResponse(400, 'Quantity must be greater than 0');
     }
 
-    const result = await executeTradeService(userId, entityId, type, quantity, pricePerToken, idempotencyKey);
+    // Price slippage protection: Fetch current market price
+    const currentMarketPrice = await getEntityPrice(entityId);
+    
+    if (currentMarketPrice === null) {
+      return createErrorResponse(400, 'Unable to fetch current market price for this entity');
+    }
+
+    // Calculate price difference percentage
+    const priceDifferencePercent = Math.abs((pricePerToken - currentMarketPrice) / currentMarketPrice) * 100;
+    const SLIPPAGE_THRESHOLD_PERCENT = 2.0; // 2% slippage tolerance
+
+    // If price difference exceeds threshold, reject the trade
+    if (priceDifferencePercent > SLIPPAGE_THRESHOLD_PERCENT) {
+      return createErrorResponse(400, 
+        `Price slippage too high: Requested ${pricePerToken.toFixed(2)}, Current ${currentMarketPrice.toFixed(2)} (${priceDifferencePercent.toFixed(2)}% difference). Please refresh and try again.`
+      );
+    }
+
+    // Use current market price to prevent any slippage
+    const executionPrice = currentMarketPrice;
+
+    const result = await executeTradeService(userId, entityId, type, quantity, executionPrice, idempotencyKey);
 
     if (!result.success) {
       return createErrorResponse(400, result.error || 'Trade execution failed');
     }
 
+    // Include execution details in response
+    const executionDetails = {
+      requestedPrice: pricePerToken,
+      executionPrice: executionPrice,
+      priceAdjusted: Math.abs(executionPrice - pricePerToken) > 0.01, // If adjusted by more than 1 cent
+      slippagePercent: priceDifferencePercent,
+    };
+
     return createResponse(200, {
       success: true,
       data: result.portfolio,
+      executionDetails,
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -144,7 +144,7 @@ export default function TradeModal({
       // Use latest price if available and significantly different
       const tradePrice = (isPriceSignificantlyDifferent && latestPrice > 0) ? latestPrice : currentPrice;
 
-      const success = await executeTrade(
+      const result = await executeTrade(
         entityId,
         entityName,
         entityTicker,
@@ -155,20 +155,25 @@ export default function TradeModal({
         idempotencyKey
       );
 
-      if (success) {
-        // Show success message
+      if (result.success) {
+        // Show success message with execution price if different
+        const executionPrice = result.executionPrice || currentPrice;
+        const message = result.error 
+          ? `${activeTab === 'buy' ? 'Purchased' : 'Sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(executionPrice)}. ${result.error}`
+          : `Successfully ${activeTab === 'buy' ? 'purchased' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(executionPrice)}`;
+        
         Alert.alert(
           'Trade Executed',
-          `Successfully ${activeTab === 'buy' ? 'purchased' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(currentPrice)}`,
+          message,
           [{ text: 'OK', onPress: () => handleClose() }]
         );
       } else {
-        // Show error message
+        // Show error message from server (e.g., slippage, market closed, etc.)
         Alert.alert(
           'Trade Failed',
-          activeTab === 'buy'
+          result.error || (activeTab === 'buy'
             ? 'Insufficient funds to complete this purchase.'
-            : 'Insufficient shares to complete this sale.',
+            : 'Insufficient shares to complete this sale.'),
           [{ text: 'OK' }]
         );
       }
