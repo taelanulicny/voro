@@ -88,7 +88,12 @@ export default function WatchlistScreen() {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => removeFromWatchlist(entityId),
+          onPress: async () => {
+            const result = await removeFromWatchlist(entityId);
+            if (!result.success && result.error) {
+              Alert.alert('Error', result.error);
+            }
+          },
         },
       ]
     );

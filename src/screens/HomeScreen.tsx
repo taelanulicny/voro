@@ -508,7 +508,7 @@ export default function HomeScreen() {
       addedDate: weekDates[4], // 5th date (5 days ago)
       isCategory: true,
       volumePercentage: 10.0, // Volume percentage like in treemap
-    });
+    } as typeof itemsWithDates[0] & { volumePercentage?: number });
     
     // Sort by date (newest first) - this ensures the 5 most recent are at the top
     return itemsWithDates.sort((a, b) => {

@@ -196,29 +196,8 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         // Validate news articles array
         const validatedArticles = validateArrayLoose(NewsArticleArraySchema, response.data);
         if (validatedArticles.length > 0) {
-          // Map validated articles to frontend format
-          const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({
-            id: article.id,
-            title: article.title,
-            summary: article.summary,
-            content: article.content,
-            source: article.source,
-            sourceUrl: article.sourceUrl || undefined,
-            imageUrl: article.imageUrl || undefined,
-            author: article.author || undefined,
-            publishedAt: article.publishedAt,
-            category: article.category,
-            entityId: article.entityId || undefined,
-            entityTicker: article.entityTicker || undefined,
-            entityName: article.entityName || undefined,
-            sentiment: article.sentiment,
-            sentimentScore: article.sentimentScore,
-            impactLevel: article.impactLevel,
-            tags: article.tags,
-            viewCount: article.viewCount,
-            isBreaking: article.isBreaking,
-          }));
-          setNews(mappedNews);
+          // Articles are already validated and transformed by schema (id normalized)
+          setNews(validatedArticles);
         } else {
           // Fallback to mock news if validation failed
           setNews(MOCK_NEWS);
@@ -278,27 +257,12 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         // Validate news articles array
         const validatedArticles = validateArrayLoose(NewsArticleArraySchema, response.data);
         if (validatedArticles.length > 0) {
-          // Map validated articles to frontend format
+          // Articles are already validated and transformed by schema
+          // Ensure entityId/entityName match the requested entity
           const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({
-            id: article.id,
-            title: article.title,
-            summary: article.summary,
-            content: article.content,
-            source: article.source,
-            sourceUrl: article.sourceUrl || undefined,
-            imageUrl: article.imageUrl || undefined,
-            author: article.author || undefined,
-            publishedAt: article.publishedAt,
-            category: article.category,
+            ...article,
             entityId: entityId || article.entityId || undefined,
-            entityTicker: article.entityTicker || undefined,
             entityName: entityName || article.entityName || undefined,
-            sentiment: article.sentiment,
-            sentimentScore: article.sentimentScore,
-            impactLevel: article.impactLevel,
-            tags: article.tags,
-            viewCount: article.viewCount,
-            isBreaking: article.isBreaking,
           }));
           
           // Cache the results

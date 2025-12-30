@@ -1,15 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WatchlistItem, PriceAlert } from '../types';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
 import { useTrading } from './TradingContext';
+import { useAuth } from './AuthContext';
+import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { WatchlistItemSchema, validateArrayLoose } from '../validators';
 
 interface WatchlistContextType {
   watchlist: WatchlistItem[];
   priceAlerts: PriceAlert[];
-  addToWatchlist: (entityId: number) => void;
-  removeFromWatchlist: (entityId: number) => void;
+  isLoading: boolean;
+  addToWatchlist: (entityId: number) => Promise<{ success: boolean; error?: string }>;
+  removeFromWatchlist: (entityId: number) => Promise<{ success: boolean; error?: string }>;
   isInWatchlist: (entityId: number) => boolean;
+  refreshWatchlist: () => Promise<void>;
   addPriceAlert: (entityId: number, alertType: 'above' | 'below', targetPrice: number) => void;
   removePriceAlert: (alertId: string) => void;
   getAlertsForEntity: (entityId: number) => PriceAlert[];
@@ -18,88 +21,82 @@ interface WatchlistContextType {
 
 const WatchlistContext = createContext<WatchlistContextType | undefined>(undefined);
 
-const WATCHLIST_STORAGE_KEY = '@moro_watchlist';
-const PRICE_ALERTS_STORAGE_KEY = '@moro_price_alerts';
-
 export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { getEntityPrice } = useTrading();
+  const { token, isAuthenticated } = useAuth();
 
-  // Load watchlist from storage
-  useEffect(() => {
-    const loadWatchlist = async () => {
-      try {
-        const stored = await AsyncStorage.getItem(WATCHLIST_STORAGE_KEY);
-        if (stored) {
-          setWatchlist(JSON.parse(stored));
-        }
-      } catch (error) {
-        console.error('Error loading watchlist:', error);
-      }
-    };
-
-    const loadAlerts = async () => {
-      try {
-        const stored = await AsyncStorage.getItem(PRICE_ALERTS_STORAGE_KEY);
-        if (stored) {
-          setPriceAlerts(JSON.parse(stored));
-        }
-      } catch (error) {
-        console.error('Error loading price alerts:', error);
-      }
-    };
-
-    loadWatchlist();
-    loadAlerts();
-  }, []);
-
-  // Save watchlist to storage
-  useEffect(() => {
-    const saveWatchlist = async () => {
-      try {
-        await AsyncStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
-      } catch (error) {
-        console.error('Error saving watchlist:', error);
-      }
-    };
-
-    if (watchlist.length > 0 || watchlist.length === 0) {
-      saveWatchlist();
+  // Fetch watchlist from backend
+  const refreshWatchlist = useCallback(async () => {
+    if (!token || !isAuthenticated || !isBackendConfigured()) {
+      setWatchlist([]);
+      return;
     }
-  }, [watchlist]);
 
-  // Save alerts to storage
-  useEffect(() => {
-    const saveAlerts = async () => {
-      try {
-        await AsyncStorage.setItem(PRICE_ALERTS_STORAGE_KEY, JSON.stringify(priceAlerts));
-      } catch (error) {
-        // Ignore AsyncStorage errors in simulator (known issue with manifest file writing)
-        // This is a harmless simulator-only issue and doesn't affect functionality
-        if (__DEV__ && error instanceof Error && error.message?.includes('manifest file')) {
-          // Silently ignore in development/simulator
-          return;
+    try {
+      setIsLoading(true);
+      const response = await authenticatedRequest<WatchlistItem[]>(
+        '/api/watchlist',
+        token,
+        {
+          method: 'GET',
         }
-        console.error('Error saving price alerts:', error);
+      );
+
+      if (response.success && response.data && Array.isArray(response.data)) {
+        // Validate watchlist items
+        const validatedItems = validateArrayLoose(WatchlistItemSchema, response.data);
+        
+        // Update with current prices
+        // Note: We use current price as both current and base initially
+        // The price update effect will track changes over time
+        const itemsWithPrices: WatchlistItem[] = validatedItems.map(item => {
+          const currentPrice = getEntityPrice(item.entityId);
+          // For now, set change to 0 - the price update effect will calculate real changes
+          const change24h = 0;
+          const changePercent24h = 0;
+
+          return {
+            ...item,
+            currentPrice,
+            change24h,
+            changePercent24h,
+          };
+        });
+
+        setWatchlist(itemsWithPrices);
+      } else {
+        setWatchlist([]);
       }
-    };
+    } catch (error) {
+      console.debug('Error fetching watchlist (backend may not be running):', error);
+      setWatchlist([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, isAuthenticated, getEntityPrice]);
 
-    saveAlerts();
-  }, [priceAlerts]);
+  // Load watchlist on mount and when auth changes
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      refreshWatchlist();
+    } else {
+      setWatchlist([]);
+    }
+  }, [isAuthenticated, token, refreshWatchlist]);
 
-  // Update watchlist items with current prices
+  // Update watchlist items with current prices (prices come from TradingContext)
   useEffect(() => {
     const updatePrices = () => {
       setWatchlist(prev =>
         prev.map(item => {
-          const entity = MOCK_ENTITIES.find(e => e.id === item.entityId);
-          if (!entity) return item;
-
           const currentPrice = getEntityPrice(item.entityId);
-          const basePrice = entity.basePrice;
+          // Use the first price we saw as base, or current price if no base
+          const basePrice = item.currentPrice || currentPrice;
           const change24h = currentPrice - basePrice;
-          const changePercent24h = (change24h / basePrice) * 100;
+          const changePercent24h = basePrice > 0 ? (change24h / basePrice) * 100 : 0;
 
           return {
             ...item,
@@ -156,56 +153,101 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [getEntityPrice]);
 
-  const addToWatchlist = useCallback((entityId: number) => {
-    const entity = MOCK_ENTITIES.find(e => e.id === entityId);
-    if (!entity) return;
+  const addToWatchlist = useCallback(async (entityId: number): Promise<{ success: boolean; error?: string }> => {
+    if (!token || !isAuthenticated) {
+      return { success: false, error: 'Not authenticated' };
+    }
 
-    const currentPrice = getEntityPrice(entityId);
-    const basePrice = entity.basePrice;
-    const change24h = currentPrice - basePrice;
-    const changePercent24h = (change24h / basePrice) * 100;
+    if (!isBackendConfigured()) {
+      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+    }
 
-    const newItem: WatchlistItem = {
-      entityId,
-      entityTicker: entity.ticker,
-      entityName: entity.name,
-      category: entity.category,
-      addedAt: new Date().toISOString(),
-      currentPrice,
-      change24h,
-      changePercent24h,
-    };
+    // Check if already in watchlist
+    if (watchlist.some(item => item.entityId === entityId)) {
+      return { success: false, error: 'Entity already in watchlist' };
+    }
 
-    setWatchlist(prev => {
-      // Check if already in watchlist
-      if (prev.some(item => item.entityId === entityId)) {
-        return prev;
+    try {
+      const response = await authenticatedRequest<{
+        entityId: number;
+        entityTicker?: string;
+        entityName?: string;
+        category?: string;
+        addedAt: string;
+      }>(
+        '/api/watchlist',
+        token,
+        {
+          method: 'POST',
+          body: JSON.stringify({ entityId }),
+        }
+      );
+
+      if (response.success && response.data) {
+        // Refresh watchlist from backend to get full entity details
+        await refreshWatchlist();
+        return { success: true };
       }
-      return [...prev, newItem];
-    });
-  }, [getEntityPrice]);
 
-  const removeFromWatchlist = useCallback((entityId: number) => {
-    setWatchlist(prev => prev.filter(item => item.entityId !== entityId));
-    // Also remove any alerts for this entity
-    setPriceAlerts(prev => prev.filter(alert => alert.entityId !== entityId));
-  }, []);
+      return { success: false, error: response.error || 'Failed to add to watchlist' };
+    } catch (error: any) {
+      console.error('Error adding to watchlist:', error);
+      return { success: false, error: error.message || 'Failed to add to watchlist' };
+    }
+  }, [token, isAuthenticated, watchlist, refreshWatchlist]);
+
+  const removeFromWatchlist = useCallback(async (entityId: number): Promise<{ success: boolean; error?: string }> => {
+    if (!token || !isAuthenticated) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    if (!isBackendConfigured()) {
+      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+    }
+
+    try {
+      const response = await authenticatedRequest(
+        `/api/watchlist/${entityId}`,
+        token,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      if (response.success) {
+        // Remove from local state immediately for better UX
+        setWatchlist(prev => prev.filter(item => item.entityId !== entityId));
+        // Also remove any alerts for this entity
+        setPriceAlerts(prev => prev.filter(alert => alert.entityId !== entityId));
+        return { success: true };
+      }
+
+      return { success: false, error: response.error || 'Failed to remove from watchlist' };
+    } catch (error: any) {
+      console.error('Error removing from watchlist:', error);
+      return { success: false, error: error.message || 'Failed to remove from watchlist' };
+    }
+  }, [token, isAuthenticated]);
 
   const isInWatchlist = useCallback((entityId: number) => {
     return watchlist.some(item => item.entityId === entityId);
   }, [watchlist]);
 
   const addPriceAlert = useCallback((entityId: number, alertType: 'above' | 'below', targetPrice: number) => {
-    const entity = MOCK_ENTITIES.find(e => e.id === entityId);
-    if (!entity) return;
+    // Find entity from watchlist to get ticker/name
+    const watchlistItem = watchlist.find(item => item.entityId === entityId);
+    if (!watchlistItem) {
+      console.warn('Cannot add price alert: entity not in watchlist');
+      return;
+    }
 
     const currentPrice = getEntityPrice(entityId);
 
     const newAlert: PriceAlert = {
       id: `alert_${Date.now()}_${entityId}`,
       entityId,
-      entityTicker: entity.ticker,
-      entityName: entity.name,
+      entityTicker: watchlistItem.entityTicker,
+      entityName: watchlistItem.entityName,
       alertType,
       targetPrice,
       currentPrice,
@@ -214,7 +256,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
     };
 
     setPriceAlerts(prev => [...prev, newAlert]);
-  }, [getEntityPrice]);
+  }, [getEntityPrice, watchlist]);
 
   const removePriceAlert = useCallback((alertId: string) => {
     setPriceAlerts(prev => prev.filter(alert => alert.id !== alertId));
@@ -234,9 +276,11 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
       value={{
         watchlist,
         priceAlerts,
+        isLoading,
         addToWatchlist,
         removeFromWatchlist,
         isInWatchlist,
+        refreshWatchlist,
         addPriceAlert,
         removePriceAlert,
         getAlertsForEntity,

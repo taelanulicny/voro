@@ -59,36 +59,12 @@ interface SocialContextType {
 
 const SocialContext = createContext<SocialContextType | undefined>(undefined);
 
-// Mock groups (not yet implemented in backend)
-const MOCK_GROUPS: Group[] = [
-  {
-    id: '1',
-    name: 'Tech Stock Bulls',
-    description: 'Discussion group for technology stock investors',
-    category: 'Technology',
-    memberCount: 1234,
-    isPrivate: false,
-    isMember: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Crypto Enthusiasts',
-    description: 'All things cryptocurrency and blockchain',
-    category: 'Cryptocurrency',
-    memberCount: 3421,
-    isPrivate: false,
-    isMember: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
-  },
-];
-
 export function SocialProvider({ children }: { children: ReactNode }) {
   const { user, token, isAuthenticated } = useAuth();
   const [activityFeed, setActivityFeed] = useState<Post[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(false);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
-  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [followers, setFollowers] = useState<User[]>([]);
@@ -765,7 +741,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     setIsLoadingGroups(true);
     try {
       if (!isBackendConfigured() || !token || !isAuthenticated) {
-        setGroups(MOCK_GROUPS);
+        setGroups([]);
         setIsLoadingGroups(false);
         return;
       }
@@ -781,12 +757,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         const mappedGroups = response.data.groups.map(mapBackendGroup);
         setGroups(mappedGroups);
       } else {
-        // Fallback to mock if backend fails
-        setGroups(MOCK_GROUPS);
+        // No groups from backend - set empty array
+        setGroups([]);
       }
     } catch (error) {
       console.error('Error refreshing groups:', error);
-      setGroups(MOCK_GROUPS);
+      // On error, keep existing groups or set to empty
+      setGroups([]);
     } finally {
       setIsLoadingGroups(false);
     }
@@ -802,23 +779,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Not authenticated' };
     }
 
-    try {
-      if (!isBackendConfigured()) {
-        // Fallback to mock
-        const newGroup: Group = {
-          id: Date.now().toString(),
-          name: params.name,
-          description: params.description,
-          category: params.category,
-          memberCount: 1,
-          isPrivate: params.isPrivate,
-          isMember: true,
-          createdAt: new Date().toISOString(),
-        };
-        setGroups(prev => [newGroup, ...prev]);
-        return { success: true, group: newGroup };
-      }
+    if (!isBackendConfigured()) {
+      return { success: false, error: 'Backend not configured. Please set EXPO_PUBLIC_API_URL.' };
+    }
 
+    try {
       const response = await authenticatedRequest<{ group: any }>(
         '/api/groups',
         token,
@@ -834,7 +799,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         return { success: true, group: mappedGroup };
       }
 
-      return { success: false, error: 'Failed to create group' };
+      return { success: false, error: response.error || 'Failed to create group' };
     } catch (error: any) {
       console.error('Error creating group:', error);
       return { success: false, error: error.message || 'Failed to create group' };
@@ -846,19 +811,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       return { success: false };
     }
 
-    try {
-      if (!isBackendConfigured()) {
-        // Fallback to mock
-        setGroups(prev =>
-          prev.map(group =>
-            group.id === groupId
-              ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
-              : group
-          )
-        );
-        return { success: true };
-      }
+    if (!isBackendConfigured()) {
+      return { success: false };
+    }
 
+    try {
       const response = await authenticatedRequest<{ success: boolean }>(
         `/api/groups/${groupId}/join`,
         token,
@@ -890,19 +847,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       return { success: false };
     }
 
-    try {
-      if (!isBackendConfigured()) {
-        // Fallback to mock
-        setGroups(prev =>
-          prev.map(group =>
-            group.id === groupId
-              ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
-              : group
-          )
-        );
-        return { success: true };
-      }
+    if (!isBackendConfigured()) {
+      return { success: false };
+    }
 
+    try {
       const response = await authenticatedRequest<{ success: boolean }>(
         `/api/groups/${groupId}/leave`,
         token,

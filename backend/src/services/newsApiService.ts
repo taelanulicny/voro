@@ -26,75 +26,55 @@ interface EntityMatch {
 }
 
 // Map of entities to their keywords for matching
+// This matches the entities from MOCK_ENTITIES in the frontend
 const ENTITY_MAPPINGS: EntityMatch[] = [
-  // Tech Companies & Products
-  { entityId: 10, ticker: 'OPENAI', name: 'OpenAI', keywords: ['openai', 'chatgpt', 'gpt-4', 'gpt-5', 'sam altman', 'dall-e', 'sora'], category: 'Tech' },
-  { entityId: 11, ticker: 'TSLA', name: 'Tesla', keywords: ['tesla', 'model s', 'model 3', 'model x', 'model y', 'cybertruck', 'supercharger', 'fsd'], category: 'Tech' },
-  { entityId: 12, ticker: 'AAPL', name: 'Apple', keywords: ['apple inc', 'iphone', 'ipad', 'macbook', 'tim cook', 'ios 18', 'macos', 'vision pro', 'apple watch', 'airpods', 'app store'], category: 'Tech' },
-  { entityId: 13, ticker: 'GOOGL', name: 'Google', keywords: ['google', 'alphabet', 'android', 'youtube', 'sundar pichai', 'gemini ai', 'pixel', 'chrome', 'google cloud'], category: 'Tech' },
-  { entityId: 14, ticker: 'MSFT', name: 'Microsoft', keywords: ['microsoft', 'windows 11', 'azure', 'xbox', 'satya nadella', 'copilot', 'bing', 'office 365', 'github'], category: 'Tech' },
-  { entityId: 15, ticker: 'META', name: 'Meta', keywords: ['meta platforms', 'facebook', 'instagram', 'whatsapp', 'mark zuckerberg', 'threads app', 'metaverse', 'ray-ban meta', 'quest'], category: 'Tech' },
-  { entityId: 16, ticker: 'AMZN', name: 'Amazon', keywords: ['amazon', 'aws', 'prime video', 'alexa', 'jeff bezos', 'andy jassy', 'kindle', 'whole foods', 'ring'], category: 'Tech' },
-  { entityId: 17, ticker: 'NVDA', name: 'Nvidia', keywords: ['nvidia', 'geforce', 'rtx 50', 'jensen huang', 'cuda', 'h100', 'blackwell', 'ai chip'], category: 'Tech' },
-  { entityId: 18, ticker: 'NFLX', name: 'Netflix', keywords: ['netflix', 'streaming war', 'reed hastings', 'squid game', 'wednesday'], category: 'Tech' },
-  { entityId: 19, ticker: 'SPOT', name: 'Spotify', keywords: ['spotify', 'daniel ek', 'spotify wrapped', 'podcast'], category: 'Tech' },
-  { entityId: 50, ticker: 'TSMC', name: 'TSMC', keywords: ['tsmc', 'taiwan semiconductor', 'chip manufacturing'], category: 'Tech' },
-  { entityId: 51, ticker: 'AMD', name: 'AMD', keywords: ['amd', 'ryzen', 'radeon', 'lisa su'], category: 'Tech' },
-  { entityId: 52, ticker: 'UBER', name: 'Uber', keywords: ['uber', 'uber eats', 'rideshare', 'dara khosrowshahi'], category: 'Tech' },
-  { entityId: 53, ticker: 'ABNB', name: 'Airbnb', keywords: ['airbnb', 'vacation rental', 'brian chesky'], category: 'Tech' },
-  
-  // Crypto
-  { entityId: 20, ticker: 'BTC', name: 'Bitcoin', keywords: ['bitcoin', 'btc price', 'satoshi', 'cryptocurrency', 'bitcoin etf'], category: 'Tech' },
-  { entityId: 21, ticker: 'ETH', name: 'Ethereum', keywords: ['ethereum', 'eth price', 'vitalik buterin', 'defi', 'smart contract'], category: 'Tech' },
-  { entityId: 54, ticker: 'SOL', name: 'Solana', keywords: ['solana', 'sol crypto'], category: 'Tech' },
-  { entityId: 55, ticker: 'XRP', name: 'Ripple', keywords: ['ripple', 'xrp', 'ripple sec'], category: 'Tech' },
-  
-  // People - Tech
-  { entityId: 22, ticker: 'MUSK', name: 'Elon Musk', keywords: ['elon musk', 'musk twitter', 'musk tesla', 'spacex musk'], category: 'People' },
-  { entityId: 23, ticker: 'BEZOS', name: 'Jeff Bezos', keywords: ['jeff bezos', 'bezos', 'blue origin'], category: 'People' },
-  { entityId: 24, ticker: 'ZUCK', name: 'Mark Zuckerberg', keywords: ['mark zuckerberg', 'zuckerberg', 'zuck mma'], category: 'People' },
-  { entityId: 56, ticker: 'ALTMAN', name: 'Sam Altman', keywords: ['sam altman', 'altman openai'], category: 'People' },
-  { entityId: 57, ticker: 'HUANG', name: 'Jensen Huang', keywords: ['jensen huang', 'nvidia ceo'], category: 'People' },
-  
-  // People - Entertainment
-  { entityId: 25, ticker: 'TSWIFT', name: 'Taylor Swift', keywords: ['taylor swift', 'eras tour', 'swiftie', 'travis kelce taylor'], category: 'People' },
-  { entityId: 26, ticker: 'DRAKE', name: 'Drake', keywords: ['drake rapper', 'aubrey graham', 'ovo sound', 'kendrick drake'], category: 'People' },
-  { entityId: 27, ticker: 'BEAST', name: 'MrBeast', keywords: ['mrbeast', 'jimmy donaldson', 'beast philanthropy', 'feastables'], category: 'People' },
-  { entityId: 28, ticker: 'ROGAN', name: 'Joe Rogan', keywords: ['joe rogan experience', 'jre podcast', 'rogan spotify'], category: 'People' },
-  { entityId: 58, ticker: 'TRAV', name: 'Travis Scott', keywords: ['travis scott', 'utopia', 'cactus jack'], category: 'People' },
-  { entityId: 59, ticker: 'KDOT', name: 'Kendrick Lamar', keywords: ['kendrick lamar', 'gnx', 'pglan'], category: 'People' },
-  { entityId: 60, ticker: 'ZENDAYA', name: 'Zendaya', keywords: ['zendaya', 'euphoria', 'challengers'], category: 'People' },
-  { entityId: 61, ticker: 'CHALAMET', name: 'Timothée Chalamet', keywords: ['timothée chalamet', 'timothee chalamet', 'chalamet', 'dune'], category: 'People' },
-  
-  // People - Sports
-  { entityId: 29, ticker: 'LEBRON', name: 'LeBron James', keywords: ['lebron james', 'lebron lakers', 'king james'], category: 'People' },
-  { entityId: 30, ticker: 'MAHOMES', name: 'Patrick Mahomes', keywords: ['patrick mahomes', 'mahomes chiefs', 'mahomes super bowl'], category: 'People' },
-  { entityId: 31, ticker: 'MESSI', name: 'Lionel Messi', keywords: ['lionel messi', 'messi inter miami', 'messi argentina'], category: 'People' },
-  { entityId: 62, ticker: 'CURRY', name: 'Stephen Curry', keywords: ['stephen curry', 'steph curry', 'curry warriors'], category: 'People' },
-  { entityId: 63, ticker: 'RONALDO', name: 'Cristiano Ronaldo', keywords: ['cristiano ronaldo', 'ronaldo', 'cr7'], category: 'People' },
-  { entityId: 64, ticker: 'KELCE', name: 'Travis Kelce', keywords: ['travis kelce', 'kelce chiefs', 'kelce swift'], category: 'People' },
-  
   // Politics
-  { entityId: 32, ticker: 'TRUMP', name: 'Donald Trump', keywords: ['donald trump', 'trump president', 'trump administration', 'maga'], category: 'Politics' },
-  { entityId: 33, ticker: 'BIDEN', name: 'Joe Biden', keywords: ['joe biden', 'president biden', 'biden administration'], category: 'Politics' },
-  { entityId: 34, ticker: 'HARRIS', name: 'Kamala Harris', keywords: ['kamala harris', 'vice president harris'], category: 'Politics' },
-  { entityId: 65, ticker: 'RFK', name: 'RFK Jr', keywords: ['rfk jr', 'robert kennedy jr', 'kennedy health'], category: 'Politics' },
+  { entityId: 10, ticker: 'TRUMP', name: 'Donald Trump', keywords: ['donald trump', 'trump', 'president trump', 'trump administration', 'maga', 'make america great again'], category: 'Politics' },
+  { entityId: 31, ticker: 'JBIDN', name: 'Joe Biden', keywords: ['joe biden', 'biden', 'president biden', 'biden administration'], category: 'Politics' },
+  { entityId: 32, ticker: 'KHARR', name: 'Kamala Harris', keywords: ['kamala harris', 'vice president harris', 'harris'], category: 'Politics' },
+  { entityId: 33, ticker: 'RDESA', name: 'Ron DeSantis', keywords: ['ron desantis', 'desantis', 'florida governor', 'governor desantis'], category: 'Politics' },
+  { entityId: 34, ticker: 'AOC', name: 'Alexandria Ocasio-Cortez', keywords: ['alexandria ocasio-cortez', 'aoc', 'ocasio-cortez', 'rep aoc'], category: 'Politics' },
+  { entityId: 35, ticker: 'VRAMA', name: 'Vivek Ramaswamy', keywords: ['vivek ramaswamy', 'ramaswamy', 'vivek'], category: 'Politics' },
+  { entityId: 36, ticker: 'NHALE', name: 'Nikki Haley', keywords: ['nikki haley', 'haley', 'ambassador haley'], category: 'Politics' },
+  { entityId: 37, ticker: 'GNEWS', name: 'Gavin Newsom', keywords: ['gavin newsom', 'newsom', 'california governor', 'governor newsom'], category: 'Politics' },
+  { entityId: 38, ticker: 'TCARS', name: 'Tucker Carlson', keywords: ['tucker carlson', 'carlson', 'tucker'], category: 'Politics' },
+  { entityId: 39, ticker: 'BSAND', name: 'Bernie Sanders', keywords: ['bernie sanders', 'sanders', 'senator sanders'], category: 'Politics' },
   
-  // AI/Tech Products
-  { entityId: 47, ticker: 'CURSO', name: 'Cursor', keywords: ['cursor ai', 'cursor ide', 'ai code editor'], category: 'Tech' },
-  { entityId: 48, ticker: 'ANTHR', name: 'Anthropic', keywords: ['anthropic', 'claude 3', 'claude ai', 'dario amodei'], category: 'Tech' },
-  { entityId: 66, ticker: 'PERP', name: 'Perplexity', keywords: ['perplexity ai', 'perplexity search'], category: 'Tech' },
-  { entityId: 67, ticker: 'MISTRL', name: 'Mistral', keywords: ['mistral ai', 'mistral model'], category: 'Tech' },
+  // Influencers
+  { entityId: 11, ticker: 'ALIX', name: 'Alix Earle', keywords: ['alix earle', 'alixearle'], category: 'People' },
+  { entityId: 12, ticker: 'MRBST', name: 'MrBeast', keywords: ['mrbeast', 'jimmy donaldson', 'mr beast', 'beast philanthropy', 'feastables'], category: 'People' },
+  { entityId: 14, ticker: 'KACEN', name: 'Kai Cenat', keywords: ['kai cenat', 'kaicenat'], category: 'People' },
+  { entityId: 20, ticker: 'CDAME', name: 'Charli D\'Amelio', keywords: ['charli d\'amelio', 'charli damelio', 'charlidamelio'], category: 'People' },
+  { entityId: 15, ticker: 'LPAUL', name: 'Logan Paul', keywords: ['logan paul', 'loganpaul', 'prime hydration'], category: 'People' },
+  { entityId: 19, ticker: 'JPAUL', name: 'Jake Paul', keywords: ['jake paul', 'jakepaul'], category: 'People' },
+  { entityId: 18, ticker: 'ACOOP', name: 'Alex Cooper', keywords: ['alex cooper', 'call her daddy', 'chd'], category: 'People' },
+  { entityId: 16, ticker: 'ECHAM', name: 'Emma Chamberlain', keywords: ['emma chamberlain', 'emmachamberlain'], category: 'People' },
+  { entityId: 17, ticker: 'AROSS', name: 'Adin Ross', keywords: ['adin ross', 'adinross'], category: 'People' },
+  { entityId: 13, ticker: 'ATATE', name: 'Andrew Tate', keywords: ['andrew tate', 'tate', 'cobra tate'], category: 'People' },
   
-  // Media/Entertainment Companies
-  { entityId: 68, ticker: 'DIS', name: 'Disney', keywords: ['disney', 'disney+', 'bob iger', 'marvel', 'star wars'], category: 'Tech' },
-  { entityId: 69, ticker: 'WBD', name: 'Warner Bros', keywords: ['warner bros', 'hbo max', 'max streaming', 'dc studios'], category: 'Tech' },
-  { entityId: 70, ticker: 'PARA', name: 'Paramount', keywords: ['paramount', 'paramount+', 'cbs'], category: 'Tech' },
+  // Music Artists
+  { entityId: 21, ticker: 'TSWFT', name: 'Taylor Swift', keywords: ['taylor swift', 'taylorswift', 'swift', 'eras tour', 'swiftie', 'taylor swift album'], category: 'People' },
+  { entityId: 22, ticker: 'DRAKE', name: 'Drake', keywords: ['drake', 'drake rapper', 'aubrey graham', 'ovo', 'ovo sound'], category: 'People' },
+  { entityId: 23, ticker: 'KANYE', name: 'Kanye West', keywords: ['kanye west', 'kanye', 'ye', 'yeezy'], category: 'People' },
+  { entityId: 24, ticker: 'BUNNY', name: 'Bad Bunny', keywords: ['bad bunny', 'badbunny', 'benito'], category: 'People' },
+  { entityId: 25, ticker: 'TSOTT', name: 'Travis Scott', keywords: ['travis scott', 'travisscott', 'cactus jack', 'utopia'], category: 'People' },
+  { entityId: 26, ticker: 'RODRI', name: 'Olivia Rodrigo', keywords: ['olivia rodrigo', 'oliviarodrigo', 'sour', 'guts'], category: 'People' },
+  { entityId: 27, ticker: 'CARTI', name: 'Playboi Carti', keywords: ['playboi carti', 'playboicarti', 'carti'], category: 'People' },
+  { entityId: 28, ticker: 'ISPCE', name: 'Ice Spice', keywords: ['ice spice', 'icespice'], category: 'People' },
+  { entityId: 29, ticker: 'WKEND', name: 'The Weeknd', keywords: ['the weeknd', 'weeknd', 'abel tesfaye'], category: 'People' },
+  { entityId: 30, ticker: 'DOJAC', name: 'Doja Cat', keywords: ['doja cat', 'dojacat', 'doja'], category: 'People' },
   
-  // Sports Teams/Events (high engagement)
-  { entityId: 71, ticker: 'NFL', name: 'NFL', keywords: ['nfl', 'super bowl', 'nfl playoffs', 'nfl draft'], category: 'Events' },
-  { entityId: 72, ticker: 'NBA', name: 'NBA', keywords: ['nba', 'nba finals', 'nba playoffs', 'all-star game'], category: 'Events' },
-  { entityId: 73, ticker: 'FIFA', name: 'FIFA', keywords: ['fifa', 'world cup', 'champions league'], category: 'Events' },
+  // Tech Startups
+  { entityId: 40, ticker: 'CLUEL', name: 'Cluely', keywords: ['cluely', 'cluely ai'], category: 'Tech' },
+  { entityId: 41, ticker: 'PERPL', name: 'Perplexity', keywords: ['perplexity', 'perplexity ai', 'perplexity search'], category: 'Tech' },
+  { entityId: 42, ticker: 'ABRID', name: 'Abridge', keywords: ['abridge', 'abridge ai', 'medical transcription'], category: 'Tech' },
+  { entityId: 43, ticker: 'REPLI', name: 'Replit', keywords: ['replit', 'replit ai', 'replit coding'], category: 'Tech' },
+  { entityId: 44, ticker: 'MERCU', name: 'Mercury', keywords: ['mercury', 'mercury banking', 'mercury bank'], category: 'Tech' },
+  { entityId: 45, ticker: 'CHRAC', name: 'Character.AI', keywords: ['character.ai', 'character ai', 'characterai'], category: 'Tech' },
+  { entityId: 46, ticker: 'LUMAI', name: 'Luma AI', keywords: ['luma ai', 'lumaai', 'luma dream machine'], category: 'Tech' },
+  { entityId: 47, ticker: 'CURSO', name: 'Cursor', keywords: ['cursor', 'cursor ai', 'cursor ide', 'cursor editor'], category: 'Tech' },
+  { entityId: 48, ticker: 'VAPI', name: 'Vapi', keywords: ['vapi', 'vapi ai', 'vapi voice'], category: 'Tech' },
+  { entityId: 49, ticker: 'ANYSP', name: 'Anysphere', keywords: ['anysphere', 'anysphere ai'], category: 'Tech' },
 ];
 
 /**
@@ -274,20 +254,104 @@ function isBreakingNews(article: any, publishedAt: Date): boolean {
   const description = (article.description || '').toLowerCase();
   const text = `${title} ${description}`;
   
-  // Check for breaking keywords
-  const breakingKeywords = ['breaking', 'just in', 'urgent', 'developing', 'alert', 'live:', 'update:'];
+  // Comprehensive breaking news keywords
+  const breakingKeywords = [
+    'breaking',
+    'breaking news',
+    'just in',
+    'just now',
+    'urgent',
+    'developing',
+    'developing story',
+    'alert',
+    'live:',
+    'live update',
+    'update:',
+    'latest:',
+    'exclusive',
+    'first:',
+    'reports:',
+    'sources say',
+    'confirmed:',
+    'announces',
+    'announcement',
+    'unveils',
+    'reveals',
+    'launches',
+    'releases',
+    'drops',
+    'explodes',
+    'surges',
+    'plunges',
+    'crashes',
+    'scandal',
+    'controversy',
+    'lawsuit',
+    'indictment',
+    'arrest',
+    'resigns',
+    'steps down',
+    'quits',
+    'fired',
+    'terminated',
+    'acquired',
+    'merger',
+    'ipo',
+    'goes public',
+    'bankruptcy',
+    'shuts down',
+    'closes',
+    'emergency',
+    'crisis',
+    'outbreak',
+    'recall',
+    'recalls',
+  ];
+  
   const hasBreakingKeyword = breakingKeywords.some(keyword => text.includes(keyword));
   
   // Check if very recent (within last 3 hours)
   const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
   const isVeryRecent = publishedAt > threeHoursAgo;
   
-  // Only mark as breaking if it has breaking keywords OR is very recent from major source
-  const majorSources = ['reuters', 'bloomberg', 'associated press', 'bbc', 'cnn'];
+  // Major news sources that often have breaking news
+  const majorSources = [
+    'reuters',
+    'bloomberg',
+    'associated press',
+    'ap news',
+    'bbc',
+    'cnn',
+    'cnbc',
+    'wall street journal',
+    'wsj',
+    'new york times',
+    'nytimes',
+    'washington post',
+    'the verge',
+    'techcrunch',
+    'axios',
+    'business insider',
+    'forbes',
+    'the guardian',
+    'usa today',
+    'nbc news',
+    'abc news',
+    'cbs news',
+    'fox news',
+  ];
+  
   const sourceName = (article.source?.name || '').toLowerCase();
   const isMajorSource = majorSources.some(s => sourceName.includes(s));
   
-  return hasBreakingKeyword || (isVeryRecent && isMajorSource);
+  // Mark as breaking if:
+  // 1. Has breaking keywords, OR
+  // 2. Is very recent (within 3 hours) from a major source, OR
+  // 3. Is extremely recent (within 1 hour) from any source
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const isExtremelyRecent = publishedAt > oneHourAgo;
+  
+  return hasBreakingKeyword || (isVeryRecent && isMajorSource) || isExtremelyRecent;
 }
 
 // ============================================
@@ -389,11 +453,17 @@ export async function fetchFromNewsAPI(options: {
   daysBack?: number;
 }): Promise<NewsArticle[]> {
   if (!NEWS_API_KEY) {
-    console.warn('NEWS_API_KEY not configured - returning empty results');
+    console.error('[fetchFromNewsAPI] NEWS_API_KEY not configured in environment variables');
+    console.error('[fetchFromNewsAPI] Please set NEWS_API_KEY in your Lambda environment variables');
     return [];
   }
 
   try {
+    console.log(`[fetchFromNewsAPI] Starting fetch with options:`, { 
+      query: options.query?.substring(0, 100), 
+      category: options.category, 
+      pageSize: options.pageSize 
+    });
     // Fetch more articles than requested since we filter to only those with entities
     const { query, category, pageSize = 20, page = 1, daysBack = 14 } = options;
     const fetchSize = Math.min(100, pageSize * 3); // Fetch 3x to ensure enough after filtering
@@ -402,8 +472,9 @@ export async function fetchFromNewsAPI(options: {
     // Build search query with entity-focused terms
     let searchQuery = query;
     if (!searchQuery) {
-      // Default query focuses on entities we can match
-      searchQuery = '(Tesla OR Apple OR Google OR Microsoft OR Meta OR Amazon OR Nvidia OR OpenAI OR ChatGPT) OR (Elon Musk OR Sam Altman OR Mark Zuckerberg) OR (Taylor Swift OR MrBeast OR Drake) OR (Bitcoin OR Ethereum OR crypto) OR (Trump OR Biden) OR (AI artificial intelligence)';
+      // Default query focuses on entities we can match from MOCK_ENTITIES
+      // Include a mix of high-profile entities across categories
+      searchQuery = '(Taylor Swift OR MrBeast OR Drake OR Kanye West OR Bad Bunny OR Travis Scott) OR (Donald Trump OR Joe Biden OR Kamala Harris) OR (Perplexity OR Cursor OR Replit OR Character.AI) OR (Logan Paul OR Jake Paul OR Charli D\'Amelio OR Alix Earle) OR (Olivia Rodrigo OR The Weeknd OR Doja Cat OR Playboi Carti)';
     }
 
     const params = new URLSearchParams({
@@ -420,17 +491,40 @@ export async function fetchFromNewsAPI(options: {
     const response = await fetch(`${NEWS_API_BASE_URL}/everything?${params}`);
     
     if (!response.ok) {
-      const error = await response.text();
-      console.error('NewsAPI error:', error);
+      const errorText = await response.text();
+      console.error(`[fetchFromNewsAPI] NewsAPI HTTP error ${response.status}:`, errorText);
+      
+      // Try to parse as JSON for better error message
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('[fetchFromNewsAPI] NewsAPI error details:', errorJson);
+        if (errorJson.code === 'rateLimited') {
+          console.error('[fetchFromNewsAPI] Rate limit exceeded. Free tier allows 100 requests/day.');
+        }
+      } catch (e) {
+        // Not JSON, already logged as text
+      }
+      
       return [];
     }
 
     const data = await response.json() as NewsAPIResponse;
     
-    if (data.status !== 'ok' || !data.articles) {
-      console.error('NewsAPI returned error status:', data);
+    if (data.status !== 'ok') {
+      console.error(`[fetchFromNewsAPI] NewsAPI returned error status: ${data.status}`);
+      if ((data as any).code) {
+        console.error('[fetchFromNewsAPI] Error code:', (data as any).code);
+        console.error('[fetchFromNewsAPI] Error message:', (data as any).message);
+      }
       return [];
     }
+    
+    if (!data.articles || data.articles.length === 0) {
+      console.warn(`[fetchFromNewsAPI] NewsAPI returned 0 articles. Total results: ${data.totalResults || 0}`);
+      return [];
+    }
+
+    console.log(`NewsAPI returned ${data.articles.length} articles, filtering and matching...`);
 
     // Transform to our NewsArticle format with entity matching
     const allArticles: NewsArticle[] = data.articles
@@ -464,13 +558,25 @@ export async function fetchFromNewsAPI(options: {
         };
       });
 
-    // Only return articles that have a matched entity/ticker, limited to requested size
-    const articlesWithEntities = allArticles
-      .filter(a => a.entityTicker)
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-      .slice(0, pageSize);
+    // Separate articles with and without entity matches
+    const articlesWithEntities = allArticles.filter(a => a.entityTicker);
+    const articlesWithoutEntities = allArticles.filter(a => !a.entityTicker);
 
-    return articlesWithEntities;
+    console.log(`Matched ${articlesWithEntities.length} articles to entities, ${articlesWithoutEntities.length} without matches`);
+
+    // Prioritize articles with entity matches, but include some without if we don't have enough
+    const sortedWithEntities = articlesWithEntities
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    
+    const sortedWithoutEntities = articlesWithoutEntities
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+      .slice(0, Math.max(0, pageSize - sortedWithEntities.length)); // Fill remaining slots
+
+    const finalArticles = [...sortedWithEntities, ...sortedWithoutEntities].slice(0, pageSize);
+    
+    console.log(`Returning ${finalArticles.length} articles (${sortedWithEntities.length} with entities, ${sortedWithoutEntities.length} without)`);
+
+    return finalArticles;
   } catch (error) {
     console.error('Error fetching from NewsAPI:', error);
     return [];

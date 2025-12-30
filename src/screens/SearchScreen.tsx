@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -219,12 +220,18 @@ export default function SearchScreen() {
               <Text style={[styles.entityName, { color: theme.text }]}>{displayName}</Text>
             <TouchableOpacity
               style={styles.watchlistIconButton}
-              onPress={(e) => {
+              onPress={async (e) => {
                 e.stopPropagation();
                 if (isInWatchlist(item.id)) {
-                  removeFromWatchlist(item.id);
+                  const result = await removeFromWatchlist(item.id);
+                  if (!result.success && result.error) {
+                    Alert.alert('Error', result.error);
+                  }
                 } else {
-                  addToWatchlist(item.id);
+                  const result = await addToWatchlist(item.id);
+                  if (!result.success && result.error) {
+                    Alert.alert('Error', result.error);
+                  }
                 }
               }}
             >

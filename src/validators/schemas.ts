@@ -106,7 +106,9 @@ export const EntityArraySchema = z.array(EntitySchema);
 // ============================================
 
 export const NewsArticleSchema = z.object({
-  id: z.string(),
+  // Backend uses articleId, frontend uses id - accept both
+  id: z.string().optional(),
+  articleId: z.string().optional(),
   title: z.string(),
   summary: z.string(),
   content: z.string(),
@@ -125,7 +127,11 @@ export const NewsArticleSchema = z.object({
   tags: z.array(z.string()),
   viewCount: z.number().default(0),
   isBreaking: z.boolean().default(false),
-});
+}).transform((data) => ({
+  ...data,
+  // Normalize id field
+  id: data.articleId || data.id || '',
+}));
 
 export type ValidatedNewsArticle = z.infer<typeof NewsArticleSchema>;
 
