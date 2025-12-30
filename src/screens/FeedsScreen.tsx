@@ -30,7 +30,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function FeedsScreen() {
+function FeedsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const { 
@@ -912,6 +912,8 @@ export default function FeedsScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(FeedsScreen);
 
 // Create Group Modal Component
 interface CreateGroupModalProps {

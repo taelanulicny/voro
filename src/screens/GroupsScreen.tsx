@@ -24,7 +24,7 @@ import { Group, RootStackParamList } from '../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function GroupsScreen() {
+function GroupsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { 
     groups, 
@@ -296,6 +296,8 @@ export default function GroupsScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(GroupsScreen);
 
 // Create Group Modal Component
 interface CreateGroupModalProps {

@@ -40,7 +40,7 @@ interface SearchEntity {
   matchedFields?: string[];
 }
 
-export default function SearchScreen() {
+function SearchScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { getEntityPrice } = useTrading();
   const { theme } = useTheme();
@@ -470,6 +470,8 @@ export default function SearchScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(SearchScreen);
 
 const styles = StyleSheet.create({
   container: {

@@ -27,7 +27,7 @@ import { hasValidUserId } from '../utils/idValidation';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function ProfileScreen() {
+function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, token, refreshUser, isAuthenticated } = useAuth();
   const { activityFeed, followedUsers, followers, following } = useSocial();
@@ -302,6 +302,8 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(ProfileScreen);
 
 const styles = StyleSheet.create({
   container: {

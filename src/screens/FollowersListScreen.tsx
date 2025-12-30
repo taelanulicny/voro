@@ -18,7 +18,7 @@ import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
 type FollowersListRouteProp = RouteProp<RootStackParamList, 'FollowersList'>;
 
-export default function FollowersListScreen() {
+function FollowersListScreen() {
   const navigation = useNavigation();
   const route = useRoute<FollowersListRouteProp>();
   const { userId, type, username } = route.params;
@@ -157,6 +157,8 @@ export default function FollowersListScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(FollowersListScreen);
 
 const styles = StyleSheet.create({
   container: {

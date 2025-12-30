@@ -17,7 +17,7 @@ import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function PortfolioScreen() {
+function PortfolioScreen() {
   const { portfolio, transactions } = useTrading();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
@@ -219,6 +219,8 @@ export default function PortfolioScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(PortfolioScreen);
 
 const styles = StyleSheet.create({
   container: {

@@ -39,8 +39,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Chart config will be created dynamically based on theme
 
-
-export default function EntityScreen() {
+function EntityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<EntityScreenRouteProp>();
   const { entityId, categoryId } = route.params;
@@ -755,6 +754,8 @@ export default function EntityScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(EntityScreen);
 
 const styles = StyleSheet.create({
   container: {

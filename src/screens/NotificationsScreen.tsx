@@ -44,7 +44,7 @@ const formatTimestamp = (timestamp: string) => {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function NotificationsScreen() {
+function NotificationsScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const {
@@ -335,6 +335,8 @@ export default function NotificationsScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(NotificationsScreen);
 
 const styles = StyleSheet.create({
   container: {

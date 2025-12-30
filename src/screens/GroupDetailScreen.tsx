@@ -90,7 +90,7 @@ const generateMockMembers = (groupId: string): GroupMember[] => {
   ];
 };
 
-export default function GroupDetailScreen() {
+function GroupDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<GroupDetailRouteProp>();
   const { groupId } = route.params;
@@ -360,6 +360,8 @@ export default function GroupDetailScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(GroupDetailScreen);
 
 const styles = StyleSheet.create({
   container: {
