@@ -27,6 +27,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   loginWithGoogle: (email: string, id: string, name: string, photo?: string, idToken?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithApple: (email: string, id: string, name: string, identityToken?: string) => Promise<{ success: boolean; error?: string }>;
+  refreshUser: () => Promise<void>;
   skipAuth: () => Promise<void>; // DEV ONLY
 }
 
@@ -218,6 +219,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshUser = async () => {
+    if (!token) return;
+    
+    try {
+      const verification = await verifyToken(token);
+      if (verification.success && verification.user) {
+        // Update user data
+        setUser(verification.user);
+        // Also update async storage
+        await AsyncStorage.setItem(ASYNC_USER_KEY, JSON.stringify(verification.user));
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
   // DEV ONLY - Skip authentication for development
   const skipAuth = async () => {
     const mockUser: User = {
@@ -243,6 +260,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     loginWithGoogle,
     loginWithApple,
+    refreshUser,
     skipAuth,
   };
 

@@ -20,6 +20,15 @@ export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promis
       return createErrorResponse(404, 'User not found');
     }
 
+    // Construct avatar URL if it's stored as a key
+    let avatarUrl = user.avatarUrl;
+    if (avatarUrl && !avatarUrl.startsWith('http')) {
+      // If avatarUrl is a key, construct the S3 URL
+      const bucketName = process.env.S3_BUCKET_NAME || 'moro-assets';
+      const region = process.env.AWS_REGION || 'us-east-1';
+      avatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${avatarUrl}`;
+    }
+
     return createResponse(200, {
       success: true,
       data: {
@@ -27,11 +36,11 @@ export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promis
         email: user.email,
         username: user.username,
         displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
+        avatarUrl,
         bio: user.bio,
-        followersCount: user.followersCount,
-        followingCount: user.followingCount,
-        portfolioValue: user.portfolioValue,
+        followersCount: user.followersCount || 0,
+        followingCount: user.followingCount || 0,
+        portfolioValue: user.portfolioValue || 0,
         joinedDate: user.joinedDate,
       },
     });
@@ -63,6 +72,14 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
       return createErrorResponse(400, result.error || 'Failed to update profile');
     }
 
+    // Construct avatar URL if it's stored as a key
+    let avatarUrl = result.user?.avatarUrl;
+    if (avatarUrl && !avatarUrl.startsWith('http')) {
+      const bucketName = process.env.S3_BUCKET_NAME || 'moro-assets';
+      const region = process.env.AWS_REGION || 'us-east-1';
+      avatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${avatarUrl}`;
+    }
+
     return createResponse(200, {
       success: true,
       data: {
@@ -70,7 +87,7 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
         email: result.user?.email,
         username: result.user?.username,
         displayName: result.user?.displayName,
-        avatarUrl: result.user?.avatarUrl,
+        avatarUrl,
         bio: result.user?.bio,
       },
     });
@@ -96,11 +113,18 @@ export async function getAvatarUploadUrlHandler(event: APIGatewayProxyEvent): Pr
       return createErrorResponse(400, result.error || 'Failed to generate upload URL');
     }
 
+    // Construct the public URL for the uploaded image
+    // In production, this would be a CloudFront URL or public S3 URL
+    const bucketName = process.env.S3_BUCKET_NAME || 'moro-assets';
+    const region = process.env.AWS_REGION || 'us-east-1';
+    const avatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${result.key}`;
+
     return createResponse(200, {
       success: true,
       data: {
         uploadUrl: result.uploadUrl,
         key: result.key,
+        avatarUrl, // Return the URL that should be stored in the user profile
       },
     });
   } catch (error: any) {

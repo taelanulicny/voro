@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,24 +21,80 @@ import { RootStackParamList } from '../types';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
 import { formatCurrency } from '../utils/dataGenerator';
+import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { useCallback } from 'react';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, logout } = useAuth();
-  const { activityFeed, followedUsers } = useSocial();
+  const { user, token, refreshUser, isAuthenticated } = useAuth();
+  const { activityFeed, followedUsers, followers, following } = useSocial();
   const { theme } = useTheme();
   const { portfolio } = useTrading();
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [accountValueVisible, setAccountValueVisible] = useState(true);
+  const [profileData, setProfileData] = useState<{
+    followersCount: number;
+    followingCount: number;
+  } | null>(null);
 
   // Get current user's posts
   const userPosts = activityFeed.filter(post => post.userId === user?.id);
 
-  // Mock follower/following counts based on followedUsers
-  const followersCount = 245; // Mock count
-  const followingCount = followedUsers.size;
+  // Fetch profile data from backend
+  const fetchProfileData = useCallback(async () => {
+    if (!isBackendConfigured() || !user || !token || !isAuthenticated) {
+      // Use mock data if backend not configured
+      setProfileData({
+        followersCount: 245,
+        followingCount: followedUsers.size,
+      });
+      return;
+    }
+
+    try {
+      const response = await authenticatedRequest<{
+        id: string;
+        followersCount: number;
+        followingCount: number;
+      }>(`/api/user/${user.id}`, token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data) {
+        setProfileData({
+          followersCount: response.data.followersCount || 0,
+          followingCount: response.data.followingCount || 0,
+        });
+      } else {
+        // Fallback to mock data
+        setProfileData({
+          followersCount: followers.length || 245,
+          followingCount: following.length || followedUsers.size,
+        });
+      }
+    } catch (error) {
+      console.debug('Error fetching profile data:', error);
+      // Fallback to mock data
+      setProfileData({
+        followersCount: followers.length || 245,
+        followingCount: following.length || followedUsers.size,
+      });
+    }
+  }, [user, token, isAuthenticated, followers, following, followedUsers]);
+
+  // Refresh profile when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfileData();
+      refreshUser(); // Refresh user data (avatar, bio, etc.)
+    }, [fetchProfileData, refreshUser])
+  );
+
+  // Use backend data if available, otherwise fallback to mock
+  const followersCount = profileData?.followersCount ?? (followers.length || 245);
+  const followingCount = profileData?.followingCount ?? (following.length || followedUsers.size);
   const postsCount = userPosts.length;
 
   // Load account value visibility preference
@@ -69,9 +126,21 @@ export default function ProfileScreen() {
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
       <View style={styles.headerTop}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={40} color="#FFFFFF" />
-        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('EditProfile')}
+          style={styles.avatarContainer}
+        >
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={40} color="#FFFFFF" />
+            </View>
+          )}
+          <View style={styles.avatarEditBadge}>
+            <Ionicons name="camera" size={12} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
         <View style={styles.headerRightButtons}>
           <TouchableOpacity
             style={styles.headerAddPostButton}
@@ -97,10 +166,7 @@ export default function ProfileScreen() {
       )}
         <TouchableOpacity
           style={styles.editProfileButton}
-          onPress={() => {
-            // TODO: Navigate to edit profile screen or open edit modal
-            console.log('Edit profile pressed');
-          }}
+          onPress={() => navigation.navigate('EditProfile')}
         >
           <Ionicons name="pencil-outline" size={16} color={theme.text} />
           <Text style={[styles.editProfileText, { color: theme.text }]}>Edit Profile</Text>
@@ -260,11 +326,27 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 16,
   },
+  avatarContainer: {
+    position: 'relative',
+  },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
     backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#3B82F6',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },

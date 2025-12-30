@@ -82,7 +82,9 @@ export async function generateAvatarUploadUrl(
   contentType: string
 ): Promise<{ success: boolean; uploadUrl?: string; key?: string; error?: string }> {
   try {
-    const key = `avatars/${userId}/${Date.now()}.${contentType.split('/')[1] || 'jpg'}`;
+    // Extract file extension from content type
+    const extension = contentType.includes('png') ? 'png' : contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg' : 'jpg';
+    const key = `avatars/${userId}/${Date.now()}.${extension}`;
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,

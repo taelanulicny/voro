@@ -59,6 +59,7 @@ export class MoroBackendStack extends cdk.Stack {
       bucketName: `${tablePrefix}-assets-${this.account}-${this.region}`,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       autoDeleteObjects: false,
+      publicReadAccess: false, // Keep private for security
       cors: [
         {
           allowedOrigins: ['*'],
@@ -72,6 +73,16 @@ export class MoroBackendStack extends cdk.Stack {
         },
       ],
     });
+
+    // Bucket policy to allow public read access to avatars folder only
+    assetsBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.AnyPrincipal()],
+        actions: ['s3:GetObject'],
+        resources: [`${assetsBucket.bucketArn}/avatars/*`],
+      })
+    );
 
     // DynamoDB Tables
     const usersTable = new dynamodb.Table(this, 'UsersTable', {
