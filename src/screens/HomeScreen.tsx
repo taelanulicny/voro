@@ -1024,7 +1024,8 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* Swipeable Section with 5 Pages */}
+        {/* Swipeable Section with 4 Pages - Only on "For You" page */}
+        {selectedCategory === 'For You' && (
         <View style={[styles.section, { backgroundColor: 'transparent', borderBottomColor: theme.backgroundSecondary, paddingHorizontal: 0, paddingVertical: 0 }]}>
           <ScrollView
             ref={swipeableScrollRef}
@@ -2190,6 +2191,7 @@ export default function HomeScreen() {
             ))}
           </View>
         </View>
+        )}
 
         {/* Show "For You" content only on For You page */}
         {selectedCategory === 'For You' && (
