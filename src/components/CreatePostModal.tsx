@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { sanitizeContentForSubmission } from '../utils/sanitize';
 
 interface CreatePostModalProps {
   visible: boolean;
@@ -64,8 +65,12 @@ export default function CreatePostModal({
     }
 
     setIsSubmitting(true);
+    
+    // Sanitize content before submission
+    const sanitizedContent = sanitizeContentForSubmission(content.trim());
+    
     const result = await createPost({
-      content: content.trim(),
+      content: sanitizedContent,
       entityId,
       entityTicker,
       entityName,
@@ -192,10 +197,10 @@ export default function CreatePostModal({
             onChangeText={setContent}
             multiline
             autoFocus
-            maxLength={500}
+            maxLength={5000}
           />
 
-          <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/500</Text>
+          <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/5000</Text>
 
           {/* Sentiment Selector */}
           <View style={styles.sentimentSection}>

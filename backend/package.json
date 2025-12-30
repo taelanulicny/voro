@@ -11,7 +11,8 @@
     "deploy": "npm run bundle && cdk deploy",
     "synth": "cdk synth",
     "diff": "cdk diff",
-    "seed": "ts-node scripts/seed.ts"
+    "seed": "ts-node scripts/seed.ts",
+    "validate-ids": "ts-node scripts/validateIds.ts"
   },
   "keywords": [],
   "author": "",

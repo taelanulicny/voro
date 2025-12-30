@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// Using built-in fetch (Node.js 18+)
 import { CognitoIdentityProviderClient, InitiateAuthCommand, SignUpCommand, AdminConfirmSignUpCommand } from '@aws-sdk/client-cognito-identity-provider';
 
 // Configuration

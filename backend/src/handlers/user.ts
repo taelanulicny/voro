@@ -73,11 +73,11 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
     }
 
     // Construct avatar URL if it's stored as a key
-    let avatarUrl = result.user?.avatarUrl;
-    if (avatarUrl && !avatarUrl.startsWith('http')) {
+    let finalAvatarUrl = result.user?.avatarUrl;
+    if (finalAvatarUrl && !finalAvatarUrl.startsWith('http')) {
       const bucketName = process.env.S3_BUCKET_NAME || 'moro-assets';
       const region = process.env.AWS_REGION || 'us-east-1';
-      avatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${avatarUrl}`;
+      finalAvatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${finalAvatarUrl}`;
     }
 
     return createResponse(200, {
@@ -87,7 +87,7 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
         email: result.user?.email,
         username: result.user?.username,
         displayName: result.user?.displayName,
-        avatarUrl,
+        avatarUrl: finalAvatarUrl,
         bio: result.user?.bio,
       },
     });

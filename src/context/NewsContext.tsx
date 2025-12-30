@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { NewsArticle, NewsFilter } from '../types';
 import { apiRequest, isBackendConfigured } from '../config/api';
 import { NewsArticleArraySchema, safeValidate, validateArrayLoose } from '../validators';
+import { isValidEntityId } from '../utils/idValidation';
 
 interface NewsContextType {
   news: NewsArticle[];
@@ -229,6 +230,12 @@ export function NewsProvider({ children }: { children: ReactNode }) {
 
   // Fetch news for a specific entity from backend
   const getNewsByEntity = useCallback(async (entityId: number, entityName?: string): Promise<NewsArticle[]> => {
+    // Validate entityId
+    if (!isValidEntityId(entityId)) {
+      console.debug('Invalid entityId for news:', entityId);
+      return [];
+    }
+
     // Check cache first
     const cacheKey = entityName || entityId.toString();
     if (entityNewsCache[cacheKey]) {

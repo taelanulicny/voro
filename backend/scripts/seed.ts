@@ -1,6 +1,7 @@
 import { docClient, TABLE_NAMES } from '../src/utils/dynamodb';
 import { PutCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { Entity, PriceHistory } from '../src/models/types';
+import { validateEntityIdsArray } from '../src/utils/idGenerator';
 
 // Entities data from mockEntities.ts
 const ENTITIES: Omit<Entity, 'createdAt'>[] = [
@@ -48,6 +49,14 @@ const ENTITIES: Omit<Entity, 'createdAt'>[] = [
 
 async function seedEntities() {
   console.log('Seeding entities...');
+  
+  // Validate entity IDs are unique before seeding
+  const validation = validateEntityIdsArray(ENTITIES);
+  if (!validation.isValid) {
+    console.error('❌ ERROR: Duplicate entity IDs found:', validation.duplicates);
+    throw new Error(`Duplicate entity IDs found: ${validation.duplicates.join(', ')}`);
+  }
+  console.log('✅ Entity IDs validated: all unique');
   
   const now = new Date().toISOString();
   const entities: Entity[] = ENTITIES.map(e => ({

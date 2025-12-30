@@ -23,6 +23,7 @@ import CreatePostModal from '../components/CreatePostModal';
 import { formatCurrency } from '../utils/dataGenerator';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 import { useCallback } from 'react';
+import { hasValidUserId } from '../utils/idValidation';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -44,8 +45,8 @@ export default function ProfileScreen() {
 
   // Fetch profile data from backend
   const fetchProfileData = useCallback(async () => {
-    if (!isBackendConfigured() || !user || !token || !isAuthenticated) {
-      // Use mock data if backend not configured
+    if (!isBackendConfigured() || !hasValidUserId(user) || !token || !isAuthenticated) {
+      // Use mock data if backend not configured or user not available
       setProfileData({
         followersCount: 245,
         followingCount: followedUsers.size,

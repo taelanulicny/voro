@@ -57,6 +57,7 @@ export interface Transaction {
   pricePerToken: number;
   totalAmount: number;
   category: string;
+  idempotencyKey?: string; // Optional idempotency key to prevent duplicate trades
 }
 
 export interface Post {

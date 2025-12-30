@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../utils/dataGenerator';
+import { isValidEntityId } from '../utils/idValidation';
 
 const { height } = Dimensions.get('window');
 
@@ -39,12 +41,19 @@ export default function TradeModal({
   category,
   existingQuantity = 0,
 }: TradeModalProps) {
-  const { portfolio, executeTrade, getHolding, isMarketOpen, marketStatusMessage, lastPriceUpdateTime } = useTrading();
+  const { portfolio, executeTrade, getHolding, isMarketOpen, marketStatusMessage, lastPriceUpdateTime, getEntityPrice } = useTrading();
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
   const [quantity, setQuantity] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [slideAnim] = useState(new Animated.Value(height));
+
+  // Validate entityId
+  if (!isValidEntityId(entityId)) {
+    console.error('Invalid entityId in TradeModal:', entityId);
+    return null;
+  }
 
   const holding = useMemo(() => getHolding(entityId), [entityId, portfolio.holdings]);
 
@@ -73,6 +82,12 @@ export default function TradeModal({
   const canBuy = activeTab === 'buy' && quantityNum > 0 && hasSufficientFunds;
   const canSell = activeTab === 'sell' && quantityNum > 0 && hasSufficientShares;
   const isPriceStale = lastPriceUpdateTime ? (Date.now() - lastPriceUpdateTime) > 60000 : false;
+  
+  // Check if trade price differs significantly from current price (>2%)
+  const latestPrice = getEntityPrice(entityId);
+  const priceDifferencePercent = latestPrice > 0 ? Math.abs((currentPrice - latestPrice) / latestPrice) * 100 : 0;
+  const isPriceSignificantlyDifferent = priceDifferencePercent > 2;
+  
   const canExecute = (canBuy || canSell) && isMarketOpen;
 
   const handleQuantityChange = (text: string) => {
@@ -95,7 +110,7 @@ export default function TradeModal({
     }
   };
 
-  const handleExecuteTrade = () => {
+  const handleExecuteTrade = async () => {
     if (!canExecute) return;
 
     if (!isMarketOpen) {
@@ -103,21 +118,42 @@ export default function TradeModal({
       return;
     }
 
+    // Auto-refresh prices if they differ significantly
+    if (isPriceSignificantlyDifferent && latestPrice > 0) {
+      Alert.alert(
+        'Price Updated',
+        `The current price (${formatCurrency(latestPrice)}) differs from the displayed price. Using the latest price.`,
+        [{ text: 'OK' }]
+      );
+      // Update the price used for the trade
+      // Note: This will trigger a re-render, but we'll use latestPrice in the trade
+    }
+
     setIsProcessing(true);
 
-    // Simulate slight delay for realistic feel
-    setTimeout(async () => {
+    try {
+      // Validate user and entity IDs
+      if (!user?.id) {
+        Alert.alert('Error', 'User ID is required to execute trades.');
+        return;
+      }
+      
+      // Generate idempotency key to prevent duplicate trades
+      const idempotencyKey = `${user.id}-${entityId}-${activeTab}-${quantityNum}-${Date.now()}`;
+
+      // Use latest price if available and significantly different
+      const tradePrice = (isPriceSignificantlyDifferent && latestPrice > 0) ? latestPrice : currentPrice;
+
       const success = await executeTrade(
         entityId,
         entityName,
         entityTicker,
         activeTab,
         quantityNum,
-        currentPrice,
-        category
+        tradePrice,
+        category,
+        idempotencyKey
       );
-
-      setIsProcessing(false);
 
       if (success) {
         // Show success message
@@ -136,7 +172,16 @@ export default function TradeModal({
           [{ text: 'OK' }]
         );
       }
-    }, 300);
+    } catch (error) {
+      console.error('Error executing trade:', error);
+      Alert.alert(
+        'Trade Failed',
+        'An error occurred while executing the trade. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleClose = () => {

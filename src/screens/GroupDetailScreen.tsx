@@ -120,7 +120,7 @@ export default function GroupDetailScreen() {
   };
 
   const handleSendMessage = () => {
-    if (!messageText.trim() || !user) return;
+    if (!messageText.trim() || !user || !user.id) return;
 
     const newMessage: GroupMessage = {
       id: `${groupId}-msg-${Date.now()}`,

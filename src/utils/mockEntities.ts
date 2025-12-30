@@ -377,3 +377,35 @@ export const getEntityByName = (name: string): MockEntity | undefined => {
   );
 };
 
+/**
+ * Validate that all entities have unique IDs
+ * This is a runtime check to ensure data integrity
+ */
+export function validateEntityIds(): { isValid: boolean; duplicates: number[] } {
+  const ids = MOCK_ENTITIES.map(e => e.id);
+  const seen = new Set<number>();
+  const duplicates: number[] = [];
+  
+  for (const id of ids) {
+    if (seen.has(id)) {
+      duplicates.push(id);
+    } else {
+      seen.add(id);
+    }
+  }
+  
+  return {
+    isValid: duplicates.length === 0,
+    duplicates,
+  };
+}
+
+// Validate on module load (development only)
+if (__DEV__) {
+  const validation = validateEntityIds();
+  if (!validation.isValid) {
+    console.error('❌ Duplicate entity IDs found:', validation.duplicates);
+    throw new Error(`Duplicate entity IDs found: ${validation.duplicates.join(', ')}`);
+  }
+}
+

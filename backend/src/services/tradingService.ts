@@ -112,8 +112,35 @@ export async function executeTrade(
   entityId: number,
   type: 'buy' | 'sell',
   quantity: number,
-  pricePerToken: number
-): Promise<{ success: boolean; error?: string; portfolio?: any }> {
+  pricePerToken: number,
+  idempotencyKey?: string
+): Promise<{ success: boolean; error?: string; portfolio?: any; transactionId?: string }> {
+  // Check for existing transaction with same idempotency key
+  if (idempotencyKey) {
+    const existingTransactions = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAMES.TRANSACTIONS,
+        KeyConditionExpression: 'userId = :userId',
+        FilterExpression: 'idempotencyKey = :key',
+        ExpressionAttributeValues: {
+          ':userId': userId,
+          ':key': idempotencyKey,
+        },
+        Limit: 1,
+      })
+    );
+
+    if (existingTransactions.Items && existingTransactions.Items.length > 0) {
+      // Return existing transaction - idempotent response
+      const existingTransaction = existingTransactions.Items[0] as Transaction;
+      const updatedPortfolio = await getUserPortfolio(userId);
+      return {
+        success: true,
+        portfolio: updatedPortfolio,
+        transactionId: existingTransaction.transactionId,
+      };
+    }
+  }
   // Get entity details
   const entityResult = await docClient.send(
     new GetCommand({
@@ -294,6 +321,7 @@ export async function executeTrade(
         pricePerToken,
         totalAmount,
         category: entity.category,
+        idempotencyKey: idempotencyKey || undefined,
       },
     })
   );
@@ -304,6 +332,7 @@ export async function executeTrade(
   return {
     success: true,
     portfolio: updatedPortfolio,
+    transactionId,
   };
 }
 

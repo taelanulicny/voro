@@ -372,12 +372,22 @@ export default function FeedsScreen() {
         }
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
-          contentContainerStyle={[
-            filteredFeed.length === 0 && styles.emptyListContent,
-            filteredFeed.length > 0 && { paddingBottom: 100 }
-          ]}
-          showsVerticalScrollIndicator={false}
-        />
+        contentContainerStyle={[
+          filteredFeed.length === 0 && styles.emptyListContent,
+          filteredFeed.length > 0 && { paddingBottom: 100 }
+        ]}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
+        getItemLayout={(data, index) => ({
+          length: 200, // Estimated item height
+          offset: 200 * index,
+          index,
+        })}
+      />
       )}
     </View>
   );
@@ -800,6 +810,16 @@ export default function FeedsScreen() {
               currentGroups.length === 0 && styles.emptyListContent,
             ]}
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={5}
+            updateCellsBatchingPeriod={50}
+            windowSize={10}
+            getItemLayout={(data, index) => ({
+              length: 180, // Estimated group card height
+              offset: 180 * index,
+              index,
+            })}
           />
         )}
       </View>
@@ -840,8 +860,18 @@ export default function FeedsScreen() {
               filteredNews.length === 0 && styles.emptyListContent,
               filteredNews.length > 0 && { paddingBottom: 100, paddingHorizontal: 16 }
             ]}
-        showsVerticalScrollIndicator={false}
-      />
+            showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={5}
+            updateCellsBatchingPeriod={50}
+            windowSize={10}
+            getItemLayout={(data, index) => ({
+              length: 250, // Estimated news card height
+              offset: 250 * index,
+              index,
+            })}
+          />
         )}
       </View>
     );

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
-import { PostSchema, CommentSchema, validateArrayLoose, safeValidate, FeedResponseSchema } from '../validators';
+import { PostSchema, CommentSchema, validateArrayLoose, safeValidate, FeedResponseSchema, CreatePostRequestSchema, CreateCommentRequestSchema, CreateGroupRequestSchema } from '../validators';
 
 interface SocialContextType {
   // Posts state
@@ -79,6 +79,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [lastKey, setLastKey] = useState<string | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Rate limiting for post creation (5 posts per minute)
+  const postCreationTimestamps = React.useRef<number[]>([]);
+  const RATE_LIMIT_POSTS = 5;
+  const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
   // Mock posts for trending feed (fallback when backend not available)
   const MOCK_POSTS: Post[] = [
@@ -408,7 +413,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     entityName?: string;
     sentiment?: 'positive' | 'negative' | 'neutral';
   }) => {
-    if (!token || !user) {
+    if (!token || !user || !user.id) {
       return { success: false, error: 'User not authenticated' };
     }
 

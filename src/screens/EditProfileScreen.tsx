@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../types';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { sanitizeContentForSubmission } from '../utils/sanitize';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

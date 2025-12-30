@@ -30,6 +30,7 @@ import { apiRequest, authenticatedRequest, isBackendConfigured } from '../config
 import { useAuth } from '../context/AuthContext';
 import { useSocial } from '../context/SocialContext';
 import { PostSchema, validateArrayLoose } from '../validators';
+import { isValidEntityId } from '../utils/idValidation';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -67,6 +68,13 @@ export default function EntityScreen() {
 
   // Fetch price history from backend
   const fetchPriceHistory = async (entityId: number, timeRange: '1D' | '1W' | '1M' | 'ALL') => {
+    // Validate entityId before making API call
+    if (!isValidEntityId(entityId)) {
+      console.debug('Invalid entityId for price history:', entityId);
+      setPriceHistory([]);
+      return;
+    }
+
     if (!isBackendConfigured()) {
       // Backend not configured - return empty array
       setPriceHistory([]);
@@ -105,6 +113,12 @@ export default function EntityScreen() {
 
   // Fetch price history on mount and when entityId or timeRange changes
   useEffect(() => {
+    // Validate entityId before attempting to fetch
+    if (!isValidEntityId(entityId)) {
+      console.debug('Skipping fetch - invalid entityId:', entityId);
+      return;
+    }
+    
     setSelectedTab('chart');
     fetchPriceHistory(entityId, timeRange);
     fetchEntityPosts(entityId);
@@ -160,6 +174,13 @@ export default function EntityScreen() {
 
   // Fetch entity-specific posts from backend
   const fetchEntityPosts = React.useCallback(async (entityId: number) => {
+    // Validate entityId before making API call
+    if (!isValidEntityId(entityId)) {
+      console.debug('Invalid entityId for entity posts:', entityId);
+      setEntityFeedPosts([]);
+      return;
+    }
+
     if (!isBackendConfigured()) {
       setEntityFeedPosts([]);
       return;

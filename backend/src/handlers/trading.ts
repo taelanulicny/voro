@@ -33,7 +33,7 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
     const userId = auth.event.userId!;
     const body = JSON.parse(event.body || '{}');
 
-    const { entityId, type, quantity, pricePerToken } = body;
+    const { entityId, type, quantity, pricePerToken, idempotencyKey } = body;
 
     if (!entityId || !type || !quantity || !pricePerToken) {
       return createErrorResponse(400, 'Missing required fields: entityId, type, quantity, pricePerToken');
@@ -47,7 +47,7 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       return createErrorResponse(400, 'Quantity must be greater than 0');
     }
 
-    const result = await executeTradeService(userId, entityId, type, quantity, pricePerToken);
+    const result = await executeTradeService(userId, entityId, type, quantity, pricePerToken, idempotencyKey);
 
     if (!result.success) {
       return createErrorResponse(400, result.error || 'Trade execution failed');

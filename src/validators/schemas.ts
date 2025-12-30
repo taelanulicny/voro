@@ -395,3 +395,56 @@ export function validateArrayLoose<T>(schema: z.ZodSchema<T>, data: unknown[]): 
     .filter((item): item is T => item !== null);
 }
 
+// ============================================
+// Request Body Schemas (for outgoing requests)
+// ============================================
+
+export const CreatePostRequestSchema = z.object({
+  content: z.string().min(1).max(5000),
+  entityId: z.number().optional(),
+  entityTicker: z.string().optional(),
+  entityName: z.string().optional(),
+  sentiment: z.enum(['positive', 'negative', 'neutral']).optional(),
+});
+
+export type CreatePostRequest = z.infer<typeof CreatePostRequestSchema>;
+
+export const CreateCommentRequestSchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+
+export type CreateCommentRequest = z.infer<typeof CreateCommentRequestSchema>;
+
+export const ExecuteTradeRequestSchema = z.object({
+  entityId: z.number(),
+  type: z.enum(['buy', 'sell']),
+  quantity: z.number().positive(),
+  pricePerToken: z.number().positive(),
+  idempotencyKey: z.string().optional(),
+});
+
+export type ExecuteTradeRequest = z.infer<typeof ExecuteTradeRequestSchema>;
+
+export const UpdateProfileRequestSchema = z.object({
+  displayName: z.string().min(1).max(50),
+  bio: z.string().max(160).optional(),
+  avatarUrl: z.string().url().optional().nullable(),
+});
+
+export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequestSchema>;
+
+export const CreateGroupRequestSchema = z.object({
+  name: z.string().min(1).max(50),
+  description: z.string().min(1).max(500),
+  category: z.string().min(1),
+  isPrivate: z.boolean(),
+});
+
+export type CreateGroupRequest = z.infer<typeof CreateGroupRequestSchema>;
+
+export const AddToWatchlistRequestSchema = z.object({
+  entityId: z.number(),
+});
+
+export type AddToWatchlistRequest = z.infer<typeof AddToWatchlistRequestSchema>;
+

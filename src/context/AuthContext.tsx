@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout } from '../services/authService';
+import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout, refreshToken as apiRefreshToken } from '../services/authService';
+import { isTokenExpiredOrNearExpiry } from '../utils/jwt';
+import { setTryRefreshTokenCallback } from '../config/api';
 
 // Keys for secure storage (tokens) and async storage (non-sensitive data)
 const SECURE_AUTH_TOKEN_KEY = 'moro_auth_token';
@@ -28,6 +30,8 @@ interface AuthContextType {
   loginWithGoogle: (email: string, id: string, name: string, photo?: string, idToken?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithApple: (email: string, id: string, name: string, identityToken?: string) => Promise<{ success: boolean; error?: string }>;
   refreshUser: () => Promise<void>;
+  tryRefreshToken: () => Promise<boolean>; // Try to refresh token if near expiry
+  getToken: () => string | null; // Get current token (for authenticatedRequest)
   skipAuth: () => Promise<void>; // DEV ONLY
 }
 
@@ -219,7 +223,71 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshUser = async () => {
+  const refreshInProgress = useRef(false);
+
+  const tryRefreshToken = useCallback(async (): Promise<boolean> => {
+    // Prevent concurrent refresh attempts
+    if (refreshInProgress.current) {
+      return false;
+    }
+
+    if (!token) {
+      return false;
+    }
+
+    // Check if token is near expiry
+    if (!isTokenExpiredOrNearExpiry(token, 5)) {
+      return true; // Token is still valid
+    }
+
+    try {
+      refreshInProgress.current = true;
+      
+      // Get refresh token from secure storage
+      const savedRefreshToken = await SecureStore.getItemAsync(SECURE_REFRESH_TOKEN_KEY);
+      if (!savedRefreshToken) {
+        return false;
+      }
+
+      // Attempt to refresh
+      const result = await apiRefreshToken(savedRefreshToken);
+      
+      if (result.success && result.token) {
+        // Update access token in secure storage
+        await SecureStore.setItemAsync(SECURE_AUTH_TOKEN_KEY, result.token);
+        
+        // Update refresh token if rotation is enabled (new refresh token provided)
+        if (result.refreshToken) {
+          await SecureStore.setItemAsync(SECURE_REFRESH_TOKEN_KEY, result.refreshToken);
+        }
+        
+        setToken(result.token);
+        
+        // Verify new token and update user
+        const verification = await verifyToken(result.token);
+        if (verification.success && verification.user) {
+          setUser(verification.user);
+          await AsyncStorage.setItem(ASYNC_USER_KEY, JSON.stringify(verification.user));
+        }
+        
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      return false;
+    } finally {
+      refreshInProgress.current = false;
+    }
+  }, [token]);
+
+  // Register tryRefreshToken callback with API config
+  useEffect(() => {
+    setTryRefreshTokenCallback(tryRefreshToken);
+  }, [tryRefreshToken]);
+
+  const refreshUser = useCallback(async () => {
     if (!token) return;
     
     try {
@@ -229,14 +297,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(verification.user);
         // Also update async storage
         await AsyncStorage.setItem(ASYNC_USER_KEY, JSON.stringify(verification.user));
+      } else {
+        // If token is invalid, try to refresh it
+        const refreshed = await tryRefreshToken();
+        if (!refreshed) {
+          await clearAuthData();
+        }
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
+      // Try to refresh token on error
+      const refreshed = await tryRefreshToken();
+      if (!refreshed) {
+        await clearAuthData();
+      }
     }
-  };
+  }, [token, tryRefreshToken]);
+
+  // Expose getToken function for authenticatedRequest
+  const getToken = useCallback(() => token, [token]);
 
   // DEV ONLY - Skip authentication for development
   const skipAuth = async () => {
+    if (!__DEV__) {
+      throw new Error('skipAuth() is only available in development mode');
+    }
+    
     const mockUser: User = {
       id: 'dev-user-' + Date.now(),
       email: 'dev@moro.app',
@@ -261,6 +347,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loginWithGoogle,
     loginWithApple,
     refreshUser,
+    tryRefreshToken,
+    getToken,
     skipAuth,
   };
 

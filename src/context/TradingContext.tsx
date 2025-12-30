@@ -22,7 +22,8 @@ interface TradingContextType {
     type: 'buy' | 'sell',
     quantity: number,
     pricePerToken: number,
-    category: string
+    category: string,
+    idempotencyKey?: string
   ) => Promise<boolean>;
   getHolding: (entityId: number) => Holding | undefined;
   updatePrices: (entityId: number, newPrice: number) => void;
@@ -258,32 +259,58 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [isAuthenticated, token, fetchPortfolio, fetchTransactions]);
 
-  // Poll for price updates every 30 seconds (entities are public)
+  // Poll for price updates with exponential backoff on errors
   useEffect(() => {
     if (!isBackendConfigured()) return;
 
     const abortController = new AbortController();
+    let consecutiveErrors = 0;
+    let currentInterval = 30000; // Start with 30 seconds
+    const baseInterval = 30000;
+    const maxInterval = 120000; // Max 2 minutes
+    const errorThreshold = 3; // Stop polling after 3 consecutive errors
     
-    const interval = setInterval(() => {
+    const poll = async () => {
       if (abortController.signal.aborted) return;
-      fetchEntityPrices(abortController.signal).catch(err => {
-        if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
-          console.debug('Error fetching entity prices:', err);
+      
+      try {
+        await fetchEntityPrices(abortController.signal);
+        
+        // Only fetch portfolio if authenticated
+        if (isAuthenticated && token && !abortController.signal.aborted) {
+          await fetchPortfolio(abortController.signal);
         }
-      });
-      // Only fetch portfolio if authenticated
-      if (isAuthenticated && token && !abortController.signal.aborted) {
-        fetchPortfolio(abortController.signal).catch(err => {
-          if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
-            console.debug('Error fetching portfolio:', err);
+        
+        // Reset on success
+        consecutiveErrors = 0;
+        currentInterval = baseInterval;
+      } catch (err: any) {
+        if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
+          consecutiveErrors++;
+          console.debug(`Error fetching data (${consecutiveErrors} consecutive):`, err);
+          
+          // Increase interval with exponential backoff
+          if (consecutiveErrors < errorThreshold) {
+            currentInterval = Math.min(baseInterval * Math.pow(2, consecutiveErrors - 1), maxInterval);
+          } else {
+            // Stop polling after threshold, require manual refresh
+            console.warn('Too many consecutive errors, stopping automatic polling');
+            return;
           }
-        });
+        }
       }
-    }, 30000); // Reduced from 5s to 30s to avoid excessive API calls
+      
+      // Schedule next poll with current interval
+      if (!abortController.signal.aborted && consecutiveErrors < errorThreshold) {
+        setTimeout(poll, currentInterval);
+      }
+    };
+    
+    // Start polling
+    poll();
 
     return () => {
       abortController.abort();
-      clearInterval(interval);
     };
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
 
@@ -305,7 +332,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     type: 'buy' | 'sell',
     quantity: number,
     pricePerToken: number,
-    category: string
+    category: string,
+    idempotencyKey?: string
   ): Promise<boolean> => {
     // Check Market Hours
     if (!isMarketOpen) {
@@ -318,8 +346,101 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       return false;
     }
 
+    // Store current state for rollback
+    const previousCashBalance = cashBalance;
+    const previousHoldings = [...holdings];
+    const previousTodayChange = todayChange;
+    const previousTodayChangePercent = todayChangePercent;
+
+    // Optimistic update: update UI immediately
     try {
       setIsLoading(true);
+      
+      const totalAmount = quantity * pricePerToken;
+      let optimisticCashBalance = cashBalance;
+      let optimisticHoldings = [...holdings];
+      let optimisticTodayChange = todayChange;
+      let optimisticTodayChangePercent = todayChangePercent;
+
+      if (type === 'buy') {
+        // Optimistic buy update
+        optimisticCashBalance = cashBalance - totalAmount;
+        const existingHoldingIndex = optimisticHoldings.findIndex(h => h.entityId === entityId);
+        
+        if (existingHoldingIndex >= 0) {
+          // Update existing holding
+          const existing = optimisticHoldings[existingHoldingIndex];
+          const newQuantity = existing.quantity + quantity;
+          const newTotalCost = existing.totalCost + totalAmount;
+          const newAverageCost = newTotalCost / newQuantity;
+          
+          optimisticHoldings[existingHoldingIndex] = {
+            ...existing,
+            quantity: newQuantity,
+            averageCost: newAverageCost,
+            totalCost: newTotalCost,
+            totalValue: newQuantity * pricePerToken,
+            profitLoss: (newQuantity * pricePerToken) - newTotalCost,
+            profitLossPercent: ((newQuantity * pricePerToken) - newTotalCost) / newTotalCost * 100,
+          };
+        } else {
+          // Create new holding
+          optimisticHoldings.push({
+            entityId,
+            entityName,
+            entityTicker,
+            quantity,
+            averageCost: pricePerToken,
+            currentPrice: pricePerToken,
+            totalValue: quantity * pricePerToken,
+            totalCost: totalAmount,
+            profitLoss: 0,
+            profitLossPercent: 0,
+            category,
+          });
+        }
+      } else {
+        // Optimistic sell update
+        optimisticCashBalance = cashBalance + totalAmount;
+        const existingHoldingIndex = optimisticHoldings.findIndex(h => h.entityId === entityId);
+        
+        if (existingHoldingIndex >= 0) {
+          const existing = optimisticHoldings[existingHoldingIndex];
+          const newQuantity = existing.quantity - quantity;
+          
+          if (newQuantity <= 0) {
+            // Remove holding
+            optimisticHoldings = optimisticHoldings.filter(h => h.entityId !== entityId);
+          } else {
+            // Update holding
+            const newTotalCost = existing.totalCost * (newQuantity / existing.quantity);
+            optimisticHoldings[existingHoldingIndex] = {
+              ...existing,
+              quantity: newQuantity,
+              totalCost: newTotalCost,
+              totalValue: newQuantity * pricePerToken,
+              profitLoss: (newQuantity * pricePerToken) - newTotalCost,
+              profitLossPercent: ((newQuantity * pricePerToken) - newTotalCost) / newTotalCost * 100,
+            };
+          }
+        }
+      }
+
+      // Apply optimistic updates
+      setCashBalance(optimisticCashBalance);
+      setHoldings(optimisticHoldings);
+      
+      // Recalculate portfolio value for today change
+      const holdingsValue = optimisticHoldings.reduce((sum, h) => sum + h.totalValue, 0);
+      const totalValue = optimisticCashBalance + holdingsValue;
+      const totalCost = optimisticHoldings.reduce((sum, h) => sum + h.totalCost, 0);
+      const totalProfitLoss = optimisticHoldings.reduce((sum, h) => sum + h.profitLoss, 0);
+      optimisticTodayChange = totalProfitLoss * 0.1; // Mock: 10% of P&L
+      optimisticTodayChangePercent = totalValue > 0 ? (optimisticTodayChange / totalValue) * 100 : 0;
+      setTodayChange(optimisticTodayChange);
+      setTodayChangePercent(optimisticTodayChangePercent);
+
+      // Make API call with retry logic (3 attempts with exponential backoff)
       const response = await authenticatedRequest<{
         cashBalance: number;
         holdings: Holding[];
@@ -333,11 +454,16 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           type,
           quantity,
           pricePerToken,
+          idempotencyKey,
         }),
-      });
+        retryConfig: {
+          maxRetries: 3,
+          retryable: true,
+        },
+      }, getToken);
 
       if (response.success && response.data) {
-        // Update local state with backend response
+        // Update with actual backend response (replaces optimistic update)
         setCashBalance(response.data.cashBalance);
         setHoldings(response.data.holdings);
         setTodayChange(response.data.todayChange);
@@ -351,16 +477,31 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         setEntityPrices((prev) => ({ ...prev, ...prices }));
         setLastPriceUpdateTime(Date.now());
 
-
         // Refresh transactions
         await fetchTransactions();
+        
+        // Invalidate cache for portfolio and prices after trade
+        invalidateCache('/portfolio');
+        invalidateCache('/prices');
 
         return true;
       } else {
+        // Rollback optimistic update on failure
+        setCashBalance(previousCashBalance);
+        setHoldings(previousHoldings);
+        setTodayChange(previousTodayChange);
+        setTodayChangePercent(previousTodayChangePercent);
+        
         console.error('Trade execution failed:', response.error);
         return false;
       }
     } catch (error) {
+      // Rollback optimistic update on error
+      setCashBalance(previousCashBalance);
+      setHoldings(previousHoldings);
+      setTodayChange(previousTodayChange);
+      setTodayChangePercent(previousTodayChangePercent);
+      
       console.error('Error executing trade:', error);
       return false;
     } finally {

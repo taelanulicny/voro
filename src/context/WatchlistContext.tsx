@@ -3,7 +3,7 @@ import { WatchlistItem, PriceAlert } from '../types';
 import { useTrading } from './TradingContext';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
-import { WatchlistItemSchema, validateArrayLoose } from '../validators';
+import { WatchlistItemSchema, validateArrayLoose, AddToWatchlistRequestSchema, safeValidate } from '../validators';
 
 interface WatchlistContextType {
   watchlist: WatchlistItem[];
