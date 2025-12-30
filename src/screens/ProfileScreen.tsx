@@ -46,9 +46,9 @@ export default function ProfileScreen() {
   // Fetch profile data from backend
   const fetchProfileData = useCallback(async () => {
     if (!isBackendConfigured() || !hasValidUserId(user) || !token || !isAuthenticated) {
-      // Use mock data if backend not configured or user not available
+      // No mock data - use 0 when backend not configured
       setProfileData({
-        followersCount: 245,
+        followersCount: 0,
         followingCount: followedUsers.size,
       });
       return;
@@ -69,21 +69,21 @@ export default function ProfileScreen() {
           followingCount: response.data.followingCount || 0,
         });
       } else {
-        // Fallback to mock data
+        // Fallback to 0 when API fails
         setProfileData({
-          followersCount: followers.length || 245,
-          followingCount: following.length || followedUsers.size,
+          followersCount: 0,
+          followingCount: followedUsers.size,
         });
       }
     } catch (error) {
       console.debug('Error fetching profile data:', error);
-      // Fallback to mock data
+      // Fallback to 0 when API fails
       setProfileData({
-        followersCount: followers.length || 245,
-        followingCount: following.length || followedUsers.size,
+        followersCount: 0,
+        followingCount: followedUsers.size,
       });
     }
-  }, [user, token, isAuthenticated, followers, following, followedUsers]);
+  }, [user, token, isAuthenticated, followedUsers]);
 
   // Refresh profile when screen is focused
   useFocusEffect(
@@ -93,9 +93,9 @@ export default function ProfileScreen() {
     }, [fetchProfileData, refreshUser])
   );
 
-  // Use backend data if available, otherwise fallback to mock
-  const followersCount = profileData?.followersCount ?? (followers.length || 245);
-  const followingCount = profileData?.followingCount ?? (following.length || followedUsers.size);
+  // Use backend data if available, otherwise fallback to 0
+  const followersCount = profileData?.followersCount ?? 0;
+  const followingCount = profileData?.followingCount ?? followedUsers.size;
   const postsCount = userPosts.length;
 
   // Load account value visibility preference
