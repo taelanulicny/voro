@@ -102,3 +102,4 @@ echo ""
 echo "2. Test the API endpoint (if deployed):"
 echo "   curl https://your-api-url.execute-api.$AWS_REGION.amazonaws.com/prod/api/entities"
 
+

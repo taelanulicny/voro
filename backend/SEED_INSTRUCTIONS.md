@@ -132,3 +132,4 @@ After seeding:
 2. **Test Frontend**: Start the Expo app and verify entities are loading
 3. **Create Test User**: Sign up a test user through the app
 
+
