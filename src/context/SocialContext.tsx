@@ -43,12 +43,14 @@ interface SocialContextType {
 
   // Comment actions
   getComments: (postId: string) => Promise<void>;
-  addComment: (postId: string, content: string) => Promise<{ success: boolean; comment?: Comment }>;
+  addComment: (postId: string, content: string, parentCommentId?: string) => Promise<{ success: boolean; comment?: Comment }>;
+  editComment: (postId: string, commentId: string, content: string) => Promise<{ success: boolean; error?: string }>;
   toggleLikeComment: (postId: string, commentId: string) => Promise<{ success: boolean }>;
 
   // Follow actions
-  toggleFollowUser: (userId: string) => Promise<{ success: boolean }>;
+  toggleFollowUser: (userId: string) => Promise<{ success: boolean; isMutual?: boolean; otherFollowsUser?: boolean }>;
   isFollowingUser: (userId: string) => boolean;
+  checkMutualFollow: (userId: string) => Promise<{ isMutual: boolean; userFollowsOther: boolean; otherFollowsUser: boolean }>;
 
   // Group actions
   refreshGroups: () => Promise<void>;
@@ -398,13 +400,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
   }, [token, isAuthenticated, lastKey, hasMorePosts, isLoadingMore]);
 
-  // Load feed on mount and when auth changes
-  useEffect(() => {
-    if (isAuthenticated && token) {
-      refreshActivityFeed().catch(err => console.error('Error refreshing feed:', err));
-      refreshGroups().catch(err => console.error('Error refreshing groups:', err));
-    }
-  }, [isAuthenticated, token, refreshActivityFeed, refreshGroups]);
+  // Load feed on mount and when auth changes - will be added after refreshGroups is defined
 
   const createPost = useCallback(async (params: {
     content: string;
@@ -412,6 +408,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     entityTicker?: string;
     entityName?: string;
     sentiment?: 'positive' | 'negative' | 'neutral';
+    images?: string[];
   }) => {
     if (!token || !user || !user.id) {
       return { success: false, error: 'User not authenticated' };
@@ -440,6 +437,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           entityTicker: response.data.entityTicker,
           entityName: response.data.entityName,
           sentiment: response.data.sentiment,
+          images: response.data.images,
           likes: response.data.likes || 0,
           comments: response.data.comments || 0,
           isLiked: false,
@@ -574,10 +572,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        // Validate comments - filter out invalid ones
-        const validatedComments = validateArrayLoose(CommentSchema, response.data);
-
-        const mappedComments: Comment[] = validatedComments.map((c: any) => ({
+        // Recursively map comments and their replies
+        const mapComment = (c: any): Comment => ({
           id: c.commentId || c.id,
           postId: c.postId,
           userId: c.userId,
@@ -588,8 +584,18 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           likes: c.likes || 0,
           isLiked: c.isLiked || false,
           timestamp: c.timestamp,
-        }));
+          parentCommentId: c.parentCommentId,
+          replyTo: c.replyTo || (c.replyToUserId ? {
+            userId: c.replyToUserId,
+            username: c.replyToUsername || '',
+            displayName: c.replyToDisplayName || '',
+          } : undefined),
+          replies: c.replies ? c.replies.map(mapComment) : undefined,
+          editedAt: c.editedAt,
+          isEdited: c.isEdited || false,
+        });
 
+        const mappedComments: Comment[] = response.data.map(mapComment);
         setPostComments(prev => ({ ...prev, [postId]: mappedComments }));
       }
     } catch (error) {
@@ -597,7 +603,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
-  const addComment = useCallback(async (postId: string, content: string) => {
+  const addComment = useCallback(async (postId: string, content: string, parentCommentId?: string) => {
     if (!token || !user) {
       return { success: false };
     }
@@ -609,7 +615,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         token,
         {
           method: 'POST',
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ content, parentCommentId }),
         }
       );
 
@@ -625,16 +631,24 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           likes: response.data.likes || 0,
           isLiked: false,
           timestamp: response.data.timestamp,
+          parentCommentId: response.data.parentCommentId,
+          replyTo: response.data.replyTo || (response.data.replyToUserId ? {
+            userId: response.data.replyToUserId,
+            username: response.data.replyToUsername || '',
+            displayName: response.data.replyToDisplayName || '',
+          } : undefined),
+          isEdited: false,
         };
 
-        setPostComments(prev => ({
-          ...prev,
-          [postId]: [...(prev[postId] || []), newComment],
-        }));
+        // Refresh comments to get the proper nested structure
+        await getComments(postId);
 
-        setActivityFeed(prev =>
-          prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
-        );
+        // Update comment count only for top-level comments
+        if (!parentCommentId) {
+          setActivityFeed(prev =>
+            prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
+          );
+        }
 
         return { success: true, comment: newComment };
       }
@@ -643,7 +657,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       return { success: false };
     }
-  }, [token, user]);
+  }, [token, user, getComments]);
 
   const toggleLikeComment = useCallback(async (postId: string, commentId: string) => {
     if (!token) {
@@ -660,35 +674,58 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        setPostComments(prev => ({
-          ...prev,
-          [postId]: (prev[postId] || []).map(comment =>
-            comment.id === commentId
-              ? {
+        // Recursively update comment like status (including in replies)
+        const updateCommentLike = (comments: Comment[]): Comment[] => {
+          return comments.map(comment => {
+            if (comment.id === commentId) {
+              return {
                 ...comment,
                 isLiked: response.data!.isLiked,
                 likes: response.data!.isLiked ? comment.likes + 1 : comment.likes - 1,
-              }
-              : comment
-          ),
+              };
+            }
+            if (comment.replies && comment.replies.length > 0) {
+              return {
+                ...comment,
+                replies: updateCommentLike(comment.replies),
+              };
+            }
+            return comment;
+          });
+        };
+
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: updateCommentLike(prev[postId] || []),
         }));
         return { success: true };
       }
 
       return { success: false };
     } catch (error) {
-      // Fallback to local toggle on error
-      setPostComments(prev => ({
-        ...prev,
-        [postId]: (prev[postId] || []).map(comment =>
-          comment.id === commentId
-            ? {
+      // Fallback to local toggle on error (recursively)
+      const updateCommentLike = (comments: Comment[]): Comment[] => {
+        return comments.map(comment => {
+          if (comment.id === commentId) {
+            return {
               ...comment,
               isLiked: !comment.isLiked,
               likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
-            }
-            : comment
-        ),
+            };
+          }
+          if (comment.replies && comment.replies.length > 0) {
+            return {
+              ...comment,
+              replies: updateCommentLike(comment.replies),
+            };
+          }
+          return comment;
+        });
+      };
+
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: updateCommentLike(prev[postId] || []),
       }));
       return { success: true };
     }
@@ -700,7 +737,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await authenticatedRequest<{ isFollowing: boolean }>(
+      const response = await authenticatedRequest<{ 
+        isFollowing: boolean;
+        isMutual?: boolean;
+        otherFollowsUser?: boolean;
+      }>(
         `/api/social/users/${userId}/follow`,
         token,
         {
@@ -718,12 +759,71 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           }
           return newSet;
         });
-        return { success: true };
+        return { 
+          success: true,
+          isMutual: response.data.isMutual,
+          otherFollowsUser: response.data.otherFollowsUser,
+        };
       }
 
       return { success: false };
     } catch (error) {
       return { success: false };
+    }
+  }, [token]);
+
+  const editComment = useCallback(async (postId: string, commentId: string, content: string) => {
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+      const response = await authenticatedRequest<any>(
+        `/api/social/comments/${commentId}`,
+        token,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ content }),
+        }
+      );
+
+      if (response.success && response.data) {
+        // Refresh comments to get updated structure
+        await getComments(postId);
+        return { success: true };
+      }
+
+      return { success: false, error: response.error || 'Failed to edit comment' };
+    } catch (error) {
+      return { success: false, error: 'Failed to edit comment' };
+    }
+  }, [token, getComments]);
+
+  const checkMutualFollow = useCallback(async (userId: string) => {
+    if (!token) {
+      return { isMutual: false, userFollowsOther: false, otherFollowsUser: false };
+    }
+
+    try {
+      const response = await authenticatedRequest<{
+        isMutual: boolean;
+        userFollowsOther: boolean;
+        otherFollowsUser: boolean;
+      }>(
+        `/api/social/users/${userId}/mutual-follow`,
+        token,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (response.success && response.data) {
+        return response.data;
+      }
+
+      return { isMutual: false, userFollowsOther: false, otherFollowsUser: false };
+    } catch (error) {
+      return { isMutual: false, userFollowsOther: false, otherFollowsUser: false };
     }
   }, [token]);
 
@@ -778,6 +878,14 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setIsLoadingGroups(false);
     }
   }, [token, isAuthenticated]);
+
+  // Load feed and groups on mount and when auth changes
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      refreshActivityFeed().catch(err => console.error('Error refreshing feed:', err));
+      refreshGroups().catch(err => console.error('Error refreshing groups:', err));
+    }
+  }, [isAuthenticated, token, refreshActivityFeed, refreshGroups]);
 
   const refreshUserGroups = useCallback(async () => {
     setIsLoadingMyGroups(true);
@@ -940,9 +1048,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     loadMorePosts,
     getComments,
     addComment,
+    editComment,
     toggleLikeComment,
     toggleFollowUser,
     isFollowingUser,
+    checkMutualFollow,
     refreshGroups,
     refreshUserGroups,
     myGroups,

@@ -68,10 +68,25 @@ export const CommentSchema = z.object({
   likes: z.number().default(0),
   isLiked: z.boolean().default(false),
   timestamp: z.string(),
+  parentCommentId: z.string().optional(),
+  replyTo: z.object({
+    userId: z.string(),
+    username: z.string(),
+    displayName: z.string(),
+  }).optional(),
+  replies: z.array(z.lazy(() => CommentSchema)).optional(),
+  editedAt: z.string().optional(),
+  isEdited: z.boolean().optional(),
 }).transform((data) => ({
   ...data,
   // Normalize id field
   id: data.commentId || data.id || '',
+  // Build replyTo object from backend fields if needed
+  replyTo: data.replyTo || (data.replyToUserId ? {
+    userId: data.replyToUserId,
+    username: data.replyToUsername || '',
+    displayName: data.replyToDisplayName || '',
+  } : undefined),
 }));
 
 export type ValidatedComment = z.infer<typeof CommentSchema>;

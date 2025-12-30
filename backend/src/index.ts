@@ -75,6 +75,10 @@ export const handler = async (
   }
 
   if (path.includes('/api/social/posts')) {
+    // Check for image upload URL endpoint first (before postId routes)
+    if (path.includes('/images/upload-url') && method === 'GET') {
+      return socialHandlers.getPostImageUploadUrl(event);
+    }
     if (path.includes('/like') && method === 'POST') {
       return socialHandlers.toggleLikePost(event);
     }
@@ -82,6 +86,10 @@ export const handler = async (
       return socialHandlers.toggleBookmarkPost(event);
     }
     if (path.includes('/comments')) {
+      // Edit comment endpoint: PUT /api/social/comments/:commentId
+      if (path.match(/\/comments\/[^/]+$/) && method === 'PUT') {
+        return socialHandlers.editCommentHandler(event);
+      }
       if (path.includes('/like') && method === 'POST') {
         return socialHandlers.toggleLikeComment(event);
       }
@@ -125,6 +133,10 @@ export const handler = async (
     // Make sure this is specifically /api/social/users/search, not just any path with /search
     if (path.includes('/api/social/users/search') && method === 'GET') {
       return socialHandlers.searchUsers(event);
+    }
+    // Check mutual follow: GET /api/social/users/:userId/mutual-follow
+    if (path.includes('/mutual-follow') && method === 'GET') {
+      return socialHandlers.checkMutualFollowHandler(event);
     }
     if (path.includes('/follow') && method === 'POST') {
       return socialHandlers.toggleFollowUser(event);

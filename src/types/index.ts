@@ -124,6 +124,15 @@ export interface Comment {
   likes: number;
   isLiked: boolean;
   timestamp: string;
+  parentCommentId?: string; // For nested replies/threading
+  replyTo?: {
+    userId: string;
+    username: string;
+    displayName: string;
+  }; // Info about the comment being replied to
+  replies?: Comment[]; // Nested replies
+  editedAt?: string; // When comment was last edited
+  isEdited?: boolean; // Whether comment has been edited
 }
 
 export interface Group {

@@ -89,6 +89,12 @@ export interface Comment {
   likes: number;
   timestamp: string;
   createdAt: string;
+  parentCommentId?: string; // For nested replies/threading
+  replyToUserId?: string; // User ID being replied to (for notification purposes)
+  replyToUsername?: string; // Username being replied to
+  replyToDisplayName?: string; // Display name being replied to
+  editedAt?: string; // When comment was last edited
+  isEdited?: boolean; // Whether comment has been edited
 }
 
 export interface Follow {

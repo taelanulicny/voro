@@ -7,8 +7,17 @@ import {
   DeleteCommand,
   ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Post, Comment, Like, CommentLike, Bookmark, Follow, User } from '../models/types';
 import { v4 as uuidv4 } from 'uuid';
+import { moderateContent } from '../utils/contentModeration';
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-east-1',
+});
+
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'moro-assets';
 
 export async function createPost(
   userId: string,
@@ -16,9 +25,16 @@ export async function createPost(
   entityId?: number,
   entityTicker?: string,
   entityName?: string,
-  sentiment?: 'positive' | 'negative' | 'neutral'
+  sentiment?: 'positive' | 'negative' | 'neutral',
+  images?: string[]
 ): Promise<{ success: boolean; post?: Post; error?: string }> {
   try {
+    // Content moderation
+    const moderationResult = moderateContent(content);
+    if (!moderationResult.approved) {
+      return { success: false, error: moderationResult.reason || 'Content moderation failed' };
+    }
+
     // Get user info
     const userResult = await docClient.send(
       new GetCommand({
@@ -35,17 +51,25 @@ export async function createPost(
     const now = new Date().toISOString();
     const postId = uuidv4();
 
+    // Build image URLs (convert S3 keys to full URLs)
+    const imageUrls: string[] = [];
+    if (images && images.length > 0) {
+      const region = process.env.AWS_REGION || 'us-east-1';
+      imageUrls.push(...images.map(key => `https://${BUCKET_NAME}.s3.${region}.amazonaws.com/${key}`));
+    }
+
     const post: Post = {
       postId,
       userId,
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
-      content,
+      content: moderationResult.filteredContent || content,
       entityId,
       entityTicker,
       entityName,
       sentiment,
+      images: imageUrls.length > 0 ? imageUrls : undefined,
       likes: 0,
       comments: 0,
       timestamp: now,
@@ -218,7 +242,8 @@ export async function toggleLikePost(
 export async function addComment(
   userId: string,
   postId: string,
-  content: string
+  content: string,
+  parentCommentId?: string
 ): Promise<{ success: boolean; comment?: Comment; error?: string }> {
   try {
     // Get user info
@@ -237,6 +262,29 @@ export async function addComment(
     const now = new Date().toISOString();
     const commentId = uuidv4();
 
+    // If replying to a comment, get parent comment info
+    let replyToUserId: string | undefined;
+    let replyToUsername: string | undefined;
+    let replyToDisplayName: string | undefined;
+
+    if (parentCommentId) {
+      const parentCommentResult = await docClient.send(
+        new GetCommand({
+          TableName: TABLE_NAMES.COMMENTS,
+          Key: { commentId: parentCommentId },
+        })
+      );
+
+      if (parentCommentResult.Item) {
+        const parentComment = parentCommentResult.Item as Comment;
+        replyToUserId = parentComment.userId;
+        replyToUsername = parentComment.username;
+        replyToDisplayName = parentComment.displayName;
+      } else {
+        return { success: false, error: 'Parent comment not found' };
+      }
+    }
+
     const comment: Comment = {
       commentId,
       postId,
@@ -248,6 +296,11 @@ export async function addComment(
       likes: 0,
       timestamp: now,
       createdAt: now,
+      parentCommentId,
+      replyToUserId,
+      replyToUsername,
+      replyToDisplayName,
+      isEdited: false,
     };
 
     await docClient.send(
@@ -281,6 +334,7 @@ export async function getComments(
   limit: number = 50
 ): Promise<Comment[]> {
   try {
+    // Get all comments for this post (not just top-level)
     const result = await docClient.send(
       new QueryCommand({
         TableName: TABLE_NAMES.COMMENTS,
@@ -290,14 +344,153 @@ export async function getComments(
           ':postId': postId,
         },
         ScanIndexForward: false,
-        Limit: limit,
+        Limit: limit * 2, // Get more to account for nested replies
       })
     );
 
-    return (result.Items || []) as Comment[];
+    const allComments = (result.Items || []) as Comment[];
+
+    // Build nested structure: separate top-level comments from replies
+    const topLevelComments: Comment[] = [];
+    const repliesMap = new Map<string, Comment[]>();
+
+    // First pass: separate top-level and replies
+    for (const comment of allComments) {
+      if (comment.parentCommentId) {
+        // This is a reply
+        if (!repliesMap.has(comment.parentCommentId)) {
+          repliesMap.set(comment.parentCommentId, []);
+        }
+        repliesMap.get(comment.parentCommentId)!.push(comment);
+      } else {
+        // Top-level comment
+        topLevelComments.push(comment);
+      }
+    }
+
+    // Second pass: attach replies to their parents
+    const buildNestedComments = (comments: Comment[]): Comment[] => {
+      return comments.map(comment => {
+        const replies = repliesMap.get(comment.commentId) || [];
+        return {
+          ...comment,
+          replies: buildNestedComments(replies).sort((a, b) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          ),
+        };
+      });
+    };
+
+    return buildNestedComments(topLevelComments).slice(0, limit);
   } catch (error) {
     console.error('Error getting comments:', error);
     return [];
+  }
+}
+
+/**
+ * Edit a comment
+ */
+export async function editComment(
+  userId: string,
+  commentId: string,
+  newContent: string
+): Promise<{ success: boolean; comment?: Comment; error?: string }> {
+  try {
+    // Get existing comment
+    const commentResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.COMMENTS,
+        Key: { commentId },
+      })
+    );
+
+    if (!commentResult.Item) {
+      return { success: false, error: 'Comment not found' };
+    }
+
+    const comment = commentResult.Item as Comment;
+
+    // Check ownership
+    if (comment.userId !== userId) {
+      return { success: false, error: 'Not authorized to edit this comment' };
+    }
+
+    const now = new Date().toISOString();
+
+    // Update comment
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.COMMENTS,
+        Key: { commentId },
+        UpdateExpression: 'SET content = :content, editedAt = :editedAt, isEdited = :isEdited',
+        ExpressionAttributeValues: {
+          ':content': newContent,
+          ':editedAt': now,
+          ':isEdited': true,
+        },
+      })
+    );
+
+    // Get updated comment
+    const updatedResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.COMMENTS,
+        Key: { commentId },
+      })
+    );
+
+    return {
+      success: true,
+      comment: updatedResult.Item as Comment,
+    };
+  } catch (error: any) {
+    console.error('Error editing comment:', error);
+    return { success: false, error: error.message || 'Failed to edit comment' };
+  }
+}
+
+/**
+ * Check if two users follow each other (mutual follow)
+ */
+export async function checkMutualFollow(
+  userId: string,
+  otherUserId: string
+): Promise<{ isMutual: boolean; userFollowsOther: boolean; otherFollowsUser: boolean }> {
+  try {
+    // Check if user follows other
+    const userFollowsResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.FOLLOWS,
+        Key: {
+          userId,
+          followingUserId: otherUserId,
+        },
+      })
+    );
+
+    // Check if other follows user
+    const otherFollowsResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.FOLLOWS,
+        Key: {
+          userId: otherUserId,
+          followingUserId: userId,
+        },
+      })
+    );
+
+    const userFollowsOther = !!userFollowsResult.Item;
+    const otherFollowsUser = !!otherFollowsResult.Item;
+
+    return {
+      isMutual: userFollowsOther && otherFollowsUser,
+      userFollowsOther,
+      otherFollowsUser,
+    };
+  } catch (error) {
+    console.error('Error checking mutual follow:', error);
+    return { isMutual: false, userFollowsOther: false, otherFollowsUser: false };
   }
 }
 
@@ -598,6 +791,44 @@ export async function toggleLikeComment(
   } catch (error: any) {
     console.error('Error toggling comment like:', error);
     return { success: false, isLiked: false, error: error.message || 'Failed to toggle like' };
+  }
+}
+
+/**
+ * Generate presigned URL for post image upload
+ */
+export async function generatePostImageUploadUrl(
+  userId: string,
+  contentType: string,
+  imageIndex: number
+): Promise<{ success: boolean; uploadUrl?: string; key?: string; error?: string }> {
+  try {
+    // Extract file extension from content type
+    const extension = contentType.includes('png') ? 'png' : contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg' : 'jpg';
+    const timestamp = Date.now();
+    const key = `posts/${userId}/${timestamp}-${imageIndex}.${extension}`;
+    
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      ContentType: contentType,
+      // Add metadata to track upload
+      Metadata: {
+        userId,
+        uploadedAt: timestamp.toString(),
+      },
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+    return {
+      success: true,
+      uploadUrl,
+      key,
+    };
+  } catch (error: any) {
+    console.error('Error generating post image upload URL:', error);
+    return { success: false, error: error.message || 'Failed to generate upload URL' };
   }
 }
 
