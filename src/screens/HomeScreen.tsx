@@ -279,8 +279,8 @@ export default function HomeScreen() {
     return mockRanks;
   };
 
-  // Get top 5 entities for a category (ranked by price)
-  const getTopEntitiesForCategory = (displayCategory: string) => {
+  // Get all entities for a category (for category pages)
+  const getAllEntitiesForCategory = (displayCategory: string) => {
     const entityCategory = getEntityCategory(displayCategory);
     let filteredEntities = getEntitiesByCategory(entityCategory);
     
@@ -304,6 +304,7 @@ export default function HomeScreen() {
         change24h,
         changePercent24h,
         category: entity.category,
+        displayCategory: getDisplayCategory(entity.id, entity.category),
       };
     });
     
@@ -313,8 +314,8 @@ export default function HomeScreen() {
     // Get previous day ranks for this category
     const previousDayRanks = getPreviousDayRanks(displayCategory);
     
-    // Add rank and position change, return top 5
-    return sorted.slice(0, 5).map((entity, index) => {
+    // Add rank and position change, return all entities
+    return sorted.map((entity, index) => {
       const currentRank = index + 1;
       const previousRank = previousDayRanks[entity.id] || currentRank;
       const positionChange = previousRank - currentRank; // Positive = moved up, Negative = moved down
@@ -328,17 +329,27 @@ export default function HomeScreen() {
     });
   };
 
+  // Get top 5 entities for a category (ranked by price)
+  const getTopEntitiesForCategory = (displayCategory: string) => {
+    const allEntities = getAllEntitiesForCategory(displayCategory);
+    // Return top 5
+    return allEntities.slice(0, 5);
+  };
+
   // Get top 3 influencers for comparison chart
   const topInfluencers = useMemo(() => {
     const top5 = getTopEntitiesForCategory('Influencers');
     return top5.slice(0, 3);
   }, [entityPrices, getEntityPrice]);
 
-  // Generate comparison chart data
-  const comparisonChartData = useMemo(() => {
-    if (topInfluencers.length < 3) return null;
+  // Generate comparison chart data for any category
+  const generateComparisonChartDataForCategory = (category: string) => {
+    const top5 = getTopEntitiesForCategory(category);
+    const top3 = top5.slice(0, 3);
+    
+    if (top3.length < 3) return null;
 
-    const histories = topInfluencers.map(entity => ({
+    const histories = top3.map(entity => ({
       entity,
       history: generateComparisonPriceHistory(
         entity.id,
@@ -395,9 +406,14 @@ export default function HomeScreen() {
         },
         strokeWidth: 2,
       })),
-      entities: topInfluencers,
+      entities: top3,
       colors,
     };
+  };
+
+  // Generate comparison chart data (for "For You" page - uses influencers)
+  const comparisonChartData = useMemo(() => {
+    return generateComparisonChartDataForCategory('Influencers');
   }, [topInfluencers, getEntityPrice]);
 
   // Handle adding a category to home screen
@@ -636,8 +652,358 @@ export default function HomeScreen() {
     if (category === 'For You') {
       setSelectedCategory(category);
     } else {
-      navigation.navigate('Category', { categoryId: category });
+      setSelectedCategory(category);
     }
+  };
+
+  // Helper function to render category page content (top 3 graph + entity list)
+  const renderCategoryPageContent = (category: string) => {
+    const categoryChartData = generateComparisonChartDataForCategory(category);
+    
+    if (!categoryChartData) {
+      return (
+        <EntityList
+          title={category}
+          items={getAllEntitiesForCategory(category).map((entity) => {
+            const livePrice = getEntityPrice(entity.id);
+            const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
+            const liveChange = livePrice - basePrice;
+            const liveChangePercent = (liveChange / basePrice) * 100;
+            
+            return {
+              id: entity.id,
+              name: entity.name,
+              category: entity.category,
+              displayCategory: category,
+              price: livePrice,
+              change: liveChange,
+              changePercent: liveChangePercent,
+            };
+          })}
+          onItemPress={(item) => {
+            const entityCategory = getEntityCategory(category);
+            navigation.navigate('Entity', { entityId: item.id, categoryId: entityCategory });
+          }}
+          maxItems={1000}
+        />
+      );
+    }
+    
+    // Calculate chart values
+    const currentPrices = categoryChartData.entities.map(e => e.currentPrice);
+    const minCurrentPrice = Math.min(...currentPrices);
+    const maxCurrentPrice = Math.max(...currentPrices);
+    const yMin = Math.round((minCurrentPrice - 10) * 100) / 100;
+    const yMax = Math.round((maxCurrentPrice + 10) * 100) / 100;
+    
+    const clampedDatasets = categoryChartData.datasets.map((dataset, datasetIndex) => {
+      const currentPrice = categoryChartData.entities[datasetIndex].currentPrice;
+      return {
+        ...dataset,
+        data: dataset.data.map((value, dataIndex) => {
+          const isLastPoint = dataIndex === dataset.data.length - 1;
+          if (isLastPoint) {
+            return currentPrice;
+          }
+          return Math.max(yMin, Math.min(yMax, value));
+        }),
+      };
+    });
+    
+    const topLabel = yMax;
+    const bottomLabel = yMin;
+    const middleLabel = Math.round(((yMax + yMin) / 2) * 100) / 100;
+    
+    return (
+      <>
+        {/* Top 3 Comparison Chart */}
+        <View style={[styles.comparisonChartContainer, { backgroundColor: theme.card }]}>
+          <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
+            {category} - Top 3
+          </Text>
+          
+          <View style={styles.chartLegend}>
+            {categoryChartData.entities.map((entity, entityIndex) => (
+              <View key={entity.id} style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendColorDot,
+                    { backgroundColor: categoryChartData.colors[entityIndex] },
+                  ]}
+                />
+                <View style={styles.legendText}>
+                  <Text style={[styles.legendName, { color: theme.text }]}>
+                    {entity.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.legendPrice,
+                      { color: categoryChartData.colors[entityIndex] },
+                    ]}
+                  >
+                    {formatCurrency(entity.currentPrice)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+          
+          <View style={styles.chartWithLabelsWrapper}>
+            <View style={styles.chartContainerClipped}>
+              {/* Grid lines */}
+              {[
+                { label: topLabel, index: 0 },
+                { label: middleLabel, index: 1 },
+                { label: bottomLabel, index: 2 },
+              ].map(({ label, index }) => {
+                const chartHeight = 220;
+                const paddingTop = 20;
+                const paddingBottom = 20;
+                const chartWidth = SCREEN_WIDTH;
+                const paddingRight = 100;
+                const paddingLeft = 32;
+                const gridLinePaddingRight = 60;
+                
+                let yPos: number;
+                if (index === 0) {
+                  yPos = 28;
+                } else if (index === 1) {
+                  yPos = 100;
+                } else {
+                  yPos = 172;
+                }
+                
+                const gridLineWidth = chartWidth - paddingLeft - gridLinePaddingRight;
+                const dashLength = 4;
+                const dashGap = 4;
+                const numDashes = Math.floor(gridLineWidth / (dashLength + dashGap));
+                
+                return (
+                  <View
+                    key={`grid-${index}`}
+                    style={{
+                      position: 'absolute',
+                      left: paddingLeft,
+                      top: yPos,
+                      width: gridLineWidth,
+                      height: 1,
+                      flexDirection: 'row',
+                    }}
+                  >
+                    {Array.from({ length: numDashes }).map((_, dashIndex) => (
+                      <View
+                        key={dashIndex}
+                        style={{
+                          width: dashLength,
+                          height: 1,
+                          backgroundColor: '#9CA3AF',
+                          marginRight: dashIndex < numDashes - 1 ? dashGap : 0,
+                        }}
+                      />
+                    ))}
+                  </View>
+                );
+              })}
+              
+              {/* Chart lines */}
+              {clampedDatasets.map((dataset, datasetIndex) => {
+                const lastIndex = dataset.data.length - 1;
+                const lastValue = dataset.data[lastIndex];
+                const chartWidth = SCREEN_WIDTH;
+                const chartHeight = 220;
+                const paddingRight = 100;
+                const paddingTop = 20;
+                const paddingBottom = 20;
+                const paddingLeft = 32;
+                const plotWidth = chartWidth - paddingLeft - paddingRight;
+                const plotHeight = chartHeight - paddingTop - paddingBottom;
+                
+                const endX = paddingLeft + plotWidth;
+                const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+                const endY = paddingTop + plotHeight - (normalizedValue * plotHeight);
+                
+                const isAlixEarle = categoryChartData.entities[datasetIndex]?.id === 11;
+                
+                let startY: number;
+                if (isAlixEarle) {
+                  startY = paddingTop + plotHeight * 0.75;
+                } else {
+                  const startYVariations = [
+                    paddingTop + plotHeight * 0.25,
+                    paddingTop + plotHeight * 0.45,
+                  ];
+                  startY = startYVariations[datasetIndex] || paddingTop + plotHeight * 0.35;
+                }
+                
+                const pointsPerDay = 8;
+                const totalPoints = 7 * pointsPerDay + 1;
+                const points: Array<{ x: number; y: number }> = [];
+                
+                for (let i = 0; i < totalPoints; i++) {
+                  const progress = i / (totalPoints - 1);
+                  const x = paddingLeft + plotWidth * progress;
+                  
+                  let baseY: number;
+                  if (isAlixEarle) {
+                    if (progress < 0.5) {
+                      baseY = startY;
+                    } else {
+                      const jumpProgress = (progress - 0.5) / 0.5;
+                      const jumpCurve = jumpProgress * jumpProgress;
+                      baseY = startY + (endY - startY) * jumpCurve;
+                    }
+                  } else {
+                    baseY = startY + (endY - startY) * progress;
+                  }
+                  
+                  const dayProgress = progress * 7;
+                  const sineVariation = Math.sin(dayProgress * Math.PI * 0.5) * 3;
+                  
+                  let y = baseY + sineVariation;
+                  
+                  if (i === totalPoints - 1) {
+                    y = endY;
+                  }
+                  
+                  points.push({ x, y });
+                }
+                
+                const lineColor = categoryChartData.colors[datasetIndex];
+                
+                return (
+                  <View key={`line-${datasetIndex}`} style={{ position: 'absolute', top: 0, left: 0 }}>
+                    {points.map((point, pointIndex) => {
+                      if (pointIndex === 0) return null;
+                      const prevPoint = points[pointIndex - 1];
+                      const dx = point.x - prevPoint.x;
+                      const dy = point.y - prevPoint.y;
+                      const length = Math.sqrt(dx * dx + dy * dy);
+                      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                      
+                      return (
+                        <View
+                          key={`segment-${pointIndex}`}
+                          style={{
+                            position: 'absolute',
+                            left: prevPoint.x,
+                            top: prevPoint.y,
+                            width: length,
+                            height: 2,
+                            backgroundColor: lineColor,
+                            transform: [{ rotate: `${angle}deg` }],
+                            transformOrigin: 'left center',
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
+                );
+              })}
+            </View>
+            
+            {/* Dots */}
+            {clampedDatasets.map((dataset, datasetIndex) => {
+              const lastIndex = dataset.data.length - 1;
+              const lastValue = dataset.data[lastIndex];
+              const chartWidth = SCREEN_WIDTH;
+              const chartHeight = 220;
+              const paddingRight = 100;
+              const paddingTop = 20;
+              const paddingBottom = 20;
+              const paddingLeft = 0;
+              const plotWidth = chartWidth - paddingLeft - paddingRight;
+              const plotHeight = chartHeight - paddingTop - paddingBottom;
+              
+              const lastX = paddingLeft + plotWidth - 4;
+              const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+              const yPosition = paddingTop + plotHeight - (normalizedValue * plotHeight) - 4;
+              const dotColor = categoryChartData.colors[datasetIndex];
+              
+              return (
+                <View
+                  key={datasetIndex}
+                  style={[
+                    styles.chartEndDot,
+                    {
+                      left: lastX,
+                      top: yPosition,
+                      backgroundColor: dotColor,
+                      borderColor: theme.card,
+                    },
+                  ]}
+                />
+              );
+            })}
+            
+            {/* Y-axis labels */}
+            <View style={styles.yAxisLabelsRight}>
+              <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                {formatCurrency(topLabel)}
+              </Text>
+              <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                {formatCurrency(middleLabel)}
+              </Text>
+              <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                {formatCurrency(bottomLabel)}
+              </Text>
+            </View>
+          </View>
+          
+          {/* Date labels */}
+          <View style={styles.xAxisDateLabels}>
+            {['12/21', '12/22', '12/23', '12/24', '12/25', '12/26', '12/27'].map((date, index) => {
+              const chartWidth = SCREEN_WIDTH;
+              const paddingRight = 100;
+              const leftPadding = 32;
+              const plotWidth = chartWidth - paddingRight;
+              const spacing = (plotWidth - leftPadding) / 6;
+              const xPosition = leftPadding + spacing * index;
+              
+              return (
+                <Text
+                  key={date}
+                  style={[
+                    styles.xAxisDateLabel,
+                    { 
+                      color: theme.textSecondary,
+                      left: xPosition,
+                    },
+                  ]}
+                >
+                  {date}
+                </Text>
+              );
+            })}
+          </View>
+        </View>
+        
+        {/* Entity List */}
+        <EntityList
+          title={category}
+          items={getAllEntitiesForCategory(category).map((entity) => {
+            const livePrice = getEntityPrice(entity.id);
+            const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
+            const liveChange = livePrice - basePrice;
+            const liveChangePercent = (liveChange / basePrice) * 100;
+            
+            return {
+              id: entity.id,
+              name: entity.name,
+              category: entity.category,
+              displayCategory: category,
+              price: livePrice,
+              change: liveChange,
+              changePercent: liveChangePercent,
+            };
+          })}
+          onItemPress={(item) => {
+            const entityCategory = getEntityCategory(category);
+            navigation.navigate('Entity', { entityId: item.id, categoryId: entityCategory });
+          }}
+          maxItems={1000}
+        />
+      </>
+    );
   };
 
   return (
@@ -671,19 +1037,121 @@ export default function HomeScreen() {
             style={styles.swipeableScrollView}
             contentContainerStyle={styles.swipeableScrollContent}
           >
-            {/* Duplicate of page 5 at the start for circular scrolling */}
-            <View key="duplicate-5" style={[styles.swipeablePage, { backgroundColor: theme.card }]}>
-              <View style={styles.swipeablePageContent}>
-                <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
-                  Page 5
+            {/* Duplicate of page 4 at the start for circular scrolling */}
+            {(() => {
+              // Render page 4 (Most Liked Posts) as duplicate at start
+              const formatTimestamp = (timestamp: string) => {
+                const now = new Date();
+                const postDate = new Date(timestamp);
+                const diffMs = now.getTime() - postDate.getTime();
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                if (diffDays < 7) return `${diffDays}d ago`;
+                
+                return postDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              };
+
+              const handlePostPress = (post: any) => {
+                if (post.entityId) {
+                  const entity = getEntityById(post.entityId);
+                  let categoryId = 'Influencers';
+                  
+                  if (entity) {
+                    if (entity.category === 'People') {
+                      if (entity.id >= 11 && entity.id <= 20) {
+                        categoryId = 'Influencers';
+                      } else if (entity.id >= 21 && entity.id <= 30) {
+                        categoryId = 'Music Artists';
+                      }
+                    } else {
+                      const categoryMap: Record<string, string> = {
+                        'Politics': 'Political Figures',
+                        'Tech': 'Startups',
+                        'Events': 'Sports',
+                      };
+                      categoryId = categoryMap[entity.category] || entity.category;
+                    }
+                  }
+                  
+                  navigation.navigate('Entity', {
+                    entityId: post.entityId,
+                    categoryId: categoryId,
+                  });
+                }
+              };
+
+              return (
+                <View key="duplicate-4" style={[styles.swipeablePage, { backgroundColor: theme.card }]}>
+                  <View style={styles.mostLikedContainer}>
+                    <Text style={[styles.mostLikedHeader, { color: theme.text }]}>
+                      Most Liked Today
                 </Text>
-                <Text style={[styles.swipeablePageMessage, { color: theme.text }]}>
-                  Content coming soon
+                    <ScrollView
+                      style={styles.mostLikedScroll}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {topLikedPosts.map((post) => (
+                        <TouchableOpacity
+                          key={post.id}
+                          style={[styles.mostLikedCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                          onPress={() => handlePostPress(post)}
+                        >
+                          <View style={styles.mostLikedCardHeader}>
+                            <View style={styles.mostLikedUserInfo}>
+                              <View style={[styles.mostLikedAvatar, { backgroundColor: theme.primaryLight }]}>
+                                <Text style={[styles.mostLikedAvatarText, { color: theme.primary }]}>
+                                  {post.displayName.substring(0, 2).toUpperCase()}
                 </Text>
               </View>
+                              <View style={styles.mostLikedUserText}>
+                                <Text style={[styles.mostLikedUsername, { color: theme.text }]}>
+                                  {post.displayName}
+                                </Text>
+                                <Text style={[styles.mostLikedTimestamp, { color: theme.textSecondary }]}>
+                                  {formatTimestamp(post.timestamp)}
+                                </Text>
             </View>
+                            </View>
+                            {post.entityName && (
+                              <Text style={[styles.mostLikedEntityTag, { color: theme.primary }]}>
+                                @{post.entityName.replace(/\s+/g, '')}
+                              </Text>
+                            )}
+                          </View>
+                          <Text 
+                            style={[styles.mostLikedContent, { color: theme.text }]}
+                            numberOfLines={3}
+                          >
+                            {post.content}
+                          </Text>
+                          <View style={styles.mostLikedStats}>
+                            <View style={styles.mostLikedStat}>
+                              <Ionicons name="heart" size={16} color={theme.textSecondary} />
+                              <Text style={[styles.mostLikedStatText, { color: theme.textSecondary }]}>
+                                {post.likes}
+                              </Text>
+                            </View>
+                            <View style={styles.mostLikedStat}>
+                              <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} />
+                              <Text style={[styles.mostLikedStatText, { color: theme.textSecondary }]}>
+                                {post.comments}
+                              </Text>
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              );
+            })()}
             
-            {/* Real pages 1-5 */}
+            {/* Real pages 1-4 */}
             {Array.from({ length: TOTAL_PAGES }, (_, index) => {
               // Page 1: Comparison chart for top 3 influencers
               if (index === 0 && comparisonChartData) {
@@ -1418,16 +1886,291 @@ export default function HomeScreen() {
             })}
             
             {/* Duplicate of page 1 at the end for circular scrolling */}
+            {(() => {
+              // Render page 1 (Comparison chart) as duplicate at end
+              if (!comparisonChartData) return null;
+              
+              const currentPrices = comparisonChartData.entities.map(e => e.currentPrice);
+              const minCurrentPrice = Math.min(...currentPrices);
+              const maxCurrentPrice = Math.max(...currentPrices);
+              const yMin = Math.round((minCurrentPrice - 10) * 100) / 100;
+              const yMax = Math.round((maxCurrentPrice + 10) * 100) / 100;
+              
+              const clampedDatasets = comparisonChartData.datasets.map((dataset, datasetIndex) => {
+                const currentPrice = comparisonChartData.entities[datasetIndex].currentPrice;
+                return {
+                  ...dataset,
+                  data: dataset.data.map((value, dataIndex) => {
+                    const isLastPoint = dataIndex === dataset.data.length - 1;
+                    if (isLastPoint) {
+                      return currentPrice;
+                    }
+                    return Math.max(yMin, Math.min(yMax, value));
+                  }),
+                };
+              });
+              
+              const topLabel = yMax;
+              const bottomLabel = yMin;
+              const middleLabel = Math.round(((yMax + yMin) / 2) * 100) / 100;
+
+              return (
             <View key="duplicate-1" style={[styles.swipeablePage, { backgroundColor: theme.card }]}>
-              <View style={styles.swipeablePageContent}>
-                <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
-                  Page 1
+                  <View style={styles.comparisonChartContainer}>
+                    <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
+                      Influencers - Top 3
                 </Text>
-                <Text style={[styles.swipeablePageMessage, { color: theme.text }]}>
-                  Content coming soon
+                    <View style={styles.chartLegend}>
+                      {comparisonChartData.entities.map((entity, entityIndex) => (
+                        <View key={entity.id} style={styles.legendItem}>
+                          <View
+                            style={[
+                              styles.legendColorDot,
+                              { backgroundColor: comparisonChartData.colors[entityIndex] },
+                            ]}
+                          />
+                          <View style={styles.legendText}>
+                            <Text style={[styles.legendName, { color: theme.text }]}>
+                              {entity.name}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.legendPrice,
+                                { color: comparisonChartData.colors[entityIndex] },
+                              ]}
+                            >
+                              {formatCurrency(entity.currentPrice)}
                 </Text>
               </View>
             </View>
+                      ))}
+                    </View>
+                    <View style={styles.chartWithLabelsWrapper}>
+                      <View style={styles.chartContainerClipped}>
+                        {[
+                          { label: topLabel, index: 0 },
+                          { label: middleLabel, index: 1 },
+                          { label: bottomLabel, index: 2 },
+                        ].map(({ label, index }) => {
+                          const chartHeight = 220;
+                          const paddingTop = 20;
+                          const paddingBottom = 20;
+                          const chartWidth = SCREEN_WIDTH;
+                          const paddingRight = 100;
+                          const paddingLeft = 32;
+                          const gridLinePaddingRight = 60;
+                          
+                          let yPos: number;
+                          if (index === 0) {
+                            yPos = 28;
+                          } else if (index === 1) {
+                            yPos = 100;
+                          } else {
+                            yPos = 172;
+                          }
+                          
+                          const gridLineWidth = chartWidth - paddingLeft - gridLinePaddingRight;
+                          const dashLength = 4;
+                          const dashGap = 4;
+                          const numDashes = Math.floor(gridLineWidth / (dashLength + dashGap));
+                          
+                          return (
+                            <View
+                              key={`grid-${index}`}
+                              style={{
+                                position: 'absolute',
+                                left: paddingLeft,
+                                top: yPos,
+                                width: gridLineWidth,
+                                height: 1,
+                                flexDirection: 'row',
+                              }}
+                            >
+                              {Array.from({ length: numDashes }).map((_, dashIndex) => (
+                                <View
+                                  key={dashIndex}
+                                  style={{
+                                    width: dashLength,
+                                    height: 1,
+                                    backgroundColor: '#9CA3AF',
+                                    marginRight: dashIndex < numDashes - 1 ? dashGap : 0,
+                                  }}
+                                />
+                              ))}
+                            </View>
+                          );
+                        })}
+                        
+                        {clampedDatasets.map((dataset, datasetIndex) => {
+                          const lastIndex = dataset.data.length - 1;
+                          const lastValue = dataset.data[lastIndex];
+                          const chartWidth = SCREEN_WIDTH;
+                          const chartHeight = 220;
+                          const paddingRight = 100;
+                          const paddingTop = 20;
+                          const paddingBottom = 20;
+                          const paddingLeft = 32;
+                          const plotWidth = chartWidth - paddingLeft - paddingRight;
+                          const plotHeight = chartHeight - paddingTop - paddingBottom;
+                          
+                          const endX = paddingLeft + plotWidth;
+                          const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+                          const endY = paddingTop + plotHeight - (normalizedValue * plotHeight);
+                          
+                          const isAlixEarle = comparisonChartData.entities[datasetIndex]?.id === 11;
+                          
+                          let startY: number;
+                          if (isAlixEarle) {
+                            startY = paddingTop + plotHeight * 0.75;
+                          } else {
+                            const startYVariations = [
+                              paddingTop + plotHeight * 0.25,
+                              paddingTop + plotHeight * 0.45,
+                            ];
+                            startY = startYVariations[datasetIndex] || paddingTop + plotHeight * 0.35;
+                          }
+                          
+                          const pointsPerDay = 8;
+                          const totalPoints = 7 * pointsPerDay + 1;
+                          const points: Array<{ x: number; y: number }> = [];
+                          
+                          for (let i = 0; i < totalPoints; i++) {
+                            const progress = i / (totalPoints - 1);
+                            const x = paddingLeft + plotWidth * progress;
+                            
+                            let baseY: number;
+                            if (isAlixEarle) {
+                              if (progress < 0.5) {
+                                baseY = startY;
+                              } else {
+                                const jumpProgress = (progress - 0.5) / 0.5;
+                                const jumpCurve = jumpProgress * jumpProgress;
+                                baseY = startY + (endY - startY) * jumpCurve;
+                              }
+                            } else {
+                              baseY = startY + (endY - startY) * progress;
+                            }
+                            
+                            const dayProgress = progress * 7;
+                            const sineVariation = Math.sin(dayProgress * Math.PI * 0.5) * 3;
+                            
+                            let y = baseY + sineVariation;
+                            
+                            if (i === totalPoints - 1) {
+                              y = endY;
+                            }
+                            
+                            points.push({ x, y });
+                          }
+                          
+                          const lineColor = comparisonChartData.colors[datasetIndex];
+                          
+                          return (
+                            <View key={`line-${datasetIndex}`} style={{ position: 'absolute', top: 0, left: 0 }}>
+                              {points.map((point, pointIndex) => {
+                                if (pointIndex === 0) return null;
+                                const prevPoint = points[pointIndex - 1];
+                                const dx = point.x - prevPoint.x;
+                                const dy = point.y - prevPoint.y;
+                                const length = Math.sqrt(dx * dx + dy * dy);
+                                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                                
+                                return (
+                                  <View
+                                    key={`segment-${pointIndex}`}
+                                    style={{
+                                      position: 'absolute',
+                                      left: prevPoint.x,
+                                      top: prevPoint.y,
+                                      width: length,
+                                      height: 2,
+                                      backgroundColor: lineColor,
+                                      transform: [{ rotate: `${angle}deg` }],
+                                      transformOrigin: 'left center',
+                                    }}
+                                  />
+                                );
+                              })}
+                            </View>
+                          );
+                        })}
+                      </View>
+                      
+                      {clampedDatasets.map((dataset, datasetIndex) => {
+                        const lastIndex = dataset.data.length - 1;
+                        const lastValue = dataset.data[lastIndex];
+                        const chartWidth = SCREEN_WIDTH;
+                        const chartHeight = 220;
+                        const paddingRight = 100;
+                        const paddingTop = 20;
+                        const paddingBottom = 20;
+                        const paddingLeft = 0;
+                        const plotWidth = chartWidth - paddingLeft - paddingRight;
+                        const plotHeight = chartHeight - paddingTop - paddingBottom;
+                        
+                        const lastX = paddingLeft + plotWidth - 4;
+                        const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+                        const yPosition = paddingTop + plotHeight - (normalizedValue * plotHeight) - 4;
+                        const dotColor = comparisonChartData.colors[datasetIndex];
+                        
+                        return (
+                          <View
+                            key={datasetIndex}
+                            style={[
+                              styles.chartEndDot,
+                              {
+                                left: lastX,
+                                top: yPosition,
+                                backgroundColor: dotColor,
+                                borderColor: theme.card,
+                              },
+                            ]}
+                          />
+                        );
+                      })}
+                      
+                      <View style={styles.yAxisLabelsRight}>
+                        <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                          {formatCurrency(topLabel)}
+                        </Text>
+                        <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                          {formatCurrency(middleLabel)}
+                        </Text>
+                        <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                          {formatCurrency(bottomLabel)}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.xAxisDateLabels}>
+                      {['12/21', '12/22', '12/23', '12/24', '12/25', '12/26', '12/27'].map((date, index) => {
+                        const chartWidth = SCREEN_WIDTH;
+                        const paddingRight = 100;
+                        const leftPadding = 32;
+                        const plotWidth = chartWidth - paddingRight;
+                        const spacing = (plotWidth - leftPadding) / 6;
+                        const xPosition = leftPadding + spacing * index;
+                        
+                        return (
+                          <Text
+                            key={date}
+                            style={[
+                              styles.xAxisDateLabel,
+                              { 
+                                color: theme.textSecondary,
+                                left: xPosition,
+                              },
+                            ]}
+                          >
+                            {date}
+                          </Text>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </View>
+              );
+            })()}
           </ScrollView>
           
           {/* Page Indicator Dots */}
@@ -1448,56 +2191,59 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Show "For You" content only on For You page */}
+        {selectedCategory === 'For You' && (
+          <>
         {/* Spotlights Section */}
-        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Spotlights</Text>
-          <View style={styles.spotlightsContainer}>
-            <Animated.View
-              style={[
-                styles.spotlightCardContainer,
-                {
-                  opacity: spotlightFadeAnim,
-                },
-              ]}
-            >
-              <TouchableOpacity
-                style={styles.spotlightCard}
-                onPress={spotlights[currentSpotlightIndex].onPress}
-              >
-                {spotlights[currentSpotlightIndex].imageSource ? (
-                  <Image
-                    source={spotlights[currentSpotlightIndex].imageSource}
-                    style={styles.spotlightImage}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.spotlightCardContent,
-                      {
-                        backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
-                      },
-                    ]}
+            <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Spotlights</Text>
+              <View style={styles.spotlightsContainer}>
+                <Animated.View
+                  style={[
+                    styles.spotlightCardContainer,
+                    {
+                      opacity: spotlightFadeAnim,
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.spotlightCard}
+                    onPress={spotlights[currentSpotlightIndex].onPress}
                   >
-                    {spotlights[currentSpotlightIndex].icon && (
-                      <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
+                    {spotlights[currentSpotlightIndex].imageSource ? (
+                      <Image
+                        source={spotlights[currentSpotlightIndex].imageSource}
+                        style={styles.spotlightImage}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.spotlightCardContent,
+                          {
+                            backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
+                          },
+                        ]}
+                      >
+                        {spotlights[currentSpotlightIndex].icon && (
+                          <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
+                        )}
+                        <Text
+                          style={[
+                            styles.spotlightCardTitle,
+                            {
+                              color: spotlights[currentSpotlightIndex].textColor,
+                            },
+                          ]}
+                        >
+                          {spotlights[currentSpotlightIndex].title}
+                        </Text>
+                      </View>
                     )}
-                    <Text
-                      style={[
-                        styles.spotlightCardTitle,
-                        {
-                          color: spotlights[currentSpotlightIndex].textColor,
-                        },
-                      ]}
-                    >
-                      {spotlights[currentSpotlightIndex].title}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </View>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            </View>
 
         {/* Watchlist Section */}
         <EntityList
@@ -1648,6 +2394,11 @@ export default function HomeScreen() {
             })}
           </View>
         </View>
+          </>
+        )}
+
+        {/* Show category-specific content for other categories */}
+        {selectedCategory !== 'For You' && renderCategoryPageContent(selectedCategory)}
 
         {/* Bottom Padding */}
         <View style={{ height: 100 }} />
