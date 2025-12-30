@@ -2,16 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
-import {
-  PostSchema,
-  CommentSchema,
-  validateArrayLoose,
-  safeValidate,
-  FeedResponseSchema,
-  GroupsResponseSchema,
-  GroupResponseSchema,
-  ValidatedGroup,
-} from '../validators';
+import { PostSchema, CommentSchema, validateArrayLoose, safeValidate, FeedResponseSchema } from '../validators';
 
 interface SocialContextType {
   // Posts state
@@ -108,40 +99,228 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  // Mock posts for trending feed (fallback when backend not available)
+  const MOCK_POSTS: Post[] = [
+    {
+      id: '1',
+      userId: 'user1',
+      username: 'sarah_trader',
+      displayName: 'Sarah Chen',
+      avatarUrl: undefined,
+      content: '@TaylorSwift just announced her new tour dates and the demand is absolutely insane. Ticket prices are through the roof but fans are still buying. This is a no-brainer investment right now.',
+      entityId: 21,
+      entityName: 'Taylor Swift',
+      entityTicker: 'TSWFT',
+      sentiment: 'positive',
+      likes: 823,
+      comments: 156,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
+    },
+    {
+      id: '2',
+      userId: 'user2',
+      username: 'mike_investor',
+      displayName: 'Mike Johnson',
+      avatarUrl: undefined,
+      content: '@MrBeast and @KaiCenat just did a massive collab stream. Both of their engagement metrics are exploding. This is what smart creators do - cross-pollinate audiences.',
+      entityId: 12,
+      entityName: 'MrBeast',
+      entityTicker: 'MRBST',
+      sentiment: 'positive',
+      likes: 542,
+      comments: 89,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
+    },
+    {
+      id: '3',
+      userId: 'user3',
+      username: 'trading_pro',
+      displayName: 'Alex Rivera',
+      avatarUrl: undefined,
+      content: '@TomBrady coming out of retirement again? The man is a machine. His brand value just keeps climbing. Smart move for any investor watching the sports market.',
+      sentiment: 'positive',
+      likes: 1204,
+      comments: 234,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    },
+    {
+      id: '4',
+      userId: 'user4',
+      username: 'crypto_analyst',
+      displayName: 'Jordan Kim',
+      avatarUrl: undefined,
+      content: '@ElonMusk latest tweet about @Tesla production numbers is concerning. Supply chain issues are real and investors should be cautious.',
+      sentiment: 'negative',
+      likes: 678,
+      comments: 145,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 15).toISOString(),
+    },
+    {
+      id: '5',
+      userId: 'user5',
+      username: 'market_watch',
+      displayName: 'Emma Davis',
+      avatarUrl: undefined,
+      content: '@KanyeWest new album drop is generating massive buzz. Streaming numbers are through the roof. This could be a major comeback moment.',
+      entityId: 23,
+      entityName: 'Kanye West',
+      entityTicker: 'KANYE',
+      sentiment: 'positive',
+      likes: 945,
+      comments: 201,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
+    },
+    {
+      id: '6',
+      userId: 'user6',
+      username: 'sports_insider',
+      displayName: 'Chris Martinez',
+      avatarUrl: undefined,
+      content: '@LeBronJames breaking another record. The longevity of his career is unmatched. His brand partnerships are worth watching.',
+      sentiment: 'positive',
+      likes: 1102,
+      comments: 267,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
+    },
+    {
+      id: '7',
+      userId: 'user7',
+      username: 'tech_guru',
+      displayName: 'Sam Wilson',
+      avatarUrl: undefined,
+      content: '@OpenAI latest model release is game-changing. The AI space is moving so fast, investors need to stay on top of these developments.',
+      sentiment: 'positive',
+      likes: 1567,
+      comments: 312,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
+    },
+    {
+      id: '8',
+      userId: 'user8',
+      username: 'entertainment_buzz',
+      displayName: 'Taylor Brown',
+      avatarUrl: undefined,
+      content: '@Drake new single is climbing the charts fast. His streaming numbers are insane. Music industry is watching closely.',
+      entityId: 22,
+      entityName: 'Drake',
+      entityTicker: 'DRAKE',
+      sentiment: 'positive',
+      likes: 834,
+      comments: 178,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    },
+    {
+      id: '9',
+      userId: 'user9',
+      username: 'political_analyst',
+      displayName: 'Morgan Lee',
+      avatarUrl: undefined,
+      content: '@TuckerCarlson latest segment is generating controversy. His influence on certain demographics remains strong despite recent changes.',
+      entityId: 38,
+      entityName: 'Tucker Carlson',
+      entityTicker: 'TCARS',
+      sentiment: 'neutral',
+      likes: 456,
+      comments: 123,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+    },
+    {
+      id: '10',
+      userId: 'user10',
+      username: 'startup_watcher',
+      displayName: 'Casey Park',
+      avatarUrl: undefined,
+      content: '@OpenAI valuation keeps climbing. The AI revolution is real and early investors are seeing massive returns.',
+      sentiment: 'positive',
+      likes: 1890,
+      comments: 445,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(),
+    },
+    {
+      id: '11',
+      userId: 'user11',
+      username: 'music_insider',
+      displayName: 'Riley Chen',
+      avatarUrl: undefined,
+      content: '@TheWeekend new tour announcement is huge. Ticket sales are breaking records. Live music is back in a big way.',
+      entityId: 29,
+      entityName: 'The Weeknd',
+      entityTicker: 'WKEND',
+      sentiment: 'positive',
+      likes: 723,
+      comments: 156,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
+    },
+    {
+      id: '12',
+      userId: 'user12',
+      username: 'sports_business',
+      displayName: 'Drew Anderson',
+      avatarUrl: undefined,
+      content: '@PatrickMahomes contract extension is massive. Quarterback market is resetting. This affects the entire NFL economy.',
+      sentiment: 'positive',
+      likes: 1023,
+      comments: 234,
+      isLiked: false,
+      isBookmarked: false,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 32).toISOString(),
+    },
+  ];
 
-  // Helper to map validated post format to frontend format
-  const mapValidatedPost = (p: ReturnType<typeof PostSchema.parse>): Post => ({
-    id: p.id,
+  // Helper to map backend post format to frontend format
+  const mapBackendPost = (p: any): Post => ({
+    id: p.postId || p.id,
     userId: p.userId,
     username: p.username,
     displayName: p.displayName,
-    avatarUrl: p.avatarUrl || undefined,
+    avatarUrl: p.avatarUrl,
     content: p.content,
-    entityId: p.entityId || undefined,
-    entityTicker: p.entityTicker || undefined,
-    entityName: p.entityName || undefined,
-    sentiment: p.sentiment || undefined,
-    images: p.images,
-    likes: p.likes,
-    comments: p.comments,
-    isLiked: p.isLiked,
-    isBookmarked: p.isBookmarked,
+    entityId: p.entityId,
+    entityTicker: p.entityTicker,
+    entityName: p.entityName,
+    sentiment: p.sentiment,
+    likes: p.likes || 0,
+    comments: p.comments || 0,
+    isLiked: p.isLiked || false,
+    isBookmarked: p.isBookmarked || false,
     timestamp: p.timestamp,
   });
 
   // Fetch activity feed from backend (resets pagination)
-  const refreshActivityFeed = useCallback(async (signal?: AbortSignal) => {
+  const refreshActivityFeed = useCallback(async () => {
     if (!token || !isAuthenticated) {
-      // No posts if not authenticated
-      setActivityFeed([]);
+      // Use mock posts if not authenticated or backend not configured
+      setActivityFeed(MOCK_POSTS);
       setHasMorePosts(false);
       setLastKey(null);
       return;
     }
 
     if (!isBackendConfigured()) {
-      // No posts if backend not configured
-      setActivityFeed([]);
+      // Use mock posts as fallback when backend not configured
+      setActivityFeed(MOCK_POSTS);
       setHasMorePosts(false);
       setLastKey(null);
       return;
@@ -150,21 +329,21 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoadingFeed(true);
       const response = await authenticatedRequest<{
-        posts?: unknown[];
+        posts: any[];
         lastEvaluatedKey?: string;
       }>('/api/social/feed?limit=20', token, {
         method: 'GET',
-        signal,
       });
 
-      if (response.success && response.data) {
-        // Validate feed response
-        const validatedResponse = safeValidate(FeedResponseSchema, response.data);
-        if (validatedResponse && validatedResponse.posts.length > 0) {
-          const mappedPosts = validatedResponse.posts.map(mapValidatedPost);
+      if (response.success && response.data && response.data.posts.length > 0) {
+        // Validate posts - filter out invalid ones instead of failing completely
+        const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
+
+        if (validatedPosts.length > 0) {
+          const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
           setActivityFeed(mappedPosts);
-          setLastKey(validatedResponse.lastEvaluatedKey || null);
-          setHasMorePosts(!!validatedResponse.lastEvaluatedKey);
+          setLastKey(response.data.lastEvaluatedKey || null);
+          setHasMorePosts(!!response.data.lastEvaluatedKey);
         } else {
           console.warn('All posts failed validation');
           setActivityFeed([]);
@@ -178,9 +357,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         setLastKey(null);
       }
     } catch (error) {
-      // Empty feed on error
+      // Use mock posts as fallback on error
       console.debug('Error fetching feed (backend may not be running):', error);
-      setActivityFeed([]);
+      setActivityFeed(MOCK_POSTS);
       setHasMorePosts(false);
       setLastKey(null);
     } finally {
@@ -189,7 +368,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token, isAuthenticated]);
 
   // Load more posts (pagination)
-  const loadMorePosts = useCallback(async (signal?: AbortSignal) => {
+  const loadMorePosts = useCallback(async () => {
     // Don't load more if already loading, no more posts, or no lastKey
     if (isLoadingMore || !hasMorePosts || !lastKey || !token || !isAuthenticated) {
       return;
@@ -202,21 +381,21 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoadingMore(true);
       const response = await authenticatedRequest<{
-        posts?: unknown[];
+        posts: any[];
         lastEvaluatedKey?: string;
       }>(`/api/social/feed?limit=20&lastKey=${encodeURIComponent(lastKey)}`, token, {
         method: 'GET',
-        signal,
       });
 
-      if (response.success && response.data) {
-        // Validate feed response
-        const validatedResponse = safeValidate(FeedResponseSchema, response.data);
-        if (validatedResponse && validatedResponse.posts.length > 0) {
-          const mappedPosts = validatedResponse.posts.map(mapValidatedPost);
+      if (response.success && response.data && response.data.posts.length > 0) {
+        // Validate posts - filter out invalid ones
+        const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
+
+        if (validatedPosts.length > 0) {
+          const mappedPosts: Post[] = validatedPosts.map(mapBackendPost);
           setActivityFeed(prev => [...prev, ...mappedPosts]);
-          setLastKey(validatedResponse.lastEvaluatedKey || null);
-          setHasMorePosts(!!validatedResponse.lastEvaluatedKey);
+          setLastKey(response.data.lastEvaluatedKey || null);
+          setHasMorePosts(!!response.data.lastEvaluatedKey);
         } else {
           setHasMorePosts(false);
           setLastKey(null);
@@ -257,30 +436,38 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Backend returns post
-      const response = await authenticatedRequest<{ post?: unknown }>('/api/social/posts', token, {
+      // Backend returns postId, but frontend uses id - use any for flexibility
+      const response = await authenticatedRequest<any>('/api/social/posts', token, {
         method: 'POST',
         body: JSON.stringify(params),
       });
 
       if (response.success && response.data) {
-        // Validate post response
-        const postData = (response.data as { post?: unknown }).post || response.data;
-        const validatedPost = safeValidate(PostSchema, postData);
-        if (validatedPost) {
-          const newPost = mapValidatedPost(validatedPost);
-          setActivityFeed(prev => [newPost, ...prev]);
-          return { success: true, post: newPost };
-        } else {
-          console.warn('Invalid post response format');
-          return { success: false, error: 'Invalid response format' };
-        }
+        const newPost: Post = {
+          id: response.data.postId || response.data.id,
+          userId: response.data.userId,
+          username: response.data.username,
+          displayName: response.data.displayName,
+          avatarUrl: response.data.avatarUrl,
+          content: response.data.content,
+          entityId: response.data.entityId,
+          entityTicker: response.data.entityTicker,
+          entityName: response.data.entityName,
+          sentiment: response.data.sentiment,
+          likes: response.data.likes || 0,
+          comments: response.data.comments || 0,
+          isLiked: false,
+          isBookmarked: false,
+          timestamp: response.data.timestamp,
+        };
+
+        setActivityFeed(prev => [newPost, ...prev]);
+        return { success: true, post: newPost };
       }
 
       return { success: false, error: response.error || 'Failed to create post' };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create post';
-      return { success: false, error: errorMessage };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to create post' };
     }
   }, [token, user]);
 
@@ -392,7 +579,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     if (!token) return;
 
     try {
-      const response = await authenticatedRequest<unknown[]>(
+      const response = await authenticatedRequest<any[]>(
         `/api/social/posts/${postId}/comments`,
         token,
         {
@@ -404,16 +591,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         // Validate comments - filter out invalid ones
         const validatedComments = validateArrayLoose(CommentSchema, response.data);
 
-        const mappedComments: Comment[] = validatedComments.map((c) => ({
-          id: c.id,
+        const mappedComments: Comment[] = validatedComments.map((c: any) => ({
+          id: c.commentId || c.id,
           postId: c.postId,
           userId: c.userId,
           username: c.username,
           displayName: c.displayName,
-          avatarUrl: c.avatarUrl || undefined,
+          avatarUrl: c.avatarUrl,
           content: c.content,
-          likes: c.likes,
-          isLiked: c.isLiked,
+          likes: c.likes || 0,
+          isLiked: c.isLiked || false,
           timestamp: c.timestamp,
         }));
 
@@ -430,8 +617,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Backend returns comment
-      const response = await authenticatedRequest<{ comment?: unknown }>(
+      // Backend returns commentId, but frontend uses id - use any for flexibility
+      const response = await authenticatedRequest<any>(
         `/api/social/posts/${postId}/comments`,
         token,
         {
@@ -441,37 +628,29 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        // Validate comment response
-        const commentData = (response.data as { comment?: unknown }).comment || response.data;
-        const validatedComment = safeValidate(CommentSchema, commentData);
-        if (validatedComment) {
-          const newComment: Comment = {
-            id: validatedComment.id,
-            postId: validatedComment.postId,
-            userId: validatedComment.userId,
-            username: validatedComment.username,
-            displayName: validatedComment.displayName,
-            avatarUrl: validatedComment.avatarUrl || undefined,
-            content: validatedComment.content,
-            likes: validatedComment.likes,
-            isLiked: validatedComment.isLiked,
-            timestamp: validatedComment.timestamp,
-          };
+        const newComment: Comment = {
+          id: response.data.commentId || response.data.id,
+          postId: response.data.postId,
+          userId: response.data.userId,
+          username: response.data.username,
+          displayName: response.data.displayName,
+          avatarUrl: response.data.avatarUrl,
+          content: response.data.content,
+          likes: response.data.likes || 0,
+          isLiked: false,
+          timestamp: response.data.timestamp,
+        };
 
-          setPostComments(prev => ({
-            ...prev,
-            [postId]: [...(prev[postId] || []), newComment],
-          }));
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), newComment],
+        }));
 
-          setActivityFeed(prev =>
-            prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
-          );
+        setActivityFeed(prev =>
+          prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
+        );
 
-          return { success: true, comment: newComment };
-        } else {
-          console.warn('Invalid comment response format');
-          return { success: false };
-        }
+        return { success: true, comment: newComment };
       }
 
       return { success: false };
@@ -569,20 +748,20 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     [followedUsers]
   );
 
-  // Helper to map validated group to frontend Group type
-  const mapValidatedGroup = (validatedGroup: ValidatedGroup): Group => ({
-    id: validatedGroup.id,
-    name: validatedGroup.name,
-    description: validatedGroup.description,
-    category: validatedGroup.category,
-    memberCount: validatedGroup.memberCount,
-    isPrivate: validatedGroup.isPrivate,
-    isMember: validatedGroup.isMember,
-    coverImage: validatedGroup.coverImage || undefined,
-    createdAt: validatedGroup.createdAt,
+  // Helper to map backend group to frontend Group type
+  const mapBackendGroup = (backendGroup: any): Group => ({
+    id: backendGroup.groupId,
+    name: backendGroup.name,
+    description: backendGroup.description,
+    category: backendGroup.category,
+    memberCount: backendGroup.memberCount || 0,
+    isPrivate: backendGroup.isPrivate || false,
+    isMember: backendGroup.isMember || false,
+    coverImage: backendGroup.coverImage,
+    createdAt: backendGroup.createdAt,
   });
 
-  const refreshGroups = useCallback(async (signal?: AbortSignal) => {
+  const refreshGroups = useCallback(async () => {
     setIsLoadingGroups(true);
     try {
       if (!isBackendConfigured() || !token || !isAuthenticated) {
@@ -592,23 +771,15 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       }
 
       const response = await authenticatedRequest<{
-        groups?: unknown[];
+        groups: any[];
         lastEvaluatedKey?: string;
       }>('/api/groups?limit=50', token, {
         method: 'GET',
-        signal,
       });
 
-      if (response.success && response.data) {
-        // Validate groups response
-        const validatedResponse = safeValidate(GroupsResponseSchema, response.data);
-        if (validatedResponse) {
-          const mappedGroups = validatedResponse.groups.map(mapValidatedGroup);
-          setGroups(mappedGroups);
-        } else {
-          console.warn('Invalid groups response format');
-          setGroups([]);
-        }
+      if (response.success && response.data && response.data.groups) {
+        const mappedGroups = response.data.groups.map(mapBackendGroup);
+        setGroups(mappedGroups);
       } else {
         // Fallback to mock if backend fails
         setGroups(MOCK_GROUPS);
@@ -657,23 +828,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      if (response.success && response.data) {
-        // Validate group response
-        const validatedResponse = safeValidate(GroupResponseSchema, response.data);
-        if (validatedResponse) {
-          const mappedGroup = mapValidatedGroup({ ...validatedResponse.group, isMember: true });
-          setGroups(prev => [mappedGroup, ...prev]);
-          return { success: true, group: mappedGroup };
-        } else {
-          console.warn('Invalid group response format');
-        }
+      if (response.success && response.data && response.data.group) {
+        const mappedGroup = mapBackendGroup({ ...response.data.group, isMember: true });
+        setGroups(prev => [mappedGroup, ...prev]);
+        return { success: true, group: mappedGroup };
       }
 
       return { success: false, error: 'Failed to create group' };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating group:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create group';
-      return { success: false, error: errorMessage };
+      return { success: false, error: error.message || 'Failed to create group' };
     }
   }, [token, isAuthenticated]);
 

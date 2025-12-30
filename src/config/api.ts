@@ -16,9 +16,6 @@ export const isBackendConfigured = () => {
 export const API_CONFIG = {
   baseURL: API_URL,
   timeout: 10000, // 10 seconds
-  maxRetries: 3, // Maximum number of retry attempts
-  retryDelay: 1000, // Initial retry delay in milliseconds
-  retryableStatusCodes: [408, 429, 500, 502, 503, 504], // HTTP status codes that should trigger retry
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -76,27 +73,6 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
-/**
- * API Request Options
- */
-export interface ApiRequestOptions extends RequestInit {
-  /**
-   * Optional AbortController signal for request cancellation
-   * If not provided, a timeout-based AbortController will be created
-   */
-  signal?: AbortSignal;
-  
-  /**
-   * Number of retry attempts (overrides API_CONFIG.maxRetries)
-   */
-  retries?: number;
-  
-  /**
-   * Whether to retry on network errors (default: true)
-   */
-  retryOnNetworkError?: boolean;
-}
-
 export interface AuthResponse {
   token: string;
   user: {
@@ -110,40 +86,11 @@ export interface AuthResponse {
 }
 
 /**
- * Sleep utility for retry delays
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Check if an error is retryable
- */
-function isRetryableError(error: any, statusCode?: number): boolean {
-  // If we have a status code, check if it's retryable
-  if (statusCode && API_CONFIG.retryableStatusCodes.includes(statusCode)) {
-    return true;
-  }
-  
-  // Network errors are retryable
-  if (
-    error.name === 'AbortError' ||
-    error.name === 'TimeoutError' ||
-    error.message?.includes('Network request failed') ||
-    error.message?.includes('Failed to connect')
-  ) {
-    return true;
-  }
-  
-  return false;
-}
-
-/**
- * Make API request with error handling, retry logic, and AbortController support
+ * Make API request with error handling
  */
 export async function apiRequest<T = any>(
   endpoint: string,
-  options: ApiRequestOptions = {}
+  options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   // If backend is not configured, return error gracefully
   if (!isBackendConfigured()) {
@@ -153,160 +100,70 @@ export async function apiRequest<T = any>(
     };
   }
 
-  const maxRetries = options.retries ?? API_CONFIG.maxRetries;
-  const retryOnNetworkError = options.retryOnNetworkError ?? true;
-  const url = `${API_CONFIG.baseURL}${endpoint}`;
-  
-  let lastError: any;
-  let lastStatusCode: number | undefined;
+  // Create AbortController for timeout (React Native compatible)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    // Use provided signal or create a new AbortController for timeout
-    let controller: AbortController;
-    let timeoutId: NodeJS.Timeout | null = null;
+  try {
+    const url = `${API_CONFIG.baseURL}${endpoint}`;
     
-    if (options.signal) {
-      // Use provided signal (from context AbortController)
-      controller = new AbortController();
-      
-      // Combine provided signal with timeout signal
-      const timeoutController = new AbortController();
-      timeoutId = setTimeout(() => timeoutController.abort(), API_CONFIG.timeout);
-      
-      // Abort if either signal is aborted
-      if (options.signal.aborted) {
-        if (timeoutId) clearTimeout(timeoutId);
-        return {
-          success: false,
-          error: 'Request cancelled',
-        };
-      }
-      
-      options.signal.addEventListener('abort', () => {
-        controller.abort();
-        if (timeoutId) clearTimeout(timeoutId);
-      });
-      
-      timeoutController.signal.addEventListener('abort', () => {
-        controller.abort();
-        if (timeoutId) clearTimeout(timeoutId);
-      });
-    } else {
-      // Create new AbortController for timeout only
-      controller = new AbortController();
-      timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
-    }
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...API_CONFIG.headers,
+        ...options.headers,
+      },
+      signal: controller.signal,
+    });
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...API_CONFIG.headers,
-          ...options.headers,
-        },
-        signal: controller.signal,
-      });
+    clearTimeout(timeoutId);
 
-      // Clean up timeout and listeners
-      if (timeoutId) clearTimeout(timeoutId);
-      if ((controller as any)._cleanup) {
-        (controller as any)._cleanup();
-      }
+    const data = await response.json();
 
-      const data = await response.json();
-      lastStatusCode = response.status;
-
-      if (!response.ok) {
-        // Check if status code is retryable
-        if (
-          attempt < maxRetries &&
-          API_CONFIG.retryableStatusCodes.includes(response.status)
-        ) {
-          // Calculate exponential backoff delay: initialDelay * 2^attempt
-          const delay = API_CONFIG.retryDelay * Math.pow(2, attempt);
-          await sleep(delay);
-          continue; // Retry
-        }
-        
-        return {
-          success: false,
-          error: data.message || data.error || `HTTP ${response.status}: ${response.statusText}`,
-        };
-      }
-
-      return {
-        success: true,
-        data: data.data || data,
-      };
-    } catch (error: any) {
-      // Clean up timeout and listeners
-      if (timeoutId) clearTimeout(timeoutId);
-      if ((controller as any)._cleanup) {
-        (controller as any)._cleanup();
-      }
-      
-      lastError = error;
-      
-      // Check if request was aborted (user cancellation, not retryable)
-      if (error.name === 'AbortError') {
-        // Check if it was our timeout or external cancellation
-        if (options.signal?.aborted) {
-          return {
-            success: false,
-            error: 'Request cancelled',
-          };
-        }
-        return {
-          success: false,
-          error: 'Request timeout. Please check your connection and try again.',
-        };
-      }
-
-      // Check if error is retryable
-      const shouldRetry = 
-        attempt < maxRetries &&
-        retryOnNetworkError &&
-        isRetryableError(error, lastStatusCode);
-
-      if (shouldRetry) {
-        // Calculate exponential backoff delay: initialDelay * 2^attempt
-        const delay = API_CONFIG.retryDelay * Math.pow(2, attempt);
-        await sleep(delay);
-        continue; // Retry
-      }
-
-      // Don't retry, return error
-      // Only log errors if backend is configured (avoid spam when backend isn't running)
-      if (isBackendConfigured()) {
-        console.error('API Request Error:', error);
-      }
-
-      if (error.message?.includes('Network request failed') || error.message?.includes('Failed to connect')) {
-        // Don't show error for localhost connections when backend isn't running
-        if (API_CONFIG.baseURL.includes('localhost')) {
-          return {
-            success: false,
-            error: 'Backend not available. Please start the backend server or configure EXPO_PUBLIC_API_URL.',
-          };
-        }
-        return {
-          success: false,
-          error: 'Network error. Please check your internet connection.',
-        };
-      }
-
+    if (!response.ok) {
       return {
         success: false,
-        error: error.message || 'An unexpected error occurred',
+        error: data.message || data.error || `HTTP ${response.status}: ${response.statusText}`,
       };
     }
-  }
 
-  // All retries exhausted
-  return {
-    success: false,
-    error: lastError?.message || 'Request failed after retries',
-  };
+    return {
+      success: true,
+      data: data.data || data,
+    };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    // Only log errors if backend is configured (avoid spam when backend isn't running)
+    if (isBackendConfigured()) {
+      console.error('API Request Error:', error);
+    }
+    
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      return {
+        success: false,
+        error: 'Request timeout. Please check your connection and try again.',
+      };
+    }
+
+    if (error.message?.includes('Network request failed') || error.message?.includes('Failed to connect')) {
+      // Don't show error for localhost connections when backend isn't running
+      if (API_CONFIG.baseURL.includes('localhost')) {
+        return {
+          success: false,
+          error: 'Backend not available. Please start the backend server or configure EXPO_PUBLIC_API_URL.',
+        };
+      }
+      return {
+        success: false,
+        error: 'Network error. Please check your internet connection.',
+      };
+    }
+
+    return {
+      success: false,
+      error: error.message || 'An unexpected error occurred',
+    };
+  }
 }
 
 /**
@@ -315,7 +172,7 @@ export async function apiRequest<T = any>(
 export async function authenticatedRequest<T = any>(
   endpoint: string,
   token: string,
-  options: ApiRequestOptions = {}
+  options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(endpoint, {
     ...options,

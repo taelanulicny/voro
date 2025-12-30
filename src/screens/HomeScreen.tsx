@@ -34,7 +34,6 @@ import SideMenu from '../components/SideMenu';
 import HomeHeader from '../components/HomeHeader';
 import CategoryCarousel from '../components/CategoryCarousel';
 import EntityList, { EntityListItem } from '../components/EntityList';
-import SpotlightSection from '../components/SpotlightSection';
 
 type NavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -57,7 +56,7 @@ export default function HomeScreen() {
   // Swipeable section state
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const swipeableScrollRef = useRef<ScrollView>(null);
-  const TOTAL_PAGES = 5;
+  const TOTAL_PAGES = 4;
   
   const categories = ['For You', 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
   const customizableCategories = ['Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
@@ -126,12 +125,14 @@ export default function HomeScreen() {
     const pageIndex = Math.round(offsetX / PAGE_WIDTH);
     
     // Handle circular scrolling with duplicate pages
+    // Structure: [duplicate of page 4] [page 1] [page 2] [page 3] [page 4] [duplicate of page 1]
+    // Index:     0                     1       2       3       4       5
     if (pageIndex === 0) {
-      setCurrentPageIndex(4);
+      setCurrentPageIndex(TOTAL_PAGES - 1); // Last page (page 4)
     } else if (pageIndex === TOTAL_PAGES + 1) {
-      setCurrentPageIndex(0);
+      setCurrentPageIndex(0); // First page (page 1)
     } else if (pageIndex >= 1 && pageIndex <= TOTAL_PAGES) {
-      setCurrentPageIndex(pageIndex - 1);
+      setCurrentPageIndex(pageIndex - 1); // Real pages 1-4
     }
   };
 
@@ -140,13 +141,18 @@ export default function HomeScreen() {
     const offsetX = event.nativeEvent.contentOffset.x;
     const pageIndex = Math.round(offsetX / PAGE_WIDTH);
     
+    // If scrolled to duplicate page at start (index 0), jump to real last page
     if (pageIndex === 0) {
       swipeableScrollRef.current?.scrollTo({ x: PAGE_WIDTH * TOTAL_PAGES, animated: false });
-      setCurrentPageIndex(4);
-    } else if (pageIndex === TOTAL_PAGES + 1) {
+      setCurrentPageIndex(TOTAL_PAGES - 1);
+    } 
+    // If scrolled to duplicate page at end (index TOTAL_PAGES + 1), jump to real first page
+    else if (pageIndex === TOTAL_PAGES + 1) {
       swipeableScrollRef.current?.scrollTo({ x: PAGE_WIDTH, animated: false });
       setCurrentPageIndex(0);
-    } else if (pageIndex >= 1 && pageIndex <= TOTAL_PAGES) {
+    } 
+    // Real pages 1-4
+    else if (pageIndex >= 1 && pageIndex <= TOTAL_PAGES) {
       setCurrentPageIndex(pageIndex - 1);
     }
   };
@@ -598,7 +604,32 @@ export default function HomeScreen() {
     },
   ], []);
 
-  // Spotlight auto-rotation is now handled inside SpotlightSection component
+  // Spotlight auto-rotation state (isolated to spotlights only)
+  const [currentSpotlightIndex, setCurrentSpotlightIndex] = useState(0);
+  const spotlightFadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Auto-rotate spotlights with fade animation (isolated effect)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fade out
+      Animated.timing(spotlightFadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        // Change spotlight after fade out
+        setCurrentSpotlightIndex((prev) => (prev + 1) % spotlights.length);
+        // Fade in
+        Animated.timing(spotlightFadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 3000); // Change every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [spotlights.length, spotlightFadeAnim]);
 
 
   const handleCategoryPress = (category: string) => {
@@ -1418,7 +1449,55 @@ export default function HomeScreen() {
         </View>
 
         {/* Spotlights Section */}
-        <SpotlightSection spotlights={spotlights} />
+        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Spotlights</Text>
+          <View style={styles.spotlightsContainer}>
+            <Animated.View
+              style={[
+                styles.spotlightCardContainer,
+                {
+                  opacity: spotlightFadeAnim,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.spotlightCard}
+                onPress={spotlights[currentSpotlightIndex].onPress}
+              >
+                {spotlights[currentSpotlightIndex].imageSource ? (
+                  <Image
+                    source={spotlights[currentSpotlightIndex].imageSource}
+                    style={styles.spotlightImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.spotlightCardContent,
+                      {
+                        backgroundColor: spotlights[currentSpotlightIndex].backgroundColor,
+                      },
+                    ]}
+                  >
+                    {spotlights[currentSpotlightIndex].icon && (
+                      <Text style={styles.spotlightIcon}>{spotlights[currentSpotlightIndex].icon}</Text>
+                    )}
+                    <Text
+                      style={[
+                        styles.spotlightCardTitle,
+                        {
+                          color: spotlights[currentSpotlightIndex].textColor,
+                        },
+                      ]}
+                    >
+                      {spotlights[currentSpotlightIndex].title}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </View>
 
         {/* Watchlist Section */}
         <EntityList

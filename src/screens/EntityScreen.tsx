@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Dimensions,
   FlatList,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -27,8 +26,6 @@ import NewsCard from '../components/NewsCard';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
 import { apiRequest, isBackendConfigured } from '../config/api';
-import { getEntityPosts } from '../services/socialService';
-import { useAuth } from '../context/AuthContext';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -46,7 +43,6 @@ export default function EntityScreen() {
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
-  const { isAuthenticated } = useAuth();
   
   // Get entity from centralized data
   const entity = getEntityById(entityId);
@@ -56,8 +52,6 @@ export default function EntityScreen() {
   const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
   const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>([]);
   const [isLoadingPriceHistory, setIsLoadingPriceHistory] = useState(false);
-  const [entityPosts, setEntityPosts] = useState<Post[]>([]);
-  const [isLoadingEntityPosts, setIsLoadingEntityPosts] = useState(false);
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
   const [refreshing, setRefreshing] = useState(false);
@@ -136,43 +130,155 @@ export default function EntityScreen() {
   // Get live price from global price system
   const currentPrice = getEntityPrice(entityId);
   
-  // Fetch entity-specific posts from backend
-  const fetchEntityPosts = useCallback(async () => {
-    if (!isBackendConfigured()) {
-      setEntityPosts([]);
-      return;
-    }
-
-    try {
-      setIsLoadingEntityPosts(true);
-      const response = await getEntityPosts(entityId, { limit: 20, offset: 0 });
-
-      if (response.success && response.data) {
-        setEntityPosts(response.data);
-      } else {
-        setEntityPosts([]);
-      }
-    } catch (error) {
-      console.debug('Error fetching entity posts (backend may not be running):', error);
-      setEntityPosts([]);
-    } finally {
-      setIsLoadingEntityPosts(false);
-    }
-  }, [entityId]);
-
-  // Fetch entity posts on mount and when entityId changes
-  useEffect(() => {
-    fetchEntityPosts();
-  }, [fetchEntityPosts]);
+  // Entity-specific feed posts
+  const entityFeedPosts = useMemo(() => {
+    const now = Date.now();
+    const entityName = entity?.name || '';
+    
+    // Generate posts with variety - some with other entity mentions, some without
+    // Base template posts that work for any entity
+    const entityMentionName = entityName?.replace(/\s+/g, '') || '';
+    const posts: Post[] = [
+      {
+        id: `entity-${entityId}-1`,
+        userId: 'user-1',
+        username: 'trading_pro',
+        displayName: 'Trading Pro',
+        content: `just dropped @TaylorSwift's name in the conversation and now her moro score is skyrocketing 📈`,
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'Taylor Swift',
+        sentiment: 'positive',
+        likes: 289,
+        comments: 45,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 18).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-2`,
+        userId: 'user-2',
+        username: 'market_watcher',
+        displayName: 'Market Watcher',
+        content: 'The trajectory looks solid. Really impressed with the recent performance and strategic moves.',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: 'positive',
+        likes: 145,
+        comments: 23,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 42).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-3`,
+        userId: 'user-3',
+        username: 'trend_analyst',
+        displayName: 'Trend Analyst',
+        content: 'A collab with @MrBeast would create insane value for both parties. The cross-audience potential is huge.',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'MrBeast',
+        sentiment: 'positive',
+        likes: 234,
+        comments: 38,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 1).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-4`,
+        userId: 'user-4',
+        username: 'content_creator',
+        displayName: 'Content Creator',
+        content: 'The recent moves have been interesting. Curious to see what direction things take from here.',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: undefined,
+        likes: 98,
+        comments: 14,
+        isLiked: true,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 2).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-5`,
+        userId: 'user-5',
+        username: 'influence_tracker',
+        displayName: 'Influence Tracker',
+        content: 'Engagement metrics are through the roof. Wonder if @Drake would consider a partnership? The synergy would be perfect.',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'Drake',
+        sentiment: 'positive',
+        likes: 312,
+        comments: 52,
+        isLiked: false,
+        isBookmarked: true,
+        timestamp: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-6`,
+        userId: 'user-6',
+        username: 'social_metrics',
+        displayName: 'Social Metrics',
+        content: 'Not feeling great about the recent direction. The numbers aren\'t adding up like they used to.',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: 'negative',
+        likes: 167,
+        comments: 29,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-7`,
+        userId: 'user-7',
+        username: 'industry_insider',
+        displayName: 'Industry Insider',
+        content: `@KanyeWest's recent comments about @Drake caused some controversy. The drama might actually help engagement though.`,
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: 'Kanye West',
+        sentiment: 'negative',
+        likes: 445,
+        comments: 78,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 28).toISOString(),
+      },
+      {
+        id: `entity-${entityId}-8`,
+        userId: 'user-8',
+        username: 'brand_analyst',
+        displayName: 'Brand Analyst',
+        content: 'The partnership deals are looking strong. Multiple big brands are showing interest.',
+        entityId: undefined,
+        entityTicker: undefined,
+        entityName: undefined,
+        sentiment: 'positive',
+        likes: 198,
+        comments: 31,
+        isLiked: true,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
+      },
+    ];
+    
+    return posts;
+  }, [entityId, entity]);
   
-  const onRefresh = useCallback(async () => {
+  const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    await Promise.all([
-      fetchPriceHistory(entityId, timeRange),
-      fetchEntityPosts(),
-    ]);
-    setRefreshing(false);
-  }, [entityId, timeRange, fetchEntityPosts]);
+    // Simulate refresh
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
   
   // Force chart update when price changes - DISABLED (keeping prices static)
   // useEffect(() => {
@@ -598,13 +704,8 @@ export default function EntityScreen() {
 
         {/* Feed Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
-          {isLoadingEntityPosts ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-          ) : (
           <FlatList
-              data={entityPosts}
+            data={entityFeedPosts}
             renderItem={({ item }) => (
               <PostCard 
                 post={item} 
@@ -621,14 +722,11 @@ export default function EntityScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
-                    {isBackendConfigured() 
-                      ? 'No posts yet for this entity' 
-                      : 'Connect to backend to see posts'}
+                  No posts yet for this entity
                 </Text>
           </View>
         )}
           />
-          )}
         </View>
 
         {/* News Tab */}
@@ -963,12 +1061,6 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     marginTop: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
   },
 });
 

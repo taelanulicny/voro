@@ -92,9 +92,6 @@ export const handler = async (
   if (path.includes('/api/social/feed') && method === 'GET') {
     return socialHandlers.getFeed(event);
   }
-  if (path.includes('/api/social/entities') && path.includes('/posts') && method === 'GET') {
-    return socialHandlers.getEntityPosts(event);
-  }
   if (path.includes('/api/social/users')) {
     if (path.includes('/search') && method === 'GET') {
       return socialHandlers.searchUsers(event);
