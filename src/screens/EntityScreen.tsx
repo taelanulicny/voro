@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   FlatList,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -25,6 +26,9 @@ import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
+import { apiRequest, isBackendConfigured } from '../config/api';
+import { getEntityPosts } from '../services/socialService';
+import { useAuth } from '../context/AuthContext';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -33,105 +37,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Chart config will be created dynamically based on theme
 
-// Mock data generator for entity details
-const generateMockEntityData = (entityId: number, categoryId: string) => {
-  // Get entity from centralized data
-  const entityData = getEntityById(entityId);
-  
-  // Fallback if entity not found
-  if (!entityData) {
-    const basePrice = 100 + entityId * 10;
-    const change = (Math.random() - 0.5) * 10;
-    const changePercent = (change / basePrice) * 100;
-
-    const priceHistory: PriceDataPoint[] = [];
-    let price = basePrice - change;
-    const now = Date.now();
-
-    for (let i = 30; i >= 0; i--) {
-      const variance = (Math.random() - 0.5) * 5;
-      price = Math.max(price + variance, basePrice * 0.8);
-      priceHistory.push({
-        timestamp: now - i * 24 * 60 * 60 * 1000,
-        price,
-        volume: Math.floor(Math.random() * 10000000) + 1000000,
-      });
-    }
-
-    priceHistory[priceHistory.length - 1].price = basePrice;
-
-    return {
-      entity: {
-        id: entityId,
-        ticker: `ENTITY${entityId}`,
-        name: `Entity ${entityId}`,
-        type: 'stock' as const,
-        currentPrice: basePrice,
-        change24h: change,
-        changePercent24h: changePercent,
-        volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-        description: `Entity ${entityId} in the ${categoryId} category.`,
-      },
-      priceHistory,
-      stats: {
-        high24h: basePrice + Math.abs(change) * 0.5,
-        low24h: basePrice - Math.abs(change) * 0.5,
-        volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-        holdersCount: Math.floor(Math.random() * 50000) + 1000,
-        rank: Math.floor(Math.random() * 100) + 1,
-      },
-    };
-  }
-
-  // Use centralized entity data
-  const basePrice = entityData.basePrice;
-  const change = (Math.random() - 0.5) * 10;
-  const changePercent = (change / basePrice) * 100;
-
-  // Generate 30 days of price history
-  const priceHistory: PriceDataPoint[] = [];
-  let price = basePrice - change;
-  const now = Date.now();
-
-  for (let i = 30; i >= 0; i--) {
-    const variance = (Math.random() - 0.5) * 5;
-    price = Math.max(price + variance, basePrice * 0.8);
-    priceHistory.push({
-      timestamp: now - i * 24 * 60 * 60 * 1000,
-      price,
-      volume: Math.floor(Math.random() * 10000000) + 1000000,
-    });
-  }
-
-  // Update last price to match current
-  priceHistory[priceHistory.length - 1].price = basePrice;
-
-  return {
-    entity: {
-      id: entityId,
-      ticker: entityData.ticker,
-      name: entityData.name,
-      type: 'stock' as const,
-      currentPrice: basePrice,
-      change24h: change,
-      changePercent24h: changePercent,
-      volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-      marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-      description: entityData.description,
-    },
-    priceHistory,
-    stats: {
-      high24h: basePrice + Math.abs(change) * 0.5,
-      low24h: basePrice - Math.abs(change) * 0.5,
-      volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-      marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-      holdersCount: Math.floor(Math.random() * 50000) + 1000,
-      rank: Math.floor(Math.random() * 100) + 1,
-    },
-  };
-};
 
 export default function EntityScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -141,30 +46,71 @@ export default function EntityScreen() {
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const { isAuthenticated } = useAuth();
   
-  // Generate entity data based on current entityId - updates when entityId changes
-  const entityData = useMemo(() => generateMockEntityData(entityId, categoryId), [entityId, categoryId]);
+  // Get entity from centralized data
+  const entity = getEntityById(entityId);
   
   const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
-  const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
+  const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>([]);
+  const [isLoadingPriceHistory, setIsLoadingPriceHistory] = useState(false);
+  const [entityPosts, setEntityPosts] = useState<Post[]>([]);
+  const [isLoadingEntityPosts, setIsLoadingEntityPosts] = useState(false);
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
   const [refreshing, setRefreshing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Update price history and reset tab whenever entityId changes (ensures we always show Chart when navigating to an entity)
+  // Fetch price history from backend
+  const fetchPriceHistory = async (entityId: number, timeRange: '1D' | '1W' | '1M' | 'ALL') => {
+    if (!isBackendConfigured()) {
+      // Backend not configured - return empty array
+      setPriceHistory([]);
+      return;
+    }
+
+    try {
+      setIsLoadingPriceHistory(true);
+      const params = new URLSearchParams({
+        timeRange,
+        limit: '100',
+      });
+
+      const response = await apiRequest<{ success?: boolean; data?: Array<{ timestamp: string; price: number }> }>(
+        `/api/entities/${entityId}/price-history?${params}`
+      );
+
+      if (response.success && response.data && Array.isArray(response.data)) {
+        // Convert backend format to frontend PriceDataPoint format
+        const convertedHistory: PriceDataPoint[] = response.data.map((item) => ({
+          timestamp: new Date(item.timestamp).getTime(),
+          price: item.price,
+        }));
+        setPriceHistory(convertedHistory);
+        setChartUpdateKey(prev => prev + 1); // Force chart to re-render
+      } else {
+        setPriceHistory([]);
+      }
+    } catch (error) {
+      console.debug('Error fetching price history (backend may not be running):', error);
+      setPriceHistory([]);
+    } finally {
+      setIsLoadingPriceHistory(false);
+    }
+  };
+
+  // Fetch price history on mount and when entityId or timeRange changes
   useEffect(() => {
     setSelectedTab('chart');
-    setPriceHistory(entityData.priceHistory);
-    setChartUpdateKey(prev => prev + 1); // Force chart to re-render with new data
+    fetchPriceHistory(entityId, timeRange);
     // Reset scroll position to chart tab
     const timer = setTimeout(() => {
       scrollViewRef.current?.scrollTo({ x: 0, animated: false });
     }, 100);
     return () => clearTimeout(timer);
-  }, [entityId, entityData.priceHistory]);
+  }, [entityId, timeRange]);
 
 
   const handleTabChange = (tab: 'chart' | 'about' | 'feed' | 'news') => {
@@ -190,158 +136,43 @@ export default function EntityScreen() {
   // Get live price from global price system
   const currentPrice = getEntityPrice(entityId);
   
-  // Get entity info for feed
-  const entity = getEntityById(entityId);
+  // Fetch entity-specific posts from backend
+  const fetchEntityPosts = useCallback(async () => {
+    if (!isBackendConfigured()) {
+      setEntityPosts([]);
+      return;
+    }
+
+    try {
+      setIsLoadingEntityPosts(true);
+      const response = await getEntityPosts(entityId, { limit: 20, offset: 0 });
+
+      if (response.success && response.data) {
+        setEntityPosts(response.data);
+      } else {
+        setEntityPosts([]);
+      }
+    } catch (error) {
+      console.debug('Error fetching entity posts (backend may not be running):', error);
+      setEntityPosts([]);
+    } finally {
+      setIsLoadingEntityPosts(false);
+    }
+  }, [entityId]);
+
+  // Fetch entity posts on mount and when entityId changes
+  useEffect(() => {
+    fetchEntityPosts();
+  }, [fetchEntityPosts]);
   
-  // Entity-specific feed posts
-  const entityFeedPosts = useMemo(() => {
-    const now = Date.now();
-    const entityName = entity?.name || '';
-    
-    // Generate posts with variety - some with other entity mentions, some without
-    // Base template posts that work for any entity
-    const entityMentionName = entityName?.replace(/\s+/g, '') || '';
-    const posts: Post[] = [
-      {
-        id: `entity-${entityId}-1`,
-        userId: 'user-1',
-        username: 'trading_pro',
-        displayName: 'Trading Pro',
-        content: `just dropped @TaylorSwift's name in the conversation and now her moro score is skyrocketing 📈`,
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: 'Taylor Swift',
-        sentiment: 'positive',
-        likes: 289,
-        comments: 45,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 18).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-2`,
-        userId: 'user-2',
-        username: 'market_watcher',
-        displayName: 'Market Watcher',
-        content: 'The trajectory looks solid. Really impressed with the recent performance and strategic moves.',
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: undefined,
-        sentiment: 'positive',
-        likes: 145,
-        comments: 23,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 42).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-3`,
-        userId: 'user-3',
-        username: 'trend_analyst',
-        displayName: 'Trend Analyst',
-        content: 'A collab with @MrBeast would create insane value for both parties. The cross-audience potential is huge.',
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: 'MrBeast',
-        sentiment: 'positive',
-        likes: 234,
-        comments: 38,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 1).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-4`,
-        userId: 'user-4',
-        username: 'content_creator',
-        displayName: 'Content Creator',
-        content: 'The recent moves have been interesting. Curious to see what direction things take from here.',
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: undefined,
-        sentiment: undefined,
-        likes: 98,
-        comments: 14,
-        isLiked: true,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 2).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-5`,
-        userId: 'user-5',
-        username: 'influence_tracker',
-        displayName: 'Influence Tracker',
-        content: 'Engagement metrics are through the roof. Wonder if @Drake would consider a partnership? The synergy would be perfect.',
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: 'Drake',
-        sentiment: 'positive',
-        likes: 312,
-        comments: 52,
-        isLiked: false,
-        isBookmarked: true,
-        timestamp: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-6`,
-        userId: 'user-6',
-        username: 'social_metrics',
-        displayName: 'Social Metrics',
-        content: 'Not feeling great about the recent direction. The numbers aren\'t adding up like they used to.',
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: undefined,
-        sentiment: 'negative',
-        likes: 167,
-        comments: 29,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-7`,
-        userId: 'user-7',
-        username: 'industry_insider',
-        displayName: 'Industry Insider',
-        content: `@KanyeWest's recent comments about @Drake caused some controversy. The drama might actually help engagement though.`,
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: 'Kanye West',
-        sentiment: 'negative',
-        likes: 445,
-        comments: 78,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 28).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-8`,
-        userId: 'user-8',
-        username: 'brand_analyst',
-        displayName: 'Brand Analyst',
-        content: 'The partnership deals are looking strong. Multiple big brands are showing interest.',
-        entityId: undefined,
-        entityTicker: undefined,
-        entityName: undefined,
-        sentiment: 'positive',
-        likes: 198,
-        comments: 31,
-        isLiked: true,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
-      },
-    ];
-    
-    return posts;
-  }, [entityId, entity]);
-  
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    await Promise.all([
+      fetchPriceHistory(entityId, timeRange),
+      fetchEntityPosts(),
+    ]);
+    setRefreshing(false);
+  }, [entityId, timeRange, fetchEntityPosts]);
   
   // Force chart update when price changes - DISABLED (keeping prices static)
   // useEffect(() => {
@@ -383,8 +214,12 @@ export default function EntityScreen() {
   //   return () => clearInterval(interval);
   // }, [entityId, timeRange, getEntityPrice]);
 
-  // Filter price history based on selected time range (using live data)
+  // Filter price history based on selected time range
   const filteredPriceHistory = useMemo(() => {
+    if (priceHistory.length === 0) {
+      return [];
+    }
+
     const now = Date.now();
     let cutoffTime: number;
     
@@ -400,17 +235,11 @@ export default function EntityScreen() {
         break;
       case 'ALL':
       default:
-        // Combine original history with live updates
-        return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
-          // Remove duplicates by timestamp
-          return index === self.findIndex(p => p.timestamp === point.timestamp);
-        }).sort((a, b) => a.timestamp - b.timestamp);
+        return priceHistory.sort((a, b) => a.timestamp - b.timestamp);
     }
     
-    // Use live price history if available, otherwise fall back to original
-    const historyToUse = priceHistory.length > 0 ? priceHistory : entityData.priceHistory;
-    return historyToUse.filter(point => point.timestamp >= cutoffTime);
-  }, [timeRange, priceHistory, entityData.priceHistory]);
+    return priceHistory.filter(point => point.timestamp >= cutoffTime);
+  }, [timeRange, priceHistory]);
 
   // Generate chart data with appropriate labels based on time range
   const chartData = useMemo(() => {
@@ -469,9 +298,9 @@ export default function EntityScreen() {
   }, [timeRange, filteredPriceHistory, currentPrice]);
 
   // Calculate price change from base price
-  const basePrice = entityData.entity.currentPrice; // Original base price
+  const basePrice = entity?.basePrice || currentPrice; // Use entity basePrice or current price as fallback
   const priceChange = currentPrice - basePrice;
-  const priceChangePercent = (priceChange / basePrice) * 100;
+  const priceChangePercent = basePrice > 0 ? (priceChange / basePrice) * 100 : 0;
   const isPositive = priceChange >= 0;
 
   const formatVolume = (value: number) => {
@@ -681,29 +510,23 @@ export default function EntityScreen() {
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h High</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.high24h)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h Low</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.low24h)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Volume</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.volume24h)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Market Cap</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.marketCap)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Holders</Text>
               <Text style={[styles.statValue, { color: theme.text }]}>
-                {entityData.stats.holdersCount.toLocaleString()}
+                {priceHistory.length > 0 ? formatCurrency(Math.max(...priceHistory.map(p => p.price))) : 'N/A'}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Rank</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>#{entityData.stats.rank}</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h Low</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>
+                {priceHistory.length > 0 ? formatCurrency(Math.min(...priceHistory.map(p => p.price))) : 'N/A'}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Current Price</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Base Price</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(basePrice)}</Text>
             </View>
           </View>
         </View>
@@ -718,7 +541,7 @@ export default function EntityScreen() {
           <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.entityName, { color: theme.text }]}>{entityData.entity.name}</Text>
+          <Text style={[styles.entityName, { color: theme.text }]}>{entity?.name || `Entity ${entityId}`}</Text>
         </View>
         <TouchableOpacity
           style={styles.watchlistButton}
@@ -775,8 +598,13 @@ export default function EntityScreen() {
 
         {/* Feed Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
+          {isLoadingEntityPosts ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.primary} />
+            </View>
+          ) : (
           <FlatList
-            data={entityFeedPosts}
+              data={entityPosts}
             renderItem={({ item }) => (
               <PostCard 
                 post={item} 
@@ -793,11 +621,14 @@ export default function EntityScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
-                  No posts yet for this entity
+                    {isBackendConfigured() 
+                      ? 'No posts yet for this entity' 
+                      : 'Connect to backend to see posts'}
                 </Text>
           </View>
         )}
           />
+          )}
         </View>
 
         {/* News Tab */}
@@ -829,7 +660,7 @@ export default function EntityScreen() {
             style={[styles.tradeButton, styles.halfWidthButton, { backgroundColor: theme.primary }]}
           onPress={() => setTradeModalVisible(true)}
         >
-            <Text style={styles.tradeButtonText}>Trade {entityData.entity.ticker}</Text>
+            <Text style={styles.tradeButtonText}>Trade {entity?.ticker || `ENTITY${entityId}`}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.shareOpinionButton, styles.halfWidthButton, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -845,8 +676,8 @@ export default function EntityScreen() {
         visible={tradeModalVisible}
         onClose={() => setTradeModalVisible(false)}
         entityId={entityId}
-        entityName={entityData.entity.name}
-        entityTicker={entityData.entity.ticker}
+        entityName={entity?.name || `Entity ${entityId}`}
+        entityTicker={entity?.ticker || `ENTITY${entityId}`}
         currentPrice={currentPrice}
         category={categoryId}
         existingQuantity={holding?.quantity}
@@ -857,8 +688,8 @@ export default function EntityScreen() {
         visible={shareOpinionModalVisible}
         onClose={() => setShareOpinionModalVisible(false)}
         entityId={entityId}
-        entityName={entityData.entity.name}
-        entityTicker={entityData.entity.ticker}
+        entityName={entity?.name || `Entity ${entityId}`}
+        entityTicker={entity?.ticker || `ENTITY${entityId}`}
         slideFromBottom={true}
         prefillEntityTag={true}
       />
@@ -1132,6 +963,12 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     marginTop: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
   },
 });
 

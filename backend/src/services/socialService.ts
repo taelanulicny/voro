@@ -520,6 +520,39 @@ export async function toggleBookmarkPost(
   }
 }
 
+export async function getEntityPosts(
+  entityId: number,
+  limit: number = 20,
+  offset: number = 0
+): Promise<{ posts: Post[] }> {
+  try {
+    // Scan posts table and filter by entityId
+    const scanResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAMES.POSTS,
+        FilterExpression: 'entityId = :entityId',
+        ExpressionAttributeValues: {
+          ':entityId': entityId,
+        },
+        Limit: limit + offset,
+      })
+    );
+
+    const posts = (scanResult.Items || []) as Post[];
+
+    // Sort by timestamp descending (most recent first)
+    posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    // Apply offset and limit
+    const paginatedPosts = posts.slice(offset, offset + limit);
+
+    return { posts: paginatedPosts };
+  } catch (error) {
+    console.error('Error getting entity posts:', error);
+    return { posts: [] };
+  }
+}
+
 export async function toggleLikeComment(
   userId: string,
   commentId: string

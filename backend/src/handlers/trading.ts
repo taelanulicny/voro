@@ -6,6 +6,7 @@ import {
   getTransactions,
   getAllEntities,
   getEntityPrice,
+  getPriceHistory,
 } from '../services/tradingService';
 
 export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -157,6 +158,43 @@ export async function getEntityPriceHandler(event: APIGatewayProxyEvent): Promis
     });
   } catch (error: any) {
     console.error('Error getting entity price:', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    // Extract entityId from path: /api/entities/:entityId/price-history
+    const path = event.path || '';
+    const match = path.match(/\/api\/entities\/(\d+)\/price-history/);
+    const entityId = match ? parseInt(match[1], 10) : parseInt(event.pathParameters?.entityId || '0', 10);
+
+    if (!entityId || isNaN(entityId)) {
+      return createErrorResponse(400, 'Invalid entityId');
+    }
+
+    const timeRange = (event.queryStringParameters?.timeRange || 'ALL') as '1D' | '1W' | '1M' | 'ALL';
+    const limit = parseInt(event.queryStringParameters?.limit || '100', 10);
+
+    if (limit > 1000) {
+      return createErrorResponse(400, 'Limit cannot exceed 1000');
+    }
+
+    if (!['1D', '1W', '1M', 'ALL'].includes(timeRange)) {
+      return createErrorResponse(400, 'Invalid timeRange. Must be one of: 1D, 1W, 1M, ALL');
+    }
+
+    const priceHistory = await getPriceHistory(entityId, timeRange, limit);
+
+    return createResponse(200, {
+      success: true,
+      data: priceHistory.map(item => ({
+        timestamp: item.timestamp,
+        price: item.price,
+      })),
+    });
+  } catch (error: any) {
+    console.error('Error getting price history:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

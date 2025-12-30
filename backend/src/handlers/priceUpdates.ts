@@ -3,6 +3,17 @@ import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { ScanCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { Entity, PriceHistory } from '../models/types';
 
+/**
+ * Price Update Lambda Handler
+ * 
+ * This Lambda is scheduled to run every 5 minutes via EventBridge.
+ * It updates prices for all entities in the PriceHistory table.
+ * 
+ * To verify deployment:
+ * 1. Check CloudWatch logs for execution logs
+ * 2. Verify EventBridge rule is active in AWS Console
+ * 3. Check PriceHistory table for recent price updates
+ */
 export async function updatePrices(event: EventBridgeEvent<'Scheduled Event', any>): Promise<void> {
   try {
     // Get all entities

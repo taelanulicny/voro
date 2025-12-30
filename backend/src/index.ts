@@ -53,6 +53,9 @@ export const handler = async (
     return tradingHandlers.getTransactionsHandler(event);
   }
   if (path.includes('/api/entities')) {
+    if (path.includes('/price-history') && method === 'GET') {
+      return tradingHandlers.getPriceHistoryHandler(event);
+    }
     if (path.includes('/price') && method === 'GET') {
       return tradingHandlers.getEntityPriceHandler(event);
     }
@@ -88,6 +91,9 @@ export const handler = async (
   }
   if (path.includes('/api/social/feed') && method === 'GET') {
     return socialHandlers.getFeed(event);
+  }
+  if (path.includes('/api/social/entities') && path.includes('/posts') && method === 'GET') {
+    return socialHandlers.getEntityPosts(event);
   }
   if (path.includes('/api/social/users')) {
     if (path.includes('/search') && method === 'GET') {

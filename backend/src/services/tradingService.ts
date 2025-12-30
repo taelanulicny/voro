@@ -378,3 +378,45 @@ export async function getEntityPrice(entityId: number): Promise<number | null> {
   return null;
 }
 
+export async function getPriceHistory(
+  entityId: number,
+  timeRange: '1D' | '1W' | '1M' | 'ALL' = 'ALL',
+  limit: number = 100
+): Promise<PriceHistory[]> {
+  // Calculate cutoff time based on timeRange
+  const now = new Date();
+  let cutoffTime: Date;
+
+  switch (timeRange) {
+    case '1D':
+      cutoffTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      break;
+    case '1W':
+      cutoffTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case '1M':
+      cutoffTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    case 'ALL':
+    default:
+      cutoffTime = new Date(0); // Beginning of time
+      break;
+  }
+
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: TABLE_NAMES.PRICE_HISTORY,
+      KeyConditionExpression: 'entityId = :entityId',
+      FilterExpression: 'timestamp >= :cutoff',
+      ExpressionAttributeValues: {
+        ':entityId': entityId,
+        ':cutoff': cutoffTime.toISOString(),
+      },
+      ScanIndexForward: true, // Oldest first for chart display
+      Limit: limit,
+    })
+  );
+
+  return (result.Items || []) as PriceHistory[];
+}
+

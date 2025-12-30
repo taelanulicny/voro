@@ -3,6 +3,7 @@ import { authenticateRequest, createResponse, createErrorResponse } from '../mid
 import {
   createPost as createPostService,
   getFeed as getFeedService,
+  getEntityPosts as getEntityPostsService,
   toggleLikePost as toggleLikePostService,
   addComment as addCommentService,
   getComments as getCommentsService,
@@ -277,6 +278,35 @@ export async function toggleBookmarkPost(event: APIGatewayProxyEvent): Promise<A
     });
   } catch (error: any) {
     console.error('Error toggling bookmark:', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function getEntityPosts(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    // Extract entityId from path: /api/social/entities/:entityId/posts
+    const path = event.path || '';
+    const match = path.match(/\/api\/social\/entities\/(\d+)\/posts/);
+    const entityId = match ? parseInt(match[1], 10) : parseInt(event.pathParameters?.entityId || '0', 10);
+
+    if (!entityId || isNaN(entityId)) {
+      return createErrorResponse(400, 'Invalid entityId');
+    }
+
+    const limit = parseInt(event.queryStringParameters?.limit || '20', 10);
+    const offset = parseInt(event.queryStringParameters?.offset || '0', 10);
+
+    if (limit > 100) {
+      return createErrorResponse(400, 'Limit cannot exceed 100');
+    }
+
+    const result = await getEntityPostsService(entityId, limit, offset);
+
+    return createResponse(200, {
+      posts: result.posts,
+    });
+  } catch (error: any) {
+    console.error('Error getting entity posts:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
