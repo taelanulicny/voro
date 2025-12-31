@@ -485,6 +485,7 @@ export class MoroBackendStack extends cdk.Stack {
         S3_BUCKET_NAME: assetsBucket.bucketName,
         DYNAMODB_TABLE_PREFIX: tablePrefix,
         NEWS_API_KEY: process.env.NEWS_API_KEY || '', // Set via: export NEWS_API_KEY=your-key before deploy
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY || '', // Set via: export GEMINI_API_KEY=your-key before deploy
         JWT_SECRET: process.env.JWT_SECRET!, // REQUIRED: Set via export JWT_SECRET=$(openssl rand -hex 32) before deploy
         APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID || 'com.moro.mobile', // Apple bundle identifier (defaults to app.json value)
         NODE_ENV: 'production', // SECURITY: Ensure production mode to prevent stack trace leakage

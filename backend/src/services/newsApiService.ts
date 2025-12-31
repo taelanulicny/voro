@@ -9,6 +9,7 @@
 
 import { NewsArticle } from '../models/types';
 import { v4 as uuidv4 } from 'uuid';
+import { analyzeNewsWithGemini, convertGeminiSentiment, GeminiAnalysisResult, AVAILABLE_ENTITIES } from './geminiService';
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY;
 const NEWS_API_BASE_URL = 'https://newsapi.org/v2';
@@ -527,9 +528,132 @@ export async function fetchFromNewsAPI(options: {
     console.log(`NewsAPI returned ${data.articles.length} articles, filtering and matching...`);
 
     // Transform to our NewsArticle format with entity matching
-    const allArticles: NewsArticle[] = data.articles
-      .filter(a => a.title && a.title !== '[Removed]' && a.description)
-      .map(article => {
+    // Use Gemini API if available, otherwise fall back to keyword-based analysis
+    // Process articles sequentially to avoid overwhelming Gemini API and prevent timeouts
+    const filteredArticles = data.articles.filter(a => a.title && a.title !== '[Removed]' && a.description);
+    const allArticles: NewsArticle[] = [];
+    
+    // Process articles with Gemini (limit to first 10 to avoid rate limits)
+    // Can be disabled by setting DISABLE_GEMINI=true
+    const useGemini = process.env.GEMINI_API_KEY && process.env.DISABLE_GEMINI !== 'true';
+    const articlesToProcessWithGemini = useGemini 
+      ? filteredArticles.slice(0, 10) 
+      : [];
+    const articlesWithoutGemini = useGemini 
+      ? filteredArticles.slice(10) 
+      : filteredArticles;
+    
+    // Process with Gemini sequentially to avoid rate limits
+    for (const article of articlesToProcessWithGemini) {
+        const publishedAt = new Date(article.publishedAt);
+        
+        // Try Gemini analysis first (if API key is configured and not disabled)
+        // Use Promise.race with timeout to prevent hanging
+        let geminiAnalysis: GeminiAnalysisResult | null = null;
+        if (useGemini) {
+          try {
+            // Race between Gemini call and a timeout to prevent hanging
+            geminiAnalysis = await Promise.race([
+              analyzeNewsWithGemini({
+                title: article.title,
+                description: article.description || null,
+                content: article.content || null,
+                source: article.source?.name || 'Unknown',
+                publishedAt: article.publishedAt,
+              }),
+              new Promise<null>((resolve) => 
+                setTimeout(() => {
+                  console.warn(`[fetchFromNewsAPI] Gemini timeout for article "${article.title.substring(0, 50)}"`);
+                  resolve(null);
+                }, 6000) // 6 second timeout
+              ),
+            ]);
+          } catch (error) {
+            console.warn(`[fetchFromNewsAPI] Gemini analysis failed for article "${article.title.substring(0, 50)}":`, error);
+          }
+        }
+
+        // Use Gemini results if available, otherwise fall back to keyword-based analysis
+        let entityMatch = geminiAnalysis?.assignedEntities?.[0] 
+          ? {
+              entityId: geminiAnalysis.assignedEntities[0].entityId,
+              ticker: geminiAnalysis.assignedEntities[0].ticker,
+              name: geminiAnalysis.assignedEntities[0].name,
+              keywords: [],
+              category: AVAILABLE_ENTITIES.find(e => e.entityId === geminiAnalysis!.assignedEntities[0].entityId)?.category || 'General' as any,
+            }
+          : matchToEntities(article.title, article.description || '');
+        
+        // Use Gemini sentiment if available
+        const sentiment = geminiAnalysis
+          ? {
+              sentiment: convertGeminiSentiment(geminiAnalysis.sentiment),
+              score: geminiAnalysis.sentiment === 'bullish' 
+                ? 50 + (geminiAnalysis.priceImpact.tokensUp / 2)
+                : geminiAnalysis.sentiment === 'bearish'
+                ? -50 - (geminiAnalysis.priceImpact.tokensDown / 2)
+                : 0,
+              confidence: 0.9,
+              label: geminiAnalysis.sentiment === 'bullish' ? 'Bullish' : geminiAnalysis.sentiment === 'bearish' ? 'Bearish' : 'Neutral',
+            }
+          : analyzeSentiment(article.title, article.description || '');
+        
+        // Use Gemini breaking news detection if available
+        const isBreaking = geminiAnalysis?.isBreaking ?? isBreakingNews(article, publishedAt);
+        
+        // Calculate impact level based on price impact if Gemini analysis available
+        let impactLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
+        if (geminiAnalysis) {
+          const totalImpact = geminiAnalysis.priceImpact.tokensUp + geminiAnalysis.priceImpact.tokensDown;
+          if (totalImpact >= 50) {
+            impactLevel = isBreaking ? 'critical' : 'high';
+          } else if (totalImpact >= 20) {
+            impactLevel = 'high';
+          } else if (totalImpact >= 10) {
+            impactLevel = 'medium';
+          } else {
+            impactLevel = 'low';
+          }
+        } else {
+          impactLevel = determineImpactLevel(article, sentiment.score);
+        }
+        
+        const newsArticle: NewsArticle = {
+          articleId: uuidv4(),
+          title: article.title,
+          summary: article.description || article.title,
+          content: article.content || article.description || article.title,
+          source: article.source?.name || 'Unknown',
+          sourceUrl: article.url,
+          imageUrl: article.urlToImage || undefined,
+          author: article.author || undefined,
+          publishedAt: article.publishedAt,
+          category: categorizeArticle(article, entityMatch),
+          entityId: entityMatch?.entityId,
+          entityTicker: entityMatch?.ticker,
+          entityName: entityMatch?.name,
+          sentiment: sentiment.sentiment,
+          sentimentScore: sentiment.score,
+          impactLevel,
+          tags: extractTags(article.title, entityMatch),
+          viewCount: 0,
+          isBreaking,
+          createdAt: new Date().toISOString(),
+          // Store Gemini analysis results for price updates
+          ...(geminiAnalysis && {
+            geminiAnalysis: {
+              priceImpact: geminiAnalysis.priceImpact,
+              reasoning: geminiAnalysis.reasoning,
+            },
+          }),
+        };
+      
+      allArticles.push(newsArticle);
+    }
+    
+    // Process remaining articles without Gemini (faster, parallel)
+    const remainingArticles = await Promise.all(
+      articlesWithoutGemini.map((article) => {
         const publishedAt = new Date(article.publishedAt);
         const entityMatch = matchToEntities(article.title, article.description || '');
         const sentiment = analyzeSentiment(article.title, article.description || '');
@@ -556,7 +680,10 @@ export async function fetchFromNewsAPI(options: {
           isBreaking: isBreakingNews(article, publishedAt),
           createdAt: new Date().toISOString(),
         };
-      });
+      })
+    );
+    
+    allArticles.push(...remainingArticles);
 
     // Separate articles with and without entity matches
     const articlesWithEntities = allArticles.filter(a => a.entityTicker);

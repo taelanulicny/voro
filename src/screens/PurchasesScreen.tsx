@@ -204,7 +204,7 @@ export default function PurchasesScreen() {
         style={[
           styles.packageCard,
           {
-            backgroundColor: theme.cardBackground,
+            backgroundColor: theme.card,
             borderColor: theme.border,
           },
           isPurchasing && styles.packageCardDisabled,
@@ -222,14 +222,14 @@ export default function PurchasesScreen() {
         </View>
         <View style={styles.packageDetails}>
           <View style={styles.packageDetailRow}>
-            <Ionicons name="cash-outline" size={16} color={theme.secondaryText} />
-            <Text style={[styles.packageDetailText, { color: theme.secondaryText }]}>
+            <Ionicons name="cash-outline" size={16} color={theme.textSecondary} />
+            <Text style={[styles.packageDetailText, { color: theme.textSecondary }]}>
               {productConfig.cashAmount.toLocaleString()} tokens
             </Text>
           </View>
         </View>
         {isPurchasing && (
-          <View style={styles.purchasingOverlay}>
+          <View style={[styles.purchasingOverlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
             <ActivityIndicator size="small" color={theme.primary} />
             <Text style={[styles.purchasingText, { color: theme.text }]}>Processing...</Text>
           </View>
@@ -260,25 +260,25 @@ export default function PurchasesScreen() {
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loadingText, { color: theme.secondaryText }]}>
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
               Loading purchase options...
             </Text>
           </View>
         ) : offerings.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="card-outline" size={64} color={theme.secondaryText} />
+            <Ionicons name="card-outline" size={64} color={theme.textSecondary} />
             <Text style={[styles.emptyTitle, { color: theme.text }]}>
               No Purchase Options Available
             </Text>
-            <Text style={[styles.emptyText, { color: theme.secondaryText }]}>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
               Purchase options are not available at this time. Please check back later.
             </Text>
           </View>
         ) : (
           <>
-            <View style={styles.infoSection}>
+            <View style={[styles.infoSection, { backgroundColor: theme.backgroundSecondary }]}>
               <Ionicons name="information-circle-outline" size={20} color={theme.primary} />
-              <Text style={[styles.infoText, { color: theme.secondaryText }]}>
+              <Text style={[styles.infoText, { color: theme.textSecondary }]}>
                 Tokens are used to trade in the simulator. All purchases are processed securely through Apple/Google.
               </Text>
             </View>
@@ -356,7 +356,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
   infoText: {
     flex: 1,
@@ -409,7 +408,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',

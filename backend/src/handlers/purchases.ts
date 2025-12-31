@@ -1,12 +1,11 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { authenticateRequest } from '../middleware/auth';
+import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
 import {
   recordPurchaseTransaction,
   creditPurchaseToAccount,
   getUserPurchaseHistory,
 } from '../services/purchaseService';
 import { logger } from '../utils/logger';
-import { createSuccessResponse, createErrorResponse } from '../utils/response';
 
 /**
  * Process a purchase from RevenueCat/Apple
@@ -19,11 +18,11 @@ export async function processPurchaseHandler(
   try {
     // Authenticate request
     const authResult = await authenticateRequest(event);
-    if (!authResult.success || !authResult.userId) {
+    if (!authResult.authenticated || !authResult.event?.userId) {
       return createErrorResponse(401, 'Unauthorized');
     }
 
-    const userId = authResult.userId;
+    const userId = authResult.event.userId;
 
     if (!event.body) {
       return createErrorResponse(400, 'Request body is required');
@@ -55,7 +54,7 @@ export async function processPurchaseHandler(
 
     // If already processed, return success
     if (recordResult.alreadyProcessed) {
-      return createSuccessResponse({ message: 'Transaction already processed', transactionId });
+      return createResponse(200, { message: 'Transaction already processed', transactionId });
     }
 
     // Credit the purchase to user's account
@@ -67,7 +66,7 @@ export async function processPurchaseHandler(
 
     logger.info('Purchase processed successfully', { transactionId, userId, amount: creditResult.amount });
 
-    return createSuccessResponse({
+    return createResponse(200, {
       message: 'Purchase processed successfully',
       transactionId,
       amount: creditResult.amount,
@@ -88,11 +87,11 @@ export async function getPurchaseHistoryHandler(
   try {
     // Authenticate request
     const authResult = await authenticateRequest(event);
-    if (!authResult.success || !authResult.userId) {
+    if (!authResult.authenticated || !authResult.event?.userId) {
       return createErrorResponse(401, 'Unauthorized');
     }
 
-    const userId = authResult.userId;
+    const userId = authResult.event.userId;
 
     const limit = event.queryStringParameters?.limit
       ? parseInt(event.queryStringParameters.limit, 10)
@@ -104,7 +103,7 @@ export async function getPurchaseHistoryHandler(
       return createErrorResponse(500, `Failed to get purchase history: ${result.error}`);
     }
 
-    return createSuccessResponse({ purchases: result.purchases || [] });
+    return createResponse(200, { purchases: result.purchases || [] });
   } catch (error: any) {
     logger.error('Error getting purchase history', { error: error.message, event });
     return createErrorResponse(500, 'Internal server error');

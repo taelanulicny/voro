@@ -32,20 +32,12 @@ function setCachedResults(key: string, results: SearchResult[]): void {
   if (searchCache.size >= MAX_CACHE_SIZE) {
     // Remove oldest entry
     const oldestKey = searchCache.keys().next().value;
-    searchCache.delete(oldestKey);
+    if (oldestKey) {
+      searchCache.delete(oldestKey);
+    }
   }
   searchCache.set(key, { results, timestamp: Date.now() });
 }
-
-// Simple in-memory cache for search results (TTL: 5 minutes)
-interface CachedSearchResult {
-  results: SearchResult[];
-  timestamp: number;
-}
-
-const searchCache = new Map<string, CachedSearchResult>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 100; // Limit cache size
 
 export interface SearchResult {
   entity: Entity;
@@ -380,4 +372,5 @@ export async function getSearchSuggestions(query: string, limit: number = 10): P
     return [];
   }
 }
+
 

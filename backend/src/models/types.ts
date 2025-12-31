@@ -168,6 +168,14 @@ export interface NewsArticle {
   viewCount: number;
   isBreaking: boolean;
   createdAt: string;
+  // Optional Gemini AI analysis results
+  geminiAnalysis?: {
+    priceImpact: {
+      tokensUp: number;
+      tokensDown: number;
+    };
+    reasoning?: string;
+  };
 }
 
 export interface PriceHistory {

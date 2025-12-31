@@ -18,58 +18,80 @@ export async function getNews(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     logger.debug(`[getNews] Request params:`, { category, entityId, entityName, limit, source });
     logger.debug(`[getNews] NEWS_API_KEY configured: ${!!process.env.NEWS_API_KEY}`);
 
-    let articles;
+    let articles: any[] = [];
+    let errorMessage: string | undefined;
 
     // First try to fetch from NewsAPI if configured
-    if (source === 'newsapi') {
+    if (source === 'newsapi' && process.env.NEWS_API_KEY) {
       logger.debug('[getNews] Attempting to fetch from NewsAPI...');
       
-      if (entityName) {
-        // Fetch news for specific entity
-        logger.debug(`[getNews] Fetching news for entity: ${entityName}`);
-        articles = await fetchNewsForEntity(entityName, limit);
-      } else if (category) {
-        // Fetch by category
-        logger.debug(`[getNews] Fetching news by category: ${category}`);
-        articles = await fetchFromNewsAPI({ category, pageSize: limit });
-      } else {
-        // Fetch general news with entity-focused query (better than headlines for matching)
-        logger.debug('[getNews] Fetching general news with entity-focused query');
-        articles = await fetchFromNewsAPI({ pageSize: limit });
-      }
-
-      logger.debug(`[getNews] NewsAPI returned ${articles?.length || 0} articles`);
-
-      // If NewsAPI returned results, return them
-      if (articles && articles.length > 0) {
-        // Filter by sentiment if specified
-        if (sentiment) {
-          articles = articles.filter(a => a.sentiment === sentiment);
-          logger.debug(`[getNews] After sentiment filter: ${articles.length} articles`);
+      try {
+        if (entityName) {
+          // Fetch news for specific entity
+          logger.debug(`[getNews] Fetching news for entity: ${entityName}`);
+          articles = await fetchNewsForEntity(entityName, limit);
+        } else if (category) {
+          // Fetch by category
+          logger.debug(`[getNews] Fetching news by category: ${category}`);
+          articles = await fetchFromNewsAPI({ category, pageSize: limit });
+        } else {
+          // Fetch general news with entity-focused query (better than headlines for matching)
+          logger.debug('[getNews] Fetching general news with entity-focused query');
+          articles = await fetchFromNewsAPI({ pageSize: limit });
         }
 
-        return createResponse(200, {
-          success: true,
-          data: articles,
-          source: 'newsapi',
-        });
-      } else {
-        logger.debug('[getNews] NewsAPI returned 0 articles, falling back to cache');
+        logger.debug(`[getNews] NewsAPI returned ${articles?.length || 0} articles`);
+
+        // If NewsAPI returned results, return them
+        if (articles && articles.length > 0) {
+          // Filter by sentiment if specified
+          if (sentiment) {
+            articles = articles.filter(a => a.sentiment === sentiment);
+            logger.debug(`[getNews] After sentiment filter: ${articles.length} articles`);
+          }
+
+          return createResponse(200, {
+            success: true,
+            data: articles,
+            source: 'newsapi',
+          });
+        } else {
+          logger.debug('[getNews] NewsAPI returned 0 articles, falling back to cache');
+          errorMessage = 'NewsAPI returned no articles';
+        }
+      } catch (newsApiError: any) {
+        logger.error('[getNews] NewsAPI error:', newsApiError);
+        errorMessage = `NewsAPI error: ${newsApiError.message || 'Unknown error'}`;
+        // Continue to fallback
       }
+    } else if (source === 'newsapi' && !process.env.NEWS_API_KEY) {
+      logger.warn('[getNews] NEWS_API_KEY not configured, skipping NewsAPI fetch');
+      errorMessage = 'NewsAPI key not configured';
     }
 
     // Fallback to cached articles in DynamoDB
-    articles = await getNewsArticles({
-      category,
-      entityId,
-      sentiment,
-      limit,
-    });
+    logger.debug('[getNews] Fetching from cache...');
+    try {
+      articles = await getNewsArticles({
+        category,
+        entityId,
+        sentiment,
+        limit,
+      });
+      logger.debug(`[getNews] Cache returned ${articles?.length || 0} articles`);
+    } catch (cacheError: any) {
+      logger.error('[getNews] Cache error:', cacheError);
+      errorMessage = errorMessage 
+        ? `${errorMessage}; Cache error: ${cacheError.message || 'Unknown error'}`
+        : `Cache error: ${cacheError.message || 'Unknown error'}`;
+    }
 
+    // Always return a response, even if empty
     return createResponse(200, {
       success: true,
-      data: articles,
+      data: articles || [],
       source: 'cache',
+      ...(errorMessage && { warning: errorMessage }),
     });
   } catch (error: any) {
     logger.error('Error getting news', error);

@@ -64,12 +64,18 @@ export function sanitizeForLogging(data: any): any {
       }
     }
     
-    return {
+    const result: any = {
       name: data.name,
       message,
       stack,
-      ...(data.cause && { cause: sanitizeForLogging(data.cause) }),
     };
+    
+    // Handle Error.cause if available (ES2022+)
+    if ('cause' in data && data.cause) {
+      result.cause = sanitizeForLogging(data.cause as any);
+    }
+    
+    return result;
   }
 
   // If it's an object or array, stringify, redact, then parse back

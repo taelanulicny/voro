@@ -15,9 +15,7 @@ import { logger } from '../utils/logger';
 // Zod schema for trade execution validation
 const ExecuteTradeSchema = z.object({
   entityId: z.number().int().positive('Entity ID must be a positive integer'),
-  type: z.enum(['buy', 'sell'], {
-    errorMap: () => ({ message: 'Type must be either "buy" or "sell"' }),
-  }),
+  type: z.enum(['buy', 'sell']),
   quantity: z.number().positive('Quantity must be greater than 0').max(1000000, 'Quantity cannot exceed 1,000,000'),
   pricePerToken: z.number().positive('Price per token must be greater than 0').max(10000, 'Price per token cannot exceed 10,000'),
   idempotencyKey: z.string().optional(),
@@ -61,7 +59,7 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
     const parseResult = ExecuteTradeSchema.safeParse(body);
     if (!parseResult.success) {
       // Format Zod validation errors into user-friendly message
-      const errorMessages = parseResult.error.errors.map(err => {
+      const errorMessages = parseResult.error.issues.map(err => {
         const path = err.path.join('.');
         return path ? `${path}: ${err.message}` : err.message;
       }).join('; ');
