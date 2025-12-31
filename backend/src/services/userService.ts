@@ -119,3 +119,82 @@ export async function getAvatarUrl(key: string): Promise<string | null> {
   }
 }
 
+export async function updateUserPreferences(
+  userId: string,
+  preferences: {
+    privacySettings?: {
+      profileVisibility?: 'public' | 'private';
+      showPortfolioValue?: boolean;
+      allowDataSharing?: boolean;
+    };
+    notificationSettings?: {
+      pushNotifications?: boolean;
+      priceAlerts?: boolean;
+      tradingAlerts?: boolean;
+      socialNotifications?: boolean;
+    };
+    tradingPreferences?: {
+      requireConfirmation?: boolean;
+      showTradePreview?: boolean;
+      enableSlippageWarning?: boolean;
+    };
+  }
+): Promise<{ success: boolean; user?: User; error?: string }> {
+  try {
+    const now = new Date().toISOString();
+    const updateExpressions: string[] = [];
+    const expressionAttributeValues: Record<string, any> = { ':ua': now };
+
+    // Get current user to merge preferences
+    const currentUser = await getUserProfile(userId);
+    if (!currentUser) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Merge privacy settings
+    if (preferences.privacySettings) {
+      const currentPrivacy = currentUser.privacySettings || {};
+      const mergedPrivacy = { ...currentPrivacy, ...preferences.privacySettings };
+      updateExpressions.push('privacySettings = :privacySettings');
+      expressionAttributeValues[':privacySettings'] = mergedPrivacy;
+    }
+
+    // Merge notification settings
+    if (preferences.notificationSettings) {
+      const currentNotifications = currentUser.notificationSettings || {};
+      const mergedNotifications = { ...currentNotifications, ...preferences.notificationSettings };
+      updateExpressions.push('notificationSettings = :notificationSettings');
+      expressionAttributeValues[':notificationSettings'] = mergedNotifications;
+    }
+
+    // Merge trading preferences
+    if (preferences.tradingPreferences) {
+      const currentTrading = currentUser.tradingPreferences || {};
+      const mergedTrading = { ...currentTrading, ...preferences.tradingPreferences };
+      updateExpressions.push('tradingPreferences = :tradingPreferences');
+      expressionAttributeValues[':tradingPreferences'] = mergedTrading;
+    }
+
+    if (updateExpressions.length === 0) {
+      return { success: false, error: 'No preferences provided' };
+    }
+
+    updateExpressions.push('updatedAt = :ua');
+
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.USERS,
+        Key: { userId },
+        UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+        ExpressionAttributeValues: expressionAttributeValues,
+      })
+    );
+
+    const updatedUser = await getUserProfile(userId);
+    return { success: true, user: updatedUser || undefined };
+  } catch (error: any) {
+    console.error('Error updating user preferences:', error);
+    return { success: false, error: error.message || 'Failed to update preferences' };
+  }
+}
+

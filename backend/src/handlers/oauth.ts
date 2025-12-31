@@ -231,6 +231,12 @@ async function createOrUpdateOAuthUser(
     joinedDate: now,
     createdAt: now,
     updatedAt: now,
+    // Default privacy settings - portfolio value is private by default
+    privacySettings: {
+      profileVisibility: 'public',
+      showPortfolioValue: false,
+      allowDataSharing: false,
+    },
     ...(provider === 'google' && { googleId: providerId }),
     ...(provider === 'apple' && { appleId: providerId }),
   };

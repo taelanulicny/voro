@@ -17,6 +17,23 @@ export interface User {
   privacyPolicyAccepted?: boolean;
   privacyPolicyAcceptedAt?: string;
   onboardingCompleted?: boolean;
+  // User preferences
+  privacySettings?: {
+    profileVisibility?: 'public' | 'private';
+    showPortfolioValue?: boolean;
+    allowDataSharing?: boolean;
+  };
+  notificationSettings?: {
+    pushNotifications?: boolean;
+    priceAlerts?: boolean;
+    tradingAlerts?: boolean;
+    socialNotifications?: boolean;
+  };
+  tradingPreferences?: {
+    requireConfirmation?: boolean;
+    showTradePreview?: boolean;
+    enableSlippageWarning?: boolean;
+  };
   // OAuth provider IDs
   googleId?: string;
   appleId?: string;

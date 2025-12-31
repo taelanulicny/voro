@@ -18,6 +18,10 @@ export type RootStackParamList = {
   DiscoverNewAdditions: undefined;
   AccountValue: undefined;
   EditProfile: undefined;
+  PrivacySettings: undefined;
+  BlockedUsers: undefined;
+  TradingHistory: undefined;
+  TradingPreferences: undefined;
 };
 
 export type MainTabParamList = {

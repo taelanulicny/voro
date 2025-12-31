@@ -37,6 +37,10 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import DiscoverNewAdditionsScreen from './src/screens/DiscoverNewAdditionsScreen';
 import AccountValueScreen from './src/screens/AccountValueScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import PrivacySettingsScreen from './src/screens/PrivacySettingsScreen';
+import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
+import TradingHistoryScreen from './src/screens/TradingHistoryScreen';
+import TradingPreferencesScreen from './src/screens/TradingPreferencesScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
 
 import { RootStackParamList } from './src/types';
@@ -196,8 +200,9 @@ function RootNavigator() {
           <Stack.Screen 
             name="EditProfile" 
             options={{
-              presentation: 'card',
-              animation: 'slide_from_right',
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
             }}
           >
             {() => (
@@ -216,6 +221,62 @@ function RootNavigator() {
             {() => (
               <ErrorBoundary>
                 <UserProfileScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="PrivacySettings" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <PrivacySettingsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="BlockedUsers" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <BlockedUsersScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="TradingHistory" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <TradingHistoryScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="TradingPreferences" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <TradingPreferencesScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>

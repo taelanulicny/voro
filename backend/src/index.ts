@@ -203,11 +203,35 @@ export const handler = async (
     if (path.includes('/profile') && method === 'PUT') {
       return userHandlers.updateProfileHandler(event);
     }
+    if (path.includes('/preferences') && method === 'PUT') {
+      return userHandlers.updatePreferencesHandler(event);
+    }
     if (path.includes('/avatar/upload-url') && method === 'GET') {
       return userHandlers.getAvatarUploadUrlHandler(event);
     }
     if (path.includes('/account') && method === 'DELETE') {
       return accountHandlers.deleteAccount(event);
+    }
+    // Blocked users endpoints
+    if (path.includes('/blocked')) {
+      const blockedUserIdMatch = path.match(/\/api\/user\/blocked\/([^/]+)$/);
+      if (blockedUserIdMatch && method === 'DELETE') {
+        const blockedUserId = blockedUserIdMatch[1];
+        event.pathParameters = event.pathParameters || {};
+        event.pathParameters.userId = blockedUserId;
+        return accountHandlers.unblockUser(event);
+      }
+      if (method === 'GET') {
+        return accountHandlers.getBlockedUsers(event);
+      }
+    }
+    // Block user endpoint
+    const blockUserMatch = path.match(/\/api\/user\/block\/([^/]+)$/);
+    if (blockUserMatch && method === 'POST') {
+      const blockedUserId = blockUserMatch[1];
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.userId = blockedUserId;
+      return accountHandlers.blockUser(event);
     }
     if (method === 'GET') {
       return userHandlers.getUserProfileHandler(event);

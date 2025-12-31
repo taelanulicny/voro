@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,23 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
+import { RootStackParamList } from '../types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
-  const navigation = useNavigation();
-  const { user, logout } = useAuth();
+  const navigation = useNavigation<NavigationProp>();
+  const { user, logout, token } = useAuth();
   const { theme, themeMode, isDark, setThemeMode } = useTheme();
   const { resetPortfolio } = useTrading();
 
@@ -26,6 +32,110 @@ export default function SettingsScreen() {
   const [priceAlerts, setPriceAlerts] = useState(true);
   const [tradingAlerts, setTradingAlerts] = useState(true);
   const [socialNotifications, setSocialNotifications] = useState(true);
+
+  // Load notification settings from backend
+  useEffect(() => {
+    const loadNotificationSettings = async () => {
+      // Early return if no user or token
+      if (!user) {
+        return;
+      }
+
+      if (!isBackendConfigured() || !token) {
+        // Fallback to AsyncStorage if backend not available
+        try {
+          const saved = await AsyncStorage.getItem('notificationSettings');
+          if (saved) {
+            const settings = JSON.parse(saved);
+            setPushNotifications(settings.pushNotifications ?? true);
+            setPriceAlerts(settings.priceAlerts ?? true);
+            setTradingAlerts(settings.tradingAlerts ?? true);
+            setSocialNotifications(settings.socialNotifications ?? true);
+          }
+        } catch (error) {
+          console.error('Error loading notification settings:', error);
+        }
+        return;
+      }
+
+      try {
+        // Load from backend using /api/auth/me endpoint
+        const response = await authenticatedRequest<{ data: any }>(
+          '/api/auth/me',
+          token,
+          { method: 'GET' }
+        );
+
+        if (response.success && response.data?.notificationSettings) {
+          const settings = response.data.notificationSettings;
+          setPushNotifications(settings.pushNotifications ?? true);
+          setPriceAlerts(settings.priceAlerts ?? true);
+          setTradingAlerts(settings.tradingAlerts ?? true);
+          setSocialNotifications(settings.socialNotifications ?? true);
+        } else {
+          // Fallback to defaults
+          setPushNotifications(true);
+          setPriceAlerts(true);
+          setTradingAlerts(true);
+          setSocialNotifications(true);
+        }
+      } catch (error) {
+        console.error('Error loading notification settings from backend:', error);
+        // Fallback to AsyncStorage
+        try {
+          const saved = await AsyncStorage.getItem('notificationSettings');
+          if (saved) {
+            const settings = JSON.parse(saved);
+            setPushNotifications(settings.pushNotifications ?? true);
+            setPriceAlerts(settings.priceAlerts ?? true);
+            setTradingAlerts(settings.tradingAlerts ?? true);
+            setSocialNotifications(settings.socialNotifications ?? true);
+          }
+        } catch (e) {
+          console.error('Error loading from AsyncStorage:', e);
+        }
+      }
+    };
+    
+    loadNotificationSettings();
+  }, [user, token]);
+
+  // Save notification settings to backend
+  const saveNotificationSettings = async (settings: {
+    pushNotifications?: boolean;
+    priceAlerts?: boolean;
+    tradingAlerts?: boolean;
+    socialNotifications?: boolean;
+  }) => {
+    // Save to AsyncStorage as cache
+    try {
+      const current = await AsyncStorage.getItem('notificationSettings');
+      const currentSettings = current ? JSON.parse(current) : {};
+      const updated = { ...currentSettings, ...settings };
+      await AsyncStorage.setItem('notificationSettings', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving to AsyncStorage:', error);
+    }
+
+    // Save to backend if available
+    if (isBackendConfigured() && token && user) {
+      try {
+        await authenticatedRequest(
+          '/api/user/preferences',
+          token,
+          {
+            method: 'PUT',
+            body: JSON.stringify({
+              notificationSettings: settings,
+            }),
+          }
+        );
+      } catch (error) {
+        console.error('Error saving notification settings to backend:', error);
+        // Settings are still saved to AsyncStorage, so they'll persist locally
+      }
+    }
+  };
 
   const handleThemeChange = (mode: 'light' | 'dark' | 'auto') => {
     setThemeMode(mode);
@@ -113,7 +223,10 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>ACCOUNT</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => navigation.navigate('EditProfile')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="person-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -124,7 +237,16 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => {
+              Alert.alert(
+                'Security Settings',
+                'Security features like password change and 2FA will be available in a future update.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-checkmark-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -135,7 +257,12 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => {
+              Linking.openURL('mailto:team@moro.support?subject=Support Request');
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -241,7 +368,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={pushNotifications}
-              onValueChange={setPushNotifications}
+              onValueChange={(value) => {
+                setPushNotifications(value);
+                saveNotificationSettings({ pushNotifications: value });
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
             />
@@ -257,7 +387,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={priceAlerts}
-              onValueChange={setPriceAlerts}
+              onValueChange={(value) => {
+                setPriceAlerts(value);
+                saveNotificationSettings({ priceAlerts: value });
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
               disabled={!pushNotifications}
@@ -274,7 +407,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={tradingAlerts}
-              onValueChange={setTradingAlerts}
+              onValueChange={(value) => {
+                setTradingAlerts(value);
+                saveNotificationSettings({ tradingAlerts: value });
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
               disabled={!pushNotifications}
@@ -291,7 +427,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={socialNotifications}
-              onValueChange={setSocialNotifications}
+              onValueChange={(value) => {
+                setSocialNotifications(value);
+                saveNotificationSettings({ socialNotifications: value });
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
               disabled={!pushNotifications}
@@ -303,7 +442,10 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>PRIVACY & SAFETY</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => navigation.navigate('PrivacySettings')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -314,7 +456,10 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => navigation.navigate('BlockedUsers')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="eye-off-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -330,7 +475,10 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>TRADING</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => navigation.navigate('TradingHistory')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -341,7 +489,10 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => navigation.navigate('TradingPreferences')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="settings-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -373,7 +524,16 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>SUPPORT</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => {
+              Alert.alert(
+                'Help Center',
+                'Help documentation will be available soon. For now, please contact support.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle-outline" size={20} color={theme.textSecondary} />
               <Text style={dynamicStyles.menuItemText}>Help Center</Text>
@@ -381,7 +541,12 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => {
+              Linking.openURL('mailto:team@moro.support?subject=Support Request');
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="chatbox-ellipses-outline" size={20} color={theme.textSecondary} />
               <Text style={dynamicStyles.menuItemText}>Contact Support</Text>
@@ -389,15 +554,33 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => {
+              Alert.alert(
+                'Terms & Privacy Policy',
+                'Terms and Privacy Policy will be available on our website soon.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="document-text-outline" size={20} color={theme.textSecondary} />
               <Text style={dynamicStyles.menuItemText}>Terms & Privacy Policy</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
-
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => {
+              Alert.alert(
+                'About Moro',
+                'Moro - Social Trading Platform\nVersion 1.0.2\n\nTrade confidence in people, companies, and ideas.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>

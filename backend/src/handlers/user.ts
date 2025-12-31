@@ -4,6 +4,7 @@ import {
   getUserProfile,
   updateUserProfile,
   generateAvatarUploadUrl,
+  updateUserPreferences,
 } from '../services/userService';
 import { logger } from '../utils/logger';
 
@@ -132,6 +133,38 @@ export async function getAvatarUploadUrlHandler(event: APIGatewayProxyEvent): Pr
     });
   } catch (error: unknown) {
     logger.error('Error generating upload URL', error);
+    return createErrorResponse(500, 'Internal server error');
+  }
+}
+
+export async function updatePreferencesHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const userId = auth.event.userId!;
+    const body = JSON.parse(event.body || '{}');
+
+    const { privacySettings, notificationSettings, tradingPreferences } = body;
+
+    const result = await updateUserPreferences(userId, {
+      privacySettings,
+      notificationSettings,
+      tradingPreferences,
+    });
+
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to update preferences');
+    }
+
+    return createResponse(200, {
+      success: true,
+      user: result.user,
+    });
+  } catch (error: unknown) {
+    logger.error('Error updating preferences', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }

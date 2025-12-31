@@ -60,6 +60,12 @@ export async function signup(
       joinedDate: now,
       createdAt: now,
       updatedAt: now,
+      // Default privacy settings - portfolio value is private by default
+      privacySettings: {
+        profileVisibility: 'public',
+        showPortfolioValue: false,
+        allowDataSharing: false,
+      },
     };
 
     await docClient.send(

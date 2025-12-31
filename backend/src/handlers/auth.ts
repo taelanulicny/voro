@@ -123,6 +123,9 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
         followingCount: user.followingCount,
         portfolioValue: user.portfolioValue,
         joinedDate: user.joinedDate,
+        privacySettings: user.privacySettings,
+        notificationSettings: user.notificationSettings,
+        tradingPreferences: user.tradingPreferences,
       },
     });
   } catch (error: any) {

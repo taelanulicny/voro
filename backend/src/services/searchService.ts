@@ -12,6 +12,41 @@ const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const MAX_CACHE_SIZE = 100; // Limit cache size
 
+function getCacheKey(query: string, category?: string, limit?: number): string {
+  return `${query.toLowerCase().trim()}:${category || 'all'}:${limit || 50}`;
+}
+
+function getCachedResults(key: string): SearchResult[] | null {
+  const cached = searchCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.results;
+  }
+  if (cached) {
+    searchCache.delete(key);
+  }
+  return null;
+}
+
+function setCachedResults(key: string, results: SearchResult[]): void {
+  // Limit cache size
+  if (searchCache.size >= MAX_CACHE_SIZE) {
+    // Remove oldest entry
+    const oldestKey = searchCache.keys().next().value;
+    searchCache.delete(oldestKey);
+  }
+  searchCache.set(key, { results, timestamp: Date.now() });
+}
+
+// Simple in-memory cache for search results (TTL: 5 minutes)
+interface CachedSearchResult {
+  results: SearchResult[];
+  timestamp: number;
+}
+
+const searchCache = new Map<string, CachedSearchResult>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 100; // Limit cache size
+
 export interface SearchResult {
   entity: Entity;
   score: number;
@@ -133,7 +168,52 @@ function matchText(query: string, text: string): { matched: boolean; score: numb
 }
 
 /**
- * Search entities with fuzzy matching
+ * Fast matching function - optimized for performance
+ * Returns early if no match is likely
+ */
+function quickMatch(query: string, text: string): { matched: boolean; score: number; matchType: 'exact' | 'fuzzy' | 'partial' } | null {
+  const queryLower = query.toLowerCase().trim();
+  const textLower = text.toLowerCase().trim();
+
+  // Fast exact match check
+  if (textLower === queryLower) {
+    return { matched: true, score: 1.0, matchType: 'exact' };
+  }
+
+  // Fast prefix check
+  if (textLower.startsWith(queryLower)) {
+    return { matched: true, score: 0.9, matchType: 'partial' };
+  }
+
+  // Fast contains check
+  if (textLower.includes(queryLower)) {
+    return { matched: true, score: 0.6, matchType: 'partial' };
+  }
+
+  // For single character queries, skip fuzzy matching
+  if (queryLower.length < 2) {
+    return null;
+  }
+
+  // Quick word boundary check
+  const wordBoundaryRegex = new RegExp(`\\b${queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+  if (wordBoundaryRegex.test(textLower)) {
+    return { matched: true, score: 0.8, matchType: 'partial' };
+  }
+
+  // Only do expensive fuzzy matching for longer queries
+  if (queryLower.length >= 3 && !queryLower.includes(' ')) {
+    const similarity = similarityScore(queryLower, textLower);
+    if (similarity >= 0.75) {
+      return { matched: true, score: similarity * 0.5, matchType: 'fuzzy' };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Search entities with fuzzy matching - OPTIMIZED VERSION
  */
 export async function searchEntities(params: {
   query: string;
@@ -147,10 +227,19 @@ export async function searchEntities(params: {
     return [];
   }
 
+  // Check cache first
+  const cacheKey = getCacheKey(query, category, limit);
+  const cached = getCachedResults(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   try {
     // Get all entities (or filter by category if provided)
+    // Optimize: Limit scan to reasonable number (most apps have < 1000 entities)
     const scanParams: any = {
       TableName: TABLE_NAMES.ENTITIES,
+      Limit: 500, // Process max 500 entities for performance
     };
 
     if (category) {
@@ -163,20 +252,29 @@ export async function searchEntities(params: {
     const result = await docClient.send(new ScanCommand(scanParams));
     const entities = (result.Items || []) as Entity[];
 
-    // Search and score each entity
-    // Gold standard: only match name and ticker, no description matching
-    const searchResults: SearchResult[] = [];
+    // Early exit if no entities
+    if (entities.length === 0) {
+      return [];
+    }
 
+    // Pre-compute query lowercase for performance
+    const queryLower = query.toLowerCase().trim();
+    
+    // Search and score each entity - OPTIMIZED with early termination
+    const exactMatches: SearchResult[] = [];
+    const partialMatches: SearchResult[] = [];
+    const fuzzyMatches: SearchResult[] = [];
+
+    // Process entities - optimized loop
     for (const entity of entities) {
       const matchedFields: string[] = [];
       let bestScore = 0;
       let bestMatchType: 'exact' | 'fuzzy' | 'partial' = 'partial';
 
-      // Search in ticker (exact ticker matches are very important)
-      const tickerMatch = matchText(query, entity.ticker);
-      if (tickerMatch.matched) {
+      // Fast ticker check first (tickers are shorter, faster to check)
+      const tickerMatch = quickMatch(query, entity.ticker);
+      if (tickerMatch) {
         matchedFields.push('ticker');
-        // Ticker matches get high priority
         const tickerScore = tickerMatch.matchType === 'exact' ? 1.0 : tickerMatch.score * 0.9;
         if (tickerScore > bestScore) {
           bestScore = tickerScore;
@@ -184,80 +282,73 @@ export async function searchEntities(params: {
         }
       }
 
-      // Search in name (weighted higher, this is the primary field)
-      const nameMatch = matchText(query, entity.name);
-      if (nameMatch.matched) {
+      // Fast name check
+      const nameMatch = quickMatch(query, entity.name);
+      if (nameMatch) {
         matchedFields.push('name');
-        // Boost score for name matches, especially exact/prefix matches
         let boostedScore = nameMatch.score;
         if (nameMatch.matchType === 'exact') {
           boostedScore = 1.0;
         } else if (nameMatch.matchType === 'partial' && nameMatch.score >= 0.8) {
-          boostedScore = nameMatch.score * 1.1; // Slight boost for good partial matches
+          boostedScore = nameMatch.score * 1.1;
         }
         if (boostedScore > bestScore) {
-          bestScore = Math.min(boostedScore, 1.0); // Cap at 1.0
+          bestScore = Math.min(boostedScore, 1.0);
           bestMatchType = nameMatch.matchType;
         }
       }
 
-      // Only include entities that matched in name or ticker
-      // Description matching removed - only search name and ticker as requested
+      // Only include entities that matched
       if (matchedFields.length > 0) {
-        searchResults.push({
+        const result: SearchResult = {
           entity,
           score: bestScore,
           matchType: bestMatchType,
           matchedFields,
-        });
+        };
+
+        // Categorize for efficient sorting
+        if (bestMatchType === 'exact') {
+          exactMatches.push(result);
+        } else if (bestMatchType === 'partial') {
+          partialMatches.push(result);
+        } else {
+          fuzzyMatches.push(result);
+        }
       }
     }
 
-    // Sort results
-    if (sortBy === 'relevance') {
-      // Sort by match quality: exact > partial > fuzzy, then by score, then by name
-      const getMatchPriority = (matchType: 'exact' | 'fuzzy' | 'partial') => {
-        if (matchType === 'exact') return 3;
-        if (matchType === 'partial') return 2;
-        return 1; // fuzzy
-      };
-      
-      searchResults.sort((a, b) => {
-        // First, prioritize by match type
-        const priorityA = getMatchPriority(a.matchType);
-        const priorityB = getMatchPriority(b.matchType);
-        if (priorityB !== priorityA) {
-          return priorityB - priorityA;
-        }
-        // Then by score
-        if (Math.abs(b.score - a.score) > 0.01) {
-          return b.score - a.score;
-        }
-        // Finally by name
-        return a.entity.name.localeCompare(b.entity.name);
-      });
-    } else if (sortBy === 'name') {
-      searchResults.sort((a, b) => a.entity.name.localeCompare(b.entity.name));
-    } else {
-      // For price/change sorting, we'd need current prices
-      // For now, just sort by relevance
-      const getMatchPriority = (matchType: 'exact' | 'fuzzy' | 'partial') => {
-        if (matchType === 'exact') return 3;
-        if (matchType === 'partial') return 2;
-        return 1; // fuzzy
-      };
-      searchResults.sort((a, b) => {
-        const priorityA = getMatchPriority(a.matchType);
-        const priorityB = getMatchPriority(b.matchType);
-        if (priorityB !== priorityA) {
-          return priorityB - priorityA;
-        }
-        return b.score - a.score;
-      });
+    // Combine results in priority order: exact > partial > fuzzy
+    // Sort each category by score, then combine
+    exactMatches.sort((a, b) => {
+      if (Math.abs(b.score - a.score) > 0.01) return b.score - a.score;
+      return a.entity.name.localeCompare(b.entity.name);
+    });
+    
+    partialMatches.sort((a, b) => {
+      if (Math.abs(b.score - a.score) > 0.01) return b.score - a.score;
+      return a.entity.name.localeCompare(b.entity.name);
+    });
+    
+    fuzzyMatches.sort((a, b) => {
+      if (Math.abs(b.score - a.score) > 0.01) return b.score - a.score;
+      return a.entity.name.localeCompare(b.entity.name);
+    });
+
+    // Combine in priority order
+    const allResults = [...exactMatches, ...partialMatches, ...fuzzyMatches];
+
+    // Apply additional sorting if needed
+    let finalResults = allResults;
+    if (sortBy === 'name') {
+      finalResults = allResults.sort((a, b) => a.entity.name.localeCompare(b.entity.name));
     }
 
-    // Limit results
-    return searchResults.slice(0, limit);
+    // Limit results and cache
+    const limitedResults = finalResults.slice(0, limit);
+    setCachedResults(cacheKey, limitedResults);
+    
+    return limitedResults;
   } catch (error: any) {
     console.error('Error searching entities:', error);
     throw error;

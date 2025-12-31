@@ -34,7 +34,7 @@ function ProfileScreen() {
   const { theme } = useTheme();
   const { portfolio } = useTrading();
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [accountValueVisible, setAccountValueVisible] = useState(true);
+  const [accountValueVisible, setAccountValueVisible] = useState(false);
   const [profileData, setProfileData] = useState<{
     followersCount: number;
     followingCount: number;
@@ -105,9 +105,14 @@ function ProfileScreen() {
         const saved = await AsyncStorage.getItem('accountValueVisible');
         if (saved !== null) {
           setAccountValueVisible(JSON.parse(saved));
+        } else {
+          // Default to false (private) if not set
+          setAccountValueVisible(false);
         }
       } catch (error) {
         console.error('Error loading account value visibility:', error);
+        // Default to false on error
+        setAccountValueVisible(false);
       }
     };
     loadVisibilityPreference();
