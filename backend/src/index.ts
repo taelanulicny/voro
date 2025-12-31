@@ -318,19 +318,20 @@ export const handler = async (
 
   if (path.includes('/api/categories')) {
     // Check for category posts endpoint first (before other category routes)
-    // Match patterns like /api/categories/Influencers/posts or /api/categories/Music%20Artists/posts
-    const categoryPostsMatch = path.match(/\/api\/categories\/([^/]+)\/posts$/);
+    // Match patterns like /api/categories/Influencers/posts or /dev/api/categories/Music%20Artists/posts
+    const categoryPostsMatch = path.match(/\/(?:[^/]+\/)?api\/categories\/([^/]+)\/posts\/?$/);
     if (categoryPostsMatch && method === 'GET') {
-      logger.debug('[Router] Matched category posts endpoint', { path, categoryId: categoryPostsMatch[1] });
+      const categoryId = decodeURIComponent(categoryPostsMatch[1]);
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.categoryId = categoryId;
+      logger.debug('[Router] Matched category posts endpoint', { path, categoryId, method, rawPath: event.path });
       return categoryHandlers.getCategoryPostsHandler(event);
     }
-    // Check for category entities endpoint: /api/categories/:categoryId/entities or /api/categories/:categoryId
-    const categoryEntitiesMatch = path.match(/\/api\/categories\/([^/]+)(?:\/entities)?$/);
-    if (categoryEntitiesMatch && method === 'GET' && !path.includes('/volumes') && !path.includes('/trending') && !path.includes('/movers') && !path.includes('/discussed') && !path.includes('/discover') && !path.includes('/for-you')) {
-      logger.debug('[Router] Matched category entities endpoint', { path, categoryId: categoryEntitiesMatch[1] });
-      return categoryHandlers.getCategoryEntitiesHandler(event);
-    }
-    if (path.includes('/volumes') && method === 'GET') {
+    // Check for specific category endpoints BEFORE generic category entities
+    // These need to be checked first to avoid conflicts with category entity routes
+    const volumesMatch = path.match(/\/(?:[^/]+\/)?api\/categories\/volumes\/?$/);
+    if (volumesMatch && method === 'GET') {
+      logger.debug('[Router] Matched category volumes endpoint', { path, method, rawPath: event.path });
       return categoryHandlers.getCategoryVolumesHandler(event);
     }
     if (path.includes('/trending') && method === 'GET') {
@@ -347,6 +348,16 @@ export const handler = async (
     }
     if (path.includes('/for-you') && method === 'GET') {
       return categoryHandlers.getForYouHandler(event);
+    }
+    // Check for category entities endpoint: /api/categories/:categoryId/entities or /api/categories/:categoryId
+    // This should be last to avoid matching the specific endpoints above
+    const categoryEntitiesMatch = path.match(/\/(?:[^/]+\/)?api\/categories\/([^/]+)(?:\/entities)?\/?$/);
+    if (categoryEntitiesMatch && method === 'GET') {
+      const categoryId = decodeURIComponent(categoryEntitiesMatch[1]);
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.categoryId = categoryId;
+      logger.debug('[Router] Matched category entities endpoint', { path, categoryId, method, rawPath: event.path });
+      return categoryHandlers.getCategoryEntitiesHandler(event);
     }
   }
 
