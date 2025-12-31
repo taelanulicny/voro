@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { useScreenshotProtection } from '../utils/security';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -23,6 +24,9 @@ function PortfolioScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<'holdings' | 'history'>('holdings');
   const [refreshing, setRefreshing] = useState(false);
+  
+  // SECURITY: Enable screenshot protection for sensitive financial data
+  const { BlurOverlay } = useScreenshotProtection(true);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -39,6 +43,7 @@ function PortfolioScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]}>
+      {BlurOverlay}
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
         showsVerticalScrollIndicator={false}

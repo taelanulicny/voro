@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
 import { getLeaderboard, getUserRank } from '../services/leaderboardService';
+import { logger } from '../utils/logger';
 
 export async function getLeaderboardHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -31,7 +32,7 @@ export async function getLeaderboardHandler(event: APIGatewayProxyEvent): Promis
       totalUsers: leaderboard.length,
     });
   } catch (error: any) {
-    console.error('Error getting leaderboard:', error);
+    logger.error('Error getting leaderboard', error);
     return createErrorResponse(500, error.message || 'Failed to get leaderboard');
   }
 }

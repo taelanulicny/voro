@@ -3,6 +3,7 @@ import { authenticateRequest, createResponse, createErrorResponse } from '../mid
 import { CognitoIdentityProviderClient, AdminDeleteUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { DeleteCommand, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { logger } from '../utils/logger';
 
 const cognitoClient = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -44,7 +45,7 @@ export async function deleteAccount(event: APIGatewayProxyEvent): Promise<APIGat
       message: 'Account deleted successfully',
     });
   } catch (error: any) {
-    console.error('Error deleting account:', error);
+    logger.error('Error deleting account', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -82,7 +83,7 @@ export async function blockUser(event: APIGatewayProxyEvent): Promise<APIGateway
       success: true,
     });
   } catch (error: any) {
-    console.error('Error blocking user:', error);
+    logger.error('Error blocking user', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -122,7 +123,7 @@ export async function reportUser(event: APIGatewayProxyEvent): Promise<APIGatewa
       message: 'Report submitted successfully',
     });
   } catch (error: any) {
-    console.error('Error reporting user:', error);
+    logger.error('Error reporting user', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

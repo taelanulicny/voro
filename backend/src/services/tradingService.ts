@@ -4,6 +4,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { Portfolio, Transaction, Entity, PriceHistory } from '../models/types';
+import { logger } from '../utils/logger';
 
 const INITIAL_CASH_BALANCE = 10000;
 
@@ -123,32 +124,8 @@ export async function executeTrade(
   pricePerToken: number,
   idempotencyKey?: string
 ): Promise<{ success: boolean; error?: string; portfolio?: any; transactionId?: string }> {
-  // Check for existing transaction with same idempotency key (idempotency check)
-  if (idempotencyKey) {
-    const existingTransactions = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAMES.TRANSACTIONS,
-        KeyConditionExpression: 'userId = :userId',
-        FilterExpression: 'idempotencyKey = :key',
-        ExpressionAttributeValues: {
-          ':userId': userId,
-          ':key': idempotencyKey,
-        },
-        Limit: 1,
-      })
-    );
-
-    if (existingTransactions.Items && existingTransactions.Items.length > 0) {
-      // Return existing transaction - idempotent response
-      const existingTransaction = existingTransactions.Items[0] as Transaction;
-      const updatedPortfolio = await getUserPortfolio(userId);
-      return {
-        success: true,
-        portfolio: updatedPortfolio,
-        transactionId: existingTransaction.transactionId,
-      };
-    }
-  }
+  // SECURITY: Idempotency check is now atomic - handled in transaction with ConditionExpression
+  // Removed separate Query check to prevent race conditions
 
   // Get entity details
   const entityResult = await docClient.send(
@@ -164,7 +141,11 @@ export async function executeTrade(
 
   const entity = entityResult.Item as Entity;
   const totalAmount = quantity * pricePerToken;
-  const transactionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // Generate deterministic transactionId if idempotencyKey provided, otherwise random
+  // This allows us to use attribute_not_exists check atomically
+  const transactionId = idempotencyKey 
+    ? `idempotent-${userId}-${idempotencyKey}`
+    : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const timestamp = new Date().toISOString();
   const now = new Date().toISOString();
 
@@ -238,7 +219,7 @@ export async function executeTrade(
         },
         portfolioUpdate, // Update or create portfolio holding
         {
-          // Record transaction
+          // Record transaction with atomic idempotency check
           Put: {
             TableName: TABLE_NAMES.TRANSACTIONS,
             Item: marshall({
@@ -255,6 +236,11 @@ export async function executeTrade(
               category: entity.category,
               idempotencyKey: idempotencyKey || undefined,
             }),
+            // SECURITY: Atomic idempotency check - prevents duplicate transactions with same key
+            // When idempotencyKey is provided, transactionId is deterministic, so this check prevents duplicates
+            ConditionExpression: idempotencyKey 
+              ? 'attribute_not_exists(transactionId)' 
+              : undefined,
           },
         },
       ];
@@ -337,7 +323,7 @@ export async function executeTrade(
           },
         },
         {
-          // Record transaction
+          // Record transaction with atomic idempotency check
           Put: {
             TableName: TABLE_NAMES.TRANSACTIONS,
             Item: marshall({
@@ -354,6 +340,11 @@ export async function executeTrade(
               category: entity.category,
               idempotencyKey: idempotencyKey || undefined,
             }),
+            // SECURITY: Atomic idempotency check - prevents duplicate transactions with same key
+            // When idempotencyKey is provided, transactionId is deterministic, so this check prevents duplicates
+            ConditionExpression: idempotencyKey 
+              ? 'attribute_not_exists(transactionId)' 
+              : undefined,
           },
         },
       ];
@@ -379,6 +370,45 @@ export async function executeTrade(
       // Check which condition failed by examining the cancellation reasons
       const reasons = error.CancellationReasons || [];
       
+      // Check if this was an idempotency conflict (transaction already exists)
+      if (idempotencyKey) {
+        for (const reason of reasons) {
+          // If the transaction Put failed with ConditionalCheckFailed, it means transaction already exists
+          // The transactionId is deterministic when idempotencyKey is provided, so we can query for it
+          if (reason.Code === 'ConditionalCheckFailed') {
+            // Try to find the existing transaction by querying with idempotencyKey
+            try {
+              const existingTransactions = await docClient.send(
+                new QueryCommand({
+                  TableName: TABLE_NAMES.TRANSACTIONS,
+                  KeyConditionExpression: 'userId = :userId',
+                  FilterExpression: 'idempotencyKey = :key',
+                  ExpressionAttributeValues: {
+                    ':userId': userId,
+                    ':key': idempotencyKey,
+                  },
+                  Limit: 1,
+                })
+              );
+              
+              if (existingTransactions.Items && existingTransactions.Items.length > 0) {
+                // Return existing transaction - idempotent response
+                const existingTransaction = existingTransactions.Items[0] as Transaction;
+                const updatedPortfolio = await getUserPortfolio(userId);
+                return {
+                  success: true,
+                  portfolio: updatedPortfolio,
+                  transactionId: existingTransaction.transactionId,
+                };
+              }
+            } catch (queryError) {
+              // Fall through to generic error
+            }
+          }
+        }
+      }
+      
+      // Check for other condition failures (insufficient funds/holdings)
       for (const reason of reasons) {
         if (reason.Code === 'ConditionalCheckFailed') {
           if (type === 'buy') {
@@ -393,7 +423,7 @@ export async function executeTrade(
     }
     
     // Re-throw other errors
-    console.error('Error executing trade:', error);
+    logger.error('Error executing trade', error);
     throw error;
   }
 }

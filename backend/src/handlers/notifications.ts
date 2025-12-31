@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createResponse, createErrorResponse, authenticateRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 import {
   getUserNotifications,
   getUnreadCount,
@@ -41,9 +42,7 @@ export async function getNotificationsHandler(event: APIGatewayProxyEvent): Prom
       lastEvaluatedKey: result.lastEvaluatedKey,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting notifications:', errorMessage, errorDetails);
+    logger.error('Error getting notifications', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -66,9 +65,7 @@ export async function getUnreadCountHandler(event: APIGatewayProxyEvent): Promis
       count,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting unread count:', errorMessage, errorDetails);
+    logger.error('Error getting unread count', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -96,9 +93,7 @@ export async function markAsReadHandler(event: APIGatewayProxyEvent): Promise<AP
       success: true,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error marking notification as read:', errorMessage, errorDetails);
+    logger.error('Error marking notification as read', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -120,9 +115,7 @@ export async function markAllAsReadHandler(event: APIGatewayProxyEvent): Promise
       success: true,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error marking all as read:', errorMessage, errorDetails);
+    logger.error('Error marking all as read', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -150,9 +143,7 @@ export async function deleteNotificationHandler(event: APIGatewayProxyEvent): Pr
       success: true,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error deleting notification:', errorMessage, errorDetails);
+    logger.error('Error deleting notification', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -174,9 +165,7 @@ export async function deleteAllNotificationsHandler(event: APIGatewayProxyEvent)
       success: true,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error deleting all notifications:', errorMessage, errorDetails);
+    logger.error('Error deleting all notifications', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }

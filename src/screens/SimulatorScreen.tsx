@@ -18,6 +18,7 @@ import { RootStackParamList, Holding, UserTransaction } from '../types';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import TradeModal from '../components/TradeModal';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { useScreenshotProtection } from '../utils/security';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -42,6 +43,9 @@ export default function SimulatorScreen() {
   const { portfolio: realPortfolio, getEntityPrice } = useTrading();
   const navigation = useNavigation<NavigationProp>();
   const [refreshing, setRefreshing] = useState(false);
+  
+  // SECURITY: Enable screenshot protection for sensitive trading/financial data
+  const { BlurOverlay } = useScreenshotProtection(true);
 
   // Simulator portfolio state
   const [simulatorCashBalance, setSimulatorCashBalance] = useState(SIMULATOR_STARTING_BALANCE);
@@ -235,6 +239,7 @@ export default function SimulatorScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+      {BlurOverlay}
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View>
           <Text style={[styles.title, { color: theme.text }]}>Paper Trading</Text>

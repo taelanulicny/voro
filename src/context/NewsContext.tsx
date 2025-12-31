@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { NewsArticle, NewsFilter } from '../types';
 import { apiRequest, isBackendConfigured } from '../config/api';
-import { NewsArticleArraySchema, safeValidate, validateArrayLoose } from '../validators';
+import { NewsArticleSchema, safeValidate, validateArrayLoose } from '../validators';
 import { isValidEntityId } from '../utils/idValidation';
 
 interface NewsContextType {
@@ -218,8 +218,10 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         
         if (articlesArray.length > 0) {
           // Validate news articles array - ensure we pass an array
-          const validatedArticles = validateArrayLoose(NewsArticleArraySchema, articlesArray);
-          if (validatedArticles && validatedArticles.length > 0) {
+          // Note: validateArrayLoose expects a schema for a single item, not an array schema
+          const validatedArticles = validateArrayLoose(NewsArticleSchema, articlesArray);
+          // Ensure validatedArticles is an array before using it
+          if (Array.isArray(validatedArticles) && validatedArticles.length > 0) {
             // Articles are already validated and transformed by schema (id normalized)
             setNews(validatedArticles);
           } else {
@@ -319,8 +321,10 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         
         if (articlesArray.length > 0) {
           // Validate news articles array - ensure we pass an array
-          const validatedArticles = validateArrayLoose(NewsArticleArraySchema, articlesArray);
-          if (validatedArticles && validatedArticles.length > 0) {
+          // Note: validateArrayLoose expects a schema for a single item, not an array schema
+          const validatedArticles = validateArrayLoose(NewsArticleSchema, articlesArray);
+          // Ensure validatedArticles is an array before mapping
+          if (Array.isArray(validatedArticles) && validatedArticles.length > 0) {
             // Articles are already validated and transformed by schema
             // Ensure entityId/entityName match the requested entity
             const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({

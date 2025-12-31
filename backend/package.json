@@ -19,6 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.490.0",
+    "@aws-sdk/client-comprehend": "^3.958.0",
     "@aws-sdk/client-dynamodb": "^3.490.0",
     "@aws-sdk/client-s3": "^3.490.0",
     "@aws-sdk/lib-dynamodb": "^3.490.0",
@@ -29,7 +30,8 @@
     "aws-sdk": "^2.1500.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.1.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.130",
@@ -44,4 +46,3 @@
     "typescript": "^5.3.3"
   }
 }
-

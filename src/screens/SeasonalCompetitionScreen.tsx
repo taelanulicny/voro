@@ -13,18 +13,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest, authenticatedRequest } from '../config/api';
-import { LeaderboardEntry } from '../types';
+import { LeaderboardEntry, RootStackParamList } from '../types';
 
 type Timeframe = 'daily' | 'weekly' | 'monthly' | 'alltime';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function SeasonalCompetitionScreen() {
   const { theme } = useTheme();
   const { user, token, isAuthenticated } = useAuth();
+  const navigation = useNavigation<NavigationProp>();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('alltime');
   const [isLoading, setIsLoading] = useState(true);
@@ -111,8 +116,12 @@ export default function SeasonalCompetitionScreen() {
     const isCurrentUser = user && item.userId === user.id;
     const isTopThree = item.rank <= 3;
 
+    const handlePress = () => {
+      navigation.navigate('UserProfile', { userId: item.userId });
+    };
+
     return (
-      <View
+      <TouchableOpacity
         style={[
           styles.leaderboardItem,
           {
@@ -121,6 +130,8 @@ export default function SeasonalCompetitionScreen() {
           },
           isCurrentUser && styles.currentUserItem,
         ]}
+        onPress={handlePress}
+        activeOpacity={0.7}
       >
         <View style={styles.rankContainer}>
           {renderRankBadge(item.rank)}
@@ -163,7 +174,7 @@ export default function SeasonalCompetitionScreen() {
             </Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

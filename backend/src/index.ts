@@ -2,6 +2,7 @@
 // Routes requests to appropriate handlers based on the function name or path
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import { logger } from './utils/logger';
 import * as authHandlers from './handlers/auth';
 import * as oauthHandlers from './handlers/oauth';
 import * as tradingHandlers from './handlers/trading';
@@ -25,7 +26,7 @@ export const handler = async (
   
   // Debug logging for troubleshooting
   if (path.includes('search')) {
-    console.log('[Router] Search request - Path:', path, 'Method:', method, 'Query:', event.queryStringParameters);
+    logger.debug('[Router] Search request', { path, method, query: event.queryStringParameters });
   }
 
   // Route based on path
@@ -117,11 +118,11 @@ export const handler = async (
   if (isSearchPath) {
     const isSuggestions = path.includes('/suggestions') || path.endsWith('/suggestions');
     if (isSuggestions && method === 'GET') {
-      console.log('[Router] Routing to searchSuggestionsHandler');
+      logger.debug('[Router] Routing to searchSuggestionsHandler');
       return searchHandlers.searchSuggestionsHandler(event);
     }
     if (method === 'GET') {
-      console.log('[Router] Routing to searchHandler');
+      logger.debug('[Router] Routing to searchHandler');
       return searchHandlers.searchHandler(event);
     }
   }
@@ -201,7 +202,7 @@ export const handler = async (
     }
     // POST to /api/groups - create group (check exact path match)
     if (method === 'POST' && (normalizedPath === '/api/groups')) {
-      console.log('[Router] Routing POST /api/groups to createGroupHandler');
+      logger.debug('[Router] Routing POST /api/groups to createGroupHandler');
       return groupHandlers.createGroupHandler(event);
     }
     if (method === 'GET') {
@@ -249,8 +250,8 @@ export const handler = async (
   }
 
   // Default 404 - log for debugging
-  console.log('[Router] 404 - Path not matched:', path, 'Method:', method);
-  console.log('[Router] Available routes include: /api/auth, /api/trade, /api/portfolio, /api/entities, /api/search, /api/social, /api/user, /api/news, /api/watchlist, /api/groups, /api/categories');
+  logger.debug('[Router] 404 - Path not matched', { path, method });
+  logger.debug('[Router] Available routes include: /api/auth, /api/trade, /api/portfolio, /api/entities, /api/search, /api/social, /api/user, /api/news, /api/watchlist, /api/groups, /api/categories');
   
   return {
     statusCode: 404,

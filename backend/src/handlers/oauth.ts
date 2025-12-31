@@ -6,6 +6,7 @@ import { User } from '../models/types';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import jwksClient from 'jwks-rsa';
+import { logger } from '../utils/logger';
 
 const INITIAL_CASH_BALANCE = 10000;
 
@@ -55,7 +56,7 @@ async function verifyGoogleToken(idToken: string): Promise<GoogleTokenPayload | 
     const decoded = jwt.decode(idToken, { complete: true }) as jwt.JwtPayload | null;
     
     if (!decoded || typeof decoded === 'string' || !decoded.header || !decoded.header.kid) {
-      console.error('Invalid Google token format');
+      logger.error('Invalid Google token format');
       return null;
     }
 
@@ -73,7 +74,7 @@ async function verifyGoogleToken(idToken: string): Promise<GoogleTokenPayload | 
 
     return payload;
   } catch (error) {
-    console.error('Error verifying Google token:', error);
+    logger.error('Error verifying Google token', error);
     return null;
   }
 }
@@ -100,7 +101,7 @@ async function verifyAppleToken(identityToken: string): Promise<AppleTokenPayloa
     const decoded = jwt.decode(identityToken, { complete: true }) as jwt.JwtPayload | null;
     
     if (!decoded || typeof decoded === 'string' || !decoded.header || !decoded.header.kid) {
-      console.error('Invalid Apple token format');
+      logger.error('Invalid Apple token format');
       return null;
     }
 
@@ -117,7 +118,7 @@ async function verifyAppleToken(identityToken: string): Promise<AppleTokenPayloa
 
     return payload;
   } catch (error) {
-    console.error('Error verifying Apple token:', error);
+    logger.error('Error verifying Apple token', error);
     return null;
   }
 }
@@ -143,7 +144,7 @@ async function findUserByProviderId(providerId: string, provider: 'google' | 'ap
     // For now, return null - we'll create users if they don't exist
     return null;
   } catch (error) {
-    console.error('Error finding user by provider ID:', error);
+    logger.error('Error finding user by provider ID', error);
     return null;
   }
 }
@@ -172,7 +173,7 @@ async function findUserByEmail(email: string): Promise<User | null> {
     return null;
   } catch (error) {
     // GSI might not exist, try scanning
-    console.log('Email index not found, user might not exist');
+    logger.info('Email index not found, user might not exist');
     return null;
   }
 }
@@ -295,7 +296,7 @@ export async function googleLogin(event: APIGatewayProxyEvent): Promise<APIGatew
       googleId = payload.sub;
     } else {
       // If no ID token provided, require email for fallback (less secure)
-      console.warn('Google login without ID token - using email fallback (less secure)');
+      logger.warn('Google login without ID token - using email fallback (less secure)');
     }
 
     if (!userEmail) {
@@ -338,7 +339,7 @@ export async function googleLogin(event: APIGatewayProxyEvent): Promise<APIGatew
       },
     });
   } catch (error: any) {
-    console.error('Error in Google login:', error);
+    logger.error('Error in Google login', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -369,7 +370,7 @@ export async function appleLogin(event: APIGatewayProxyEvent): Promise<APIGatewa
       appleId = payload.sub;
     } else {
       // If no identity token provided, require email/providerId for fallback (less secure)
-      console.warn('Apple login without identity token - using email fallback (less secure)');
+      logger.warn('Apple login without identity token - using email fallback (less secure)');
     }
 
     if (!userEmail) {
@@ -417,7 +418,7 @@ export async function appleLogin(event: APIGatewayProxyEvent): Promise<APIGatewa
       },
     });
   } catch (error: any) {
-    console.error('Error in Apple login:', error);
+    logger.error('Error in Apple login', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

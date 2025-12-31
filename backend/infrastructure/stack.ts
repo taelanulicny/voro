@@ -7,6 +7,10 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as kms from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 
 export class MoroBackendStack extends cdk.Stack {
@@ -29,6 +33,13 @@ export class MoroBackendStack extends cdk.Stack {
       userPoolName: `${tablePrefix}-user-pool`,
       signInAliases: {
         email: true,
+      },
+      // Enable optional MFA (TOTP) for enhanced security
+      mfa: cognito.Mfa.OPTIONAL,
+      mfaSecondFactor: {
+        otp: true,  // TOTP apps (Google Authenticator, Authy, etc.)
+        sms: false, // SMS MFA disabled (costs money, less secure than TOTP)
+      },
         username: true,
       },
       selfSignUpEnabled: true, // Allow users to sign up themselves
@@ -77,6 +88,7 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
     });
 
     const entitiesTable = new dynamodb.Table(this, 'EntitiesTable', {
@@ -84,6 +96,9 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'entityId', type: dynamodb.AttributeType.NUMBER },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const portfoliosTable = new dynamodb.Table(this, 'PortfoliosTable', {
@@ -92,6 +107,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'entityId', type: dynamodb.AttributeType.NUMBER },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const transactionsTable = new dynamodb.Table(this, 'TransactionsTable', {
@@ -100,6 +118,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'timestamp', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
     transactionsTable.addGlobalSecondaryIndex({
       indexName: 'entityId-timestamp-index',
@@ -112,6 +133,9 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'postId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
     postsTable.addGlobalSecondaryIndex({
       indexName: 'userId-timestamp-index',
@@ -129,6 +153,9 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'commentId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
     commentsTable.addGlobalSecondaryIndex({
       indexName: 'postId-timestamp-index',
@@ -142,6 +169,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'followingUserId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const likesTable = new dynamodb.Table(this, 'LikesTable', {
@@ -149,6 +179,9 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'likeId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
     likesTable.addGlobalSecondaryIndex({
       indexName: 'postId-userId-index',
@@ -162,6 +195,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'entityId', type: dynamodb.AttributeType.NUMBER },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const newsArticlesTable = new dynamodb.Table(this, 'NewsArticlesTable', {
@@ -169,6 +205,9 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'articleId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
     newsArticlesTable.addGlobalSecondaryIndex({
       indexName: 'entityId-publishedAt-index',
@@ -182,6 +221,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'timestamp', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const blocksTable = new dynamodb.Table(this, 'BlocksTable', {
@@ -190,6 +232,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'blockedUserId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const reportsTable = new dynamodb.Table(this, 'ReportsTable', {
@@ -197,6 +242,9 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'reportId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const groupsTable = new dynamodb.Table(this, 'GroupsTable', {
@@ -204,6 +252,9 @@ export class MoroBackendStack extends cdk.Stack {
       partitionKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
 
     const groupMembersTable = new dynamodb.Table(this, 'GroupMembersTable', {
@@ -212,6 +263,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
     groupMembersTable.addGlobalSecondaryIndex({
       indexName: 'userId-groupId-index',
@@ -226,6 +280,9 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'notificationId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
     });
     // GSI for querying by read status and creation time
     notificationsTable.addGlobalSecondaryIndex({
@@ -255,6 +312,9 @@ export class MoroBackendStack extends cdk.Stack {
     userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, preSignUpLambda);
 
     // Lambda execution role for API handlers
+    // NOTE: Currently using a single role for all handlers due to single Lambda architecture
+    // For better security, consider splitting into separate Lambda functions per domain
+    // with domain-specific roles (authRole, tradingRole, socialRole, etc.)
     const lambdaRole = new iam.Role(this, 'LambdaExecutionRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [
@@ -262,7 +322,88 @@ export class MoroBackendStack extends cdk.Stack {
       ],
     });
 
-    // Grant permissions
+    // Create separate IAM roles per domain for future use (when splitting Lambdas)
+    // These roles are created but not currently used due to single Lambda limitation
+    const authRole = new iam.Role(this, 'AuthRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    usersTable.grantReadWriteData(authRole);
+    userPool.grant(authRole, 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDeleteUser');
+
+    const tradingRole = new iam.Role(this, 'TradingRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    usersTable.grantReadWriteData(tradingRole); // Need to read/update cash balance
+    portfoliosTable.grantReadWriteData(tradingRole);
+    transactionsTable.grantReadWriteData(tradingRole);
+    entitiesTable.grantReadData(tradingRole);
+    priceHistoryTable.grantReadWriteData(tradingRole);
+
+    const socialRole = new iam.Role(this, 'SocialRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    usersTable.grantReadData(socialRole); // Need to read user profiles
+    postsTable.grantReadWriteData(socialRole);
+    commentsTable.grantReadWriteData(socialRole);
+    likesTable.grantReadWriteData(socialRole);
+    followsTable.grantReadWriteData(socialRole);
+    blocksTable.grantReadWriteData(socialRole);
+    reportsTable.grantReadWriteData(socialRole);
+    assetsBucket.grantReadWrite(socialRole); // For post images
+
+    const userRole = new iam.Role(this, 'UserRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    usersTable.grantReadData(userRole);
+    watchlistsTable.grantReadWriteData(userRole);
+    notificationsTable.grantReadWriteData(userRole);
+    assetsBucket.grantReadWrite(userRole); // For avatars
+
+    const contentRole = new iam.Role(this, 'ContentRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+    newsArticlesTable.grantReadWriteData(contentRole);
+    groupsTable.grantReadWriteData(contentRole);
+    groupMembersTable.grantReadWriteData(contentRole);
+    entitiesTable.grantReadData(contentRole); // For entity references
+
+    // Grant Comprehend permissions to socialRole (for content moderation)
+    socialRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['comprehend:DetectToxicContent'],
+      resources: ['*'],
+    }));
+
+    // Grant KMS permissions for DynamoDB encryption to all roles
+    dynamoDbEncryptionKey.grantDecrypt(lambdaRole);
+    dynamoDbEncryptionKey.grantEncrypt(lambdaRole);
+    dynamoDbEncryptionKey.grantDecrypt(authRole);
+    dynamoDbEncryptionKey.grantEncrypt(authRole);
+    dynamoDbEncryptionKey.grantDecrypt(tradingRole);
+    dynamoDbEncryptionKey.grantEncrypt(tradingRole);
+    dynamoDbEncryptionKey.grantDecrypt(socialRole);
+    dynamoDbEncryptionKey.grantEncrypt(socialRole);
+    dynamoDbEncryptionKey.grantDecrypt(userRole);
+    dynamoDbEncryptionKey.grantEncrypt(userRole);
+    dynamoDbEncryptionKey.grantDecrypt(contentRole);
+    dynamoDbEncryptionKey.grantEncrypt(contentRole);
+
+    // Grant permissions to main lambdaRole (currently used by single Lambda)
     usersTable.grantReadWriteData(lambdaRole);
     entitiesTable.grantReadWriteData(lambdaRole);
     portfoliosTable.grantReadWriteData(lambdaRole);
@@ -281,6 +422,15 @@ export class MoroBackendStack extends cdk.Stack {
     notificationsTable.grantReadWriteData(lambdaRole);
     assetsBucket.grantReadWrite(lambdaRole);
     userPool.grant(lambdaRole, 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDeleteUser');
+    
+    // Grant Comprehend permissions for content moderation
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'comprehend:DetectToxicContent',
+      ],
+      resources: ['*'], // Comprehend doesn't support resource-level permissions
+    }));
 
     // Single Lambda function that handles all API requests
     // The handler routes to appropriate functions based on the path
@@ -314,6 +464,7 @@ export class MoroBackendStack extends cdk.Stack {
         NEWS_API_KEY: process.env.NEWS_API_KEY || '', // Set via: export NEWS_API_KEY=your-key before deploy
         JWT_SECRET: process.env.JWT_SECRET!, // REQUIRED: Set via export JWT_SECRET=$(openssl rand -hex 32) before deploy
         APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID || 'com.moro.mobile', // Apple bundle identifier (defaults to app.json value)
+        NODE_ENV: 'production', // SECURITY: Ensure production mode to prevent stack trace leakage
       },
     });
 
@@ -327,6 +478,7 @@ export class MoroBackendStack extends cdk.Stack {
         ENTITIES_TABLE: entitiesTable.tableName,
         PRICE_HISTORY_TABLE: priceHistoryTable.tableName,
         DYNAMODB_TABLE_PREFIX: tablePrefix,
+        NODE_ENV: 'production', // SECURITY: Ensure production mode to prevent stack trace leakage
       },
       timeout: cdk.Duration.minutes(5),
     });
@@ -400,6 +552,58 @@ export class MoroBackendStack extends cdk.Stack {
       stage: api.deploymentStage,
     });
 
+    // CloudWatch Alarms for monitoring
+    // Create SNS topic for alert notifications
+    const alertTopic = new sns.Topic(this, 'AlertTopic', {
+      topicName: `${tablePrefix}-alerts`,
+      displayName: 'Moro Backend Alerts',
+    });
+
+    // Alarm for high 5xx errors
+    const high5xxErrorsAlarm = new cloudwatch.Alarm(this, 'High5xxErrors', {
+      alarmName: `${tablePrefix}-high-5xx-errors`,
+      metric: api.metricServerError({
+        statistic: 'Sum',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 10,
+      evaluationPeriods: 2,
+      datapointsToAlarm: 2,
+      alarmDescription: 'High rate of 5xx server errors detected',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    high5xxErrorsAlarm.addAlarmAction(new cloudwatch_actions.SnsAction(alertTopic));
+
+    // Alarm for high latency (p99)
+    const highLatencyAlarm = new cloudwatch.Alarm(this, 'HighLatency', {
+      alarmName: `${tablePrefix}-high-latency`,
+      metric: api.metricLatency({
+        statistic: 'p99',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 5000, // 5 seconds
+      evaluationPeriods: 2,
+      datapointsToAlarm: 2,
+      alarmDescription: 'High API latency detected (p99 > 5s)',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    highLatencyAlarm.addAlarmAction(new cloudwatch_actions.SnsAction(alertTopic));
+
+    // Alarm for high 4xx errors (client errors - may indicate issues)
+    const high4xxErrorsAlarm = new cloudwatch.Alarm(this, 'High4xxErrors', {
+      alarmName: `${tablePrefix}-high-4xx-errors`,
+      metric: api.metricClientError({
+        statistic: 'Sum',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 100, // 100 client errors in 5 minutes
+      evaluationPeriods: 2,
+      datapointsToAlarm: 2,
+      alarmDescription: 'High rate of 4xx client errors detected',
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    high4xxErrorsAlarm.addAlarmAction(new cloudwatch_actions.SnsAction(alertTopic));
+
     // Outputs
     new cdk.CfnOutput(this, 'UserPoolId', {
       value: userPool.userPoolId,
@@ -426,6 +630,12 @@ export class MoroBackendStack extends cdk.Stack {
       value: apiKey.keyId,
       exportName: `${tablePrefix}-ApiKeyId`,
       description: 'API Key ID - retrieve the key value from AWS Console or CLI after deployment',
+    });
+
+    new cdk.CfnOutput(this, 'AlertTopicArn', {
+      value: alertTopic.topicArn,
+      exportName: `${tablePrefix}-AlertTopicArn`,
+      description: 'SNS Topic ARN for CloudWatch alarms - subscribe email in AWS Console',
     });
   }
 }

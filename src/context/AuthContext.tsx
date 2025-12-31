@@ -318,8 +318,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const getToken = useCallback(() => token, [token]);
 
   // DEV ONLY - Skip authentication for development
+  // SECURITY: Double-check to ensure this is never available in production
   const skipAuth = async () => {
-    if (!__DEV__) {
+    if (!__DEV__ || process.env.NODE_ENV === 'production') {
       throw new Error('skipAuth() is only available in development mode');
     }
     

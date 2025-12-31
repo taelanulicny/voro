@@ -4,9 +4,23 @@
  * The app can work in two modes:
  * 1. With backend: Set EXPO_PUBLIC_API_URL=https://your-api.com in .env file
  * 2. Standalone: Works without backend using local/mock data
+ * 
+ * SECURITY: Certificate Pinning
+ * - Certificate pinning requires custom development client (see SECURITY_FEATURES_IMPLEMENTATION.md)
+ * - Current security: API Gateway enforces HTTPS/TLS (good protection)
+ * - Certificate pinning adds defense-in-depth against sophisticated MITM attacks
+ * - When enabled, uses react-native-ssl-pinning for all API requests
  */
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+// Try to import SSL pinning (will be undefined in managed workflow)
+let sslPinningFetch: any;
+try {
+  sslPinningFetch = require('react-native-ssl-pinning').fetch;
+} catch (e) {
+  // Native module not available (managed workflow)
+}
 
 // Check if backend is configured (optional - app works without it)
 export const isBackendConfigured = () => {
@@ -243,14 +257,62 @@ export async function apiRequest<T = any>(
   const shouldDeduplicate = retryConfig?.deduplicate !== false;
 
   const makeRequest = async (): Promise<ApiResponse<T>> => {
-    // Create AbortController for timeout (React Native compatible)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
-
     try {
       const url = `${API_CONFIG.baseURL}${endpoint}`;
       
-      const response = await fetch(url, {
+      // Use certificate pinning if available (custom dev client)
+      const usePinning = sslPinningFetch && !__DEV__ && process.env.EXPO_PUBLIC_ENABLE_SSL_PINNING === 'true';
+      
+      let response: Response;
+      
+      if (usePinning) {
+        // Use SSL pinning fetch (requires react-native-ssl-pinning)
+        const { getCertificatePinningConfig } = await import('../utils/security');
+        const pinConfig = getCertificatePinningConfig();
+        
+        if (!pinConfig.enabled || !pinConfig.pins || pinConfig.pins.length === 0) {
+          console.warn('SSL pinning requested but not configured, falling back to regular fetch');
+        } else {
+          try {
+            // react-native-ssl-pinning uses different API
+            const sslResponse = await sslPinningFetch(url, {
+              method: options.method || 'GET',
+              headers: {
+                ...API_CONFIG.headers,
+                ...(options.headers as Record<string, string>),
+              },
+              body: options.body ? JSON.stringify(options.body) : undefined,
+              sslPinning: {
+                certs: pinConfig.pins,
+              },
+              timeoutInterval: API_CONFIG.timeout,
+            });
+            
+            // sslPinningFetch returns data directly, not a Response object
+            const data = typeof sslResponse === 'string' ? JSON.parse(sslResponse) : sslResponse;
+            return {
+              success: true,
+              data,
+            };
+          } catch (pinError: any) {
+            // Handle pinning failures - in production, you might want to block
+            if (pinError.message?.includes('SSL') || pinError.message?.includes('certificate') || pinError.message?.includes('pinning')) {
+              console.error('Certificate pinning validation failed:', pinError);
+              return {
+                success: false,
+                error: 'Certificate validation failed - possible MITM attack',
+              };
+            }
+            throw pinError;
+          }
+        }
+      }
+      
+      // Regular fetch (managed workflow or development)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+      
+      response = await fetch(url, {
         ...options,
         headers: {
           ...API_CONFIG.headers,

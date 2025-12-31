@@ -2,11 +2,12 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createResponse, createErrorResponse } from '../middleware/auth';
 import { searchEntities, getSearchSuggestions } from '../services/searchService';
 import { getAllEntityPrices } from '../services/tradingService';
+import { logger } from '../utils/logger';
 
 export async function searchHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    console.log('[Search Handler] Path:', event.path, 'Method:', event.httpMethod);
-    console.log('[Search Handler] Query Params:', event.queryStringParameters);
+    logger.debug('[Search Handler] Path:', { path: event.path, method: event.httpMethod });
+    logger.debug('[Search Handler] Query Params:', event.queryStringParameters);
     
     const queryParams = event.queryStringParameters || {};
     const query = queryParams.q || queryParams.query || '';
@@ -72,7 +73,7 @@ export async function searchHandler(event: APIGatewayProxyEvent): Promise<APIGat
       query: query.trim(),
     });
   } catch (error: any) {
-    console.error('Error in search handler:', error);
+    logger.error('Error in search handler', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -97,7 +98,7 @@ export async function searchSuggestionsHandler(event: APIGatewayProxyEvent): Pro
       data: suggestions,
     });
   } catch (error: any) {
-    console.error('Error in search suggestions handler:', error);
+    logger.error('Error in search suggestions handler', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

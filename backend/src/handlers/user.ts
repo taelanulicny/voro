@@ -5,6 +5,7 @@ import {
   updateUserProfile,
   generateAvatarUploadUrl,
 } from '../services/userService';
+import { logger } from '../utils/logger';
 
 export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -33,7 +34,7 @@ export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promis
       success: true,
       data: {
         id: user.userId,
-        email: user.email,
+        // SECURITY: Email removed from public profile to prevent PII exposure
         username: user.username,
         displayName: user.displayName,
         avatarUrl,
@@ -45,9 +46,7 @@ export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promis
       },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting user profile:', errorMessage, errorDetails);
+    logger.error('Error getting user profile', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -95,9 +94,7 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
       },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error updating profile:', errorMessage, errorDetails);
+    logger.error('Error updating profile', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -134,9 +131,7 @@ export async function getAvatarUploadUrlHandler(event: APIGatewayProxyEvent): Pr
       },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error generating upload URL:', errorMessage, errorDetails);
+    logger.error('Error generating upload URL', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }

@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
 import { signup as signupService, login as loginService, refreshToken as refreshTokenService, getUserById } from '../services/authService';
+import { logger } from '../utils/logger';
 
 export async function signup(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -25,7 +26,7 @@ export async function signup(event: APIGatewayProxyEvent): Promise<APIGatewayPro
       },
     });
   } catch (error: any) {
-    console.error('Error in signup handler:', error);
+    logger.error('Error in signup handler', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -54,7 +55,7 @@ export async function login(event: APIGatewayProxyEvent): Promise<APIGatewayProx
       },
     });
   } catch (error: any) {
-    console.error('Error in login handler:', error);
+    logger.error('Error in login handler', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -81,7 +82,7 @@ export async function refreshToken(event: APIGatewayProxyEvent): Promise<APIGate
       },
     });
   } catch (error: any) {
-    console.error('Error in refreshToken handler:', error);
+    logger.error('Error in refreshToken handler', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -125,7 +126,7 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
       },
     });
   } catch (error: any) {
-    console.error('Error in getMe handler:', error);
+    logger.error('Error in getMe handler', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

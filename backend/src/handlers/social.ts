@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
+import { logger } from '../utils/logger';
 import {
   createPost as createPostService,
   getFeed as getFeedService,
@@ -56,7 +57,7 @@ export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewa
       data: result.post,
     });
   } catch (error: any) {
-    console.error('Error creating post:', error);
+    logger.error('Error creating post', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -82,7 +83,7 @@ export async function getFeed(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       },
     });
   } catch (error: any) {
-    console.error('Error getting feed:', error);
+    logger.error('Error getting feed', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -112,7 +113,7 @@ export async function toggleLikePost(event: APIGatewayProxyEvent): Promise<APIGa
       data: { isLiked: result.isLiked },
     });
   } catch (error: any) {
-    console.error('Error toggling like:', error);
+    logger.error('Error toggling like', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -148,7 +149,7 @@ export async function addComment(event: APIGatewayProxyEvent): Promise<APIGatewa
       data: result.comment,
     });
   } catch (error: any) {
-    console.error('Error adding comment:', error);
+    logger.error('Error adding comment', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -169,7 +170,7 @@ export async function getComments(event: APIGatewayProxyEvent): Promise<APIGatew
       data: comments,
     });
   } catch (error: any) {
-    console.error('Error getting comments:', error);
+    logger.error('Error getting comments', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -206,7 +207,7 @@ export async function toggleFollowUser(event: APIGatewayProxyEvent): Promise<API
       },
     });
   } catch (error: any) {
-    console.error('Error toggling follow:', error);
+    logger.error('Error toggling follow', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -232,7 +233,7 @@ export async function checkMutualFollowHandler(event: APIGatewayProxyEvent): Pro
       data: result,
     });
   } catch (error: any) {
-    console.error('Error checking mutual follow:', error);
+    logger.error('Error checking mutual follow', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -267,7 +268,7 @@ export async function editCommentHandler(event: APIGatewayProxyEvent): Promise<A
       data: result.comment,
     });
   } catch (error: any) {
-    console.error('Error editing comment:', error);
+    logger.error('Error editing comment', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -295,7 +296,7 @@ export async function searchUsers(event: APIGatewayProxyEvent): Promise<APIGatew
       })),
     });
   } catch (error: any) {
-    console.error('Error searching users:', error);
+    logger.error('Error searching users', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -324,7 +325,7 @@ export async function deletePost(event: APIGatewayProxyEvent): Promise<APIGatewa
       success: true,
     });
   } catch (error: any) {
-    console.error('Error deleting post:', error);
+    logger.error('Error deleting post', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -354,7 +355,7 @@ export async function toggleBookmarkPost(event: APIGatewayProxyEvent): Promise<A
       data: { isBookmarked: result.isBookmarked },
     });
   } catch (error: any) {
-    console.error('Error toggling bookmark:', error);
+    logger.error('Error toggling bookmark', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -384,7 +385,7 @@ export async function toggleLikeComment(event: APIGatewayProxyEvent): Promise<AP
       data: { isLiked: result.isLiked },
     });
   } catch (error: any) {
-    console.error('Error toggling comment like:', error);
+    logger.error('Error toggling comment like', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -418,7 +419,7 @@ export async function getPostImageUploadUrl(event: APIGatewayProxyEvent): Promis
       },
     });
   } catch (error: any) {
-    console.error('Error generating post image upload URL:', error);
+    logger.error('Error generating post image upload URL', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }

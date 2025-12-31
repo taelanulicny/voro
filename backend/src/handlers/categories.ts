@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
+import { logger } from '../utils/logger';
 import {
   getTrendingEntities,
   getMovers,
@@ -24,7 +25,7 @@ export async function getTrendingHandler(event: APIGatewayProxyEvent): Promise<A
       timeframe: '24h',
     });
   } catch (error: any) {
-    console.error('Error in getTrendingHandler:', error);
+    logger.error('Error in getTrendingHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get trending entities');
   }
 }
@@ -45,7 +46,7 @@ export async function getMoversHandler(event: APIGatewayProxyEvent): Promise<API
       losers,
     });
   } catch (error: any) {
-    console.error('Error in getMoversHandler:', error);
+    logger.error('Error in getMoversHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get movers');
   }
 }
@@ -65,7 +66,7 @@ export async function getDiscussedHandler(event: APIGatewayProxyEvent): Promise<
       entities,
     });
   } catch (error: any) {
-    console.error('Error in getDiscussedHandler:', error);
+    logger.error('Error in getDiscussedHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get most discussed entities');
   }
 }
@@ -88,7 +89,7 @@ export async function getDiscoverHandler(event: APIGatewayProxyEvent): Promise<A
       nextCursor: result.nextCursor,
     });
   } catch (error: any) {
-    console.error('Error in getDiscoverHandler:', error);
+    logger.error('Error in getDiscoverHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get discover entities');
   }
 }
@@ -115,7 +116,7 @@ export async function getForYouHandler(event: APIGatewayProxyEvent): Promise<API
       reasons: result.reasons,
     });
   } catch (error: any) {
-    console.error('Error in getForYouHandler:', error);
+    logger.error('Error in getForYouHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get for-you entities');
   }
 }

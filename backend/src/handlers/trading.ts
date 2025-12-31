@@ -9,6 +9,19 @@ import {
   getPriceHistory,
   getAllEntityPrices,
 } from '../services/tradingService';
+import { z } from 'zod';
+import { logger } from '../utils/logger';
+
+// Zod schema for trade execution validation
+const ExecuteTradeSchema = z.object({
+  entityId: z.number().int().positive('Entity ID must be a positive integer'),
+  type: z.enum(['buy', 'sell'], {
+    errorMap: () => ({ message: 'Type must be either "buy" or "sell"' }),
+  }),
+  quantity: z.number().positive('Quantity must be greater than 0').max(1000000, 'Quantity cannot exceed 1,000,000'),
+  pricePerToken: z.number().positive('Price per token must be greater than 0').max(10000, 'Price per token cannot exceed 10,000'),
+  idempotencyKey: z.string().optional(),
+});
 
 export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -35,21 +48,27 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
     }
 
     const userId = auth.event.userId!;
-    const body = JSON.parse(event.body || '{}');
-
-    const { entityId, type, quantity, pricePerToken, idempotencyKey } = body;
-
-    if (!entityId || !type || !quantity || !pricePerToken) {
-      return createErrorResponse(400, 'Missing required fields: entityId, type, quantity, pricePerToken');
+    
+    // Parse and validate request body with Zod
+    let body: any;
+    try {
+      body = JSON.parse(event.body || '{}');
+    } catch (parseError) {
+      return createErrorResponse(400, 'Invalid JSON in request body');
     }
 
-    if (type !== 'buy' && type !== 'sell') {
-      return createErrorResponse(400, 'Type must be "buy" or "sell"');
+    // Validate request body with Zod schema
+    const parseResult = ExecuteTradeSchema.safeParse(body);
+    if (!parseResult.success) {
+      // Format Zod validation errors into user-friendly message
+      const errorMessages = parseResult.error.errors.map(err => {
+        const path = err.path.join('.');
+        return path ? `${path}: ${err.message}` : err.message;
+      }).join('; ');
+      return createErrorResponse(400, `Invalid request: ${errorMessages}`);
     }
 
-    if (quantity <= 0) {
-      return createErrorResponse(400, 'Quantity must be greater than 0');
-    }
+    const { entityId, type, quantity, pricePerToken, idempotencyKey } = parseResult.data;
 
     // Price slippage protection: Fetch current market price
     const currentMarketPrice = await getEntityPrice(entityId);
@@ -92,9 +111,7 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       executionDetails,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error executing trade:', errorMessage, errorDetails);
+    logger.error('Error executing trade', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -114,9 +131,7 @@ export async function getPortfolio(event: APIGatewayProxyEvent): Promise<APIGate
       data: portfolio,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting portfolio:', errorMessage, errorDetails);
+    logger.error('Error getting portfolio', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -142,9 +157,7 @@ export async function getTransactionsHandler(event: APIGatewayProxyEvent): Promi
       },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting transactions:', errorMessage, errorDetails);
+    logger.error('Error getting transactions', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -174,9 +187,7 @@ export async function getAllEntitiesHandler(event: APIGatewayProxyEvent): Promis
       data: entitiesWithPrices,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting entities:', errorMessage, errorDetails);
+    logger.error('Error getting entities', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -200,9 +211,7 @@ export async function getEntityPriceHandler(event: APIGatewayProxyEvent): Promis
       data: { entityId, price },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting entity price:', errorMessage, errorDetails);
+    logger.error('Error getting entity price', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -239,9 +248,7 @@ export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promi
       })),
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting price history:', errorMessage, errorDetails);
+    logger.error('Error getting price history', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }
@@ -260,9 +267,7 @@ export async function getAllPricesHandler(event: APIGatewayProxyEvent): Promise<
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Error getting all prices:', errorMessage, errorDetails);
+    logger.error('Error getting all prices', error);
     return createErrorResponse(500, 'Internal server error');
   }
 }

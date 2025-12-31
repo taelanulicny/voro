@@ -2,6 +2,7 @@ import { EventBridgeEvent } from 'aws-lambda';
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { ScanCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { Entity, PriceHistory } from '../models/types';
+import { logger } from '../utils/logger';
 
 /**
  * Price Update Lambda Handler
@@ -83,9 +84,9 @@ export async function updatePrices(event: EventBridgeEvent<'Scheduled Event', an
       );
     }
 
-    console.log(`Updated prices for ${entities.length} entities at ${now}`);
+    logger.info(`Updated prices for ${entities.length} entities at ${now}`);
   } catch (error) {
-    console.error('Error updating prices:', error);
+    logger.error('Error updating prices', error);
     throw error;
   }
 }

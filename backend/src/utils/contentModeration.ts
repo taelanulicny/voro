@@ -3,19 +3,31 @@
  * Focused on blocking slurs while allowing general profanity
  */
 
+import { ComprehendClient, DetectToxicContentCommand } from '@aws-sdk/client-comprehend';
+import { logger } from './logger';
+
+// Initialize Comprehend client
+const comprehendClient = new ComprehendClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+});
+
 // Slur list - offensive slurs that target protected groups
-// Add actual slurs you want to block here (using lowercase)
+// IMPORTANT: Add actual slurs you want to block here (using lowercase)
 // Note: Using word boundaries to match whole words only
-// In production, consider using AWS Comprehend or a comprehensive moderation library
+// This list should be populated based on your content policy
+// Categories to populate:
+// - Racial/ethnic slurs
+// - Homophobic slurs
+// - Transphobic slurs
+// - Ableist slurs
+// - Religious slurs
+// - Gender-based slurs
 const SLURS: string[] = [
-  // TODO: Add racial/ethnic slurs
-  // TODO: Add homophobic slurs  
-  // TODO: Add transphobic slurs
-  // TODO: Add ableist slurs
-  // TODO: Add religious slurs
-  // Example format (DO NOT include actual slurs in comments):
-  // 'slur1',
-  // 'slur2',
+  // Populate with actual offensive terms per your content policy
+  // Example structure (replace with actual terms):
+  // 'term1',
+  // 'term2',
+  // Add terms here following your content moderation policy
 ];
 
 // Spam patterns
@@ -99,12 +111,13 @@ export function moderateContent(content: string): {
 }
 
 /**
- * Future: Integrate with AWS Comprehend for advanced moderation
- * This would detect:
+ * Moderate content using AWS Comprehend for advanced toxicity detection
+ * This detects:
  * - Toxicity
  * - Hate speech
  * - Harassment
- * - Personal information (PII)
+ * - Threats
+ * - Profanity
  */
 export async function moderateWithComprehend(content: string): Promise<{
   approved: boolean;
@@ -113,14 +126,97 @@ export async function moderateWithComprehend(content: string): Promise<{
     toxicity?: number;
     hate?: number;
     harassment?: number;
+    threats?: number;
+    profanity?: number;
   };
 }> {
-  // TODO: Integrate AWS Comprehend Content Moderation
-  // For now, return basic moderation result
+  // First, run basic word list moderation (fast, no API cost)
   const basicModeration = moderateContent(content);
-  return {
-    approved: basicModeration.approved,
-    reason: basicModeration.reason,
-  };
+  if (!basicModeration.approved) {
+    return {
+      approved: false,
+      reason: basicModeration.reason,
+    };
+  }
+
+  // Then, use AWS Comprehend for advanced detection
+  try {
+    // Comprehend has a 1KB limit per text segment, so we may need to chunk longer content
+    const maxLength = 1000;
+    const textToAnalyze = content.length > maxLength ? content.substring(0, maxLength) : content;
+
+    const command = new DetectToxicContentCommand({
+      TextSegments: [{ Text: textToAnalyze }],
+      LanguageCode: 'en',
+    });
+
+    const result = await comprehendClient.send(command);
+
+    // Check if any toxic labels exceed threshold (0.7 = 70% confidence)
+    const TOXICITY_THRESHOLD = 0.7;
+    const toxicLabels = result.ResultList?.[0]?.Labels || [];
+    
+    const scores: {
+      toxicity?: number;
+      hate?: number;
+      harassment?: number;
+      threats?: number;
+      profanity?: number;
+    } = {};
+
+    let isToxic = false;
+    let highestScore = 0;
+    let toxicReason = '';
+
+    for (const label of toxicLabels) {
+      const score = label.Score || 0;
+      const labelName = label.Name?.toLowerCase() || '';
+
+      // Map Comprehend labels to our score structure
+      if (labelName.includes('toxic')) {
+        scores.toxicity = score;
+      } else if (labelName.includes('hate')) {
+        scores.hate = score;
+      } else if (labelName.includes('harassment')) {
+        scores.harassment = score;
+      } else if (labelName.includes('threat')) {
+        scores.threats = score;
+      } else if (labelName.includes('profanity')) {
+        scores.profanity = score;
+      }
+
+      // Check if any label exceeds threshold
+      if (score > TOXICITY_THRESHOLD) {
+        isToxic = true;
+        if (score > highestScore) {
+          highestScore = score;
+          toxicReason = labelName;
+        }
+      }
+    }
+
+    if (isToxic) {
+      return {
+        approved: false,
+        reason: `Content detected as ${toxicReason} (${(highestScore * 100).toFixed(1)}% confidence). Please revise your post.`,
+        scores,
+      };
+    }
+
+    return {
+      approved: true,
+      scores,
+    };
+  } catch (error: any) {
+    // If Comprehend fails, fall back to basic moderation result
+    // Log error but don't block content (fail open for availability)
+    logger.error('AWS Comprehend moderation error', error);
+    
+    // Return basic moderation result as fallback
+    return {
+      approved: basicModeration.approved,
+      reason: basicModeration.reason,
+    };
+  }
 }
 

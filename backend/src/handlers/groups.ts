@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
+import { logger } from '../utils/logger';
 import {
   createGroup,
   getGroups,
@@ -34,7 +35,7 @@ export async function createGroupHandler(event: APIGatewayProxyEvent): Promise<A
 
     return createResponse(201, { group: result.group });
   } catch (error: any) {
-    console.error('Error in createGroupHandler:', error);
+    logger.error('Error in createGroupHandler', error);
     return createErrorResponse(500, error.message || 'Failed to create group');
   }
 }
@@ -63,7 +64,7 @@ export async function getGroupsHandler(event: APIGatewayProxyEvent): Promise<API
 
     return createResponse(200, { groups: result.groups, lastEvaluatedKey: result.lastEvaluatedKey });
   } catch (error: any) {
-    console.error('Error in getGroupsHandler:', error);
+    logger.error('Error in getGroupsHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get groups');
   }
 }
@@ -89,7 +90,7 @@ export async function getGroupHandler(event: APIGatewayProxyEvent): Promise<APIG
 
     return createResponse(200, { group: { ...group, isMember } });
   } catch (error: any) {
-    console.error('Error in getGroupHandler:', error);
+    logger.error('Error in getGroupHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get group');
   }
 }
@@ -106,7 +107,7 @@ export async function getUserGroupsHandler(event: APIGatewayProxyEvent): Promise
 
     return createResponse(200, { groups });
   } catch (error: any) {
-    console.error('Error in getUserGroupsHandler:', error);
+    logger.error('Error in getUserGroupsHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get user groups');
   }
 }
@@ -131,7 +132,7 @@ export async function joinGroupHandler(event: APIGatewayProxyEvent): Promise<API
 
     return createResponse(200, { success: true });
   } catch (error: any) {
-    console.error('Error in joinGroupHandler:', error);
+    logger.error('Error in joinGroupHandler', error);
     return createErrorResponse(500, error.message || 'Failed to join group');
   }
 }
@@ -156,7 +157,7 @@ export async function leaveGroupHandler(event: APIGatewayProxyEvent): Promise<AP
 
     return createResponse(200, { success: true });
   } catch (error: any) {
-    console.error('Error in leaveGroupHandler:', error);
+    logger.error('Error in leaveGroupHandler', error);
     return createErrorResponse(500, error.message || 'Failed to leave group');
   }
 }
@@ -181,7 +182,7 @@ export async function deleteGroupHandler(event: APIGatewayProxyEvent): Promise<A
 
     return createResponse(200, { success: true });
   } catch (error: any) {
-    console.error('Error in deleteGroupHandler:', error);
+    logger.error('Error in deleteGroupHandler', error);
     return createErrorResponse(500, error.message || 'Failed to delete group');
   }
 }
