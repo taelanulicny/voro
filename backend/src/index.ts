@@ -16,6 +16,7 @@ import * as groupHandlers from './handlers/groups';
 import * as categoryHandlers from './handlers/categories';
 import * as searchHandlers from './handlers/search';
 import * as notificationHandlers from './handlers/notifications';
+import * as purchaseHandlers from './handlers/purchases';
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -346,6 +347,15 @@ export const handler = async (
     }
     if (path.includes('/for-you') && method === 'GET') {
       return categoryHandlers.getForYouHandler(event);
+    }
+  }
+
+  if (path.includes('/api/purchases')) {
+    if (path.includes('/process') && method === 'POST') {
+      return purchaseHandlers.processPurchaseHandler(event);
+    }
+    if (path.includes('/history') && method === 'GET') {
+      return purchaseHandlers.getPurchaseHistoryHandler(event);
     }
   }
 

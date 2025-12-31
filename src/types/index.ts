@@ -22,6 +22,7 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   TradingHistory: undefined;
   TradingPreferences: undefined;
+  Purchases: undefined;
 };
 
 export type MainTabParamList = {

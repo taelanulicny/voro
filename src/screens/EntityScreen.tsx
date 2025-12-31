@@ -20,7 +20,7 @@ import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
-import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
 import { getEntityById } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
@@ -371,10 +371,10 @@ function EntityScreen() {
   const isPositive = priceChange >= 0;
 
   const formatVolume = (value: number) => {
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
+    if (value >= 1e9) return `${TOKEN_SYMBOL}${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `${TOKEN_SYMBOL}${(value / 1e6).toFixed(2)}M`;
+    if (value >= 1e3) return `${TOKEN_SYMBOL}${(value / 1e3).toFixed(2)}K`;
+    return `${TOKEN_SYMBOL}${value.toFixed(2)}`;
   };
 
   // Convert hex color to rgba for chart

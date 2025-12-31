@@ -398,7 +398,7 @@ export default function SimulatorScreen() {
                       Avg Cost
                     </Text>
                     <Text style={[styles.holdingDetailValue, { color: theme.text }]}>
-                      ${holding.averageCost.toFixed(2)}
+                      {formatCurrency(holding.averageCost)}
                     </Text>
                   </View>
                   <View style={styles.holdingDetailItem}>
@@ -406,7 +406,7 @@ export default function SimulatorScreen() {
                       Current
                     </Text>
                     <Text style={[styles.holdingDetailValue, { color: theme.text }]}>
-                      ${holding.currentPrice.toFixed(2)}
+                      {formatCurrency(holding.currentPrice)}
                     </Text>
                   </View>
                 </View>
@@ -460,7 +460,7 @@ export default function SimulatorScreen() {
                 </View>
                 <View style={styles.transactionDetails}>
                   <Text style={[styles.transactionDetailText, { color: theme.textSecondary }]}>
-                    {transaction.quantity} shares @ ${transaction.pricePerToken.toFixed(2)}
+                    {transaction.quantity} shares @ {formatCurrency(transaction.pricePerToken)}
                   </Text>
                   <Text style={[styles.transactionTime, { color: theme.textTertiary }]}>
                     {new Date(transaction.timestamp).toLocaleString()}

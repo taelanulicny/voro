@@ -144,7 +144,7 @@ export default function SettingsScreen() {
   const handleResetPortfolio = () => {
     Alert.alert(
       'Reset Portfolio',
-      'Are you sure you want to reset your portfolio? This will clear all positions and reset your balance to $10,000.',
+      'Are you sure you want to reset your portfolio? This will clear all positions and reset your balance to ⚡10,000.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -474,6 +474,20 @@ export default function SettingsScreen() {
         {/* Trading Section */}
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>TRADING</Text>
+          
+          <TouchableOpacity 
+            style={dynamicStyles.menuItem}
+            onPress={() => navigation.navigate('Purchases')}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="card-outline" size={20} color={theme.textSecondary} />
+              <View style={styles.menuItemContent}>
+                <Text style={dynamicStyles.menuItemText}>Buy Tokens</Text>
+                <Text style={dynamicStyles.menuItemSubtext}>Purchase tokens for trading</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+          </TouchableOpacity>
           
           <TouchableOpacity 
             style={dynamicStyles.menuItem}

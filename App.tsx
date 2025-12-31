@@ -41,6 +41,7 @@ import PrivacySettingsScreen from './src/screens/PrivacySettingsScreen';
 import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 import TradingHistoryScreen from './src/screens/TradingHistoryScreen';
 import TradingPreferencesScreen from './src/screens/TradingPreferencesScreen';
+import PurchasesScreen from './src/screens/PurchasesScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
 
 import { RootStackParamList } from './src/types';
@@ -277,6 +278,20 @@ function RootNavigator() {
             {() => (
               <ErrorBoundary>
                 <TradingPreferencesScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="Purchases" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <PurchasesScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>

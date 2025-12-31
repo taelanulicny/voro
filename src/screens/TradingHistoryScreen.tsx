@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { UserTransaction } from '../types';
+import { formatCurrency } from '../utils/dataGenerator';
 
 export default function TradingHistoryScreen() {
   const navigation = useNavigation();
@@ -29,13 +30,6 @@ export default function TradingHistoryScreen() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
 
   const renderTransaction = ({ item }: { item: UserTransaction }) => {
     const isBuy = item.type === 'buy';

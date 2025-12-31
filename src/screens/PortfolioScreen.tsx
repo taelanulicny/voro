@@ -148,13 +148,13 @@ function PortfolioScreen() {
                     <View style={styles.holdingDetailItem}>
                       <Text style={[styles.holdingDetailLabel, { color: theme.textTertiary }]}>Avg Cost</Text>
                       <Text style={[styles.holdingDetailValue, { color: theme.text }]}>
-                        ${holding.averageCost.toFixed(2)}
+                        {formatCurrency(holding.averageCost)}
                       </Text>
                     </View>
                     <View style={styles.holdingDetailItem}>
                       <Text style={[styles.holdingDetailLabel, { color: theme.textTertiary }]}>Current</Text>
                       <Text style={[styles.holdingDetailValue, { color: theme.text }]}>
-                        ${holding.currentPrice.toFixed(2)}
+                        {formatCurrency(holding.currentPrice)}
                       </Text>
                     </View>
                   </View>
@@ -209,7 +209,7 @@ function PortfolioScreen() {
                   </View>
                   <View style={styles.transactionDetails}>
                     <Text style={[styles.transactionDetailText, { color: theme.textSecondary }]}>
-                      {transaction.quantity} shares @ ${transaction.pricePerToken.toFixed(2)}
+                      {transaction.quantity} shares @ {formatCurrency(transaction.pricePerToken)}
                     </Text>
                     <Text style={[styles.transactionTime, { color: theme.textTertiary }]}>
                       {new Date(transaction.timestamp).toLocaleString()}

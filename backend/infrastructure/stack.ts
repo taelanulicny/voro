@@ -247,6 +247,21 @@ export class MoroBackendStack extends cdk.Stack {
       encryptionKey: dynamoDbEncryptionKey,
     });
 
+    const purchaseTransactionsTable = new dynamodb.Table(this, 'PurchaseTransactionsTable', {
+      tableName: `${tablePrefix}-PurchaseTransactions`,
+      partitionKey: { name: 'transactionId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable PITR for data recovery
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
+    });
+    purchaseTransactionsTable.addGlobalSecondaryIndex({
+      indexName: 'userId-createdAt-index',
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+    });
+
     const groupsTable = new dynamodb.Table(this, 'GroupsTable', {
       tableName: `${tablePrefix}-Groups`,
       partitionKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
@@ -417,6 +432,7 @@ export class MoroBackendStack extends cdk.Stack {
     priceHistoryTable.grantReadWriteData(lambdaRole);
     blocksTable.grantReadWriteData(lambdaRole);
     reportsTable.grantReadWriteData(lambdaRole);
+    purchaseTransactionsTable.grantReadWriteData(lambdaRole);
     groupsTable.grantReadWriteData(lambdaRole);
     groupMembersTable.grantReadWriteData(lambdaRole);
     notificationsTable.grantReadWriteData(lambdaRole);
@@ -454,6 +470,7 @@ export class MoroBackendStack extends cdk.Stack {
         PRICE_HISTORY_TABLE: priceHistoryTable.tableName,
         BLOCKS_TABLE: blocksTable.tableName,
         REPORTS_TABLE: reportsTable.tableName,
+        PURCHASE_TRANSACTIONS_TABLE: purchaseTransactionsTable.tableName,
         GROUPS_TABLE: groupsTable.tableName,
         GROUP_MEMBERS_TABLE: groupMembersTable.tableName,
         NOTIFICATIONS_TABLE: notificationsTable.tableName,

@@ -81,13 +81,14 @@ export default function SeasonalCompetitionScreen() {
   };
 
   const formatCurrency = (value: number) => {
+    const { TOKEN_SYMBOL } = require('../utils/dataGenerator');
     if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(2)}M`;
+      return `${TOKEN_SYMBOL}${(value / 1000000).toFixed(2)}M`;
     }
     if (value >= 1000) {
-      return `$${(value / 1000).toFixed(2)}K`;
+      return `${TOKEN_SYMBOL}${(value / 1000).toFixed(2)}K`;
     }
-    return `$${value.toFixed(2)}`;
+    return `${TOKEN_SYMBOL}${value.toFixed(2)}`;
   };
 
   const formatPercent = (value: number) => {
