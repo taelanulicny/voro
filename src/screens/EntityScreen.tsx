@@ -15,6 +15,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
+import InteractiveChart from '../components/InteractiveChart';
 import { RootStackParamList, PriceDataPoint, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
@@ -496,21 +497,32 @@ function EntityScreen() {
 
         {/* Chart */}
         <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
-          <LineChart
-            key={`entity-${entityId}-${timeRange}-${filteredPriceHistory.length}-${currentPrice.toFixed(2)}-${chartUpdateKey}`}
-            data={chartData}
-            width={SCREEN_WIDTH - 32}
-            height={220}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withInnerLines={timeRange !== '1D'}
-            withOuterLines={false}
-            withVerticalLabels={timeRange !== '1D'}
-            withHorizontalLabels={true}
-            withDots={timeRange === '1D' || filteredPriceHistory.length <= 7}
-            segments={timeRange === '1D' ? 6 : timeRange === '1W' ? 7 : 5}
-          />
+          {filteredPriceHistory.length > 0 ? (
+            <InteractiveChart
+              data={filteredPriceHistory}
+              width={SCREEN_WIDTH - 32}
+              height={400}
+              showTooltip={true}
+              formatDate={(timestamp) => {
+                const date = new Date(timestamp);
+                if (timeRange === '1D') {
+                  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                } else if (timeRange === '1W') {
+                  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                } else if (timeRange === '1M') {
+                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                } else {
+                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+              }}
+            />
+          ) : (
+            <View style={[styles.chartPlaceholder, { backgroundColor: theme.card }]}>
+              <Text style={[styles.chartPlaceholderText, { color: theme.textSecondary }]}>
+                {isLoadingPriceHistory ? 'Loading chart data...' : 'No price history available'}
+              </Text>
+            </View>
+          )}
 
           {/* Time Range Selector */}
           <View style={styles.timeRangeSelector}>
@@ -830,6 +842,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginTop: 1,
     paddingBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  chartPlaceholder: {
+    height: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  chartPlaceholderText: {
+    fontSize: 14,
   },
   chart: {
     marginVertical: 8,
