@@ -909,6 +909,15 @@ function FeedsScreen() {
           refreshGroups();
         }}
       />
+
+      {/* Floating Action Button - Create Post */}
+      <TouchableOpacity
+        style={styles.floatingCreateButton}
+        onPress={() => setShowCreatePost(true)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="add" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -1078,12 +1087,32 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 0,
     paddingBottom: 0,
     borderBottomWidth: 1,
+  },
+  floatingCreateButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#60A5FA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#60A5FA',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+    zIndex: 1000,
   },
   segmentedControl: {
     flexDirection: 'row',

@@ -8,6 +8,7 @@ interface NewsContextType {
   news: NewsArticle[];
   isLoadingNews: boolean;
   breakingNews: NewsArticle[];
+  newsError: string | null;
   
   // Actions
   refreshNews: () => Promise<void>;
@@ -18,180 +19,30 @@ interface NewsContextType {
 
 const NewsContext = createContext<NewsContextType | undefined>(undefined);
 
-// Generate comprehensive mock news
-const generateMockNews = (): NewsArticle[] => {
-  const newsTemplates = [
-    // OpenAI (ID: 1)
-    {
-      title: 'OpenAI Announces GPT-5: Major Breakthrough in AI Capabilities',
-      summary: 'OpenAI unveils GPT-5 with unprecedented reasoning abilities, marking a significant step toward AGI.',
-      source: 'TechCrunch',
-      category: 'Tech' as const,
-      entityId: 1,
-      entityTicker: 'OPENAI',
-      entityName: 'OpenAI',
-      sentiment: 'positive' as const,
-      sentimentScore: 85,
-      impactLevel: 'critical' as const,
-      tags: ['AI', 'GPT-5', 'Breakthrough'],
-      isBreaking: true,
-    },
-    {
-      title: 'OpenAI Partners with Fortune 500 Companies for Enterprise AI',
-      summary: 'Major corporations adopt OpenAI technology, signaling widespread enterprise acceptance.',
-      source: 'Bloomberg',
-      category: 'Tech' as const,
-      entityId: 1,
-      entityTicker: 'OPENAI',
-      entityName: 'OpenAI',
-      sentiment: 'positive' as const,
-      sentimentScore: 70,
-      impactLevel: 'high' as const,
-      tags: ['Enterprise', 'Partnerships', 'Growth'],
-      isBreaking: false,
-    },
-    // Elon Musk (ID: 5)
-    {
-      title: 'Elon Musk Unveils Revolutionary Tesla Battery Technology',
-      summary: 'Tesla announces breakthrough in battery efficiency, potentially transforming the EV industry.',
-      source: 'Reuters',
-      category: 'Tech' as const,
-      entityId: 5,
-      entityTicker: 'MUSK',
-      entityName: 'Elon Musk',
-      sentiment: 'positive' as const,
-      sentimentScore: 80,
-      impactLevel: 'critical' as const,
-      tags: ['Tesla', 'EV', 'Innovation'],
-      isBreaking: true,
-    },
-    {
-      title: 'Musk Faces Regulatory Scrutiny Over Latest Acquisition',
-      summary: 'Federal regulators launch investigation into recent business moves, raising questions about compliance.',
-      source: 'Wall Street Journal',
-      category: 'People' as const,
-      entityId: 5,
-      entityTicker: 'MUSK',
-      entityName: 'Elon Musk',
-      sentiment: 'negative' as const,
-      sentimentScore: -45,
-      impactLevel: 'medium' as const,
-      tags: ['Regulation', 'Legal', 'Controversy'],
-      isBreaking: false,
-    },
-    // Starship (ID: 7)
-    {
-      title: 'SpaceX Starship Achieves First Successful Orbital Flight',
-      summary: 'Historic milestone as Starship completes full orbital mission, paving way for Mars colonization.',
-      source: 'Space.com',
-      category: 'Events' as const,
-      entityId: 7,
-      entityTicker: 'STARSH',
-      entityName: 'Starship Success',
-      sentiment: 'positive' as const,
-      sentimentScore: 95,
-      impactLevel: 'critical' as const,
-      tags: ['SpaceX', 'Mars', 'Historic'],
-      isBreaking: true,
-    },
-    // Neuralink (ID: 8)
-    {
-      title: 'Neuralink Receives FDA Approval for Human Trials',
-      summary: 'Brain-computer interface company cleared for expanded human testing, accelerating path to market.',
-      source: 'The Verge',
-      category: 'Tech' as const,
-      entityId: 8,
-      entityTicker: 'NEURL',
-      entityName: 'Neuralink IPO',
-      sentiment: 'positive' as const,
-      sentimentScore: 88,
-      impactLevel: 'high' as const,
-      tags: ['FDA', 'Medical', 'Approval'],
-      isBreaking: true,
-    },
-    {
-      title: 'Neuralink IPO Speculation Heats Up as Company Hits Milestones',
-      summary: 'Investment community buzzes with anticipation of potential public offering following recent achievements.',
-      source: 'CNBC',
-      category: 'Tech' as const,
-      entityId: 8,
-      entityTicker: 'NEURL',
-      entityName: 'Neuralink IPO',
-      sentiment: 'positive' as const,
-      sentimentScore: 65,
-      impactLevel: 'medium' as const,
-      tags: ['IPO', 'Investment', 'Markets'],
-      isBreaking: false,
-    },
-    // AGI (ID: 6)
-    {
-      title: 'Leading AI Researchers Warn: AGI Timeline Accelerating',
-      summary: 'Consensus emerges that artificial general intelligence may arrive sooner than previously predicted.',
-      source: 'MIT Technology Review',
-      category: 'Tech' as const,
-      entityId: 6,
-      entityTicker: 'AGI',
-      entityName: 'Artificial General Intelligence',
-      sentiment: 'neutral' as const,
-      sentimentScore: 15,
-      impactLevel: 'critical' as const,
-      tags: ['AGI', 'AI Safety', 'Research'],
-      isBreaking: true,
-    },
-    // General market news
-    {
-      title: 'Tech Sector Volatility Raises Concerns Among Investors',
-      summary: 'Market analysts point to regulatory uncertainty and valuation concerns in technology stocks.',
-      source: 'MarketWatch',
-      category: 'Tech' as const,
-      sentiment: 'negative' as const,
-      sentimentScore: -55,
-      impactLevel: 'medium' as const,
-      tags: ['Markets', 'Volatility', 'Tech'],
-      isBreaking: false,
-    },
-  ];
-
-  return newsTemplates.map((template, index) => ({
-    id: `news-${index + 1}`,
-    ...template,
-    content: `${template.summary} This is the full article content with more details about the story. Stay tuned for updates as this situation develops.`,
-    sourceUrl: 'https://example.com',
-    author: `Reporter ${index + 1}`,
-    publishedAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-    viewCount: Math.floor(Math.random() * 50000) + 1000,
-  }));
-};
-
-const MOCK_NEWS = generateMockNews();
-
 export function NewsProvider({ children }: { children: ReactNode }) {
-  const [news, setNews] = useState<NewsArticle[]>(MOCK_NEWS);
-  const [isLoadingNews, setIsLoadingNews] = useState(false);
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [isLoadingNews, setIsLoadingNews] = useState(true);
+  const [newsError, setNewsError] = useState<string | null>(null);
   const [entityNewsCache, setEntityNewsCache] = useState<Record<string, NewsArticle[]>>({});
 
   const breakingNews = news.filter(article => article.isBreaking);
 
-  // Fetch news from backend
+  // Fetch news from backend - NO MOCK FALLBACK
   const refreshNews = useCallback(async (signal?: AbortSignal) => {
-    console.log('=== NEWS DEBUG ===');
-    console.log('Backend configured:', isBackendConfigured());
-    console.log('API URL:', process.env.EXPO_PUBLIC_API_URL);
-    
     if (!isBackendConfigured()) {
-      // Use mock news if backend not configured
-      console.log('Using mock news - backend not configured');
-      setNews(MOCK_NEWS);
+      console.warn('Backend not configured - news will be empty');
+      setNewsError('Backend not configured');
+      setNews([]);
+      setIsLoadingNews(false);
       return;
     }
 
     setIsLoadingNews(true);
+    setNewsError(null);
     try {
-      console.log('Fetching news from API...');
-      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>('/api/news?limit=30', {
+      const response = await apiRequest<{ success?: boolean; data?: unknown[]; error?: string }>('/api/news?limit=30', {
         signal,
       });
-      console.log('News API response:', response.success, 'articles:', response.data?.length);
       
       // Check if response is successful and has data
       if (response && response.success && response.data !== undefined && response.data !== null) {
@@ -207,46 +58,31 @@ export function NewsProvider({ children }: { children: ReactNode }) {
             articlesArray = dataObj.articles;
           } else if (Array.isArray(dataObj.data)) {
             articlesArray = dataObj.data;
-          } else {
-            console.warn('Response data is not an array:', typeof response.data, response.data);
-            articlesArray = [];
           }
-        } else {
-          console.warn('Response data is not an array or object:', typeof response.data);
-          articlesArray = [];
         }
         
         if (articlesArray.length > 0) {
-          // Validate news articles array - ensure we pass an array
-          // Note: validateArrayLoose expects a schema for a single item, not an array schema
+          // Validate news articles array
           const validatedArticles = validateArrayLoose(NewsArticleSchema, articlesArray);
-          // Ensure validatedArticles is an array before using it
-          if (Array.isArray(validatedArticles) && validatedArticles.length > 0) {
-            // Articles are already validated and transformed by schema (id normalized)
+          if (Array.isArray(validatedArticles)) {
             setNews(validatedArticles);
           } else {
-            // Fallback to mock news if validation failed
-            console.warn('News validation failed, using mock news');
-            setNews(MOCK_NEWS);
+            setNews([]);
+            setNewsError('Failed to validate news articles');
           }
         } else {
-          // Empty array from API, use mock news
-          console.log('API returned empty news array, using mock news');
-          setNews(MOCK_NEWS);
+          // Empty array from API - this is valid, just no news available
+          setNews([]);
         }
       } else {
-        // API request failed or returned no data, use mock news
-        console.log('API request failed or no data, using mock news. Error:', response?.error);
-        setNews(MOCK_NEWS);
+        // API request failed or returned no data
+        setNews([]);
+        setNewsError(response?.error || 'Failed to fetch news');
       }
     } catch (error: any) {
-      // Handle errors gracefully - use mock news as fallback
       console.error('Error fetching news:', error);
-      // Don't log as error if it's just unauthorized (backend might require auth in future)
-      if (error?.message?.includes('Unauthorized') || error?.status === 401) {
-        console.log('News endpoint requires authentication or is not available, using mock news');
-      }
-      setNews(MOCK_NEWS);
+      setNews([]);
+      setNewsError(error?.message || 'Failed to fetch news');
     } finally {
       setIsLoadingNews(false);
     }
@@ -265,7 +101,7 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshNews]);
 
-  // Fetch news for a specific entity from backend
+  // Fetch news for a specific entity from backend - NO MOCK FALLBACK
   const getNewsByEntity = useCallback(async (entityId: number, entityName?: string): Promise<NewsArticle[]> => {
     // Validate entityId
     if (!isValidEntityId(entityId)) {
@@ -279,7 +115,7 @@ export function NewsProvider({ children }: { children: ReactNode }) {
       return entityNewsCache[cacheKey];
     }
 
-    // Filter from existing news first
+    // Filter from existing news (already fetched from backend)
     const localNews = news.filter(article => article.entityId === entityId);
     
     if (!isBackendConfigured()) {
@@ -304,29 +140,17 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(response.data)) {
           articlesArray = response.data;
         } else if (typeof response.data === 'object') {
-          // If data is an object, try to extract an array from it
           const dataObj = response.data as any;
           if (Array.isArray(dataObj.articles)) {
             articlesArray = dataObj.articles;
           } else if (Array.isArray(dataObj.data)) {
             articlesArray = dataObj.data;
-          } else {
-            console.warn('Entity news response data is not an array:', typeof response.data);
-            return localNews;
           }
-        } else {
-          console.warn('Entity news response data is not an array or object:', typeof response.data);
-          return localNews;
         }
         
         if (articlesArray.length > 0) {
-          // Validate news articles array - ensure we pass an array
-          // Note: validateArrayLoose expects a schema for a single item, not an array schema
           const validatedArticles = validateArrayLoose(NewsArticleSchema, articlesArray);
-          // Ensure validatedArticles is an array before mapping
           if (Array.isArray(validatedArticles) && validatedArticles.length > 0) {
-            // Articles are already validated and transformed by schema
-            // Ensure entityId/entityName match the requested entity
             const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({
               ...article,
               entityId: entityId || article.entityId || undefined,
@@ -338,11 +162,16 @@ export function NewsProvider({ children }: { children: ReactNode }) {
             return mappedNews;
           }
         }
+        
+        // Empty response from API - return empty array
+        setEntityNewsCache(prev => ({ ...prev, [cacheKey]: [] }));
+        return [];
       }
     } catch (error) {
       console.error('Error fetching entity news:', error);
     }
 
+    // Return whatever we have locally (from initial backend fetch)
     return localNews;
   }, [news, entityNewsCache]);
 
@@ -359,13 +188,14 @@ export function NewsProvider({ children }: { children: ReactNode }) {
 
   const markAsRead = useCallback((articleId: string) => {
     // In a real app, this would update read status
-    console.log('Marked as read:', articleId);
+    // Read status tracking can be implemented when needed
   }, []);
 
   const value: NewsContextType = {
     news,
     isLoadingNews,
     breakingNews,
+    newsError,
     refreshNews,
     getNewsByEntity,
     getNewsByFilter,

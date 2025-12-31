@@ -211,6 +211,9 @@ export const handler = async (
   }
 
   if (path.includes('/api/categories')) {
+    if (path.includes('/volumes') && method === 'GET') {
+      return categoryHandlers.getCategoryVolumesHandler(event);
+    }
     if (path.includes('/trending') && method === 'GET') {
       return categoryHandlers.getTrendingHandler(event);
     }

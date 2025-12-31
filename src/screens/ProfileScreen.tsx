@@ -146,8 +146,9 @@ function ProfileScreen() {
           <TouchableOpacity
             style={styles.headerAddPostButton}
             onPress={() => setShowCreatePost(true)}
+            activeOpacity={0.7}
           >
-            <Ionicons name="add" size={24} color={theme.text} />
+            <Ionicons name="add" size={24} color="#60A5FA" />
           </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerSettingsButton}

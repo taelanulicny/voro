@@ -3,6 +3,17 @@ import { ScanCommand, QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { Entity, PriceHistory, Transaction, Post } from '../models/types';
 import { getAllEntities, getEntityPrice } from './tradingService';
 
+export interface CategoryVolume {
+  name: string;
+  categoryId: string;
+  percentage: number;
+  previousPercentage: number;
+  color: 'green' | 'red';
+  volume24h: number;
+  previousVolume24h: number;
+  entityCount: number;
+}
+
 export interface EntityWithStats {
   entityId: number;
   ticker: string;
@@ -355,6 +366,110 @@ export async function getForYouEntities(
   } catch (error: any) {
     console.error('Error getting for-you entities:', error);
     return { entities: [], reasons: {} };
+  }
+}
+
+/**
+ * Get category trade volumes - aggregated trade volume per category
+ * Returns current and previous period volumes to show trends
+ */
+export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
+  try {
+    const now = Date.now();
+    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    const twoDaysAgo = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Get all transactions from last 48h to compare periods
+    const transactionsResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAMES.TRANSACTIONS,
+        FilterExpression: 'timestamp > :twoDaysAgo',
+        ExpressionAttributeValues: {
+          ':twoDaysAgo': twoDaysAgo,
+        },
+      })
+    );
+
+    const transactions = (transactionsResult.Items || []) as Transaction[];
+
+    // Get all entities to map entityId -> category
+    const entities = await getAllEntities();
+    const entityCategoryMap: Record<number, string> = {};
+    const categoryEntityCount: Record<string, number> = {};
+    
+    entities.forEach((entity) => {
+      entityCategoryMap[entity.entityId] = entity.category;
+      categoryEntityCount[entity.category] = (categoryEntityCount[entity.category] || 0) + 1;
+    });
+
+    // Calculate volume per category for current and previous 24h periods
+    const currentVolumeMap: Record<string, number> = {};
+    const previousVolumeMap: Record<string, number> = {};
+
+    transactions.forEach((tx) => {
+      const category = entityCategoryMap[tx.entityId];
+      if (!category) return;
+
+      const txTime = new Date(tx.timestamp).getTime();
+      const oneDayAgoTime = new Date(oneDayAgo).getTime();
+
+      if (txTime >= oneDayAgoTime) {
+        // Current period (last 24h)
+        currentVolumeMap[category] = (currentVolumeMap[category] || 0) + tx.totalAmount;
+      } else {
+        // Previous period (24-48h ago)
+        previousVolumeMap[category] = (previousVolumeMap[category] || 0) + tx.totalAmount;
+      }
+    });
+
+    // Get all unique categories
+    const allCategories = new Set([
+      ...Object.keys(currentVolumeMap),
+      ...Object.keys(previousVolumeMap),
+      ...Object.values(entityCategoryMap),
+    ]);
+
+    // Calculate total volume for percentage calculation
+    const totalCurrentVolume = Object.values(currentVolumeMap).reduce((a, b) => a + b, 0);
+    const totalPreviousVolume = Object.values(previousVolumeMap).reduce((a, b) => a + b, 0);
+
+    // Build category volumes array
+    const categoryVolumes: CategoryVolume[] = [];
+
+    allCategories.forEach((category) => {
+      const currentVolume = currentVolumeMap[category] || 0;
+      const previousVolume = previousVolumeMap[category] || 0;
+      
+      // Calculate percentages (avoid division by zero)
+      const percentage = totalCurrentVolume > 0 
+        ? (currentVolume / totalCurrentVolume) * 100 
+        : 0;
+      const previousPercentage = totalPreviousVolume > 0 
+        ? (previousVolume / totalPreviousVolume) * 100 
+        : 0;
+
+      // Determine color based on percentage change
+      const color: 'green' | 'red' = percentage >= previousPercentage ? 'green' : 'red';
+
+      categoryVolumes.push({
+        name: category,
+        categoryId: category,
+        percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal
+        previousPercentage: Math.round(previousPercentage * 10) / 10,
+        color,
+        volume24h: currentVolume,
+        previousVolume24h: previousVolume,
+        entityCount: categoryEntityCount[category] || 0,
+      });
+    });
+
+    // Sort by current percentage (descending)
+    categoryVolumes.sort((a, b) => b.percentage - a.percentage);
+
+    return categoryVolumes;
+  } catch (error: any) {
+    console.error('Error getting category volumes:', error);
+    return [];
   }
 }
 

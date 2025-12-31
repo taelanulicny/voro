@@ -418,8 +418,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
     const abortController = new AbortController();
     let consecutiveErrors = 0;
-    let currentInterval = 30000; // Start with 30 seconds
-    const baseInterval = 30000;
+    let currentInterval = 5000; // Start with 5 seconds
+    const baseInterval = 5000;
     const maxInterval = 120000; // Max 2 minutes
     const errorThreshold = 3; // Stop polling after 3 consecutive errors
     

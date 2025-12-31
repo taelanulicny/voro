@@ -7,6 +7,7 @@ import {
   getMostDiscussed,
   getDiscoverEntities,
   getForYouEntities,
+  getCategoryVolumes,
 } from '../services/categoryService';
 
 export async function getTrendingHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -118,6 +119,21 @@ export async function getForYouHandler(event: APIGatewayProxyEvent): Promise<API
   } catch (error: any) {
     logger.error('Error in getForYouHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get for-you entities');
+  }
+}
+
+export async function getCategoryVolumesHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const volumes = await getCategoryVolumes();
+
+    return createResponse(200, {
+      success: true,
+      volumes,
+      timeframe: '24h',
+    });
+  } catch (error: any) {
+    logger.error('Error in getCategoryVolumesHandler', error);
+    return createErrorResponse(500, error.message || 'Failed to get category volumes');
   }
 }
 

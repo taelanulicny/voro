@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,20 +19,22 @@ import Treemap from '../components/Treemap';
 import { Ionicons } from '@expo/vector-icons';
 import EntityCard from '../components/EntityCard';
 import { useCategoryData } from '../hooks/useCategoryData';
+import { apiRequest, isBackendConfigured } from '../config/api';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TREEMAP_HEIGHT = SCREEN_HEIGHT * 0.67; // 2/3 of screen height
 
-// Hardcoded trade volume data (will be replaced with real data later)
-// Colors: green = volume up, red = volume down
-// previousPercentage is yesterday's percentage to calculate the change
-const categoryTradeVolumes = [
-  { name: 'Influencers', percentage: 32.0, previousPercentage: 28.0, categoryId: 'Influencers', color: 'green' as const },
-  { name: 'Music Artists', percentage: 24.5, previousPercentage: 26.0, categoryId: 'Music Artists', color: 'red' as const },
-  { name: 'Sports', percentage: 18.3, previousPercentage: 17.5, categoryId: 'Sports', color: 'green' as const },
-  { name: 'Political Figures', percentage: 15.2, previousPercentage: 14.8, categoryId: 'Political Figures', color: 'green' as const },
-  { name: 'Startups', percentage: 10.0, previousPercentage: 13.7, categoryId: 'Startups', color: 'red' as const },
-];
+// Type for category volume data from backend
+interface CategoryVolume {
+  name: string;
+  categoryId: string;
+  percentage: number;
+  previousPercentage: number;
+  color: 'green' | 'red';
+  volume24h: number;
+  previousVolume24h: number;
+  entityCount: number;
+}
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -42,6 +44,11 @@ export default function AllCategoriesScreen() {
   const [viewType, setViewType] = useState<'treemap' | 'list' | 'browse'>('treemap');
   const [sortFilter, setSortFilter] = useState<'alphabetical' | 'volume-high-low' | 'volume-low-high' | 'trending'>('volume-high-low');
   const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Category volumes from backend
+  const [categoryVolumes, setCategoryVolumes] = useState<CategoryVolume[]>([]);
+  const [isLoadingVolumes, setIsLoadingVolumes] = useState(true);
+  const [volumesError, setVolumesError] = useState<string | null>(null);
   
   const {
     trending,
@@ -65,6 +72,47 @@ export default function AllCategoriesScreen() {
   } = useCategoryData();
   
   const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch category volumes from backend
+  const fetchCategoryVolumes = useCallback(async () => {
+    if (!isBackendConfigured()) {
+      setVolumesError('Backend not configured');
+      setIsLoadingVolumes(false);
+      return;
+    }
+
+    setIsLoadingVolumes(true);
+    setVolumesError(null);
+    
+    try {
+      const response = await apiRequest<{ success?: boolean; volumes?: CategoryVolume[] }>('/api/categories/volumes');
+      
+      if (response.success && response.data) {
+        const data = response.data as any;
+        if (Array.isArray(data.volumes)) {
+          setCategoryVolumes(data.volumes);
+        } else if (Array.isArray(data)) {
+          setCategoryVolumes(data);
+        } else {
+          setCategoryVolumes([]);
+        }
+      } else {
+        setVolumesError(response.error || 'Failed to fetch category volumes');
+        setCategoryVolumes([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching category volumes:', error);
+      setVolumesError(error?.message || 'Failed to fetch category volumes');
+      setCategoryVolumes([]);
+    } finally {
+      setIsLoadingVolumes(false);
+    }
+  }, []);
+
+  // Load category volumes on mount
+  useEffect(() => {
+    fetchCategoryVolumes();
+  }, [fetchCategoryVolumes]);
 
   const handleCategoryPress = (categoryId: string) => {
     navigation.navigate('Category', { categoryId });
@@ -98,6 +146,7 @@ export default function AllCategoriesScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
+      fetchCategoryVolumes(),
       refreshTrending(),
       refreshMovers(),
       refreshDiscussed(),
@@ -159,9 +208,9 @@ export default function AllCategoriesScreen() {
     </View>
   );
 
-  // Sort categories based on selected filter
+  // Sort categories based on selected filter (using real data from backend)
   const sortedCategories = useMemo(() => {
-    const sorted = [...categoryTradeVolumes];
+    const sorted = [...categoryVolumes];
     
     switch (sortFilter) {
       case 'alphabetical':
@@ -185,7 +234,7 @@ export default function AllCategoriesScreen() {
       default:
         return sorted;
     }
-  }, [sortFilter]);
+  }, [sortFilter, categoryVolumes]);
 
   const renderFilterButtons = () => (
     <View style={[styles.filterSection, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -281,7 +330,7 @@ export default function AllCategoriesScreen() {
     </View>
   );
 
-  const renderCategoryItem = ({ item }: { item: typeof categoryTradeVolumes[0] }) => {
+  const renderCategoryItem = ({ item }: { item: CategoryVolume }) => {
     const changePercent = item.percentage - item.previousPercentage;
     const isPositive = changePercent > 0;
     const changeColor = isPositive ? '#10B981' : '#EF4444';
@@ -344,14 +393,56 @@ export default function AllCategoriesScreen() {
         {/* Treemap View */}
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.treemapWrapper}>
-              <Treemap
-                data={categoryTradeVolumes}
-                onItemPress={handleCategoryPress}
-                containerHeight={TREEMAP_HEIGHT}
-                padding={8}
-              />
-            </View>
+            {isLoadingVolumes ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+                  Loading category volumes...
+                </Text>
+              </View>
+            ) : volumesError ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={48} color={theme.error} />
+                <Text style={[styles.errorText, { color: theme.text }]}>
+                  {volumesError}
+                </Text>
+                <TouchableOpacity 
+                  style={[styles.retryButton, { backgroundColor: theme.primary }]}
+                  onPress={fetchCategoryVolumes}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : categoryVolumes.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="folder-open-outline" size={48} color={theme.textTertiary} />
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No trading activity yet
+                </Text>
+                <Text style={[styles.emptySubtext, { color: theme.textTertiary }]}>
+                  Start trading to see category volumes
+                </Text>
+              </View>
+            ) : categoryVolumes.every(cat => cat.volume24h === 0) ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="trending-up-outline" size={48} color={theme.textTertiary} />
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No trading activity yet
+                </Text>
+                <Text style={[styles.emptySubtext, { color: theme.textTertiary }]}>
+                  Make your first trade to see category volumes
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.treemapWrapper}>
+                <Treemap
+                  data={categoryVolumes.filter(cat => cat.volume24h > 0)}
+                  onItemPress={handleCategoryPress}
+                  containerHeight={TREEMAP_HEIGHT}
+                  padding={8}
+                />
+              </View>
+            )}
           </ScrollView>
         </View>
 
@@ -543,6 +634,54 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptySubtext: {
+    marginTop: 8,
+    fontSize: 14,
   },
   filterTabs: {
     flexDirection: 'row',
