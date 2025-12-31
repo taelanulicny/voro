@@ -17,7 +17,9 @@
     "expo": "~54.0.30",
     "expo-apple-authentication": "~8.0.8",
     "expo-auth-session": "~7.0.10",
+    "expo-blur": "~15.0.8",
     "expo-crypto": "~15.0.8",
+    "expo-dev-client": "~6.0.20",
     "expo-font": "~14.0.10",
     "expo-image-picker": "~17.0.10",
     "expo-secure-store": "~15.0.8",
@@ -29,6 +31,8 @@
     "react-native-chart-kit": "^6.12.0",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
+    "react-native-screenshot-prevent": "^1.2.1",
+    "react-native-ssl-pinning": "^1.6.0",
     "react-native-svg": "15.12.1",
     "zod": "^4.2.1"
   },

@@ -229,6 +229,25 @@ export default function App() {
   // Initialize error reporting on app startup
   React.useEffect(() => {
     initErrorReporting();
+    
+    // Suppress NativeEventEmitter warning from native modules that don't fully implement the interface
+    // This is a known issue with some React Native native modules and is harmless
+    const originalWarn = console.warn;
+    console.warn = (...args: any[]) => {
+      const message = args[0]?.toString() || '';
+      if (
+        message.includes('NativeEventEmitter') &&
+        (message.includes('addListener') || message.includes('removeListeners'))
+      ) {
+        // Suppress this specific warning
+        return;
+      }
+      originalWarn.apply(console, args);
+    };
+    
+    return () => {
+      console.warn = originalWarn;
+    };
   }, []);
 
   return (

@@ -35,16 +35,43 @@ try {
  * Hook to prevent screenshots on sensitive screens (iOS/Android)
  * 
  * Works in two modes:
- * 1. With native modules (custom dev client): Uses react-native-screenshot-prevent
+ * 1. With native modules (custom dev client): Uses react-native-screenshot-prevent for native blocking
  * 2. Without native modules (managed workflow): Uses expo-blur overlay as visual protection
  * 
+ * IMPORTANT NOTES:
+ * - Native screenshot prevention only works in custom dev client builds (not Expo Go)
+ * - iOS: Native prevention blocks screenshots and app switcher previews
+ * - Android: Native prevention is less reliable; blur overlay provides visual protection
+ * - Blur overlay works in both modes and appears when app goes to background
+ * 
  * Usage: Call the hook and include BlurOverlay in your component's return JSX
+ * 
+ * @example
+ * ```tsx
+ * function SensitiveScreen() {
+ *   const { BlurOverlay } = useScreenshotProtection(true);
+ *   return (
+ *     <SafeAreaView>
+ *       {BlurOverlay}
+ *       // Your sensitive content here
+ *     </SafeAreaView>
+ *   );
+ * }
+ * ```
  */
 export function useScreenshotProtection(enabled: boolean = true): { BlurOverlay: ReactElement | null } {
   const [showBlur, setShowBlur] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
+      // Ensure native prevention is disabled if hook is disabled
+      if (ScreenshotPrevent) {
+        try {
+          ScreenshotPrevent.enabled(false);
+        } catch (error) {
+          // Ignore errors on cleanup
+        }
+      }
       return;
     }
 
@@ -52,8 +79,12 @@ export function useScreenshotProtection(enabled: boolean = true): { BlurOverlay:
     if (ScreenshotPrevent && (Platform.OS === 'ios' || Platform.OS === 'android')) {
       try {
         ScreenshotPrevent.enabled(true);
-      } catch (error) {
-        console.warn('Native screenshot prevention not available:', error);
+      } catch (error: any) {
+        // Native module not available or failed to enable
+        // This is expected in managed workflow - fallback to blur overlay
+        if (__DEV__) {
+          console.warn('Native screenshot prevention not available (expected in managed workflow):', error?.message || error);
+        }
       }
     }
 
@@ -71,12 +102,12 @@ export function useScreenshotProtection(enabled: boolean = true): { BlurOverlay:
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      // Disable native screenshot prevention
+      // Disable native screenshot prevention on cleanup
       if (ScreenshotPrevent) {
         try {
           ScreenshotPrevent.enabled(false);
         } catch (error) {
-          // Ignore errors on cleanup
+          // Ignore errors on cleanup - module might not be available
         }
       }
       subscription.remove();
@@ -106,38 +137,88 @@ export function useScreenshotProtection(enabled: boolean = true): { BlurOverlay:
 /**
  * Certificate pinning configuration
  * 
- * To enable certificate pinning:
- * 1. Install expo-dev-client: npx expo install expo-dev-client
- * 2. Install react-native-ssl-pinning: npm install react-native-ssl-pinning
- * 3. Extract certificate from API Gateway (see SECURITY_FEATURES_IMPLEMENTATION.md)
- * 4. Add certificate pins below
- * 5. Build custom development client
+ * Certificate pinning adds defense-in-depth against sophisticated MITM attacks.
+ * Your API Gateway already enforces HTTPS/TLS, but pinning validates the exact certificate.
  * 
- * Current security: API Gateway enforces HTTPS/TLS (good protection)
- * Certificate pinning adds defense-in-depth against sophisticated MITM attacks
+ * SETUP INSTRUCTIONS:
+ * 
+ * 1. Extract certificate from your API Gateway:
+ *    Run: ./scripts/extract-certificate.sh https://your-api-gateway-url.execute-api.region.amazonaws.com/prod
+ *    Or manually:
+ *    openssl s_client -connect YOUR_API_URL:443 -showcerts < /dev/null 2>/dev/null | \
+ *      openssl x509 -outform PEM > cert.pem
+ *    openssl x509 -in cert.pem -fingerprint -sha256 -noout
+ * 
+ * 2. Add the SHA256 fingerprints to CERTIFICATE_PINS array below (format: 'sha256/XXXXX')
+ * 
+ * 3. Set CERTIFICATE_PINNING_ENABLED = true
+ * 
+ * 4. Build custom development client: eas build --platform ios --profile development
+ * 
+ * 5. Test the app to ensure pinning works correctly
+ * 
+ * IMPORTANT NOTES:
+ * - Certificate pinning only works in custom dev client builds (not Expo Go)
+ * - Keep backup pins for smooth certificate rotation
+ * - When your certificate rotates, extract new pins and update the array
+ * - Pinning will block requests if certificate doesn't match (prevents MITM)
+ * 
+ * See CUSTOM_DEV_CLIENT_SETUP.md for complete setup guide
  */
 
-// Set to true after installing native modules and adding certificate pins
+// Set to true after adding certificate pins below
 export const CERTIFICATE_PINNING_ENABLED = false;
 
-// Add your certificate SHA256 fingerprints here
-// Get them by running: openssl s_client -connect YOUR_API_URL:443 -showcerts
-// Then: openssl x509 -in cert.pem -fingerprint -sha256 -noout
+/**
+ * Certificate pins for API Gateway
+ * 
+ * Format: 'sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+ * 
+ * Add your certificate SHA256 fingerprints here. You can extract them using:
+ * - ./scripts/extract-certificate.sh <API_URL> (recommended)
+ * - Or manually with openssl commands (see instructions above)
+ * 
+ * Include backup pins from intermediate certificates for smooth rotation.
+ */
 export const CERTIFICATE_PINS: string[] = [
-  // 'sha256/YOUR_CERTIFICATE_FINGERPRINT_HERE',
+  // Example format (replace with your actual pins):
+  // 'sha256/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+  // 'sha256/YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY',
   // Add backup pins for certificate rotation
 ];
 
 /**
+ * Validate certificate pin format
+ * @param pin Certificate pin string
+ * @returns true if pin format is valid
+ */
+export function validateCertificatePin(pin: string): boolean {
+  // Pin should start with 'sha256/' followed by 64 hex characters
+  const pinRegex = /^sha256\/[A-Fa-f0-9]{64}$/;
+  return pinRegex.test(pin);
+}
+
+/**
  * Get certificate pinning configuration
+ * 
+ * @returns Configuration object with enabled status and pins array
  */
 export function getCertificatePinningConfig(): {
   enabled: boolean;
   pins?: string[];
 } {
+  // Validate all pins before enabling
+  const validPins = CERTIFICATE_PINS.filter(pin => {
+    const isValid = validateCertificatePin(pin);
+    if (!isValid) {
+      console.warn(`Invalid certificate pin format: ${pin}. Pins must be in format 'sha256/XXXXXXXXXXXXXXXX...'`);
+    }
+    return isValid;
+  });
+
   return {
-    enabled: CERTIFICATE_PINNING_ENABLED && CERTIFICATE_PINS.length > 0,
-    pins: CERTIFICATE_PINS.length > 0 ? CERTIFICATE_PINS : undefined,
+    enabled: CERTIFICATE_PINNING_ENABLED && validPins.length > 0,
+    pins: validPins.length > 0 ? validPins : undefined,
   };
 }
 

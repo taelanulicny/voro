@@ -32,7 +32,6 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   tryRefreshToken: () => Promise<boolean>; // Try to refresh token if near expiry
   getToken: () => string | null; // Get current token (for authenticatedRequest)
-  skipAuth: () => Promise<void>; // DEV ONLY
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -317,26 +316,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Expose getToken function for authenticatedRequest
   const getToken = useCallback(() => token, [token]);
 
-  // DEV ONLY - Skip authentication for development
-  // SECURITY: Double-check to ensure this is never available in production
-  const skipAuth = async () => {
-    if (!__DEV__ || process.env.NODE_ENV === 'production') {
-      throw new Error('skipAuth() is only available in development mode');
-    }
-    
-    const mockUser: User = {
-      id: 'dev-user-' + Date.now(),
-      email: 'dev@moro.app',
-      username: 'devuser',
-      displayName: 'Dev User',
-      avatarUrl: undefined,
-      bio: 'Development mode user',
-    };
-    const mockToken = 'dev-token-' + Date.now();
-    
-    await saveAuthData(mockToken, mockUser);
-  };
-
   const value: AuthContextType = {
     user,
     token,
@@ -350,7 +329,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     refreshUser,
     tryRefreshToken,
     getToken,
-    skipAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

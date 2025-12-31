@@ -260,51 +260,46 @@ export async function apiRequest<T = any>(
     try {
       const url = `${API_CONFIG.baseURL}${endpoint}`;
       
-      // Use certificate pinning if available (custom dev client)
-      const usePinning = sslPinningFetch && !__DEV__ && process.env.EXPO_PUBLIC_ENABLE_SSL_PINNING === 'true';
+      // Check if certificate pinning is enabled and available
+      const { getCertificatePinningConfig } = await import('../utils/security');
+      const pinConfig = getCertificatePinningConfig();
+      const usePinning = sslPinningFetch && pinConfig.enabled && pinConfig.pins && pinConfig.pins.length > 0;
       
       let response: Response;
       
       if (usePinning) {
-        // Use SSL pinning fetch (requires react-native-ssl-pinning)
-        const { getCertificatePinningConfig } = await import('../utils/security');
-        const pinConfig = getCertificatePinningConfig();
-        
-        if (!pinConfig.enabled || !pinConfig.pins || pinConfig.pins.length === 0) {
-          console.warn('SSL pinning requested but not configured, falling back to regular fetch');
-        } else {
-          try {
-            // react-native-ssl-pinning uses different API
-            const sslResponse = await sslPinningFetch(url, {
-              method: options.method || 'GET',
-              headers: {
-                ...API_CONFIG.headers,
-                ...(options.headers as Record<string, string>),
-              },
-              body: options.body ? JSON.stringify(options.body) : undefined,
-              sslPinning: {
-                certs: pinConfig.pins,
-              },
-              timeoutInterval: API_CONFIG.timeout,
-            });
-            
-            // sslPinningFetch returns data directly, not a Response object
-            const data = typeof sslResponse === 'string' ? JSON.parse(sslResponse) : sslResponse;
+        // Use SSL pinning fetch (requires react-native-ssl-pinning and custom dev client)
+        try {
+          // react-native-ssl-pinning uses different API
+          const sslResponse = await sslPinningFetch(url, {
+            method: options.method || 'GET',
+            headers: {
+              ...API_CONFIG.headers,
+              ...(options.headers as Record<string, string>),
+            },
+            body: options.body ? JSON.stringify(options.body) : undefined,
+            sslPinning: {
+              certs: pinConfig.pins!,
+            },
+            timeoutInterval: API_CONFIG.timeout,
+          });
+          
+          // sslPinningFetch returns data directly, not a Response object
+          const data = typeof sslResponse === 'string' ? JSON.parse(sslResponse) : sslResponse;
+          return {
+            success: true,
+            data,
+          };
+        } catch (pinError: any) {
+          // Handle pinning failures - block request if certificate doesn't match
+          if (pinError.message?.includes('SSL') || pinError.message?.includes('certificate') || pinError.message?.includes('pinning')) {
+            console.error('Certificate pinning validation failed:', pinError);
             return {
-              success: true,
-              data,
+              success: false,
+              error: 'Certificate validation failed - possible MITM attack',
             };
-          } catch (pinError: any) {
-            // Handle pinning failures - in production, you might want to block
-            if (pinError.message?.includes('SSL') || pinError.message?.includes('certificate') || pinError.message?.includes('pinning')) {
-              console.error('Certificate pinning validation failed:', pinError);
-              return {
-                success: false,
-                error: 'Certificate validation failed - possible MITM attack',
-              };
-            }
-            throw pinError;
           }
+          throw pinError;
         }
       }
       

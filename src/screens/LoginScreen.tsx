@@ -27,7 +27,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { login, loginWithGoogle: authLoginWithGoogle, loginWithApple: authLoginWithApple, skipAuth } = useAuth();
+  const { login, loginWithGoogle: authLoginWithGoogle, loginWithApple: authLoginWithApple } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -115,17 +115,6 @@ export default function LoginScreen() {
       setIsGoogleLoading(false);
       Alert.alert('Error', 'Failed to start Google Sign In');
     });
-  };
-
-  const handleSkipAuth = async () => {
-    setIsLoading(true);
-    try {
-      await skipAuth();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to skip auth');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleAppleLogin = async () => {
@@ -293,12 +282,6 @@ export default function LoginScreen() {
 
           </View>
 
-          {/* Dev Skip Auth Button */}
-          {__DEV__ && (
-            <TouchableOpacity style={styles.skipAuthButton} onPress={handleSkipAuth}>
-              <Text style={styles.skipAuthText}>Doesn't work? Dev: Skip Auth</Text>
-            </TouchableOpacity>
-          )}
           {/* Sign Up Link */}
           <View style={styles.signupContainer}>
             <Text style={styles.signupText}>Don't have an account? </Text>
@@ -469,16 +452,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#3B82F6',
     fontWeight: '600',
-  },
-  skipAuthButton: {
-    marginTop: 20,
-    alignItems: 'center',
-    padding: 10,
-  },
-  skipAuthText: {
-    color: '#EF4444',
-    fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });

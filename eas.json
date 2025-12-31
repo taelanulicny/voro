@@ -8,17 +8,26 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       },
       "autoIncrement": true
     }
@@ -29,6 +38,10 @@
         "appleId": "taelanulicny@icloud.com",
         "ascAppId": "6756631236",
         "appleTeamId": "9K7A9NRNNG"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./path/to/api-key.json",
+        "track": "internal"
       }
     }
   }
