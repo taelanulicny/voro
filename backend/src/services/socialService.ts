@@ -832,3 +832,103 @@ export async function generatePostImageUploadUrl(
   }
 }
 
+/**
+ * Get posts for a specific category
+ * Maps categoryId to entity category, gets entities in that category, then gets posts
+ */
+export async function getCategoryPosts(
+  categoryId: string,
+  limit: number = 50,
+  lastKey?: string
+): Promise<{ posts: Post[]; lastEvaluatedKey?: string }> {
+  try {
+    // Map categoryId to entity category
+    // Category IDs: 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'
+    // Entity categories: 'People', 'Events', 'Politics', 'Tech'
+    const categoryMap: Record<string, string> = {
+      'Influencers': 'People',
+      'Music Artists': 'People',
+      'Sports': 'Events',
+      'Political Figures': 'Politics',
+      'Startups': 'Tech',
+    };
+
+    const entityCategory = categoryMap[categoryId] || categoryId;
+
+    // Get all entities in this category
+    const { getAllEntities } = await import('./tradingService');
+    const entities = await getAllEntities(entityCategory);
+
+    // Filter entities based on categoryId for People category
+    let entityIds: number[] = [];
+    if (categoryId === 'Influencers') {
+      // Influencers: IDs 11-20
+      entityIds = entities.filter(e => e.entityId >= 11 && e.entityId <= 20).map(e => e.entityId);
+    } else if (categoryId === 'Music Artists') {
+      // Music Artists: IDs 21-30
+      entityIds = entities.filter(e => e.entityId >= 21 && e.entityId <= 30).map(e => e.entityId);
+    } else {
+      entityIds = entities.map(e => e.entityId);
+    }
+
+    if (entityIds.length === 0) {
+      return { posts: [], lastEvaluatedKey: undefined };
+    }
+
+    // Get posts for all entities in this category
+    // Query each entity's posts using the entityId-timestamp-index GSI
+    // Then combine and sort by timestamp
+    let exclusiveStartKey;
+    if (lastKey) {
+      try {
+        exclusiveStartKey = JSON.parse(Buffer.from(lastKey, 'base64').toString('utf-8'));
+      } catch (e) {
+        console.warn('Invalid lastKey:', lastKey);
+      }
+    }
+
+    // Query posts for each entity and combine results
+    const allPosts: Post[] = [];
+    for (const entityId of entityIds) {
+      const queryResult = await docClient.send(
+        new QueryCommand({
+          TableName: TABLE_NAMES.POSTS,
+          IndexName: 'entityId-timestamp-index',
+          KeyConditionExpression: 'entityId = :entityId',
+          ExpressionAttributeValues: {
+            ':entityId': entityId,
+          },
+          ScanIndexForward: false, // Sort by timestamp descending
+          Limit: limit, // Get limit posts per entity to avoid too many queries
+        })
+      );
+
+      if (queryResult.Items) {
+        allPosts.push(...(queryResult.Items as Post[]));
+      }
+    }
+
+    // Sort all posts by timestamp descending
+    allPosts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    // Apply limit and pagination
+    const startIndex = exclusiveStartKey ? parseInt(exclusiveStartKey.startIndex || '0', 10) : 0;
+    const paginatedPosts = allPosts.slice(startIndex, startIndex + limit);
+    const hasMore = startIndex + limit < allPosts.length;
+
+    // Prepare next cursor
+    let nextLastEvaluatedKey: string | undefined;
+    if (hasMore) {
+      nextLastEvaluatedKey = Buffer.from(JSON.stringify({ startIndex: startIndex + limit })).toString('base64');
+    }
+
+    return {
+      posts: paginatedPosts,
+      lastEvaluatedKey: nextLastEvaluatedKey,
+    };
+  } catch (error: any) {
+    console.error('Error getting category posts:', error);
+    return { posts: [], lastEvaluatedKey: undefined };
+  }
+}
+

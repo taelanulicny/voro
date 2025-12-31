@@ -24,6 +24,17 @@ export const handler = async (
   const path = event.path || '';
   const method = event.httpMethod || '';
   
+  // Debug logging for group members requests
+  if (path.includes('/groups') && path.includes('/members')) {
+    logger.debug('[Router] Group members request detected', { 
+      path, 
+      method, 
+      rawPath: event.path,
+      pathParameters: event.pathParameters,
+      resource: event.resource 
+    });
+  }
+  
   // Debug logging for troubleshooting
   if (path.includes('search')) {
     logger.debug('[Router] Search request', { path, method, query: event.queryStringParameters });
@@ -80,33 +91,77 @@ export const handler = async (
     if (path.includes('/images/upload-url') && method === 'GET') {
       return socialHandlers.getPostImageUploadUrl(event);
     }
-    if (path.includes('/like') && method === 'POST') {
+    // Check for DELETE /api/social/posts/:postId (must check before other postId routes)
+    const deletePostMatch = path.match(/\/api\/social\/posts\/([^/]+)$/);
+    if (deletePostMatch && method === 'DELETE') {
+      // Extract postId from path and set it in pathParameters
+      const postId = deletePostMatch[1];
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.postId = postId;
+      logger.debug('[Router] Matched delete post endpoint', { path, postId });
+      return socialHandlers.deletePost(event);
+    }
+    // Check for POST /api/social/posts/:postId/like
+    const likePostMatch = path.match(/\/api\/social\/posts\/([^/]+)\/like$/);
+    if (likePostMatch && method === 'POST') {
+      const postId = likePostMatch[1];
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.postId = postId;
+      logger.debug('[Router] Matched like post endpoint', { path, postId });
       return socialHandlers.toggleLikePost(event);
     }
-    if (path.includes('/bookmark') && method === 'POST') {
+    // Check for POST /api/social/posts/:postId/bookmark
+    const bookmarkPostMatch = path.match(/\/api\/social\/posts\/([^/]+)\/bookmark$/);
+    if (bookmarkPostMatch && method === 'POST') {
+      const postId = bookmarkPostMatch[1];
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.postId = postId;
+      logger.debug('[Router] Matched bookmark post endpoint', { path, postId });
       return socialHandlers.toggleBookmarkPost(event);
     }
     if (path.includes('/comments')) {
+      // Check for POST /api/social/posts/:postId/comments
+      const addCommentMatch = path.match(/\/api\/social\/posts\/([^/]+)\/comments$/);
+      if (addCommentMatch && method === 'POST') {
+        const postId = addCommentMatch[1];
+        event.pathParameters = event.pathParameters || {};
+        event.pathParameters.postId = postId;
+        logger.debug('[Router] Matched add comment endpoint', { path, postId });
+        return socialHandlers.addComment(event);
+      }
+      // Check for GET /api/social/posts/:postId/comments
+      const getCommentsMatch = path.match(/\/api\/social\/posts\/([^/]+)\/comments$/);
+      if (getCommentsMatch && method === 'GET') {
+        const postId = getCommentsMatch[1];
+        event.pathParameters = event.pathParameters || {};
+        event.pathParameters.postId = postId;
+        logger.debug('[Router] Matched get comments endpoint', { path, postId });
+        return socialHandlers.getComments(event);
+      }
       // Edit comment endpoint: PUT /api/social/comments/:commentId
       if (path.match(/\/comments\/[^/]+$/) && method === 'PUT') {
         return socialHandlers.editCommentHandler(event);
       }
-      if (path.includes('/like') && method === 'POST') {
+      // Check for POST /api/social/comments/:commentId/like
+      const likeCommentMatch = path.match(/\/api\/social\/comments\/([^/]+)\/like$/);
+      if (likeCommentMatch && method === 'POST') {
+        const commentId = likeCommentMatch[1];
+        event.pathParameters = event.pathParameters || {};
+        event.pathParameters.commentId = commentId;
+        logger.debug('[Router] Matched like comment endpoint', { path, commentId });
         return socialHandlers.toggleLikeComment(event);
       }
-      if (method === 'POST') {
-        return socialHandlers.addComment(event);
-      }
-      if (method === 'GET') {
-        return socialHandlers.getComments(event);
-      }
-    }
-    if (method === 'DELETE') {
-      return socialHandlers.deletePost(event);
     }
     if (method === 'POST') {
       return socialHandlers.createPost(event);
     }
+  }
+
+  // Check for category posts endpoint under /api/social/categories
+  const socialCategoryPostsMatch = path.match(/\/api\/social\/categories\/([^/]+)\/posts$/);
+  if (socialCategoryPostsMatch && method === 'GET') {
+    logger.debug('[Router] Matched social category posts endpoint', { path, categoryId: socialCategoryPostsMatch[1] });
+    return categoryHandlers.getCategoryPostsHandler(event);
   }
   // Search endpoint - check early to avoid conflicts with other routes
   // Match /api/search or /search (depending on API Gateway base path)
@@ -179,12 +234,37 @@ export const handler = async (
     return leaderboardHandlers.getLeaderboardHandler(event);
   }
 
+  // Check for group members endpoint FIRST, before other group routes
+  // This must be checked before the general /api/groups check to avoid conflicts
+  // Handle paths like /api/groups/:groupId/members or /dev/api/groups/:groupId/members
+  const groupMembersMatch = path.match(/\/(?:[^/]+\/)?api\/groups\/([^/]+)\/members\/?$/);
+  if (groupMembersMatch && method === 'GET') {
+    const extractedGroupId = groupMembersMatch[1];
+    event.pathParameters = event.pathParameters || {};
+    event.pathParameters.groupId = extractedGroupId;
+    logger.debug('[Router] Matched get group members endpoint', { path, groupId: extractedGroupId, method, rawPath: event.path });
+    return groupHandlers.getGroupMembersHandler(event);
+  }
+
   if (path.includes('/api/groups')) {
+    // Skip if this is a members route (already handled above)
+    if (path.includes('/members') && method === 'GET') {
+      logger.warn('[Router] Members route reached groups block, this should not happen', { path, method });
+      // Try one more time with a simpler check
+      const simpleMembersMatch = path.match(/groups\/([^/]+)\/members/);
+      if (simpleMembersMatch) {
+        const extractedGroupId = simpleMembersMatch[1];
+        event.pathParameters = event.pathParameters || {};
+        event.pathParameters.groupId = extractedGroupId;
+        logger.debug('[Router] Matched members route with fallback check', { path, groupId: extractedGroupId });
+        return groupHandlers.getGroupMembersHandler(event);
+      }
+    }
+    
+    logger.debug('[Router] Processing groups route', { path, method, pathParameters: event.pathParameters });
     const groupId = event.pathParameters?.groupId;
     // Normalize path (remove trailing slash)
     const normalizedPath = path.replace(/\/$/, '');
-    
-    // Check specific routes first (most specific to least specific)
     if (path.endsWith('/join') && method === 'POST' && groupId) {
       return groupHandlers.joinGroupHandler(event);
     }
@@ -197,7 +277,7 @@ export const handler = async (
     if (method === 'DELETE' && groupId) {
       return groupHandlers.deleteGroupHandler(event);
     }
-    if (method === 'GET' && groupId) {
+    if (method === 'GET' && groupId && !path.includes('/members')) {
       return groupHandlers.getGroupHandler(event);
     }
     // POST to /api/groups - create group (check exact path match)
@@ -205,12 +285,26 @@ export const handler = async (
       logger.debug('[Router] Routing POST /api/groups to createGroupHandler');
       return groupHandlers.createGroupHandler(event);
     }
-    if (method === 'GET') {
+    if (method === 'GET' && !path.includes('/members')) {
+      logger.debug('[Router] Falling back to getGroupsHandler', { path, method });
       return groupHandlers.getGroupsHandler(event);
     }
   }
 
   if (path.includes('/api/categories')) {
+    // Check for category posts endpoint first (before other category routes)
+    // Match patterns like /api/categories/Influencers/posts or /api/categories/Music%20Artists/posts
+    const categoryPostsMatch = path.match(/\/api\/categories\/([^/]+)\/posts$/);
+    if (categoryPostsMatch && method === 'GET') {
+      logger.debug('[Router] Matched category posts endpoint', { path, categoryId: categoryPostsMatch[1] });
+      return categoryHandlers.getCategoryPostsHandler(event);
+    }
+    // Check for category entities endpoint: /api/categories/:categoryId/entities or /api/categories/:categoryId
+    const categoryEntitiesMatch = path.match(/\/api\/categories\/([^/]+)(?:\/entities)?$/);
+    if (categoryEntitiesMatch && method === 'GET' && !path.includes('/volumes') && !path.includes('/trending') && !path.includes('/movers') && !path.includes('/discussed') && !path.includes('/discover') && !path.includes('/for-you')) {
+      logger.debug('[Router] Matched category entities endpoint', { path, categoryId: categoryEntitiesMatch[1] });
+      return categoryHandlers.getCategoryEntitiesHandler(event);
+    }
     if (path.includes('/volumes') && method === 'GET') {
       return categoryHandlers.getCategoryVolumesHandler(event);
     }
@@ -253,8 +347,16 @@ export const handler = async (
   }
 
   // Default 404 - log for debugging
-  logger.debug('[Router] 404 - Path not matched', { path, method });
+  logger.debug('[Router] 404 - Path not matched', { path, method, queryParams: event.queryStringParameters, pathParams: event.pathParameters });
   logger.debug('[Router] Available routes include: /api/auth, /api/trade, /api/portfolio, /api/entities, /api/search, /api/social, /api/user, /api/news, /api/watchlist, /api/groups, /api/categories');
+  logger.warn('[Router] 404 - Unmatched request', { 
+    path, 
+    method, 
+    fullPath: event.path,
+    resource: event.resource,
+    pathParameters: event.pathParameters,
+    queryStringParameters: event.queryStringParameters
+  });
   
   return {
     statusCode: 404,
@@ -267,6 +369,7 @@ export const handler = async (
       error: 'Endpoint not found',
       path: path,
       method: method,
+      message: `No handler found for ${method} ${path}. Check server logs for available routes.`,
     }),
   };
 };

@@ -35,7 +35,7 @@ interface SocialContextType {
   }) => Promise<{ success: boolean; error?: string; post?: Post }>;
   toggleLikePost: (postId: string) => Promise<{ success: boolean }>;
   toggleBookmarkPost: (postId: string) => Promise<{ success: boolean }>;
-  deletePost: (postId: string) => Promise<{ success: boolean }>;
+  deletePost: (postId: string) => Promise<{ success: boolean; error?: string }>;
 
   // Feed actions
   refreshActivityFeed: () => Promise<void>;
@@ -548,14 +548,23 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success) {
+        // Remove post from activity feed
         setActivityFeed(prev => prev.filter(post => post.id !== postId));
+        
+        // Remove comments associated with this post
+        setPostComments(prev => {
+          const updated = { ...prev };
+          delete updated[postId];
+          return updated;
+        });
+        
         return { success: true };
       }
 
-      return { success: false };
+      return { success: false, error: response.error || 'Failed to delete post' };
     } catch (error) {
       console.error('Error deleting post:', error);
-      return { success: false };
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete post' };
     }
   }, [token]);
 

@@ -2,6 +2,16 @@ import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { Entity } from '../models/types';
 
+// Simple in-memory cache for search results (TTL: 5 minutes)
+interface CachedSearchResult {
+  results: SearchResult[];
+  timestamp: number;
+}
+
+const searchCache = new Map<string, CachedSearchResult>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 100; // Limit cache size
+
 export interface SearchResult {
   entity: Entity;
   score: number;
@@ -54,48 +64,69 @@ function similarityScore(str1: string, str2: string): number {
 
 /**
  * Check if query matches text (exact, starts with, contains, or fuzzy)
+ * Gold standard algorithm: prioritize exact/prefix matches, strict fuzzy matching
  */
 function matchText(query: string, text: string): { matched: boolean; score: number; matchType: 'exact' | 'fuzzy' | 'partial' } {
   const queryLower = query.toLowerCase().trim();
   const textLower = text.toLowerCase().trim();
 
-  // Exact match
+  // Exact match (highest priority)
   if (textLower === queryLower) {
     return { matched: true, score: 1.0, matchType: 'exact' };
   }
 
-  // Starts with query
+  // Starts with query (high priority for prefix matching)
   if (textLower.startsWith(queryLower)) {
     return { matched: true, score: 0.9, matchType: 'partial' };
   }
 
-  // Contains query
+  // Contains query as whole word (better than substring match)
+  const wordBoundaryRegex = new RegExp(`\\b${queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+  if (wordBoundaryRegex.test(textLower)) {
+    return { matched: true, score: 0.8, matchType: 'partial' };
+  }
+
+  // Contains query as substring (lower priority)
   if (textLower.includes(queryLower)) {
-    return { matched: true, score: 0.7, matchType: 'partial' };
+    return { matched: true, score: 0.6, matchType: 'partial' };
   }
 
-  // Fuzzy match (similarity threshold: 0.6)
-  const similarity = similarityScore(queryLower, textLower);
-  if (similarity >= 0.6) {
-    return { matched: true, score: similarity * 0.6, matchType: 'fuzzy' };
-  }
-
-  // Word-by-word fuzzy matching (for multi-word queries)
-  const queryWords = queryLower.split(/\s+/);
-  const textWords = textLower.split(/\s+/);
-  let bestWordMatch = 0;
-  
-  for (const queryWord of queryWords) {
-    for (const textWord of textWords) {
-      const wordSimilarity = similarityScore(queryWord, textWord);
-      if (wordSimilarity >= 0.6) {
-        bestWordMatch = Math.max(bestWordMatch, wordSimilarity);
-      }
+  // Strict fuzzy match (only for single words, higher threshold: 0.75)
+  // Only use fuzzy matching if query is a single word to avoid false positives
+  if (!queryLower.includes(' ') && queryLower.length >= 3) {
+    const similarity = similarityScore(queryLower, textLower);
+    if (similarity >= 0.75) {
+      return { matched: true, score: similarity * 0.5, matchType: 'fuzzy' };
     }
   }
 
-  if (bestWordMatch >= 0.6) {
-    return { matched: true, score: bestWordMatch * 0.5, matchType: 'fuzzy' };
+  // For multi-word queries, check if any word matches (strict)
+  if (queryLower.includes(' ')) {
+    const queryWords = queryLower.split(/\s+/).filter(w => w.length >= 2);
+    const textWords = textLower.split(/\s+/);
+    
+    // Count how many query words match
+    let matchedWords = 0;
+    for (const queryWord of queryWords) {
+      for (const textWord of textWords) {
+        // Exact word match
+        if (textWord === queryWord || textWord.startsWith(queryWord)) {
+          matchedWords++;
+          break;
+        }
+        // Strict fuzzy match for words (threshold 0.8)
+        if (queryWord.length >= 3 && similarityScore(queryWord, textWord) >= 0.8) {
+          matchedWords++;
+          break;
+        }
+      }
+    }
+    
+    // Require at least one word to match
+    if (matchedWords > 0) {
+      const matchRatio = matchedWords / queryWords.length;
+      return { matched: true, score: matchRatio * 0.5, matchType: 'fuzzy' };
+    }
   }
 
   return { matched: false, score: 0, matchType: 'partial' };
@@ -133,6 +164,7 @@ export async function searchEntities(params: {
     const entities = (result.Items || []) as Entity[];
 
     // Search and score each entity
+    // Gold standard: only match name and ticker, no description matching
     const searchResults: SearchResult[] = [];
 
     for (const entity of entities) {
@@ -140,43 +172,37 @@ export async function searchEntities(params: {
       let bestScore = 0;
       let bestMatchType: 'exact' | 'fuzzy' | 'partial' = 'partial';
 
-      // Search in ticker
+      // Search in ticker (exact ticker matches are very important)
       const tickerMatch = matchText(query, entity.ticker);
       if (tickerMatch.matched) {
         matchedFields.push('ticker');
-        if (tickerMatch.score > bestScore) {
-          bestScore = tickerMatch.score;
+        // Ticker matches get high priority
+        const tickerScore = tickerMatch.matchType === 'exact' ? 1.0 : tickerMatch.score * 0.9;
+        if (tickerScore > bestScore) {
+          bestScore = tickerScore;
           bestMatchType = tickerMatch.matchType;
         }
       }
 
-      // Search in name (weighted higher)
+      // Search in name (weighted higher, this is the primary field)
       const nameMatch = matchText(query, entity.name);
       if (nameMatch.matched) {
         matchedFields.push('name');
-        // Boost score for name matches
-        const boostedScore = nameMatch.score * 1.2;
+        // Boost score for name matches, especially exact/prefix matches
+        let boostedScore = nameMatch.score;
+        if (nameMatch.matchType === 'exact') {
+          boostedScore = 1.0;
+        } else if (nameMatch.matchType === 'partial' && nameMatch.score >= 0.8) {
+          boostedScore = nameMatch.score * 1.1; // Slight boost for good partial matches
+        }
         if (boostedScore > bestScore) {
           bestScore = Math.min(boostedScore, 1.0); // Cap at 1.0
           bestMatchType = nameMatch.matchType;
         }
       }
 
-      // Search in description (weighted lower)
-      if (entity.description) {
-        const descMatch = matchText(query, entity.description);
-        if (descMatch.matched) {
-          matchedFields.push('description');
-          // Lower weight for description matches
-          const weightedScore = descMatch.score * 0.5;
-          if (weightedScore > bestScore && matchedFields.length === 0) {
-            bestScore = weightedScore;
-            bestMatchType = descMatch.matchType;
-          }
-        }
-      }
-
-      // Only include entities that matched
+      // Only include entities that matched in name or ticker
+      // Description matching removed - only search name and ticker as requested
       if (matchedFields.length > 0) {
         searchResults.push({
           entity,
@@ -189,11 +215,25 @@ export async function searchEntities(params: {
 
     // Sort results
     if (sortBy === 'relevance') {
-      // Sort by score (highest first), then by name
+      // Sort by match quality: exact > partial > fuzzy, then by score, then by name
+      const getMatchPriority = (matchType: 'exact' | 'fuzzy' | 'partial') => {
+        if (matchType === 'exact') return 3;
+        if (matchType === 'partial') return 2;
+        return 1; // fuzzy
+      };
+      
       searchResults.sort((a, b) => {
-        if (b.score !== a.score) {
+        // First, prioritize by match type
+        const priorityA = getMatchPriority(a.matchType);
+        const priorityB = getMatchPriority(b.matchType);
+        if (priorityB !== priorityA) {
+          return priorityB - priorityA;
+        }
+        // Then by score
+        if (Math.abs(b.score - a.score) > 0.01) {
           return b.score - a.score;
         }
+        // Finally by name
         return a.entity.name.localeCompare(b.entity.name);
       });
     } else if (sortBy === 'name') {
@@ -201,7 +241,19 @@ export async function searchEntities(params: {
     } else {
       // For price/change sorting, we'd need current prices
       // For now, just sort by relevance
-      searchResults.sort((a, b) => b.score - a.score);
+      const getMatchPriority = (matchType: 'exact' | 'fuzzy' | 'partial') => {
+        if (matchType === 'exact') return 3;
+        if (matchType === 'partial') return 2;
+        return 1; // fuzzy
+      };
+      searchResults.sort((a, b) => {
+        const priorityA = getMatchPriority(a.matchType);
+        const priorityB = getMatchPriority(b.matchType);
+        if (priorityB !== priorityA) {
+          return priorityB - priorityA;
+        }
+        return b.score - a.score;
+      });
     }
 
     // Limit results

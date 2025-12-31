@@ -60,3 +60,4 @@ export function assertValidEntityId(entityId: number | null | undefined, context
     throw new Error(`Invalid entity ID${context ? ` in ${context}` : ''}: ${entityId}`);
   }
 }
+

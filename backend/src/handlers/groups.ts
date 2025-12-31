@@ -10,7 +10,10 @@ import {
   leaveGroup,
   deleteGroup,
   isGroupMember,
+  getGroupMembers,
 } from '../services/groupService';
+import { docClient, TABLE_NAMES } from '../utils/dynamodb';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
 
 export async function createGroupHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -184,6 +187,61 @@ export async function deleteGroupHandler(event: APIGatewayProxyEvent): Promise<A
   } catch (error: any) {
     logger.error('Error in deleteGroupHandler', error);
     return createErrorResponse(500, error.message || 'Failed to delete group');
+  }
+}
+
+export async function getGroupMembersHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const groupId = event.pathParameters?.groupId;
+    if (!groupId) {
+      return createErrorResponse(400, 'Group ID is required');
+    }
+
+    // Check if user is a member of the group
+    const userId = auth.event.userId!;
+    const member = await isGroupMember(userId, groupId);
+    if (!member) {
+      return createErrorResponse(403, 'You must be a member to view group members');
+    }
+
+    const members = await getGroupMembers(groupId);
+    
+    // Get user details for each member
+    const membersWithDetails = await Promise.all(
+      members.map(async (member) => {
+        try {
+          const userResult = await docClient.send(
+            new GetCommand({
+              TableName: TABLE_NAMES.USERS,
+              Key: { userId: member.userId },
+            })
+          );
+          
+          if (userResult.Item) {
+            return {
+              ...member,
+              username: userResult.Item.username,
+              displayName: userResult.Item.displayName,
+              avatarUrl: userResult.Item.avatarUrl,
+            };
+          }
+          return member;
+        } catch (error) {
+          logger.warn('Error fetching user details for member', { userId: member.userId, error });
+          return member;
+        }
+      })
+    );
+
+    return createResponse(200, { members: membersWithDetails });
+  } catch (error: any) {
+    logger.error('Error in getGroupMembersHandler', error);
+    return createErrorResponse(500, error.message || 'Failed to get group members');
   }
 }
 

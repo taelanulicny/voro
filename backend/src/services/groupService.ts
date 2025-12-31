@@ -305,3 +305,22 @@ export async function isGroupMember(userId: string, groupId: string): Promise<bo
   }
 }
 
+export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
+  try {
+    const result = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAMES.GROUP_MEMBERS,
+        KeyConditionExpression: 'groupId = :groupId',
+        ExpressionAttributeValues: {
+          ':groupId': groupId,
+        },
+      })
+    );
+
+    return (result.Items || []) as GroupMember[];
+  } catch (error: any) {
+    console.error('Error getting group members:', error);
+    return [];
+  }
+}
+

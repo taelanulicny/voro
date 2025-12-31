@@ -63,7 +63,18 @@ function EntityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [entityFeedPosts, setEntityFeedPosts] = useState<Post[]>([]);
   const [isLoadingEntityPosts, setIsLoadingEntityPosts] = useState(false);
+  const { deletePost: deletePostFromContext } = useSocial();
   const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Wrapper for deletePost that also removes from local entity feed
+  const handleDeletePost = React.useCallback(async (postId: string) => {
+    const result = await deletePostFromContext(postId);
+    if (result.success) {
+      // Remove from local entity feed posts
+      setEntityFeedPosts(prev => prev.filter(post => post.id !== postId));
+    }
+    return result;
+  }, [deletePostFromContext]);
 
   // Fetch price history from backend
   const fetchPriceHistory = async (entityId: number, timeRange: '1D' | '1W' | '1M' | 'ALL') => {
@@ -669,6 +680,7 @@ function EntityScreen() {
                 entityId={entityId}
                 entityName={entity?.name}
                 categoryId={categoryId}
+                onDelete={handleDeletePost}
               />
             )}
             keyExtractor={(item) => item.id}

@@ -27,9 +27,10 @@ interface PostCardProps {
   isEntityFeed?: boolean; // For entity feeds, use @entityName format
   entityId?: number; // Entity ID for navigation
   entityName?: string; // Entity display name for tagging
+  onDelete?: (postId: string) => void; // Optional callback when post is deleted
 }
 
-export default function PostCard({ post, onPress, isCategoryFeed = false, categoryId, categoryName, isEntityFeed = false, entityId, entityName }: PostCardProps) {
+export default function PostCard({ post, onPress, isCategoryFeed = false, categoryId, categoryName, isEntityFeed = false, entityId, entityName, onDelete }: PostCardProps) {
   const { user } = useAuth();
   const { toggleLikePost, deletePost } = useSocial();
   const { theme } = useTheme();
@@ -85,7 +86,20 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deletePost(post.id);
+            const result = await deletePost(post.id);
+            if (result.success) {
+              // Post will be removed from feed automatically via context update
+              // Also call onDelete callback if provided (e.g., to update local state)
+              if (onDelete) {
+                onDelete(post.id);
+              }
+            } else {
+              Alert.alert(
+                'Error',
+                result.error || 'Failed to delete post. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
           },
         },
       ]
