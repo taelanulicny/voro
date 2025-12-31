@@ -261,11 +261,20 @@ export async function apiRequest<T = any>(
 
       clearTimeout(timeoutId);
 
-      // Handle 401 Unauthorized - this will be caught and handled by authenticatedRequest
+      // Handle 401 Unauthorized - return gracefully instead of throwing
       if (response.status === 401) {
-        const error: any = new Error('Unauthorized');
-        error.status = 401;
-        throw error;
+        try {
+          const data = await response.json();
+          return {
+            success: false,
+            error: data.error || 'Unauthorized - authentication required',
+          };
+        } catch {
+          return {
+            success: false,
+            error: 'Unauthorized - authentication required',
+          };
+        }
       }
 
       // For 404 errors, return gracefully (endpoint might not exist yet)

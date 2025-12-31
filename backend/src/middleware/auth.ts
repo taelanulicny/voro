@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { CognitoIdentityProviderClient, GetUserCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import jwt from 'jsonwebtoken';
 
 const cognitoClient = new CognitoIdentityProviderClient({
@@ -11,6 +12,25 @@ const cognitoClient = new CognitoIdentityProviderClient({
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('FATAL: JWT_SECRET environment variable is not set');
+}
+
+// Cognito JWT verifier - cryptographically verifies ID tokens
+// This verifies the signature against Cognito's JWKS and checks issuer, audience, expiration
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
+const CLIENT_ID = process.env.COGNITO_CLIENT_ID;
+
+let cognitoJwtVerifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
+
+if (USER_POOL_ID && CLIENT_ID) {
+  try {
+    cognitoJwtVerifier = CognitoJwtVerifier.create({
+      userPoolId: USER_POOL_ID,
+      tokenUse: 'id', // Verify ID tokens (not access tokens)
+      clientId: CLIENT_ID,
+    });
+  } catch (error) {
+    console.error('Failed to create Cognito JWT verifier:', error);
+  }
 }
 
 // Verify token - supports both Cognito tokens and our custom OAuth JWT tokens
@@ -34,37 +54,41 @@ async function verifyToken(token: string): Promise<any> {
   }
 }
 
-// Verify Cognito token
+// Verify Cognito token with cryptographic signature verification
 async function verifyCognitoToken(token: string): Promise<any> {
   try {
-    const decoded = jwt.decode(token) as any;
-    if (!decoded) {
-      throw new Error('Invalid token format');
+    // Use the Cognito JWT verifier to cryptographically verify ID tokens
+    if (cognitoJwtVerifier) {
+      try {
+        const payload = await cognitoJwtVerifier.verify(token);
+        // Payload is already verified - signature, issuer, audience, expiration all checked
+        return {
+          sub: payload.sub,
+          email: payload.email as string | undefined,
+        };
+      } catch (verifyError) {
+        // If verification fails, it's not a valid Cognito ID token
+        // Try GetUser as fallback for access tokens (legacy support)
+        console.warn('Cognito ID token verification failed, trying GetUser for access token:', verifyError);
+      }
     }
 
-    // For Cognito ID tokens, we can decode and trust them
-    // In production, verify signature with Cognito's JWKS
-    if (decoded.sub) {
+    // Fallback: Try using GetUser for access tokens (legacy support)
+    // Note: This is less secure than JWT verification but may be needed for some tokens
+    try {
+      const command = new GetUserCommand({ AccessToken: token });
+      const response = await cognitoClient.send(command);
+      
       return {
-        sub: decoded.sub,
-        email: decoded.email,
+        sub: response.UserAttributes?.find(attr => attr.Name === 'sub')?.Value || response.Username,
+        email: response.UserAttributes?.find(attr => attr.Name === 'email')?.Value,
       };
+    } catch (getUserError) {
+      // If GetUser also fails, the token is invalid
+      throw new Error('Invalid Cognito token: verification and GetUser both failed');
     }
-
-    // Try using GetUser for access tokens
-    const command = new GetUserCommand({ AccessToken: token });
-    const response = await cognitoClient.send(command);
-    
-    return {
-      sub: response.UserAttributes?.find(attr => attr.Name === 'sub')?.Value || response.Username,
-      email: response.UserAttributes?.find(attr => attr.Name === 'email')?.Value,
-    };
   } catch (error) {
-    // If GetUser fails, try to just decode the token
-    const decoded = jwt.decode(token) as any;
-    if (decoded && decoded.sub) {
-      return decoded;
-    }
+    console.error('Error verifying Cognito token:', error);
     throw error;
   }
 }
@@ -129,9 +153,8 @@ export function createResponse(
     statusCode,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      // SECURITY: No CORS headers for mobile-only API (mobile apps don't use CORS)
+      // If web access is needed, configure specific origins in API Gateway
       ...headers,
     },
     body: JSON.stringify(body),

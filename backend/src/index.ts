@@ -256,7 +256,7 @@ export const handler = async (
     statusCode: 404,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      // SECURITY: No CORS headers for mobile-only API (mobile apps don't use CORS)
     },
     body: JSON.stringify({
       success: false,

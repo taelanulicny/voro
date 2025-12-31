@@ -133,6 +133,15 @@ export async function login(
 
     const user = userResult.Item as User;
 
+    // Generate presigned URL for avatar if it's an S3 key (avatars are private, accessed via presigned URLs)
+    let avatarUrl = user.avatarUrl;
+    if (avatarUrl && !avatarUrl.startsWith('http')) {
+      // If avatarUrl is an S3 key, generate a presigned URL
+      const { getAvatarUrl } = await import('./userService');
+      const presignedUrl = await getAvatarUrl(avatarUrl);
+      avatarUrl = presignedUrl || avatarUrl; // Fallback to key if generation fails
+    }
+
     return {
       success: true,
       token: idToken, // Use ID token for API authentication
@@ -142,7 +151,7 @@ export async function login(
         email: user.email,
         username: user.username,
         displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
+        avatarUrl,
         bio: user.bio,
       },
     };

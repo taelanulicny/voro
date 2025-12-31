@@ -398,13 +398,16 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
 /**
  * Validate an array, filtering out invalid items instead of throwing
  */
-export function validateArrayLoose<T>(schema: z.ZodSchema<T>, data: unknown[]): T[] {
-  // Early return if data is not an array
-  if (!Array.isArray(data)) {
+export function validateArrayLoose<T>(schema: z.ZodSchema<T>, data: unknown): T[] {
+  // Early return if data is not an array or is null/undefined
+  if (!data || !Array.isArray(data)) {
     return [];
   }
   
-  return data
+  // Ensure we have a valid array before processing
+  const arrayData = Array.isArray(data) ? data : [];
+  
+  return arrayData
     .filter(item => item !== undefined && item !== null) // Filter out undefined/null first
     .map(item => safeValidate(schema, item))
     .filter((item): item is T => item !== null);

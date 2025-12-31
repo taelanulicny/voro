@@ -1,8 +1,16 @@
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { GetCommand, PutCommand, UpdateCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
 import { Portfolio, Transaction, Entity, PriceHistory } from '../models/types';
 
 const INITIAL_CASH_BALANCE = 10000;
+
+// DynamoDB client for TransactWriteItems (requires regular client, not document client)
+const dynamoDbClient = new DynamoDBClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+});
 
 export async function getUserPortfolio(userId: string): Promise<{
   cashBalance: number;
@@ -115,7 +123,7 @@ export async function executeTrade(
   pricePerToken: number,
   idempotencyKey?: string
 ): Promise<{ success: boolean; error?: string; portfolio?: any; transactionId?: string }> {
-  // Check for existing transaction with same idempotency key
+  // Check for existing transaction with same idempotency key (idempotency check)
   if (idempotencyKey) {
     const existingTransactions = await docClient.send(
       new QueryCommand({
@@ -141,6 +149,7 @@ export async function executeTrade(
       };
     }
   }
+
   // Get entity details
   const entityResult = await docClient.send(
     new GetCommand({
@@ -155,185 +164,238 @@ export async function executeTrade(
 
   const entity = entityResult.Item as Entity;
   const totalAmount = quantity * pricePerToken;
-
-  // Get user's current portfolio
-  const portfolio = await getUserPortfolio(userId);
-
-  if (type === 'buy') {
-    // Check if user has enough cash
-    if (totalAmount > portfolio.cashBalance) {
-      return { success: false, error: 'Insufficient funds' };
-    }
-
-    // Get existing holding
-    const holdingResult = await docClient.send(
-      new GetCommand({
-        TableName: TABLE_NAMES.PORTFOLIOS,
-        Key: {
-          userId,
-          entityId,
-        },
-      })
-    );
-
-    const now = new Date().toISOString();
-
-    if (holdingResult.Item) {
-      // Update existing holding
-      const existing = holdingResult.Item;
-      const newQuantity = existing.quantity + quantity;
-      const newTotalCost = existing.totalCost + totalAmount;
-      const newAverageCost = newTotalCost / newQuantity;
-
-      await docClient.send(
-        new UpdateCommand({
-          TableName: TABLE_NAMES.PORTFOLIOS,
-          Key: {
-            userId,
-            entityId,
-          },
-          UpdateExpression: 'SET quantity = :q, averageCost = :ac, totalCost = :tc, updatedAt = :ua',
-          ExpressionAttributeValues: {
-            ':q': newQuantity,
-            ':ac': newAverageCost,
-            ':tc': newTotalCost,
-            ':ua': now,
-          },
-        })
-      );
-    } else {
-      // Create new holding
-      await docClient.send(
-        new PutCommand({
-          TableName: TABLE_NAMES.PORTFOLIOS,
-          Item: {
-            userId,
-            entityId,
-            quantity,
-            averageCost: pricePerToken,
-            totalCost: totalAmount,
-            createdAt: now,
-            updatedAt: now,
-          },
-        })
-      );
-    }
-
-    // Update user's cash balance
-    await docClient.send(
-      new UpdateCommand({
-        TableName: TABLE_NAMES.USERS,
-        Key: { userId },
-        UpdateExpression: 'SET cashBalance = cashBalance - :amount, updatedAt = :ua',
-        ExpressionAttributeValues: {
-          ':amount': totalAmount,
-          ':ua': now,
-        },
-      })
-    );
-  } else {
-    // SELL
-    const holdingResult = await docClient.send(
-      new GetCommand({
-        TableName: TABLE_NAMES.PORTFOLIOS,
-        Key: {
-          userId,
-          entityId,
-        },
-      })
-    );
-
-    if (!holdingResult.Item) {
-      return { success: false, error: 'No holding found for this entity' };
-    }
-
-    const holding = holdingResult.Item;
-    if (holding.quantity < quantity) {
-      return { success: false, error: 'Insufficient holdings' };
-    }
-
-    const now = new Date().toISOString();
-    const newQuantity = holding.quantity - quantity;
-
-    if (newQuantity === 0) {
-      // Remove holding
-      await docClient.send(
-        new PutCommand({
-          TableName: TABLE_NAMES.PORTFOLIOS,
-          Item: {
-            userId,
-            entityId,
-            quantity: 0,
-          },
-        })
-      );
-    } else {
-      // Update holding
-      const newTotalCost = holding.totalCost * (newQuantity / holding.quantity);
-
-      await docClient.send(
-        new UpdateCommand({
-          TableName: TABLE_NAMES.PORTFOLIOS,
-          Key: {
-            userId,
-            entityId,
-          },
-          UpdateExpression: 'SET quantity = :q, totalCost = :tc, updatedAt = :ua',
-          ExpressionAttributeValues: {
-            ':q': newQuantity,
-            ':tc': newTotalCost,
-            ':ua': now,
-          },
-        })
-      );
-    }
-
-    // Update user's cash balance
-    await docClient.send(
-      new UpdateCommand({
-        TableName: TABLE_NAMES.USERS,
-        Key: { userId },
-        UpdateExpression: 'SET cashBalance = cashBalance + :amount, updatedAt = :ua',
-        ExpressionAttributeValues: {
-          ':amount': totalAmount,
-          ':ua': now,
-        },
-      })
-    );
-  }
-
-  // Record transaction
   const transactionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const timestamp = new Date().toISOString();
+  const now = new Date().toISOString();
 
-  await docClient.send(
-    new PutCommand({
-      TableName: TABLE_NAMES.TRANSACTIONS,
-      Item: {
-        transactionId,
-        userId,
-        timestamp,
-        entityId,
-        entityName: entity.name,
-        entityTicker: entity.ticker,
-        type,
-        quantity,
-        pricePerToken,
-        totalAmount,
-        category: entity.category,
-        idempotencyKey: idempotencyKey || undefined,
-      },
-    })
-  );
+  try {
+    if (type === 'buy') {
+      // Get existing holding to calculate new values (need this for the transaction)
+      const holdingResult = await docClient.send(
+        new GetCommand({
+          TableName: TABLE_NAMES.PORTFOLIOS,
+          Key: {
+            userId,
+            entityId,
+          },
+        })
+      );
 
-  // Return updated portfolio
-  const updatedPortfolio = await getUserPortfolio(userId);
+      const existingHolding = holdingResult.Item;
+      let portfolioUpdate: any;
 
-  return {
-    success: true,
-    portfolio: updatedPortfolio,
-    transactionId,
-  };
+      if (existingHolding) {
+        // Update existing holding
+        const newQuantity = existingHolding.quantity + quantity;
+        const newTotalCost = existingHolding.totalCost + totalAmount;
+        const newAverageCost = newTotalCost / newQuantity;
+
+        portfolioUpdate = {
+          Update: {
+            TableName: TABLE_NAMES.PORTFOLIOS,
+            Key: marshall({ userId, entityId }),
+            UpdateExpression: 'SET quantity = :q, averageCost = :ac, totalCost = :tc, updatedAt = :ua',
+            ExpressionAttributeValues: marshall({
+              ':q': newQuantity,
+              ':ac': newAverageCost,
+              ':tc': newTotalCost,
+              ':ua': now,
+            }),
+          },
+        };
+      } else {
+        // Create new holding
+        portfolioUpdate = {
+          Put: {
+            TableName: TABLE_NAMES.PORTFOLIOS,
+            Item: marshall({
+              userId,
+              entityId,
+              quantity,
+              averageCost: pricePerToken,
+              totalCost: totalAmount,
+              createdAt: now,
+              updatedAt: now,
+            }),
+          },
+        };
+      }
+
+      // Atomic transaction: Update cash balance (with condition check), update/create portfolio, record transaction
+      const transactItems = [
+        {
+          // Update user cash balance with atomic condition check
+          Update: {
+            TableName: TABLE_NAMES.USERS,
+            Key: marshall({ userId }),
+            UpdateExpression: 'SET cashBalance = cashBalance - :amount, updatedAt = :ua',
+            ConditionExpression: 'cashBalance >= :amount', // Atomic check: balance must be sufficient
+            ExpressionAttributeValues: marshall({
+              ':amount': totalAmount,
+              ':ua': now,
+            }),
+          },
+        },
+        portfolioUpdate, // Update or create portfolio holding
+        {
+          // Record transaction
+          Put: {
+            TableName: TABLE_NAMES.TRANSACTIONS,
+            Item: marshall({
+              transactionId,
+              userId,
+              timestamp,
+              entityId,
+              entityName: entity.name,
+              entityTicker: entity.ticker,
+              type,
+              quantity,
+              pricePerToken,
+              totalAmount,
+              category: entity.category,
+              idempotencyKey: idempotencyKey || undefined,
+            }),
+          },
+        },
+      ];
+
+      await dynamoDbClient.send(
+        new TransactWriteItemsCommand({
+          TransactItems: transactItems,
+        })
+      );
+    } else {
+      // SELL
+      // Get existing holding to check quantity (we need current values for the transaction)
+      const holdingResult = await docClient.send(
+        new GetCommand({
+          TableName: TABLE_NAMES.PORTFOLIOS,
+          Key: {
+            userId,
+            entityId,
+          },
+        })
+      );
+
+      if (!holdingResult.Item) {
+        return { success: false, error: 'No holding found for this entity' };
+      }
+
+      const holding = holdingResult.Item;
+      if (holding.quantity < quantity) {
+        return { success: false, error: 'Insufficient holdings' };
+      }
+
+      const newQuantity = holding.quantity - quantity;
+      let portfolioUpdate: any;
+
+      if (newQuantity === 0) {
+        // Remove holding (set quantity to 0)
+        portfolioUpdate = {
+          Put: {
+            TableName: TABLE_NAMES.PORTFOLIOS,
+            Item: marshall({
+              userId,
+              entityId,
+              quantity: 0,
+              updatedAt: now,
+            }),
+          },
+        };
+      } else {
+        // Update holding
+        const newTotalCost = holding.totalCost * (newQuantity / holding.quantity);
+        portfolioUpdate = {
+          Update: {
+            TableName: TABLE_NAMES.PORTFOLIOS,
+            Key: marshall({ userId, entityId }),
+            UpdateExpression: 'SET quantity = :q, totalCost = :tc, updatedAt = :ua',
+            ConditionExpression: 'quantity >= :sellQuantity', // Atomic check: must have enough to sell
+            ExpressionAttributeValues: marshall({
+              ':q': newQuantity,
+              ':tc': newTotalCost,
+              ':ua': now,
+              ':sellQuantity': quantity,
+            }),
+          },
+        };
+      }
+
+      // Atomic transaction: Update portfolio (with condition check), update cash balance, record transaction
+      const transactItems = [
+        portfolioUpdate, // Update portfolio with atomic quantity check
+        {
+          // Update user cash balance
+          Update: {
+            TableName: TABLE_NAMES.USERS,
+            Key: marshall({ userId }),
+            UpdateExpression: 'SET cashBalance = cashBalance + :amount, updatedAt = :ua',
+            ExpressionAttributeValues: marshall({
+              ':amount': totalAmount,
+              ':ua': now,
+            }),
+          },
+        },
+        {
+          // Record transaction
+          Put: {
+            TableName: TABLE_NAMES.TRANSACTIONS,
+            Item: marshall({
+              transactionId,
+              userId,
+              timestamp,
+              entityId,
+              entityName: entity.name,
+              entityTicker: entity.ticker,
+              type,
+              quantity,
+              pricePerToken,
+              totalAmount,
+              category: entity.category,
+              idempotencyKey: idempotencyKey || undefined,
+            }),
+          },
+        },
+      ];
+
+      await dynamoDbClient.send(
+        new TransactWriteItemsCommand({
+          TransactItems: transactItems,
+        })
+      );
+    }
+
+    // Return updated portfolio
+    const updatedPortfolio = await getUserPortfolio(userId);
+
+    return {
+      success: true,
+      portfolio: updatedPortfolio,
+      transactionId,
+    };
+  } catch (error: any) {
+    // Handle transaction cancellation (condition check failed or concurrent conflict)
+    if (error.name === 'TransactionCanceledException') {
+      // Check which condition failed by examining the cancellation reasons
+      const reasons = error.CancellationReasons || [];
+      
+      for (const reason of reasons) {
+        if (reason.Code === 'ConditionalCheckFailed') {
+          if (type === 'buy') {
+            return { success: false, error: 'Insufficient funds' };
+          } else {
+            return { success: false, error: 'Insufficient holdings or concurrent trade conflict' };
+          }
+        }
+      }
+      
+      return { success: false, error: 'Trade failed due to concurrent modification or insufficient resources' };
+    }
+    
+    // Re-throw other errors
+    console.error('Error executing trade:', error);
+    throw error;
+  }
 }
 
 export async function getTransactions(

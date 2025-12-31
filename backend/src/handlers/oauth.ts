@@ -5,6 +5,7 @@ import { PutCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { User } from '../models/types';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import jwksClient from 'jwks-rsa';
 
 const INITIAL_CASH_BALANCE = 10000;
 
@@ -35,64 +36,86 @@ interface AppleTokenPayload {
   auth_time: number;
 }
 
+// Google JWKS client with caching
+const googleJwksClient = jwksClient({
+  jwksUri: 'https://www.googleapis.com/oauth2/v3/certs',
+  cache: true,
+  cacheMaxAge: 86400000, // 24 hours
+  rateLimit: true,
+  jwksRequestsPerMinute: 10,
+});
+
 /**
- * Verify Google ID token
- * In production, you should verify the token signature against Google's public keys
+ * Verify Google ID token with cryptographic signature verification
+ * Verifies the token signature against Google's JWKS (JSON Web Key Set)
  */
 async function verifyGoogleToken(idToken: string): Promise<GoogleTokenPayload | null> {
   try {
-    // Decode the token (in production, verify signature with Google's JWKS)
-    const decoded = jwt.decode(idToken) as GoogleTokenPayload;
+    // Decode the token header to get the key ID (kid)
+    const decoded = jwt.decode(idToken, { complete: true }) as jwt.JwtPayload | null;
     
-    if (!decoded) {
+    if (!decoded || typeof decoded === 'string' || !decoded.header || !decoded.header.kid) {
+      console.error('Invalid Google token format');
       return null;
     }
 
-    // Basic validation
-    if (decoded.iss !== 'https://accounts.google.com' && decoded.iss !== 'accounts.google.com') {
-      console.error('Invalid Google token issuer:', decoded.iss);
-      return null;
-    }
+    // Get the signing key from Google's JWKS
+    const key = await googleJwksClient.getSigningKey(decoded.header.kid);
+    const publicKey = key.getPublicKey();
 
-    // Check expiration
-    if (decoded.exp * 1000 < Date.now()) {
-      console.error('Google token expired');
-      return null;
-    }
+    // Verify the token signature, issuer, and expiration
+    const payload = jwt.verify(idToken, publicKey, {
+      algorithms: ['RS256'],
+      issuer: ['https://accounts.google.com', 'accounts.google.com'],
+      // Note: We don't verify audience here since Google tokens can have different audiences
+      // The frontend should verify the audience matches the client ID
+    }) as GoogleTokenPayload;
 
-    return decoded;
+    return payload;
   } catch (error) {
     console.error('Error verifying Google token:', error);
     return null;
   }
 }
 
+// Apple JWKS client with caching
+const appleJwksClient = jwksClient({
+  jwksUri: 'https://appleid.apple.com/auth/keys',
+  cache: true,
+  cacheMaxAge: 86400000, // 24 hours
+  rateLimit: true,
+  jwksRequestsPerMinute: 10,
+});
+
+// Apple bundle identifier (audience) - should match app.json iOS bundleIdentifier
+const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || 'com.moro.mobile';
+
 /**
- * Verify Apple identity token
- * In production, you should verify the token signature against Apple's public keys
+ * Verify Apple identity token with cryptographic signature verification
+ * Verifies the token signature against Apple's JWKS (JSON Web Key Set)
  */
 async function verifyAppleToken(identityToken: string): Promise<AppleTokenPayload | null> {
   try {
-    // Decode the token (in production, verify signature with Apple's JWKS)
-    const decoded = jwt.decode(identityToken) as AppleTokenPayload;
+    // Decode the token header to get the key ID (kid)
+    const decoded = jwt.decode(identityToken, { complete: true }) as jwt.JwtPayload | null;
     
-    if (!decoded) {
+    if (!decoded || typeof decoded === 'string' || !decoded.header || !decoded.header.kid) {
+      console.error('Invalid Apple token format');
       return null;
     }
 
-    // Basic validation
-    if (decoded.iss !== 'https://appleid.apple.com') {
-      console.error('Invalid Apple token issuer:', decoded.iss);
-      return null;
-    }
+    // Get the signing key from Apple's JWKS
+    const key = await appleJwksClient.getSigningKey(decoded.header.kid);
+    const publicKey = key.getPublicKey();
 
-    // Check expiration
-    if (decoded.exp * 1000 < Date.now()) {
-      console.error('Apple token expired');
-      return null;
-    }
+    // Verify the token signature, issuer, audience, and expiration
+    const payload = jwt.verify(identityToken, publicKey, {
+      algorithms: ['RS256'],
+      issuer: 'https://appleid.apple.com',
+      audience: APPLE_CLIENT_ID, // Verify the token was issued for our app
+    }) as AppleTokenPayload;
 
-    return decoded;
+    return payload;
   } catch (error) {
     console.error('Error verifying Apple token:', error);
     return null;
@@ -260,16 +283,19 @@ export async function googleLogin(event: APIGatewayProxyEvent): Promise<APIGatew
     let userPhoto = photo;
     let googleId = providerId;
 
-    // If we have an ID token, verify it
+    // If we have an ID token, cryptographically verify it
     if (idToken) {
       const payload = await verifyGoogleToken(idToken);
       if (!payload) {
-        return createErrorResponse(401, 'Invalid Google ID token');
+        return createErrorResponse(401, 'Invalid or unverifiable Google ID token');
       }
       userEmail = payload.email;
       userName = payload.name || name;
       userPhoto = payload.picture || photo;
       googleId = payload.sub;
+    } else {
+      // If no ID token provided, require email for fallback (less secure)
+      console.warn('Google login without ID token - using email fallback (less secure)');
     }
 
     if (!userEmail) {
@@ -288,6 +314,15 @@ export async function googleLogin(event: APIGatewayProxyEvent): Promise<APIGatew
     // Generate session token
     const token = generateSessionToken(user);
 
+    // Generate presigned URL for avatar if it's an S3 key (avatars are private, accessed via presigned URLs)
+    let avatarUrl = user.avatarUrl;
+    if (avatarUrl && !avatarUrl.startsWith('http')) {
+      // If avatarUrl is an S3 key, generate a presigned URL
+      const { getAvatarUrl } = await import('../services/userService');
+      const presignedUrl = await getAvatarUrl(avatarUrl);
+      avatarUrl = presignedUrl || avatarUrl; // Fallback to key if generation fails
+    }
+
     return createResponse(200, {
       success: true,
       data: {
@@ -297,7 +332,7 @@ export async function googleLogin(event: APIGatewayProxyEvent): Promise<APIGatew
           email: user.email,
           username: user.username,
           displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
+          avatarUrl,
         },
         isNewUser: isNew,
       },
@@ -324,14 +359,17 @@ export async function appleLogin(event: APIGatewayProxyEvent): Promise<APIGatewa
     let userName = name;
     let appleId = providerId;
 
-    // If we have an identity token, verify it
+    // If we have an identity token, cryptographically verify it
     if (identityToken) {
       const payload = await verifyAppleToken(identityToken);
       if (!payload) {
-        return createErrorResponse(401, 'Invalid Apple identity token');
+        return createErrorResponse(401, 'Invalid or unverifiable Apple identity token');
       }
       userEmail = payload.email || email;
       appleId = payload.sub;
+    } else {
+      // If no identity token provided, require email/providerId for fallback (less secure)
+      console.warn('Apple login without identity token - using email fallback (less secure)');
     }
 
     if (!userEmail) {
@@ -355,6 +393,15 @@ export async function appleLogin(event: APIGatewayProxyEvent): Promise<APIGatewa
     // Generate session token
     const token = generateSessionToken(user);
 
+    // Generate presigned URL for avatar if it's an S3 key (avatars are private, accessed via presigned URLs)
+    let avatarUrl = user.avatarUrl;
+    if (avatarUrl && !avatarUrl.startsWith('http')) {
+      // If avatarUrl is an S3 key, generate a presigned URL
+      const { getAvatarUrl } = await import('../services/userService');
+      const presignedUrl = await getAvatarUrl(avatarUrl);
+      avatarUrl = presignedUrl || avatarUrl; // Fallback to key if generation fails
+    }
+
     return createResponse(200, {
       success: true,
       data: {
@@ -364,7 +411,7 @@ export async function appleLogin(event: APIGatewayProxyEvent): Promise<APIGatewa
           email: user.email,
           username: user.username,
           displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
+          avatarUrl,
         },
         isNewUser: isNew,
       },

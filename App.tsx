@@ -86,16 +86,16 @@ function RootNavigator() {
             )}
           </Stack.Screen>
           <Stack.Screen name="Entity">
-            {(props) => (
+            {() => (
               <ErrorBoundary>
-                <EntityScreen {...props} />
+                <EntityScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>
           <Stack.Screen name="Category">
-            {(props) => (
+            {() => (
               <ErrorBoundary>
-                <CategoryScreen {...props} />
+                <CategoryScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>
@@ -127,23 +127,23 @@ function RootNavigator() {
             )}
           </Stack.Screen>
           <Stack.Screen name="GroupDetail">
-            {(props) => (
+            {() => (
               <ErrorBoundary>
-                <GroupDetailScreen {...props} />
+                <GroupDetailScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>
           <Stack.Screen name="FollowersList">
-            {(props) => (
+            {() => (
               <ErrorBoundary>
-                <FollowersListScreen {...props} />
+                <FollowersListScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>
           <Stack.Screen name="NewsDetail">
-            {(props) => (
+            {() => (
               <ErrorBoundary>
-                <NewsDetailScreen {...props} />
+                <NewsDetailScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>
@@ -213,9 +213,9 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           >
-            {(props) => (
+            {() => (
               <ErrorBoundary>
-                <UserProfileScreen {...props} />
+                <UserProfileScreen />
               </ErrorBoundary>
             )}
           </Stack.Screen>

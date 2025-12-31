@@ -193,22 +193,57 @@ export function NewsProvider({ children }: { children: ReactNode }) {
       });
       console.log('News API response:', response.success, 'articles:', response.data?.length);
       
-      if (response.success && response.data && Array.isArray(response.data)) {
-        // Validate news articles array
-        const validatedArticles = validateArrayLoose(NewsArticleArraySchema, response.data);
-        if (validatedArticles.length > 0) {
-          // Articles are already validated and transformed by schema (id normalized)
-          setNews(validatedArticles);
+      // Check if response is successful and has data
+      if (response && response.success && response.data !== undefined && response.data !== null) {
+        // Ensure data is an array before processing
+        let articlesArray: unknown[] = [];
+        
+        if (Array.isArray(response.data)) {
+          articlesArray = response.data;
+        } else if (typeof response.data === 'object') {
+          // If data is an object, try to extract an array from it
+          const dataObj = response.data as any;
+          if (Array.isArray(dataObj.articles)) {
+            articlesArray = dataObj.articles;
+          } else if (Array.isArray(dataObj.data)) {
+            articlesArray = dataObj.data;
+          } else {
+            console.warn('Response data is not an array:', typeof response.data, response.data);
+            articlesArray = [];
+          }
         } else {
-          // Fallback to mock news if validation failed
+          console.warn('Response data is not an array or object:', typeof response.data);
+          articlesArray = [];
+        }
+        
+        if (articlesArray.length > 0) {
+          // Validate news articles array - ensure we pass an array
+          const validatedArticles = validateArrayLoose(NewsArticleArraySchema, articlesArray);
+          if (validatedArticles && validatedArticles.length > 0) {
+            // Articles are already validated and transformed by schema (id normalized)
+            setNews(validatedArticles);
+          } else {
+            // Fallback to mock news if validation failed
+            console.warn('News validation failed, using mock news');
+            setNews(MOCK_NEWS);
+          }
+        } else {
+          // Empty array from API, use mock news
+          console.log('API returned empty news array, using mock news');
           setNews(MOCK_NEWS);
         }
       } else {
-        // Fallback to mock news
+        // API request failed or returned no data, use mock news
+        console.log('API request failed or no data, using mock news. Error:', response?.error);
         setNews(MOCK_NEWS);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Handle errors gracefully - use mock news as fallback
       console.error('Error fetching news:', error);
+      // Don't log as error if it's just unauthorized (backend might require auth in future)
+      if (error?.message?.includes('Unauthorized') || error?.status === 401) {
+        console.log('News endpoint requires authentication or is not available, using mock news');
+      }
       setNews(MOCK_NEWS);
     } finally {
       setIsLoadingNews(false);
@@ -260,21 +295,44 @@ export function NewsProvider({ children }: { children: ReactNode }) {
 
       const response = await apiRequest<{ success?: boolean; data?: unknown[] }>(`/api/news?${params}`);
       
-      if (response.success && response.data && Array.isArray(response.data)) {
-        // Validate news articles array
-        const validatedArticles = validateArrayLoose(NewsArticleArraySchema, response.data);
-        if (validatedArticles.length > 0) {
-          // Articles are already validated and transformed by schema
-          // Ensure entityId/entityName match the requested entity
-          const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({
-            ...article,
-            entityId: entityId || article.entityId || undefined,
-            entityName: entityName || article.entityName || undefined,
-          }));
-          
-          // Cache the results
-          setEntityNewsCache(prev => ({ ...prev, [cacheKey]: mappedNews }));
-          return mappedNews;
+      if (response && response.success && response.data !== undefined && response.data !== null) {
+        // Ensure data is an array before processing
+        let articlesArray: unknown[] = [];
+        
+        if (Array.isArray(response.data)) {
+          articlesArray = response.data;
+        } else if (typeof response.data === 'object') {
+          // If data is an object, try to extract an array from it
+          const dataObj = response.data as any;
+          if (Array.isArray(dataObj.articles)) {
+            articlesArray = dataObj.articles;
+          } else if (Array.isArray(dataObj.data)) {
+            articlesArray = dataObj.data;
+          } else {
+            console.warn('Entity news response data is not an array:', typeof response.data);
+            return localNews;
+          }
+        } else {
+          console.warn('Entity news response data is not an array or object:', typeof response.data);
+          return localNews;
+        }
+        
+        if (articlesArray.length > 0) {
+          // Validate news articles array - ensure we pass an array
+          const validatedArticles = validateArrayLoose(NewsArticleArraySchema, articlesArray);
+          if (validatedArticles && validatedArticles.length > 0) {
+            // Articles are already validated and transformed by schema
+            // Ensure entityId/entityName match the requested entity
+            const mappedNews: NewsArticle[] = validatedArticles.map((article) => ({
+              ...article,
+              entityId: entityId || article.entityId || undefined,
+              entityName: entityName || article.entityName || undefined,
+            }));
+            
+            // Cache the results
+            setEntityNewsCache(prev => ({ ...prev, [cacheKey]: mappedNews }));
+            return mappedNews;
+          }
         }
       }
     } catch (error) {

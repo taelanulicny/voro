@@ -100,6 +100,15 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
       return createErrorResponse(404, 'User not found');
     }
 
+    // Generate presigned URL for avatar (avatars are private, accessed via presigned URLs)
+    let avatarUrl = user.avatarUrl;
+    if (avatarUrl && !avatarUrl.startsWith('http')) {
+      // If avatarUrl is an S3 key, generate a presigned URL
+      const { getAvatarUrl } = await import('../services/userService');
+      const presignedUrl = await getAvatarUrl(avatarUrl);
+      avatarUrl = presignedUrl || avatarUrl; // Fallback to key if generation fails
+    }
+
     return createResponse(200, {
       success: true,
       data: {
@@ -107,7 +116,7 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
         email: user.email,
         username: user.username,
         displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
+        avatarUrl,
         bio: user.bio,
         followersCount: user.followersCount,
         followingCount: user.followingCount,

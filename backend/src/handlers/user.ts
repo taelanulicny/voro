@@ -20,13 +20,13 @@ export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promis
       return createErrorResponse(404, 'User not found');
     }
 
-    // Construct avatar URL if it's stored as a key
+    // Generate presigned URL for avatar (avatars are private, accessed via presigned URLs)
     let avatarUrl = user.avatarUrl;
     if (avatarUrl && !avatarUrl.startsWith('http')) {
-      // If avatarUrl is a key, construct the S3 URL
-      const bucketName = process.env.S3_BUCKET_NAME || 'moro-assets';
-      const region = process.env.AWS_REGION || 'us-east-1';
-      avatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${avatarUrl}`;
+      // If avatarUrl is an S3 key, generate a presigned URL
+      const { getAvatarUrl } = await import('../services/userService');
+      const presignedUrl = await getAvatarUrl(avatarUrl);
+      avatarUrl = presignedUrl || avatarUrl; // Fallback to key if generation fails
     }
 
     return createResponse(200, {
@@ -74,12 +74,13 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
       return createErrorResponse(400, result.error || 'Failed to update profile');
     }
 
-    // Construct avatar URL if it's stored as a key
+    // Generate presigned URL for avatar (avatars are private, accessed via presigned URLs)
     let finalAvatarUrl = result.user?.avatarUrl;
     if (finalAvatarUrl && !finalAvatarUrl.startsWith('http')) {
-      const bucketName = process.env.S3_BUCKET_NAME || 'moro-assets';
-      const region = process.env.AWS_REGION || 'us-east-1';
-      finalAvatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${finalAvatarUrl}`;
+      // If avatarUrl is an S3 key, generate a presigned URL
+      const { getAvatarUrl } = await import('../services/userService');
+      const presignedUrl = await getAvatarUrl(finalAvatarUrl);
+      finalAvatarUrl = presignedUrl || finalAvatarUrl; // Fallback to key if generation fails
     }
 
     return createResponse(200, {
@@ -117,18 +118,19 @@ export async function getAvatarUploadUrlHandler(event: APIGatewayProxyEvent): Pr
       return createErrorResponse(400, result.error || 'Failed to generate upload URL');
     }
 
-    // Construct the public URL for the uploaded image
-    // In production, this would be a CloudFront URL or public S3 URL
-    const bucketName = process.env.S3_BUCKET_NAME || 'moro-assets';
-    const region = process.env.AWS_REGION || 'us-east-1';
-    const avatarUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${result.key}`;
+    // Generate presigned URL for viewing the uploaded avatar
+    // Avatars are stored privately and accessed via presigned URLs
+    const { getAvatarUrl } = await import('../services/userService');
+    const avatarUrl = await getAvatarUrl(result.key!);
 
     return createResponse(200, {
       success: true,
       data: {
         uploadUrl: result.uploadUrl,
         key: result.key,
-        avatarUrl, // Return the URL that should be stored in the user profile
+        avatarUrl: avatarUrl || result.key, // Presigned URL for viewing (expires in 1 hour)
+        // Note: Store the key (not the presigned URL) in the user profile
+        // Presigned URLs are generated on-demand when fetching user profiles
       },
     });
   } catch (error: unknown) {
