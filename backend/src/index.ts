@@ -88,6 +88,10 @@ export const handler = async (
   }
 
   if (path.includes('/api/social/posts')) {
+    // Check for search endpoint first
+    if (path.includes('/search') && method === 'GET') {
+      return socialHandlers.searchPosts(event);
+    }
     // Check for image upload URL endpoint first (before postId routes)
     if (path.includes('/images/upload-url') && method === 'GET') {
       return socialHandlers.getPostImageUploadUrl(event);
@@ -239,8 +243,14 @@ export const handler = async (
     }
   }
 
-  if (path.includes('/api/news') && method === 'GET') {
-    return newsHandlers.getNews(event);
+  if (path.includes('/api/news')) {
+    // Check for search endpoint first
+    if (path.includes('/search') && method === 'GET') {
+      return newsHandlers.searchNews(event);
+    }
+    if (method === 'GET') {
+      return newsHandlers.getNews(event);
+    }
   }
 
   if (path.includes('/api/watchlist')) {

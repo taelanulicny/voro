@@ -1,8 +1,21 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 import { PostSchema, CommentSchema, validateArrayLoose, safeValidate, FeedResponseSchema, CreatePostRequestSchema, CreateCommentRequestSchema, CreateGroupRequestSchema } from '../validators';
+
+interface PostDraft {
+  id: string;
+  content: string;
+  entityId?: number;
+  entityTicker?: string;
+  entityName?: string;
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  images?: { uri: string; type: string }[];
+  createdAt: number;
+  updatedAt: number;
+}
 
 interface SocialContextType {
   // Posts state
@@ -25,6 +38,10 @@ interface SocialContextType {
   followers: User[];
   following: User[];
 
+  // Post drafts
+  drafts: PostDraft[];
+  isLoadingDrafts: boolean;
+
   // Post actions
   createPost: (params: {
     content: string;
@@ -32,6 +49,7 @@ interface SocialContextType {
     entityTicker?: string;
     entityName?: string;
     sentiment?: 'positive' | 'negative' | 'neutral';
+    images?: string[];
   }) => Promise<{ success: boolean; error?: string; post?: Post }>;
   toggleLikePost: (postId: string) => Promise<{ success: boolean }>;
   toggleBookmarkPost: (postId: string) => Promise<{ success: boolean }>;
@@ -40,6 +58,13 @@ interface SocialContextType {
   // Feed actions
   refreshActivityFeed: () => Promise<void>;
   loadMorePosts: () => Promise<void>;
+  searchPosts: (query: string) => Promise<Post[]>;
+
+  // Draft actions
+  saveDraft: (draft: Omit<PostDraft, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  loadDrafts: () => Promise<void>;
+  deleteDraft: (draftId: string) => Promise<void>;
+  getDraft: (draftId: string) => PostDraft | undefined;
 
   // Comment actions
   getComments: (postId: string) => Promise<void>;
@@ -87,195 +112,12 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const RATE_LIMIT_POSTS = 5;
   const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
-  // Mock posts for trending feed (fallback when backend not available)
-  const MOCK_POSTS: Post[] = [
-    {
-      id: '1',
-      userId: 'user1',
-      username: 'sarah_trader',
-      displayName: 'Sarah Chen',
-      avatarUrl: undefined,
-      content: '@TaylorSwift just announced her new tour dates and the demand is absolutely insane. Ticket prices are through the roof but fans are still buying. This is a no-brainer investment right now.',
-      entityId: 21,
-      entityName: 'Taylor Swift',
-      entityTicker: 'TSWFT',
-      sentiment: 'positive',
-      likes: 823,
-      comments: 156,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
-    },
-    {
-      id: '2',
-      userId: 'user2',
-      username: 'mike_investor',
-      displayName: 'Mike Johnson',
-      avatarUrl: undefined,
-      content: '@MrBeast and @KaiCenat just did a massive collab stream. Both of their engagement metrics are exploding. This is what smart creators do - cross-pollinate audiences.',
-      entityId: 12,
-      entityName: 'MrBeast',
-      entityTicker: 'MRBST',
-      sentiment: 'positive',
-      likes: 542,
-      comments: 89,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
-    },
-    {
-      id: '3',
-      userId: 'user3',
-      username: 'trading_pro',
-      displayName: 'Alex Rivera',
-      avatarUrl: undefined,
-      content: '@TomBrady coming out of retirement again? The man is a machine. His brand value just keeps climbing. Smart move for any investor watching the sports market.',
-      sentiment: 'positive',
-      likes: 1204,
-      comments: 234,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    },
-    {
-      id: '4',
-      userId: 'user4',
-      username: 'crypto_analyst',
-      displayName: 'Jordan Kim',
-      avatarUrl: undefined,
-      content: '@ElonMusk latest tweet about @Tesla production numbers is concerning. Supply chain issues are real and investors should be cautious.',
-      sentiment: 'negative',
-      likes: 678,
-      comments: 145,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 15).toISOString(),
-    },
-    {
-      id: '5',
-      userId: 'user5',
-      username: 'market_watch',
-      displayName: 'Emma Davis',
-      avatarUrl: undefined,
-      content: '@KanyeWest new album drop is generating massive buzz. Streaming numbers are through the roof. This could be a major comeback moment.',
-      entityId: 23,
-      entityName: 'Kanye West',
-      entityTicker: 'KANYE',
-      sentiment: 'positive',
-      likes: 945,
-      comments: 201,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-    },
-    {
-      id: '6',
-      userId: 'user6',
-      username: 'sports_insider',
-      displayName: 'Chris Martinez',
-      avatarUrl: undefined,
-      content: '@LeBronJames breaking another record. The longevity of his career is unmatched. His brand partnerships are worth watching.',
-      sentiment: 'positive',
-      likes: 1102,
-      comments: 267,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
-    },
-    {
-      id: '7',
-      userId: 'user7',
-      username: 'tech_guru',
-      displayName: 'Sam Wilson',
-      avatarUrl: undefined,
-      content: '@OpenAI latest model release is game-changing. The AI space is moving so fast, investors need to stay on top of these developments.',
-      sentiment: 'positive',
-      likes: 1567,
-      comments: 312,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
-    },
-    {
-      id: '8',
-      userId: 'user8',
-      username: 'entertainment_buzz',
-      displayName: 'Taylor Brown',
-      avatarUrl: undefined,
-      content: '@Drake new single is climbing the charts fast. His streaming numbers are insane. Music industry is watching closely.',
-      entityId: 22,
-      entityName: 'Drake',
-      entityTicker: 'DRAKE',
-      sentiment: 'positive',
-      likes: 834,
-      comments: 178,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    },
-    {
-      id: '9',
-      userId: 'user9',
-      username: 'political_analyst',
-      displayName: 'Morgan Lee',
-      avatarUrl: undefined,
-      content: '@TuckerCarlson latest segment is generating controversy. His influence on certain demographics remains strong despite recent changes.',
-      entityId: 38,
-      entityName: 'Tucker Carlson',
-      entityTicker: 'TCARS',
-      sentiment: 'neutral',
-      likes: 456,
-      comments: 123,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
-    },
-    {
-      id: '10',
-      userId: 'user10',
-      username: 'startup_watcher',
-      displayName: 'Casey Park',
-      avatarUrl: undefined,
-      content: '@OpenAI valuation keeps climbing. The AI revolution is real and early investors are seeing massive returns.',
-      sentiment: 'positive',
-      likes: 1890,
-      comments: 445,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(),
-    },
-    {
-      id: '11',
-      userId: 'user11',
-      username: 'music_insider',
-      displayName: 'Riley Chen',
-      avatarUrl: undefined,
-      content: '@TheWeekend new tour announcement is huge. Ticket sales are breaking records. Live music is back in a big way.',
-      entityId: 29,
-      entityName: 'The Weeknd',
-      entityTicker: 'WKEND',
-      sentiment: 'positive',
-      likes: 723,
-      comments: 156,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
-    },
-    {
-      id: '12',
-      userId: 'user12',
-      username: 'sports_business',
-      displayName: 'Drew Anderson',
-      avatarUrl: undefined,
-      content: '@PatrickMahomes contract extension is massive. Quarterback market is resetting. This affects the entire NFL economy.',
-      sentiment: 'positive',
-      likes: 1023,
-      comments: 234,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 32).toISOString(),
-    },
-  ];
+  // Post drafts state
+  const [drafts, setDrafts] = useState<PostDraft[]>([]);
+  const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
+  
+  // Storage keys
+  const DRAFTS_STORAGE_KEY = '@moro_post_drafts';
 
   // Helper to map backend post format to frontend format
   const mapBackendPost = (p: any): Post => ({
@@ -299,16 +141,14 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   // Fetch activity feed from backend (resets pagination)
   const refreshActivityFeed = useCallback(async () => {
     if (!token || !isAuthenticated) {
-      // Use mock posts if not authenticated or backend not configured
-      setActivityFeed(MOCK_POSTS);
+      setActivityFeed([]);
       setHasMorePosts(false);
       setLastKey(null);
       return;
     }
 
     if (!isBackendConfigured()) {
-      // Use mock posts as fallback when backend not configured
-      setActivityFeed(MOCK_POSTS);
+      setActivityFeed([]);
       setHasMorePosts(false);
       setLastKey(null);
       return;
@@ -345,9 +185,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         setLastKey(null);
       }
     } catch (error) {
-      // Use mock posts as fallback on error
       console.debug('Error fetching feed (backend may not be running):', error);
-      setActivityFeed(MOCK_POSTS);
+      setActivityFeed([]);
       setHasMorePosts(false);
       setLastKey(null);
     } finally {
@@ -401,6 +240,83 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token, isAuthenticated, lastKey, hasMorePosts, isLoadingMore]);
 
   // Load feed on mount and when auth changes - will be added after refreshGroups is defined
+
+  // Post drafts management
+  const saveDraft = useCallback(async (draft: Omit<PostDraft, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+    try {
+      const draftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const newDraft: PostDraft = {
+        ...draft,
+        id: draftId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const updatedDrafts = [...drafts, newDraft];
+      setDrafts(updatedDrafts);
+      await AsyncStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(updatedDrafts));
+      return draftId;
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      throw error;
+    }
+  }, [drafts]);
+
+  const loadDrafts = useCallback(async () => {
+    try {
+      setIsLoadingDrafts(true);
+      const data = await AsyncStorage.getItem(DRAFTS_STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          setDrafts(parsed);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading drafts:', error);
+    } finally {
+      setIsLoadingDrafts(false);
+    }
+  }, []);
+
+  const deleteDraft = useCallback(async (draftId: string) => {
+    try {
+      const updatedDrafts = drafts.filter(d => d.id !== draftId);
+      setDrafts(updatedDrafts);
+      await AsyncStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(updatedDrafts));
+    } catch (error) {
+      console.error('Error deleting draft:', error);
+    }
+  }, [drafts]);
+
+  const getDraft = useCallback((draftId: string): PostDraft | undefined => {
+    return drafts.find(d => d.id === draftId);
+  }, [drafts]);
+
+  // Search posts
+  const searchPosts = useCallback(async (query: string): Promise<Post[]> => {
+    if (!token || !isAuthenticated || !isBackendConfigured() || !query.trim()) {
+      return [];
+    }
+
+    try {
+      const response = await authenticatedRequest<{
+        posts: any[];
+      }>(`/api/social/posts/search?q=${encodeURIComponent(query.trim())}&limit=50`, token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data && response.data.posts) {
+        const validatedPosts = validateArrayLoose(PostSchema, response.data.posts);
+        return validatedPosts.map(mapBackendPost);
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error searching posts:', error);
+      return [];
+    }
+  }, [token, isAuthenticated]);
 
   const createPost = useCallback(async (params: {
     content: string;
@@ -888,13 +804,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
   }, [token, isAuthenticated]);
 
-  // Load feed and groups on mount and when auth changes
+  // Load feed, groups, and drafts on mount and when auth changes
   useEffect(() => {
     if (isAuthenticated && token) {
       refreshActivityFeed().catch(err => console.error('Error refreshing feed:', err));
       refreshGroups().catch(err => console.error('Error refreshing groups:', err));
+      loadDrafts().catch(err => console.error('Error loading drafts:', err));
+    } else {
+      setDrafts([]);
     }
-  }, [isAuthenticated, token, refreshActivityFeed, refreshGroups]);
+  }, [isAuthenticated, token, refreshActivityFeed, refreshGroups, loadDrafts]);
 
   const refreshUserGroups = useCallback(async () => {
     setIsLoadingMyGroups(true);
@@ -1049,12 +968,19 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     followedUsers,
     followers,
     following,
+    drafts,
+    isLoadingDrafts,
     createPost,
     toggleLikePost,
     toggleBookmarkPost,
     deletePost,
     refreshActivityFeed,
     loadMorePosts,
+    searchPosts,
+    saveDraft,
+    loadDrafts,
+    deleteDraft,
+    getDraft,
     getComments,
     addComment,
     editComment,

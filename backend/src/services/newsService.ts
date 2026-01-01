@@ -118,3 +118,54 @@ export async function getNewsArticles(filters?: {
   }
 }
 
+/**
+ * Search news articles by query string
+ */
+export async function searchNewsArticles(query: string, limit: number = 50): Promise<NewsArticle[]> {
+  try {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const searchTerm = query.trim().toLowerCase();
+
+    // Scan all articles and filter by content (case-insensitive)
+    // Note: In production, consider using DynamoDB Streams + Elasticsearch/OpenSearch for better search
+    const scanResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAMES.NEWS_ARTICLES,
+        FilterExpression: 'contains(title, :searchTerm) OR contains(summary, :searchTerm) OR contains(content, :searchTerm) OR contains(entityName, :searchTerm)',
+        ExpressionAttributeValues: {
+          ':searchTerm': searchTerm,
+        },
+        Limit: limit * 2, // Get more to account for filtering
+      })
+    );
+
+    if (!scanResult.Items) {
+      return [];
+    }
+
+    // Filter and sort by publishedAt (newest first)
+    const articles = (scanResult.Items as NewsArticle[])
+      .filter(article => {
+        const title = (article.title || '').toLowerCase();
+        const summary = (article.summary || '').toLowerCase();
+        const content = (article.content || '').toLowerCase();
+        const entityName = (article.entityName || '').toLowerCase();
+        
+        return title.includes(searchTerm) ||
+               summary.includes(searchTerm) ||
+               content.includes(searchTerm) ||
+               entityName.includes(searchTerm);
+      })
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+      .slice(0, limit);
+
+    return articles;
+  } catch (error) {
+    console.error('Error searching news articles:', error);
+    return [];
+  }
+}
+

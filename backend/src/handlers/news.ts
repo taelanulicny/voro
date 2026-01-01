@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createResponse, createErrorResponse } from '../middleware/auth';
-import { getNewsArticles } from '../services/newsService';
+import { getNewsArticles, searchNewsArticles } from '../services/newsService';
 import { fetchFromNewsAPI, fetchTopHeadlines, fetchNewsForEntity } from '../services/newsApiService';
 import { logger } from '../utils/logger';
 
@@ -95,6 +95,51 @@ export async function getNews(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     });
   } catch (error: any) {
     logger.error('Error getting news', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function searchNews(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const query = event.queryStringParameters?.q || '';
+    const limit = parseInt(event.queryStringParameters?.limit || '50', 10);
+
+    if (!query || query.trim().length === 0) {
+      return createResponse(200, {
+        success: true,
+        data: [],
+      });
+    }
+
+    // First try to search in NewsAPI if configured
+    let articles: any[] = [];
+    if (process.env.NEWS_API_KEY) {
+      try {
+        logger.debug(`[searchNews] Searching NewsAPI for: ${query}`);
+        articles = await fetchFromNewsAPI({ 
+          query: query.trim(), 
+          pageSize: limit 
+        });
+        logger.debug(`[searchNews] NewsAPI returned ${articles?.length || 0} articles`);
+      } catch (newsApiError: any) {
+        logger.error('[searchNews] NewsAPI error:', newsApiError);
+        // Continue to fallback
+      }
+    }
+
+    // If NewsAPI didn't return results, search in cache
+    if (articles.length === 0) {
+      logger.debug('[searchNews] Searching cache...');
+      articles = await searchNewsArticles(query.trim(), limit);
+      logger.debug(`[searchNews] Cache returned ${articles?.length || 0} articles`);
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: articles,
+    });
+  } catch (error: any) {
+    logger.error('Error searching news', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

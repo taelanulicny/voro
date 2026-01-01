@@ -42,13 +42,51 @@ export default function CreatePostModal({
   prefillEntityTag = false,
 }: CreatePostModalProps) {
   const { user, token, getToken } = useAuth();
-  const { createPost } = useSocial();
+  const { createPost, saveDraft, loadDrafts, drafts, deleteDraft, getDraft } = useSocial();
   const { theme } = useTheme();
   const [content, setContent] = useState('');
   const [sentiment, setSentiment] = useState<'positive' | 'negative' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImages, setSelectedImages] = useState<{ uri: string; type: string }[]>([]);
   const [uploadedImageKeys, setUploadedImageKeys] = useState<string[]>([]);
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [showDrafts, setShowDrafts] = useState(false);
+
+  // Auto-save draft when content changes (debounced)
+  useEffect(() => {
+    if (!visible || !content.trim()) {
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        if (currentDraftId) {
+          // Update existing draft
+          await deleteDraft(currentDraftId);
+        }
+        const draftId = await saveDraft({
+          content,
+          entityId,
+          entityTicker,
+          entityName,
+          sentiment,
+          images: selectedImages,
+        });
+        setCurrentDraftId(draftId);
+      } catch (error) {
+        console.error('Error auto-saving draft:', error);
+      }
+    }, 2000); // Save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [content, sentiment, selectedImages, entityId, entityTicker, entityName, visible, currentDraftId, saveDraft, deleteDraft]);
+
+  // Load drafts when modal opens
+  useEffect(() => {
+    if (visible) {
+      loadDrafts();
+    }
+  }, [visible, loadDrafts]);
 
   // Pre-fill entity tag when modal opens
   useEffect(() => {
@@ -63,6 +101,8 @@ export default function CreatePostModal({
       setSentiment('neutral');
       setSelectedImages([]);
       setUploadedImageKeys([]);
+      setCurrentDraftId(null);
+      setShowDrafts(false);
     }
   }, [visible, prefillEntityTag, entityName]);
 
@@ -89,13 +129,18 @@ export default function CreatePostModal({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.7, // Compress to 70% quality for smaller file sizes
         allowsMultipleSelection: false,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setSelectedImages(prev => [...prev, { uri: asset.uri, type: asset.mimeType || 'image/jpeg' }]);
+        // Use the compressed image from ImagePicker
+        // ImagePicker already handles compression based on the quality parameter
+        setSelectedImages(prev => [...prev, { 
+          uri: asset.uri, 
+          type: asset.mimeType || 'image/jpeg' 
+        }]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -199,6 +244,11 @@ export default function CreatePostModal({
       });
 
       if (result.success) {
+        // Delete draft if it was used
+        if (currentDraftId) {
+          await deleteDraft(currentDraftId);
+          setCurrentDraftId(null);
+        }
         setContent('');
         setSentiment('neutral');
         setSelectedImages([]);
@@ -215,31 +265,52 @@ export default function CreatePostModal({
     }
   };
 
+  const loadDraftIntoEditor = (draftId: string) => {
+    const draft = getDraft(draftId);
+    if (draft) {
+      setContent(draft.content);
+      setSentiment(draft.sentiment || 'neutral');
+      setSelectedImages(draft.images || []);
+      setCurrentDraftId(draft.id);
+      setShowDrafts(false);
+    }
+  };
+
   const handleClose = () => {
     if (content.trim() && !isSubmitting) {
       Alert.alert(
         'Discard Post?',
-        'Are you sure you want to discard this post?',
+        'Your post has been saved as a draft. Are you sure you want to discard it?',
         [
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Discard',
             style: 'destructive',
-            onPress: () => {
+            onPress: async () => {
+              if (currentDraftId) {
+                await deleteDraft(currentDraftId);
+              }
               setContent('');
               setSentiment('neutral');
               setSelectedImages([]);
               setUploadedImageKeys([]);
+              setCurrentDraftId(null);
+              setShowDrafts(false);
               onClose();
             },
           },
         ]
       );
     } else {
+      if (currentDraftId) {
+        deleteDraft(currentDraftId).catch(console.error);
+      }
       setContent('');
       setSentiment('neutral');
       setSelectedImages([]);
       setUploadedImageKeys([]);
+      setCurrentDraftId(null);
+      setShowDrafts(false);
       onClose();
     }
   };
@@ -279,7 +350,20 @@ export default function CreatePostModal({
             <Text style={[styles.headerButtonText, { color: theme.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
           
-          <Text style={[styles.headerTitle, { color: theme.text }]}>New Post</Text>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, { color: theme.text }]}>New Post</Text>
+            {drafts.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setShowDrafts(!showDrafts)}
+                style={styles.draftsButton}
+              >
+                <Ionicons name="document-text-outline" size={16} color={theme.primary} />
+                <Text style={[styles.draftsButtonText, { color: theme.primary }]}>
+                  {drafts.length} {drafts.length === 1 ? 'draft' : 'drafts'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
           
           <TouchableOpacity
             onPress={handleSubmit}
@@ -303,6 +387,47 @@ export default function CreatePostModal({
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Drafts List */}
+        {showDrafts && drafts.length > 0 && (
+          <View style={[styles.draftsContainer, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.border }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.draftsScroll}>
+              {drafts.map((draft) => (
+                <TouchableOpacity
+                  key={draft.id}
+                  style={[styles.draftCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  onPress={() => loadDraftIntoEditor(draft.id)}
+                >
+                  <View style={styles.draftHeader}>
+                    <Text style={[styles.draftPreview, { color: theme.text }]} numberOfLines={2}>
+                      {draft.content || 'Empty draft'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={async (e) => {
+                        e.stopPropagation();
+                        await deleteDraft(draft.id);
+                        if (currentDraftId === draft.id) {
+                          setCurrentDraftId(null);
+                          setContent('');
+                          setSentiment('neutral');
+                          setSelectedImages([]);
+                        }
+                      }}
+                      style={styles.deleteDraftButton}
+                    >
+                      <Ionicons name="close-circle" size={20} color={theme.textTertiary} />
+                    </TouchableOpacity>
+                  </View>
+                  {draft.entityName && (
+                    <Text style={[styles.draftEntity, { color: theme.primary }]}>
+                      @{draft.entityName}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         <ScrollView
           style={styles.content}
@@ -604,6 +729,54 @@ const styles = StyleSheet.create({
     right: -8,
     backgroundColor: 'white',
     borderRadius: 12,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  draftsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  draftsButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  draftsContainer: {
+    borderBottomWidth: 1,
+    paddingVertical: 8,
+    maxHeight: 120,
+  },
+  draftsScroll: {
+    paddingHorizontal: 16,
+  },
+  draftCard: {
+    width: 150,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  draftHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  draftPreview: {
+    fontSize: 12,
+    flex: 1,
+    marginRight: 4,
+  },
+  deleteDraftButton: {
+    padding: 2,
+  },
+  draftEntity: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 4,
   },
 });
 

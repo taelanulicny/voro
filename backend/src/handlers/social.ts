@@ -11,6 +11,7 @@ import {
   toggleFollowUser as toggleFollowUserService,
   checkMutualFollow as checkMutualFollowService,
   searchUsers as searchUsersService,
+  searchPosts as searchPostsService,
   deletePost as deletePostService,
   toggleBookmarkPost as toggleBookmarkPostService,
   toggleLikeComment as toggleLikeCommentService,
@@ -269,6 +270,35 @@ export async function editCommentHandler(event: APIGatewayProxyEvent): Promise<A
     });
   } catch (error: any) {
     logger.error('Error editing comment', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function searchPosts(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const query = event.queryStringParameters?.q || '';
+    const limit = parseInt(event.queryStringParameters?.limit || '50', 10);
+
+    if (!query || query.trim().length === 0) {
+      return createResponse(200, {
+        success: true,
+        data: { posts: [] },
+      });
+    }
+
+    const posts = await searchPostsService(query.trim(), limit);
+
+    return createResponse(200, {
+      success: true,
+      data: { posts },
+    });
+  } catch (error: any) {
+    logger.error('Error searching posts', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

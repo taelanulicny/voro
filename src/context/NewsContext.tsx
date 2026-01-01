@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NewsArticle, NewsFilter } from '../types';
 import { apiRequest, isBackendConfigured } from '../config/api';
 import { NewsArticleSchema, safeValidate, validateArrayLoose } from '../validators';
@@ -14,6 +15,7 @@ interface NewsContextType {
   refreshNews: () => Promise<void>;
   getNewsByEntity: (entityId: number, entityName?: string) => Promise<NewsArticle[]>;
   getNewsByFilter: (filter: NewsFilter) => NewsArticle[];
+  searchNews: (query: string) => Promise<NewsArticle[]>;
   markAsRead: (articleId: string) => void;
 }
 
@@ -27,18 +29,72 @@ export function NewsProvider({ children }: { children: ReactNode }) {
 
   const breakingNews = news.filter(article => article.isBreaking);
 
+  // Storage keys
+  const NEWS_CACHE_KEY = '@moro_news_cache';
+  const NEWS_CACHE_TIMESTAMP_KEY = '@moro_news_cache_timestamp';
+  const NEWS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+  // Load news from cache
+  const loadNewsFromCache = useCallback(async (): Promise<NewsArticle[] | null> => {
+    try {
+      const [cachedNews, timestamp] = await Promise.all([
+        AsyncStorage.getItem(NEWS_CACHE_KEY),
+        AsyncStorage.getItem(NEWS_CACHE_TIMESTAMP_KEY),
+      ]);
+
+      if (cachedNews && timestamp) {
+        const cacheTime = parseInt(timestamp, 10);
+        const now = Date.now();
+        
+        // Check if cache is still valid (within TTL)
+        if (now - cacheTime < NEWS_CACHE_TTL) {
+          const parsed = JSON.parse(cachedNews);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error loading news from cache:', error);
+      return null;
+    }
+  }, []);
+
+  // Save news to cache
+  const saveNewsToCache = useCallback(async (articles: NewsArticle[]) => {
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(articles)),
+        AsyncStorage.setItem(NEWS_CACHE_TIMESTAMP_KEY, Date.now().toString()),
+      ]);
+    } catch (error) {
+      console.error('Error saving news to cache:', error);
+    }
+  }, []);
+
   // Fetch news from backend - NO MOCK FALLBACK
   const refreshNews = useCallback(async (signal?: AbortSignal) => {
+    setIsLoadingNews(true);
+    setNewsError(null);
+
+    // Try to load from cache first for offline support
+    const cachedNews = await loadNewsFromCache();
+    if (cachedNews && cachedNews.length > 0) {
+      setNews(cachedNews);
+      setIsLoadingNews(false);
+    }
+
     if (!isBackendConfigured()) {
-      console.warn('Backend not configured - news will be empty');
-      setNewsError('Backend not configured');
-      setNews([]);
+      console.warn('Backend not configured - using cached news if available');
+      if (!cachedNews || cachedNews.length === 0) {
+        setNewsError('Backend not configured');
+        setNews([]);
+      }
       setIsLoadingNews(false);
       return;
     }
 
-    setIsLoadingNews(true);
-    setNewsError(null);
     try {
       const response = await apiRequest<{ success?: boolean; data?: unknown[]; error?: string }>('/api/news?limit=30', {
         signal,
@@ -66,6 +122,8 @@ export function NewsProvider({ children }: { children: ReactNode }) {
           const validatedArticles = validateArrayLoose(NewsArticleSchema, articlesArray);
           if (Array.isArray(validatedArticles)) {
             setNews(validatedArticles);
+            // Save to cache for offline viewing
+            await saveNewsToCache(validatedArticles);
           } else {
             setNews([]);
             setNewsError('Failed to validate news articles');
@@ -76,17 +134,23 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         }
       } else {
         // API request failed or returned no data
-        setNews([]);
-        setNewsError(response?.error || 'Failed to fetch news');
+        // Keep cached news if available
+        if (!cachedNews || cachedNews.length === 0) {
+          setNews([]);
+          setNewsError(response?.error || 'Failed to fetch news');
+        }
       }
     } catch (error: any) {
       console.error('Error fetching news:', error);
-      setNews([]);
-      setNewsError(error?.message || 'Failed to fetch news');
+      // Keep cached news if available on error
+      if (!cachedNews || cachedNews.length === 0) {
+        setNews([]);
+        setNewsError(error?.message || 'Failed to fetch news');
+      }
     } finally {
       setIsLoadingNews(false);
     }
-  }, []);
+  }, [loadNewsFromCache, saveNewsToCache]);
 
   // Load news on mount
   useEffect(() => {
@@ -186,6 +250,68 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     });
   }, [news]);
 
+  // Search news articles
+  const searchNews = useCallback(async (query: string): Promise<NewsArticle[]> => {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    if (!isBackendConfigured()) {
+      // Search in cached news if backend not available
+      const cachedNews = await loadNewsFromCache();
+      if (cachedNews) {
+        const searchTerm = query.trim().toLowerCase();
+        return cachedNews.filter(article => 
+          article.title.toLowerCase().includes(searchTerm) ||
+          article.summary?.toLowerCase().includes(searchTerm) ||
+          article.content?.toLowerCase().includes(searchTerm) ||
+          article.entityName?.toLowerCase().includes(searchTerm)
+        );
+      }
+      return [];
+    }
+
+    try {
+      const response = await apiRequest<{ success?: boolean; data?: unknown[] }>(
+        `/api/news/search?q=${encodeURIComponent(query.trim())}&limit=50`
+      );
+
+      if (response && response.success && response.data !== undefined && response.data !== null) {
+        let articlesArray: unknown[] = [];
+        
+        if (Array.isArray(response.data)) {
+          articlesArray = response.data;
+        } else if (typeof response.data === 'object') {
+          const dataObj = response.data as any;
+          if (Array.isArray(dataObj.articles)) {
+            articlesArray = dataObj.articles;
+          } else if (Array.isArray(dataObj.data)) {
+            articlesArray = dataObj.data;
+          }
+        }
+
+        if (articlesArray.length > 0) {
+          const validatedArticles = validateArrayLoose(NewsArticleSchema, articlesArray);
+          if (Array.isArray(validatedArticles)) {
+            return validatedArticles;
+          }
+        }
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error searching news:', error);
+      // Fallback to local search
+      const searchTerm = query.trim().toLowerCase();
+      return news.filter(article => 
+        article.title.toLowerCase().includes(searchTerm) ||
+        article.summary?.toLowerCase().includes(searchTerm) ||
+        article.content?.toLowerCase().includes(searchTerm) ||
+        article.entityName?.toLowerCase().includes(searchTerm)
+      );
+    }
+  }, [news, loadNewsFromCache]);
+
   const markAsRead = useCallback((articleId: string) => {
     // In a real app, this would update read status
     // Read status tracking can be implemented when needed
@@ -199,6 +325,7 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     refreshNews,
     getNewsByEntity,
     getNewsByFilter,
+    searchNews,
     markAsRead,
   };
 

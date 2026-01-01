@@ -588,6 +588,47 @@ export async function toggleFollowUser(
   }
 }
 
+/**
+ * Search posts by content
+ */
+export async function searchPosts(query: string, limit: number = 50): Promise<Post[]> {
+  try {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const searchTerm = query.trim().toLowerCase();
+
+    // Scan all posts and filter by content (case-insensitive)
+    // Note: In production, consider using DynamoDB Streams + Elasticsearch/OpenSearch for better search
+    const scanResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAMES.POSTS,
+        FilterExpression: 'contains(content, :searchTerm)',
+        ExpressionAttributeValues: {
+          ':searchTerm': searchTerm,
+        },
+        Limit: limit * 2, // Get more to account for filtering
+      })
+    );
+
+    if (!scanResult.Items) {
+      return [];
+    }
+
+    // Filter and sort by timestamp (newest first)
+    const posts = (scanResult.Items as Post[])
+      .filter(post => post.content.toLowerCase().includes(searchTerm))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, limit);
+
+    return posts;
+  } catch (error: any) {
+    console.error('Error searching posts:', error);
+    return [];
+  }
+}
+
 export async function searchUsers(query: string, limit: number = 20): Promise<User[]> {
   try {
     const result = await docClient.send(
