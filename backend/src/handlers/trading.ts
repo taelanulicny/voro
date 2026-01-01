@@ -6,7 +6,20 @@ import {
   getTransactions,
   getAllEntities,
   getEntityPrice,
+  getPriceHistory,
+  getAllEntityPrices,
 } from '../services/tradingService';
+import { z } from 'zod';
+import { logger } from '../utils/logger';
+
+// Zod schema for trade execution validation
+const ExecuteTradeSchema = z.object({
+  entityId: z.number().int().positive('Entity ID must be a positive integer'),
+  type: z.enum(['buy', 'sell']),
+  quantity: z.number().positive('Quantity must be greater than 0').max(1000000, 'Quantity cannot exceed 1,000,000'),
+  pricePerToken: z.number().positive('Price per token must be greater than 0').max(10000, 'Price per token cannot exceed 10,000'),
+  idempotencyKey: z.string().optional(),
+});
 
 export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -15,36 +28,89 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       return createErrorResponse(401, 'Unauthorized');
     }
 
+    // Market Hours Logic (Server-Side Enforcement)
+    // Use Intl API to get proper EST/EDT time (handles DST automatically)
+    const now = new Date();
+    const estTimeString = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      hour12: false,
+      timeZoneName: 'short',
+    }).formatToParts(now);
+    
+    const hours = parseInt(estTimeString.find(part => part.type === 'hour')?.value || '0', 10);
+
+    // Market Closed: 2:00 AM - 8:00 AM EST/EDT
+    if (hours >= 2 && hours < 8) {
+      return createErrorResponse(400, 'Market is closed (2am-8am EST/EDT)');
+    }
+
     const userId = auth.event.userId!;
-    const body = JSON.parse(event.body || '{}');
-
-    const { entityId, type, quantity, pricePerToken } = body;
-
-    if (!entityId || !type || !quantity || !pricePerToken) {
-      return createErrorResponse(400, 'Missing required fields: entityId, type, quantity, pricePerToken');
+    
+    // Parse and validate request body with Zod
+    let body: any;
+    try {
+      body = JSON.parse(event.body || '{}');
+    } catch (parseError) {
+      return createErrorResponse(400, 'Invalid JSON in request body');
     }
 
-    if (type !== 'buy' && type !== 'sell') {
-      return createErrorResponse(400, 'Type must be "buy" or "sell"');
+    // Validate request body with Zod schema
+    const parseResult = ExecuteTradeSchema.safeParse(body);
+    if (!parseResult.success) {
+      // Format Zod validation errors into user-friendly message
+      const errorMessages = parseResult.error.issues.map(err => {
+        const path = err.path.join('.');
+        return path ? `${path}: ${err.message}` : err.message;
+      }).join('; ');
+      return createErrorResponse(400, `Invalid request: ${errorMessages}`);
     }
 
-    if (quantity <= 0) {
-      return createErrorResponse(400, 'Quantity must be greater than 0');
+    const { entityId, type, quantity, pricePerToken, idempotencyKey } = parseResult.data;
+
+    // Price slippage protection: Fetch current market price
+    const currentMarketPrice = await getEntityPrice(entityId);
+    
+    if (currentMarketPrice === null) {
+      return createErrorResponse(400, 'Unable to fetch current market price for this entity');
     }
 
-    const result = await executeTradeService(userId, entityId, type, quantity, pricePerToken);
+    // Calculate price difference percentage
+    const priceDifferencePercent = Math.abs((pricePerToken - currentMarketPrice) / currentMarketPrice) * 100;
+    const SLIPPAGE_THRESHOLD_PERCENT = 2.0; // 2% slippage tolerance
+
+    // If price difference exceeds threshold, reject the trade
+    if (priceDifferencePercent > SLIPPAGE_THRESHOLD_PERCENT) {
+      return createErrorResponse(400, 
+        `Price slippage too high: Requested ${pricePerToken.toFixed(2)}, Current ${currentMarketPrice.toFixed(2)} (${priceDifferencePercent.toFixed(2)}% difference). Please refresh and try again.`
+      );
+    }
+
+    // Use current market price to prevent any slippage
+    const executionPrice = currentMarketPrice;
+
+    const result = await executeTradeService(userId, entityId, type, quantity, executionPrice, idempotencyKey);
 
     if (!result.success) {
       return createErrorResponse(400, result.error || 'Trade execution failed');
     }
 
+    // Include execution details in response
+    const executionDetails = {
+      requestedPrice: pricePerToken,
+      executionPrice: executionPrice,
+      priceAdjusted: Math.abs(executionPrice - pricePerToken) > 0.01, // If adjusted by more than 1 cent
+      slippagePercent: priceDifferencePercent,
+    };
+
     return createResponse(200, {
       success: true,
       data: result.portfolio,
+      executionDetails,
     });
-  } catch (error: any) {
-    console.error('Error executing trade:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    logger.error('Error executing trade', error);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -62,9 +128,9 @@ export async function getPortfolio(event: APIGatewayProxyEvent): Promise<APIGate
       success: true,
       data: portfolio,
     });
-  } catch (error: any) {
-    console.error('Error getting portfolio:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    logger.error('Error getting portfolio', error);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -88,9 +154,9 @@ export async function getTransactionsHandler(event: APIGatewayProxyEvent): Promi
         lastEvaluatedKey: result.lastEvaluatedKey,
       },
     });
-  } catch (error: any) {
-    console.error('Error getting transactions:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    logger.error('Error getting transactions', error);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -118,9 +184,9 @@ export async function getAllEntitiesHandler(event: APIGatewayProxyEvent): Promis
       success: true,
       data: entitiesWithPrices,
     });
-  } catch (error: any) {
-    console.error('Error getting entities:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    logger.error('Error getting entities', error);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 
@@ -142,9 +208,65 @@ export async function getEntityPriceHandler(event: APIGatewayProxyEvent): Promis
       success: true,
       data: { entityId, price },
     });
-  } catch (error: any) {
-    console.error('Error getting entity price:', error);
-    return createErrorResponse(500, 'Internal server error', error);
+  } catch (error: unknown) {
+    logger.error('Error getting entity price', error);
+    return createErrorResponse(500, 'Internal server error');
+  }
+}
+
+export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    // Extract entityId from path: /api/entities/:entityId/price-history
+    const path = event.path || '';
+    const match = path.match(/\/api\/entities\/(\d+)\/price-history/);
+    const entityId = match ? parseInt(match[1], 10) : parseInt(event.pathParameters?.entityId || '0', 10);
+
+    if (!entityId || isNaN(entityId)) {
+      return createErrorResponse(400, 'Invalid entityId');
+    }
+
+    const timeRange = (event.queryStringParameters?.timeRange || 'ALL') as '1D' | '1W' | '1M' | 'ALL';
+    const limit = parseInt(event.queryStringParameters?.limit || '100', 10);
+
+    if (limit > 1000) {
+      return createErrorResponse(400, 'Limit cannot exceed 1000');
+    }
+
+    if (!['1D', '1W', '1M', 'ALL'].includes(timeRange)) {
+      return createErrorResponse(400, 'Invalid timeRange. Must be one of: 1D, 1W, 1M, ALL');
+    }
+
+    const priceHistory = await getPriceHistory(entityId, timeRange, limit);
+
+    return createResponse(200, {
+      success: true,
+      data: priceHistory.map(item => ({
+        timestamp: item.timestamp,
+        price: item.price,
+      })),
+    });
+  } catch (error: unknown) {
+    logger.error('Error getting price history', error);
+    return createErrorResponse(500, 'Internal server error');
+  }
+}
+
+/**
+ * Get all entity prices (public endpoint, no auth required)
+ * More efficient than fetching all entities when you only need prices
+ */
+export async function getAllPricesHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const prices = await getAllEntityPrices();
+
+    return createResponse(200, {
+      success: true,
+      data: prices,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: unknown) {
+    logger.error('Error getting all prices', error);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 

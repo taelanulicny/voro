@@ -4,6 +4,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+// Error Boundary
+import ErrorBoundary from './src/components/ErrorBoundary';
+
+// Error Reporting
+import { initErrorReporting } from './src/services/errorReporting';
+
 // Context Providers
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
@@ -12,6 +18,7 @@ import { NewsProvider } from './src/context/NewsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { WatchlistProvider } from './src/context/WatchlistContext';
 import { SideMenuProvider } from './src/context/SideMenuContext';
+import { NotificationsProvider } from './src/context/NotificationsContext';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -30,6 +37,13 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import DiscoverNewAdditionsScreen from './src/screens/DiscoverNewAdditionsScreen';
 import AccountValueScreen from './src/screens/AccountValueScreen';
 import ChartDevelopmentScreen from './src/screens/ChartDevelopmentScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import PrivacySettingsScreen from './src/screens/PrivacySettingsScreen';
+import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
+import TradingHistoryScreen from './src/screens/TradingHistoryScreen';
+import TradingPreferencesScreen from './src/screens/TradingPreferencesScreen';
+import PurchasesScreen from './src/screens/PurchasesScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -46,9 +60,27 @@ function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
         <>
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Signup" component={SignupScreen} />
+          <Stack.Screen name="Welcome">
+            {() => (
+              <ErrorBoundary>
+                <WelcomeScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Login">
+            {() => (
+              <ErrorBoundary>
+                <LoginScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Signup">
+            {() => (
+              <ErrorBoundary>
+                <SignupScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="ChartDevelopment" 
             component={ChartDevelopmentScreen}
@@ -60,54 +92,121 @@ function RootNavigator() {
         </>
       ) : (
         <>
-          <Stack.Screen name="Main" component={BottomTabNavigator} />
-          <Stack.Screen name="Entity" component={EntityScreen} />
-          <Stack.Screen name="Category" component={CategoryScreen} />
+          <Stack.Screen name="Main">
+            {() => (
+              <ErrorBoundary>
+                <BottomTabNavigator />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Entity">
+            {() => (
+              <ErrorBoundary>
+                <EntityScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Category">
+            {() => (
+              <ErrorBoundary>
+                <CategoryScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="Search" 
-            component={SearchScreen}
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <SearchScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="Settings" 
-            component={SettingsScreen}
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',
               headerShown: false,
             }}
-          />
-          <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
-          <Stack.Screen name="FollowersList" component={FollowersListScreen} />
-          <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
-          <Stack.Screen name="NewsFeed" component={NewsFeedScreen} />
+          >
+            {() => (
+              <ErrorBoundary>
+                <SettingsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="GroupDetail">
+            {() => (
+              <ErrorBoundary>
+                <GroupDetailScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="FollowersList">
+            {() => (
+              <ErrorBoundary>
+                <FollowersListScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="NewsDetail">
+            {() => (
+              <ErrorBoundary>
+                <NewsDetailScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="NewsFeed">
+            {() => (
+              <ErrorBoundary>
+                <NewsFeedScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="Notifications" 
-            component={NotificationsScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <NotificationsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="DiscoverNewAdditions" 
-            component={DiscoverNewAdditionsScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <DiscoverNewAdditionsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="AccountValue" 
-            component={AccountValueScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
             }}
-          />
+          >
+            {() => (
+              <ErrorBoundary>
+                <AccountValueScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
           <Stack.Screen 
             name="ChartDevelopment" 
             component={ChartDevelopmentScreen}
@@ -116,6 +215,103 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           />
+          <Stack.Screen 
+            name="EditProfile" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <EditProfileScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="UserProfile" 
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <UserProfileScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="PrivacySettings" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <PrivacySettingsScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="BlockedUsers" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <BlockedUsersScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="TradingHistory" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <TradingHistoryScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="TradingPreferences" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <TradingPreferencesScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
+          <Stack.Screen 
+            name="Purchases" 
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              headerShown: false,
+            }}
+          >
+            {() => (
+              <ErrorBoundary>
+                <PurchasesScreen />
+              </ErrorBoundary>
+            )}
+          </Stack.Screen>
         </>
       )}
     </Stack.Navigator>
@@ -123,27 +319,55 @@ function RootNavigator() {
 }
 
 export default function App() {
+  // Initialize error reporting on app startup
+  React.useEffect(() => {
+    initErrorReporting();
+    
+    // Suppress NativeEventEmitter warning from native modules that don't fully implement the interface
+    // This is a known issue with some React Native native modules and is harmless
+    const originalWarn = console.warn;
+    console.warn = (...args: any[]) => {
+      const message = args[0]?.toString() || '';
+      if (
+        message.includes('NativeEventEmitter') &&
+        (message.includes('addListener') || message.includes('removeListeners'))
+      ) {
+        // Suppress this specific warning
+        return;
+      }
+      originalWarn.apply(console, args);
+    };
+    
+    return () => {
+      console.warn = originalWarn;
+    };
+  }, []);
+
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <SocialProvider>
-            <NewsProvider>
-              <TradingProvider>
-                <WatchlistProvider>
-                  <SideMenuProvider>
-                  <NavigationContainer>
-                    <StatusBar style="auto" />
-                    <RootNavigator />
-                  </NavigationContainer>
-                  </SideMenuProvider>
-                </WatchlistProvider>
-              </TradingProvider>
-            </NewsProvider>
-          </SocialProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SocialProvider>
+              <NewsProvider>
+                <TradingProvider>
+                  <WatchlistProvider>
+                    <NotificationsProvider>
+                      <SideMenuProvider>
+                        <NavigationContainer>
+                          <StatusBar style="auto" />
+                          <RootNavigator />
+                        </NavigationContainer>
+                      </SideMenuProvider>
+                    </NotificationsProvider>
+                  </WatchlistProvider>
+                </TradingProvider>
+              </NewsProvider>
+            </SocialProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 

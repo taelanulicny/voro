@@ -11,21 +11,27 @@
     "deploy": "npm run bundle && cdk deploy",
     "synth": "cdk synth",
     "diff": "cdk diff",
-    "seed": "ts-node scripts/seed.ts"
+    "seed": "ts-node scripts/seed.ts",
+    "validate-ids": "ts-node scripts/validateIds.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.490.0",
+    "@aws-sdk/client-comprehend": "^3.958.0",
     "@aws-sdk/client-dynamodb": "^3.490.0",
     "@aws-sdk/client-s3": "^3.490.0",
     "@aws-sdk/lib-dynamodb": "^3.490.0",
     "@aws-sdk/s3-request-presigner": "^3.490.0",
+    "@aws-sdk/util-dynamodb": "^3.490.0",
+    "aws-jwt-verify": "^4.0.1",
     "aws-lambda": "^1.0.7",
     "aws-sdk": "^2.1500.0",
     "jsonwebtoken": "^9.0.2",
-    "uuid": "^9.0.1"
+    "jwks-rsa": "^3.1.0",
+    "uuid": "^9.0.1",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.130",
@@ -40,4 +46,3 @@
     "typescript": "^5.3.3"
   }
 }
-

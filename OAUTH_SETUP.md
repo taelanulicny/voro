@@ -1,283 +1,133 @@
-# OAuth Setup Guide - Google & Apple Sign-In
+# OAuth Setup Guide for Moro App
 
-## Overview
-
-The login system now supports three authentication methods:
-1. **Email/Password** - Traditional username and password
-2. **Google Sign-In** - OAuth with Google
-3. **Apple Sign-In** - OAuth with Apple (iOS only)
-
----
+The backend is now configured to handle Google and Apple OAuth. Here's how to set up each provider.
 
 ## Google Sign-In Setup
 
-### 1. Create Google OAuth Credentials
+### Step 1: Create Google Cloud Project
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
-3. Enable **Google Sign-In API**
-4. Go to **Credentials** → **Create Credentials** → **OAuth client ID**
-5. Create credentials for:
-   - **Web application** (for React Native)
-   - **iOS** (if deploying to iOS)
-   - **Android** (if deploying to Android)
+3. Enable the **Google+ API** (or People API)
 
-### 2. Configure for React Native
+### Step 2: Configure OAuth Consent Screen
 
-#### For Android:
-1. Get your **SHA-1 certificate fingerprint**:
-   ```bash
-   # Debug keystore
-   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
-   
-   # Release keystore (if you have one)
-   keytool -list -v -keystore your-release-key.keystore -alias your-key-alias
-   ```
-2. Add the SHA-1 to your Android OAuth client in Google Cloud Console
+1. Go to **APIs & Services** → **OAuth consent screen**
+2. Choose **External** user type
+3. Fill in the required fields:
+   - App name: `Moro`
+   - User support email: your email
+   - Developer contact email: your email
+4. Add scopes: `email`, `profile`, `openid`
+5. Add test users if in testing mode
 
-#### For iOS:
-1. Get your **Bundle ID** from `app.json` or Xcode
-2. Add the Bundle ID to your iOS OAuth client in Google Cloud Console
+### Step 3: Create OAuth Credentials
 
-### 3. Add Environment Variable
+1. Go to **APIs & Services** → **Credentials**
+2. Click **Create Credentials** → **OAuth client ID**
+3. Choose **Web application** (yes, even for mobile - Expo uses web flow)
+4. Add authorized redirect URIs:
+   - For development: `https://auth.expo.io/@your-expo-username/moro`
+   - For Expo Go: `exp://localhost:8081/--/`
+   - For standalone builds: `moro://` (your app scheme)
+5. Copy the **Client ID**
 
-Create a `.env` file in your project root:
+### Step 4: Add to .env
 
-```env
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+Add this line to your `.env` file:
+
 ```
-
-Or add to `app.json`:
-
-```json
-{
-  "expo": {
-    "extra": {
-      "googleWebClientId": "your-web-client-id.apps.googleusercontent.com"
-    }
-  }
-}
-```
-
-### 4. Update oauthService.ts
-
-The Google Sign-In is already configured in `src/services/oauthService.ts`. Make sure the `webClientId` matches your credentials:
-
-```typescript
-GoogleSignin.configure({
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
-  // ... other config
-});
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
 
 ---
 
 ## Apple Sign-In Setup
 
-### 1. Apple Developer Account
+Apple Sign-In requires an Apple Developer account ($99/year).
 
-1. You need an **Apple Developer Account** ($99/year)
-2. Go to [Apple Developer Portal](https://developer.apple.com/)
+### Step 1: Configure App ID
 
-### 2. Configure App ID
+1. Go to [Apple Developer Portal](https://developer.apple.com/account)
+2. Go to **Certificates, Identifiers & Profiles** → **Identifiers**
+3. Select your App ID (or create one)
+4. Enable **Sign In with Apple** capability
+5. Configure it as **Enable as a primary App ID**
 
-1. Go to **Certificates, Identifiers & Profiles**
-2. Select your **App ID**
-3. Enable **Sign In with Apple** capability
-4. Save the configuration
+### Step 2: Create Service ID (for web flow)
 
-### 3. Configure in Xcode
+1. Go to **Identifiers** → Click **+**
+2. Choose **Services IDs**
+3. Register a new Service ID
+4. Configure Sign In with Apple:
+   - Add domains: your API domain
+   - Add return URLs
 
-1. Open your project in Xcode
-2. Select your target
-3. Go to **Signing & Capabilities**
-4. Click **+ Capability**
-5. Add **Sign In with Apple**
+### Step 3: Generate Key
 
-### 4. For Expo Managed Workflow
+1. Go to **Keys** → Click **+**
+2. Enable **Sign in with Apple**
+3. Configure and download the key file
 
-If using Expo, the `expo-apple-authentication` package handles most of this automatically. Just make sure:
+### Step 4: Update app.json
 
-1. Your `app.json` has the correct bundle identifier
-2. You've configured Sign In with Apple in Apple Developer Portal
-3. The app is built with EAS Build or Expo Development Build (not Expo Go)
+Make sure your `app.json` has:
 
-### 5. Testing
+```json
+{
+  "expo": {
+    "ios": {
+      "bundleIdentifier": "com.yourcompany.moro",
+      "usesAppleSignIn": true
+    }
+  }
+}
+```
 
-- Apple Sign-In only works on **real iOS devices** or **iOS Simulator with iOS 13+**
-- It won't work in Expo Go - you need a development build
+### Step 5: Enable in Xcode (for native builds)
+
+1. Open the iOS project in Xcode
+2. Go to **Signing & Capabilities**
+3. Add **Sign in with Apple** capability
 
 ---
 
-## Current Implementation Status
-
-### ✅ What's Working
-
-- **UI/UX**: Complete login screen with all three options
-- **Email/Password**: Fully functional (mock implementation)
-- **Google Sign-In**: UI ready, needs OAuth credentials
-- **Apple Sign-In**: UI ready, needs Apple Developer setup
-- **Error Handling**: Comprehensive error messages
-- **Loading States**: Visual feedback during authentication
-
-### 🔧 What Needs Configuration
-
-1. **Google OAuth Credentials**: Add your `webClientId` to environment variables
-2. **Apple Developer Setup**: Configure Sign In with Apple capability
-3. **Backend Integration**: Connect to your authentication API (currently using mock data)
-
----
-
-## Testing Without OAuth Setup
-
-### Email/Password Login
-
-You can test email/password login immediately - it uses mock authentication:
-
-```
-Email: any@email.com
-Password: any password
-```
+## Testing OAuth
 
 ### Google Sign-In
-
-Without credentials configured, you'll get an error. To test:
-1. Set up Google OAuth credentials
-2. Add `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` to `.env`
-3. Rebuild the app
+1. Make sure `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` is set in `.env`
+2. Run the app with `npm start`
+3. Click "Continue with Google" on the login screen
+4. Complete the Google sign-in flow
 
 ### Apple Sign-In
-
-Without Apple Developer setup:
-1. Configure Sign In with Apple in Apple Developer Portal
-2. Build with EAS Build or development build
-3. Test on iOS device or simulator
+1. Apple Sign-In only works on:
+   - Real iOS devices (iOS 13+)
+   - iOS Simulator (with limitations)
+2. Does NOT work in Expo Go on Android
+3. Click "Continue with Apple" on the login screen
 
 ---
 
-## Backend Integration
+## Current .env Configuration
 
-Currently, all authentication uses **mock data**. To connect to your backend:
+Your `.env` should look like this when complete:
 
-### 1. Update AuthContext
-
-In `src/context/AuthContext.tsx`, replace mock implementations with API calls:
-
-```typescript
-const login = async (email: string, password: string) => {
-  try {
-    const response = await fetch('https://your-api.com/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      await saveAuthData(data.token, data.user);
-      return { success: true };
-    } else {
-      return { success: false, error: data.message };
-    }
-  } catch (error) {
-    return { success: false, error: 'Network error' };
-  }
-};
 ```
-
-### 2. Update OAuth Services
-
-For Google and Apple, send the OAuth tokens to your backend:
-
-```typescript
-// In oauthService.ts, after getting the token
-const response = await fetch('https://your-api.com/auth/google', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ idToken }),
-});
-
-const data = await response.json();
-// Handle response...
+EXPO_PUBLIC_API_URL=https://nrv9m5dpr1.execute-api.us-east-1.amazonaws.com/prod
+EXPO_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_irqEbJUrt
+EXPO_PUBLIC_COGNITO_CLIENT_ID=1cgsver1gisjq7fs3cou41dh65
+EXPO_PUBLIC_REGION=us-east-1
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ```
 
 ---
 
-## Environment Variables
+## Backend Status
 
-Create a `.env` file (and add to `.gitignore`):
+✅ Google OAuth endpoint: `POST /api/auth/google`
+✅ Apple OAuth endpoint: `POST /api/auth/apple`
+✅ Token verification for OAuth users
+✅ User creation/linking on first OAuth login
 
-```env
-# Google OAuth
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-client-id.apps.googleusercontent.com
-
-# API
-EXPO_PUBLIC_API_URL=https://your-api.com
-```
-
-Access in code:
-
-```typescript
-const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-```
-
----
-
-## Troubleshooting
-
-### Google Sign-In Issues
-
-**Error: "DEVELOPER_ERROR"**
-- Check that your SHA-1 fingerprint is correct
-- Verify the package name matches your app
-- Make sure OAuth client is configured correctly
-
-**Error: "SIGN_IN_REQUIRED"**
-- User cancelled the sign-in
-- This is expected behavior
-
-### Apple Sign-In Issues
-
-**Error: "Not available"**
-- Only works on iOS 13+
-- Requires development build (not Expo Go)
-- Must be configured in Apple Developer Portal
-
-**Error: "User cancelled"**
-- User cancelled the sign-in
-- This is expected behavior
-
----
-
-## Security Notes
-
-1. **Never commit OAuth credentials** to version control
-2. **Use environment variables** for sensitive data
-3. **Validate tokens on backend** - don't trust client-side tokens
-4. **Use HTTPS** for all API calls
-5. **Implement token refresh** for long-lived sessions
-
----
-
-## Next Steps
-
-1. ✅ UI is complete and ready
-2. 🔧 Configure Google OAuth credentials
-3. 🔧 Set up Apple Developer account and capabilities
-4. 🔧 Connect to backend API
-5. 🧪 Test all three authentication methods
-
----
-
-## Resources
-
-- [Google Sign-In for React Native](https://github.com/react-native-google-signin/google-signin)
-- [Expo Apple Authentication](https://docs.expo.dev/versions/latest/sdk/apple-authentication/)
-- [Google Cloud Console](https://console.cloud.google.com/)
-- [Apple Developer Portal](https://developer.apple.com/)
-
----
-
-**The login system is ready! Just add your OAuth credentials and backend API endpoints.** 🚀
-
+The backend is fully configured and deployed. You just need to add the Google Client ID to enable the frontend flow.

@@ -2,7 +2,19 @@ import { EventBridgeEvent } from 'aws-lambda';
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { ScanCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { Entity, PriceHistory } from '../models/types';
+import { logger } from '../utils/logger';
 
+/**
+ * Price Update Lambda Handler
+ * 
+ * This Lambda is scheduled to run every 5 minutes via EventBridge.
+ * It updates prices for all entities in the PriceHistory table.
+ * 
+ * To verify deployment:
+ * 1. Check CloudWatch logs for execution logs
+ * 2. Verify EventBridge rule is active in AWS Console
+ * 3. Check PriceHistory table for recent price updates
+ */
 export async function updatePrices(event: EventBridgeEvent<'Scheduled Event', any>): Promise<void> {
   try {
     // Get all entities
@@ -35,12 +47,25 @@ export async function updatePrices(event: EventBridgeEvent<'Scheduled Event', an
         currentPrice = (priceResult.Items[0] as PriceHistory).price;
       }
 
-      // Simulate price change: ±1% to ±3% per update
-      const changePercent = (Math.random() - 0.5) * 0.06; // -3% to +3%
-      const change = currentPrice * changePercent;
+      // Simulate realistic price changes
+      // Use a random walk with slight mean reversion to base price
+      // Volatility: ±0.5% to ±2% per update (every 5 minutes)
+      const volatility = 0.02; // 2% max change per update
+      const meanReversion = 0.1; // 10% pull toward base price
+      
+      // Random walk component
+      const randomChange = (Math.random() - 0.5) * 2 * volatility;
+      
+      // Mean reversion component (pull price toward base price)
+      const deviationFromBase = (currentPrice - entity.basePrice) / entity.basePrice;
+      const reversionForce = -deviationFromBase * meanReversion;
+      
+      // Combine both forces
+      const totalChangePercent = randomChange + reversionForce;
+      const change = currentPrice * totalChangePercent;
       const newPrice = Math.max(
-        entity.basePrice * 0.5,
-        Math.min(entity.basePrice * 1.5, currentPrice + change)
+        entity.basePrice * 0.3, // Allow prices to drop to 30% of base
+        Math.min(entity.basePrice * 2.0, currentPrice + change) // Allow prices to rise to 200% of base
       );
       const roundedPrice = Math.round(newPrice * 100) / 100;
 
@@ -59,9 +84,9 @@ export async function updatePrices(event: EventBridgeEvent<'Scheduled Event', an
       );
     }
 
-    console.log(`Updated prices for ${entities.length} entities at ${now}`);
+    logger.info(`Updated prices for ${entities.length} entities at ${now}`);
   } catch (error) {
-    console.error('Error updating prices:', error);
+    logger.error('Error updating prices', error);
     throw error;
   }
 }

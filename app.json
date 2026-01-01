@@ -1,23 +1,16 @@
 {
   "expo": {
-    "name": "moro-mobile",
-    "slug": "moro-mobile",
-    "version": "1.0.9",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#8B1538"
-    },
-    "assetBundlePatterns": [
-      "**/*"
+    "plugins": [
+      "expo-apple-authentication",
+      "expo-secure-store",
+      "expo-font",
+      "expo-web-browser",
+      "expo-dev-client"
     ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.moro.mobile",
-      "buildNumber": "16",
+      "buildNumber": "15",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -32,9 +25,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-apple-authentication"
-    ],
     "scheme": "moro",
     "extra": {
       "eas": {

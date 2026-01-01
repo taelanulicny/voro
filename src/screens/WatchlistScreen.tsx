@@ -24,7 +24,7 @@ import SideMenu from '../components/SideMenu';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function WatchlistScreen() {
+function WatchlistScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { watchlist, removeFromWatchlist, priceAlerts, addPriceAlert, removePriceAlert, getAlertsForEntity } = useWatchlist();
   const { getHolding, getEntityPrice } = useTrading();
@@ -88,7 +88,12 @@ export default function WatchlistScreen() {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => removeFromWatchlist(entityId),
+          onPress: async () => {
+            const result = await removeFromWatchlist(entityId);
+            if (!result.success && result.error) {
+              Alert.alert('Error', result.error);
+            }
+          },
         },
       ]
     );
@@ -468,6 +473,8 @@ export default function WatchlistScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(WatchlistScreen);
 
 const styles = StyleSheet.create({
   container: {

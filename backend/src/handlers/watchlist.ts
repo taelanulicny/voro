@@ -3,6 +3,7 @@ import { authenticateRequest, createResponse, createErrorResponse } from '../mid
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { PutCommand, DeleteCommand, QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { Watchlist } from '../models/types';
+import { logger } from '../utils/logger';
 
 export async function addToWatchlist(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -37,7 +38,7 @@ export async function addToWatchlist(event: APIGatewayProxyEvent): Promise<APIGa
       data: watchlistItem,
     });
   } catch (error: any) {
-    console.error('Error adding to watchlist:', error);
+    logger.error('Error adding to watchlist', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -70,7 +71,7 @@ export async function removeFromWatchlist(event: APIGatewayProxyEvent): Promise<
       success: true,
     });
   } catch (error: any) {
-    console.error('Error removing from watchlist:', error);
+    logger.error('Error removing from watchlist', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -120,7 +121,7 @@ export async function getWatchlist(event: APIGatewayProxyEvent): Promise<APIGate
       data: watchlistItems,
     });
   } catch (error: any) {
-    console.error('Error getting watchlist:', error);
+    logger.error('Error getting watchlist', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

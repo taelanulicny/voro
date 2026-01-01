@@ -17,85 +17,17 @@ import { RootStackParamList, GroupMessage, GroupMember } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
 type GroupDetailRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
 
-// Mock data generators
-const generateMockMessages = (groupId: string): GroupMessage[] => {
-  return [
-    {
-      id: `${groupId}-msg-1`,
-      groupId,
-      userId: '2',
-      username: 'sarah_trader',
-      displayName: 'Sarah Chen',
-      content: 'What do you all think about the latest tech earnings?',
-      timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    },
-    {
-      id: `${groupId}-msg-2`,
-      groupId,
-      userId: '3',
-      username: 'mike_investor',
-      displayName: 'Mike Johnson',
-      content: 'Looking positive! Strong fundamentals across the board.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 3).toISOString(),
-    },
-    {
-      id: `${groupId}-msg-3`,
-      groupId,
-      userId: '4',
-      username: 'crypto_king',
-      displayName: 'Alex Rivera',
-      content: 'Anyone following the AI sector? Seems like it\'s heating up 🔥',
-      timestamp: new Date(Date.now() - 1000 * 60 * 1).toISOString(),
-    },
-  ];
-};
 
-const generateMockMembers = (groupId: string): GroupMember[] => {
-  return [
-    {
-      id: `${groupId}-member-1`,
-      userId: '1',
-      username: 'devuser',
-      displayName: 'Dev User',
-      role: 'owner',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-    },
-    {
-      id: `${groupId}-member-2`,
-      userId: '2',
-      username: 'sarah_trader',
-      displayName: 'Sarah Chen',
-      role: 'admin',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
-    },
-    {
-      id: `${groupId}-member-3`,
-      userId: '3',
-      username: 'mike_investor',
-      displayName: 'Mike Johnson',
-      role: 'member',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
-    },
-    {
-      id: `${groupId}-member-4`,
-      userId: '4',
-      username: 'crypto_king',
-      displayName: 'Alex Rivera',
-      role: 'member',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-    },
-  ];
-};
-
-export default function GroupDetailScreen() {
+function GroupDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<GroupDetailRouteProp>();
   const { groupId } = route.params;
   const { groups, leaveGroup } = useSocial();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { theme } = useTheme();
 
   const [selectedTab, setSelectedTab] = useState<'messages' | 'members'>('messages');
@@ -106,21 +38,258 @@ export default function GroupDetailScreen() {
 
   const group = groups.find(g => g.id === groupId);
 
+  // Helper function to show creator as fallback when members can't be fetched
+  const showCreatorAsFallback = React.useCallback(async (groupData?: any) => {
+    const groupToUse = groupData || group;
+    
+    if (!groupToUse || !groupToUse.ownerId) {
+      // If we don't have group data, try to fetch it
+      if (isBackendConfigured() && token) {
+        try {
+          const groupResponse = await authenticatedRequest<{ group: any }>(
+            `/api/groups/${groupId}`,
+            token,
+            { method: 'GET' }
+          );
+          if (groupResponse.success && groupResponse.data?.group) {
+            const fetchedGroup = groupResponse.data.group;
+            // If current user is the owner, show them
+            if (user && user.id === fetchedGroup.ownerId) {
+              setMembers([{
+                id: `${groupId}-member-${fetchedGroup.ownerId}`,
+                userId: fetchedGroup.ownerId,
+                username: user.username || 'unknown',
+                displayName: user.displayName || 'Unknown User',
+                role: 'owner',
+                joinedAt: fetchedGroup.createdAt || new Date().toISOString(),
+              }]);
+              return;
+            }
+            // Try to fetch owner details
+            try {
+              const ownerResponse = await authenticatedRequest<{
+                id: string;
+                username: string;
+                displayName: string;
+                avatarUrl?: string;
+              }>(`/api/user/${fetchedGroup.ownerId}`, token, { method: 'GET' });
+              
+              if (ownerResponse.success && ownerResponse.data) {
+                setMembers([{
+                  id: `${groupId}-member-${fetchedGroup.ownerId}`,
+                  userId: fetchedGroup.ownerId,
+                  username: ownerResponse.data.username || 'unknown',
+                  displayName: ownerResponse.data.displayName || 'Unknown User',
+                  role: 'owner',
+                  joinedAt: fetchedGroup.createdAt || new Date().toISOString(),
+                }]);
+                return;
+              }
+            } catch (error) {
+              console.error('Error fetching owner details:', error);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching group for fallback:', error);
+        }
+      }
+      setMembers([]);
+      return;
+    }
+
+    // If current user is the owner, show them
+    if (user && user.id === groupToUse.ownerId) {
+      setMembers([{
+        id: `${groupId}-member-${groupToUse.ownerId}`,
+        userId: groupToUse.ownerId,
+        username: user.username || 'unknown',
+        displayName: user.displayName || 'Unknown User',
+        role: 'owner',
+        joinedAt: groupToUse.createdAt || new Date().toISOString(),
+      }]);
+      return;
+    }
+
+    // Otherwise, try to fetch owner details from backend
+    if (isBackendConfigured() && token) {
+      try {
+        const ownerResponse = await authenticatedRequest<{
+          id: string;
+          username: string;
+          displayName: string;
+          avatarUrl?: string;
+        }>(`/api/user/${groupToUse.ownerId}`, token, { method: 'GET' });
+        
+        if (ownerResponse.success && ownerResponse.data) {
+          setMembers([{
+            id: `${groupId}-member-${groupToUse.ownerId}`,
+            userId: groupToUse.ownerId,
+            username: ownerResponse.data.username || 'unknown',
+            displayName: ownerResponse.data.displayName || 'Unknown User',
+            role: 'owner',
+            joinedAt: groupToUse.createdAt || new Date().toISOString(),
+          }]);
+          return;
+        }
+      } catch (error) {
+        console.error('Error fetching owner details:', error);
+      }
+    }
+
+    // Last resort: show owner with minimal info
+    setMembers([{
+      id: `${groupId}-member-${groupToUse.ownerId}`,
+      userId: groupToUse.ownerId,
+      username: 'unknown',
+      displayName: 'Group Owner',
+      role: 'owner',
+      joinedAt: groupToUse.createdAt || new Date().toISOString(),
+    }]);
+  }, [group, groupId, user, token]);
+
   useEffect(() => {
+    // Show creator immediately if we have group data (optimistic UI)
+    if (group && group.ownerId) {
+      if (user && user.id === group.ownerId) {
+        // Current user is the owner
+        setMembers([{
+          id: `${groupId}-member-${group.ownerId}`,
+          userId: group.ownerId,
+          username: user.username || 'unknown',
+          displayName: user.displayName || 'Unknown User',
+          role: 'owner',
+          joinedAt: group.createdAt || new Date().toISOString(),
+        }]);
+      } else {
+        // Show placeholder for owner until we fetch details
+        setMembers([{
+          id: `${groupId}-member-${group.ownerId}`,
+          userId: group.ownerId,
+          username: 'unknown',
+          displayName: 'Group Owner',
+          role: 'owner',
+          joinedAt: group.createdAt || new Date().toISOString(),
+        }]);
+      }
+    }
     loadGroupData();
-  }, [groupId]);
+  }, [groupId, token, showCreatorAsFallback, group, user]);
 
   const loadGroupData = async () => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setMessages(generateMockMessages(groupId));
-    setMembers(generateMockMembers(groupId));
-    setIsLoading(false);
+    
+    try {
+      // Start with empty messages - no mock data
+      setMessages([]);
+      
+      // First, ensure we have group data - fetch it if not in context
+      let currentGroup = group;
+      if (!currentGroup && isBackendConfigured() && token) {
+        try {
+          const groupResponse = await authenticatedRequest<{ group: any }>(
+            `/api/groups/${groupId}`,
+            token,
+            { method: 'GET' }
+          );
+          if (groupResponse.success && groupResponse.data?.group) {
+            currentGroup = {
+              id: groupResponse.data.group.groupId || groupId,
+              name: groupResponse.data.group.name,
+              description: groupResponse.data.group.description,
+              category: groupResponse.data.group.category,
+              ownerId: groupResponse.data.group.ownerId,
+              isPrivate: groupResponse.data.group.isPrivate,
+              memberCount: groupResponse.data.group.memberCount || 0,
+              createdAt: groupResponse.data.group.createdAt,
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching group details:', error);
+        }
+      }
+      
+      // Fetch real members from backend
+      if (isBackendConfigured() && token) {
+        try {
+          const response = await authenticatedRequest<{ members?: any[]; groups?: any[] }>(
+            `/api/groups/${groupId}/members`,
+            token,
+            { method: 'GET' }
+          );
+          
+          // Handle case where API returns wrong structure (groups instead of members)
+          if (response.success && response.data) {
+            let membersData = response.data.members;
+            
+            // If response has groups instead of members, it's the wrong endpoint
+            if (!membersData && response.data.groups) {
+              console.warn('API returned groups instead of members, using fallback');
+              await showCreatorAsFallback(currentGroup);
+              return;
+            }
+            
+            if (membersData && Array.isArray(membersData)) {
+              // Map backend members to frontend format
+              const mappedMembers: GroupMember[] = membersData.map((m: any) => ({
+                id: `${groupId}-member-${m.userId}`,
+                userId: m.userId,
+                username: m.username || 'unknown',
+                displayName: m.displayName || 'Unknown User',
+                role: m.role || 'member',
+                joinedAt: m.joinedAt || new Date().toISOString(),
+              }));
+              
+              // If members array is empty, ensure creator is shown
+              if (mappedMembers.length === 0) {
+                console.warn('Members array is empty, showing creator as fallback');
+                await showCreatorAsFallback(currentGroup);
+              } else {
+                // Ensure creator is in the list (in case API doesn't return them)
+                const ownerId = currentGroup?.ownerId;
+                if (ownerId && !mappedMembers.find(m => m.userId === ownerId)) {
+                  // Creator not in list, add them
+                  const creatorMember: GroupMember = {
+                    id: `${groupId}-member-${ownerId}`,
+                    userId: ownerId,
+                    username: user?.id === ownerId ? (user.username || 'unknown') : 'unknown',
+                    displayName: user?.id === ownerId ? (user.displayName || 'Unknown User') : 'Group Owner',
+                    role: 'owner',
+                    joinedAt: currentGroup?.createdAt || new Date().toISOString(),
+                  };
+                  setMembers([creatorMember, ...mappedMembers]);
+                } else {
+                  setMembers(mappedMembers);
+                }
+              }
+            } else {
+              // If API returns empty or fails, try to show creator from group data
+              console.warn('Failed to fetch members or invalid response:', response);
+              await showCreatorAsFallback(currentGroup);
+            }
+          } else {
+            await showCreatorAsFallback(currentGroup);
+          }
+        } catch (apiError: any) {
+          console.error('Error fetching group members:', apiError);
+          // Fallback: show creator if API fails
+          await showCreatorAsFallback(currentGroup);
+        }
+      } else {
+        // Backend not configured - show creator as fallback
+        await showCreatorAsFallback(currentGroup);
+      }
+    } catch (error) {
+      console.error('Error loading group data:', error);
+      // On error, try to show creator as fallback
+      await showCreatorAsFallback(group);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+
   const handleSendMessage = () => {
-    if (!messageText.trim() || !user) return;
+    if (!messageText.trim() || !user || !user.id) return;
 
     const newMessage: GroupMessage = {
       id: `${groupId}-msg-${Date.now()}`,
@@ -339,8 +508,19 @@ export default function GroupDetailScreen() {
                 data={members}
                 renderItem={renderMember}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.membersList}
+                contentContainerStyle={[
+                  styles.membersList,
+                  members.length === 0 && { flexGrow: 1, justifyContent: 'center' }
+                ]}
                 showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Ionicons name="people-outline" size={48} color={theme.textTertiary} />
+                    <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                      No members found
+                    </Text>
+                  </View>
+                }
                 ListFooterComponent={
                   group.isMember && (
                     <TouchableOpacity
@@ -360,6 +540,8 @@ export default function GroupDetailScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(GroupDetailScreen);
 
 const styles = StyleSheet.create({
   container: {
@@ -558,7 +740,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 24,
+    marginTop: 12,
     padding: 16,
     backgroundColor: '#FEE2E2',
     borderRadius: 12,
@@ -593,6 +775,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 32,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
 

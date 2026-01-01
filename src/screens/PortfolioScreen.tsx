@@ -14,15 +14,19 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { useScreenshotProtection } from '../utils/security';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function PortfolioScreen() {
+function PortfolioScreen() {
   const { portfolio, transactions } = useTrading();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<'holdings' | 'history'>('holdings');
   const [refreshing, setRefreshing] = useState(false);
+  
+  // SECURITY: Enable screenshot protection for sensitive financial data
+  const { BlurOverlay } = useScreenshotProtection(true);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -39,6 +43,7 @@ export default function PortfolioScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]}>
+      {BlurOverlay}
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
         showsVerticalScrollIndicator={false}
@@ -143,13 +148,13 @@ export default function PortfolioScreen() {
                     <View style={styles.holdingDetailItem}>
                       <Text style={[styles.holdingDetailLabel, { color: theme.textTertiary }]}>Avg Cost</Text>
                       <Text style={[styles.holdingDetailValue, { color: theme.text }]}>
-                        ${holding.averageCost.toFixed(2)}
+                        {formatCurrency(holding.averageCost)}
                       </Text>
                     </View>
                     <View style={styles.holdingDetailItem}>
                       <Text style={[styles.holdingDetailLabel, { color: theme.textTertiary }]}>Current</Text>
                       <Text style={[styles.holdingDetailValue, { color: theme.text }]}>
-                        ${holding.currentPrice.toFixed(2)}
+                        {formatCurrency(holding.currentPrice)}
                       </Text>
                     </View>
                   </View>
@@ -204,7 +209,7 @@ export default function PortfolioScreen() {
                   </View>
                   <View style={styles.transactionDetails}>
                     <Text style={[styles.transactionDetailText, { color: theme.textSecondary }]}>
-                      {transaction.quantity} shares @ ${transaction.pricePerToken.toFixed(2)}
+                      {transaction.quantity} shares @ {formatCurrency(transaction.pricePerToken)}
                     </Text>
                     <Text style={[styles.transactionTime, { color: theme.textTertiary }]}>
                       {new Date(transaction.timestamp).toLocaleString()}
@@ -219,6 +224,8 @@ export default function PortfolioScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(PortfolioScreen);
 
 const styles = StyleSheet.create({
   container: {

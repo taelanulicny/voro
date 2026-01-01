@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList, RootStackParamList } from '../types';
 import FloatingBottomNav from '../components/FloatingBottomNav';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -17,6 +18,49 @@ import WatchlistScreen from '../screens/WatchlistScreen';
 import AllCategoriesScreen from '../screens/AllCategoriesScreen';
 import SeasonalCompetitionScreen from '../screens/SeasonalCompetitionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+
+// Component wrappers to properly use hooks
+function HomeScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: BottomTabNavigationProp<MainTabParamList>) => void }) {
+  const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  
+  useEffect(() => {
+    setTabNavigation(nav);
+  }, [nav, setTabNavigation]);
+  
+  return (
+    <ErrorBoundary>
+      <HomeScreen />
+    </ErrorBoundary>
+  );
+}
+
+function FeedsScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: BottomTabNavigationProp<MainTabParamList>) => void }) {
+  const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  
+  useEffect(() => {
+    setTabNavigation(nav);
+  }, [nav, setTabNavigation]);
+  
+  return (
+    <ErrorBoundary>
+      <FeedsScreen />
+    </ErrorBoundary>
+  );
+}
+
+function GroupsScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: BottomTabNavigationProp<MainTabParamList>) => void }) {
+  const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  
+  useEffect(() => {
+    setTabNavigation(nav);
+  }, [nav, setTabNavigation]);
+  
+  return (
+    <ErrorBoundary>
+      <GroupsScreen />
+    </ErrorBoundary>
+  );
+}
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -92,11 +136,15 @@ export default function BottomTabNavigator() {
   const [activeTab, setActiveTab] = useState<string>('Home');
   const [tabNavigation, setTabNavigation] = useState<BottomTabNavigationProp<MainTabParamList> | null>(null);
   
-  const navigate = (route: keyof MainTabParamList) => {
+  const navigate = useCallback((route: keyof MainTabParamList) => {
     if (tabNavigation) {
       tabNavigation.navigate(route);
     }
-  };
+  }, [tabNavigation]);
+
+  const handleSetTabNavigation = useCallback((nav: BottomTabNavigationProp<MainTabParamList>) => {
+    setTabNavigation(nav);
+  }, []);
   
   return (
     <TabNavigationContext.Provider value={{ navigate, setActiveTab }}>
@@ -117,30 +165,56 @@ export default function BottomTabNavigator() {
           }}
         >
           <Tab.Screen name="Home">
-            {() => {
-              const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-              React.useEffect(() => {
-                setTabNavigation(nav);
-              }, [nav]);
-              return <HomeScreen />;
-            }}
+            {() => <HomeScreenWrapper setTabNavigation={handleSetTabNavigation} />}
           </Tab.Screen>
-          <Tab.Screen name="News" component={NewsScreen} />
+          <Tab.Screen name="News">
+            {() => (
+              <ErrorBoundary>
+                <NewsScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
           <Tab.Screen name="Feeds">
-            {() => {
-              const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-              React.useEffect(() => {
-                setTabNavigation(nav);
-              }, [nav]);
-              return <FeedsScreen />;
-            }}
+            {() => <FeedsScreenWrapper setTabNavigation={handleSetTabNavigation} />}
           </Tab.Screen>
-          <Tab.Screen name="Groups" component={GroupsScreen} />
-          <Tab.Screen name="Portfolio" component={PortfolioScreen} />
-          <Tab.Screen name="Watchlist" component={WatchlistScreen} />
-          <Tab.Screen name="Categories" component={AllCategoriesScreen} />
-          <Tab.Screen name="SeasonalCompetition" component={SeasonalCompetitionScreen} />
-          <Tab.Screen name="Profile" component={ProfileScreen} />
+          <Tab.Screen name="Groups">
+            {() => <GroupsScreenWrapper setTabNavigation={handleSetTabNavigation} />}
+          </Tab.Screen>
+          <Tab.Screen name="Portfolio">
+            {() => (
+              <ErrorBoundary>
+                <PortfolioScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Watchlist">
+            {() => (
+              <ErrorBoundary>
+                <WatchlistScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Categories">
+            {() => (
+              <ErrorBoundary>
+                <AllCategoriesScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="SeasonalCompetition">
+            {() => (
+              <ErrorBoundary>
+                <SeasonalCompetitionScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Profile">
+            {() => (
+              <ErrorBoundary>
+                <ProfileScreen />
+              </ErrorBoundary>
+            )}
+          </Tab.Screen>
         </Tab.Navigator>
         
         <FloatingNavWrapper activeTab={activeTab} />

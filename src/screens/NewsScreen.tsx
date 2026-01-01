@@ -16,7 +16,7 @@ import { useTheme } from '../context/ThemeContext';
 import { NewsArticle, NewsFilter } from '../types';
 import NewsCard from '../components/NewsCard';
 
-export default function NewsScreen() {
+function NewsScreen() {
   const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
@@ -316,6 +316,8 @@ export default function NewsScreen() {
     </SafeAreaView>
   );
 }
+
+export default React.memo(NewsScreen);
 
 const styles = StyleSheet.create({
   container: {

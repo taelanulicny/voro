@@ -17,23 +17,43 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
-import { loginWithGoogle, loginWithApple, OAuthResult } from '../services/oauthService';
+import { loginWithApple, OAuthResult } from '../services/oauthService';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { login, loginWithGoogle: authLoginWithGoogle, loginWithApple: authLoginWithApple, skipAuth } = useAuth();
+  const { login, loginWithGoogle: authLoginWithGoogle, loginWithApple: authLoginWithApple } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, // Ideally use separate iOS client ID
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  });
+
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.accessToken) {
+        handleGoogleLoginSuccess(authentication.accessToken);
+      }
+    } else if (response?.type === 'error') {
+      setIsGoogleLoading(false);
+      Alert.alert('Google Login Failed', 'An error occurred during sign in.');
+    } else if (response?.type === 'dismiss') {
+      setIsGoogleLoading(false);
+    }
+  }, [response]);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const handleSkipAuth = async () => {
-    await skipAuth();
-  };
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -62,42 +82,46 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setIsGoogleLoading(true);
+  const handleGoogleLoginSuccess = async (accessToken: string) => {
     try {
-      const result: OAuthResult = await loginWithGoogle();
-      
-      if (result.success && result.user) {
-        // Call AuthContext to handle the login with ID token
-        const authResult = await authLoginWithGoogle(
-          result.user.email,
-          result.user.id,
-          result.user.name,
-          result.user.photo,
-          result.idToken
-        );
-        setIsGoogleLoading(false);
-        
-        if (!authResult.success) {
-          Alert.alert('Google Login Failed', authResult.error || 'Unable to sign in with Google');
-        }
-      } else {
-        setIsGoogleLoading(false);
-        if (result.error) {
-          Alert.alert('Google Login Failed', result.error);
-        }
+      // Fetch user info using the access token
+      const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      const userInfo = await userInfoResponse.json();
+
+      const authResult = await authLoginWithGoogle(
+        userInfo.email,
+        userInfo.id,
+        userInfo.name,
+        userInfo.picture,
+        accessToken // Using access token as ID token/proof for now
+      );
+
+      if (!authResult.success) {
+        Alert.alert('Google Login Failed', authResult.error || 'Unable to sign in with Google');
       }
     } catch (error) {
+      Alert.alert('Error', 'Failed to fetch user data from Google');
+    } finally {
       setIsGoogleLoading(false);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     }
+  };
+
+  const handleGoogleLogin = () => {
+    setIsGoogleLoading(true);
+    promptAsync().catch((err) => {
+      setIsGoogleLoading(false);
+      Alert.alert('Error', 'Failed to start Google Sign In');
+    });
   };
 
   const handleAppleLogin = async () => {
     setIsAppleLoading(true);
     try {
       const result: OAuthResult = await loginWithApple();
-      
+
       if (result.success && result.user) {
         // Call AuthContext to handle the login with identity token
         const authResult = await authLoginWithApple(
@@ -107,7 +131,7 @@ export default function LoginScreen() {
           result.identityToken
         );
         setIsAppleLoading(false);
-        
+
         if (!authResult.success) {
           Alert.alert('Apple Login Failed', authResult.error || 'Unable to sign in with Apple');
         }
@@ -256,23 +280,16 @@ export default function LoginScreen() {
               )}
             </View>
 
-            {/* Sign Up Link */}
-            <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-                <Text style={styles.signupLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
+          </View>
+
+          {/* Sign Up Link */}
+          <View style={styles.signupContainer}>
+            <Text style={styles.signupText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.signupLink}>Sign Up</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
-
-        {/* DEV ONLY - Skip Sign In Button */}
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkipAuth}
-        >
-          <Text style={styles.skipButtonText}>Skip</Text>
-        </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -299,22 +316,6 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  // DEV ONLY
-  skipButton: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#EF4444',
-    borderRadius: 6,
-    zIndex: 999,
-  },
-  skipButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
   },
   content: {
     flex: 1,

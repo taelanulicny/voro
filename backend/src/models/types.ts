@@ -17,6 +17,26 @@ export interface User {
   privacyPolicyAccepted?: boolean;
   privacyPolicyAcceptedAt?: string;
   onboardingCompleted?: boolean;
+  // User preferences
+  privacySettings?: {
+    profileVisibility?: 'public' | 'private';
+    showPortfolioValue?: boolean;
+    allowDataSharing?: boolean;
+  };
+  notificationSettings?: {
+    pushNotifications?: boolean;
+    priceAlerts?: boolean;
+    tradingAlerts?: boolean;
+    socialNotifications?: boolean;
+  };
+  tradingPreferences?: {
+    requireConfirmation?: boolean;
+    showTradePreview?: boolean;
+    enableSlippageWarning?: boolean;
+  };
+  // OAuth provider IDs
+  googleId?: string;
+  appleId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +74,7 @@ export interface Transaction {
   pricePerToken: number;
   totalAmount: number;
   category: string;
+  idempotencyKey?: string; // Optional idempotency key to prevent duplicate trades
 }
 
 export interface Post {
@@ -85,6 +106,12 @@ export interface Comment {
   likes: number;
   timestamp: string;
   createdAt: string;
+  parentCommentId?: string; // For nested replies/threading
+  replyToUserId?: string; // User ID being replied to (for notification purposes)
+  replyToUsername?: string; // Username being replied to
+  replyToDisplayName?: string; // Display name being replied to
+  editedAt?: string; // When comment was last edited
+  isEdited?: boolean; // Whether comment has been edited
 }
 
 export interface Follow {
@@ -95,6 +122,20 @@ export interface Follow {
 
 export interface Like {
   likeId: string;
+  postId: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface CommentLike {
+  likeId: string;
+  commentId: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface Bookmark {
+  bookmarkId: string;
   postId: string;
   userId: string;
   createdAt: string;
@@ -127,6 +168,14 @@ export interface NewsArticle {
   viewCount: number;
   isBreaking: boolean;
   createdAt: string;
+  // Optional Gemini AI analysis results
+  geminiAnalysis?: {
+    priceImpact: {
+      tokensUp: number;
+      tokensDown: number;
+    };
+    reasoning?: string;
+  };
 }
 
 export interface PriceHistory {
@@ -150,5 +199,56 @@ export interface Report {
   details?: string;
   createdAt: string;
   status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+}
+
+export interface Group {
+  groupId: string;
+  name: string;
+  description: string;
+  category: string;
+  ownerId: string;
+  isPrivate: boolean;
+  memberCount: number;
+  coverImage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupMember {
+  groupId: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
+}
+
+export interface Notification {
+  notificationId: string;
+  userId: string; // Recipient user ID
+  type: 'like' | 'comment' | 'reply' | 'follow' | 'mention' | 'trade' | 'price_alert' | 'group_invite' | 'group_post' | 'system';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  // Context data (varies by type)
+  actorUserId?: string; // User who triggered the notification
+  actorUsername?: string;
+  actorDisplayName?: string;
+  actorAvatarUrl?: string;
+  // For post/comment notifications
+  postId?: string;
+  commentId?: string;
+  // For entity/trade notifications
+  entityId?: number;
+  entityTicker?: string;
+  entityName?: string;
+  // For group notifications
+  groupId?: string;
+  groupName?: string;
+  // For price alerts
+  targetPrice?: number;
+  currentPrice?: number;
+  // For system notifications
+  actionUrl?: string; // Deep link URL
+  metadata?: Record<string, any>; // Additional flexible data
 }
 
