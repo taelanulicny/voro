@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,7 +78,7 @@ function EntityScreen() {
     return result;
   }, [deletePostFromContext]);
 
-  // Fetch price history from backend
+  // Fetch price history from backend (with offline cache support)
   const fetchPriceHistory = async (entityId: number, timeRange: '1D' | '1W' | '1M' | 'ALL') => {
     // Validate entityId before making API call
     if (!isValidEntityId(entityId)) {
@@ -86,9 +87,52 @@ function EntityScreen() {
       return;
     }
 
+    // Try to load from cache first (for offline mode)
+    const PRICE_HISTORY_CACHE_KEY = '@moro_price_history_cache';
+    try {
+      const cached = await AsyncStorage.getItem(PRICE_HISTORY_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const cachedHistory = parsed[entityId];
+        if (cachedHistory && Array.isArray(cachedHistory) && cachedHistory.length > 0) {
+          // Convert cached format to PriceDataPoint format
+          const convertedHistory: PriceDataPoint[] = cachedHistory.map((item: { timestamp: number; price: number }) => ({
+            timestamp: item.timestamp,
+            price: item.price,
+          }));
+          
+          // Filter by timeRange
+          const now = Date.now();
+          let cutoffTime: number;
+          switch (timeRange) {
+            case '1D':
+              cutoffTime = now - 24 * 60 * 60 * 1000;
+              break;
+            case '1W':
+              cutoffTime = now - 7 * 24 * 60 * 60 * 1000;
+              break;
+            case '1M':
+              cutoffTime = now - 30 * 24 * 60 * 60 * 1000;
+              break;
+            case 'ALL':
+            default:
+              cutoffTime = 0;
+              break;
+          }
+          
+          const filtered = convertedHistory.filter(p => p.timestamp >= cutoffTime);
+          if (filtered.length > 0) {
+            setPriceHistory(filtered);
+            setChartUpdateKey(prev => prev + 1);
+          }
+        }
+      }
+    } catch (cacheError) {
+      console.debug('Error loading cached price history:', cacheError);
+    }
+
     if (!isBackendConfigured()) {
-      // Backend not configured - return empty array
-      setPriceHistory([]);
+      // Backend not configured - use cache if available (already loaded above)
       return;
     }
 
@@ -111,12 +155,28 @@ function EntityScreen() {
         }));
         setPriceHistory(convertedHistory);
         setChartUpdateKey(prev => prev + 1); // Force chart to re-render
+        
+        // Update cache
+        try {
+          const cached = await AsyncStorage.getItem(PRICE_HISTORY_CACHE_KEY);
+          const parsed = cached ? JSON.parse(cached) : {};
+          parsed[entityId] = convertedHistory;
+          await AsyncStorage.setItem(PRICE_HISTORY_CACHE_KEY, JSON.stringify(parsed));
+        } catch (cacheError) {
+          console.debug('Error updating price history cache:', cacheError);
+        }
       } else {
-        setPriceHistory([]);
+        // If API fails, keep cached data if available
+        if (priceHistory.length === 0) {
+          setPriceHistory([]);
+        }
       }
     } catch (error) {
       console.debug('Error fetching price history (backend may not be running):', error);
-      setPriceHistory([]);
+      // Keep cached data if available, otherwise set empty
+      if (priceHistory.length === 0) {
+        setPriceHistory([]);
+      }
     } finally {
       setIsLoadingPriceHistory(false);
     }

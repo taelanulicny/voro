@@ -103,8 +103,63 @@ export async function getUserPortfolio(userId: string): Promise<{
 
   const holdingsValue = holdingsWithPrices.reduce((sum, h) => sum + h.totalValue, 0);
   const totalValue = cashBalance + holdingsValue;
-  const totalProfitLoss = holdingsWithPrices.reduce((sum, h) => sum + h.profitLoss, 0);
-  const todayChange = totalProfitLoss * 0.1; // Mock: 10% of P&L as today's change
+  
+  // Calculate todayChange from actual price deltas (current price vs opening price)
+  // Opening price is the first price after market open (8am EST)
+  let todayChange = 0;
+  
+  // Get today's date in EST
+  const now = new Date();
+  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const estOffset = -5 * 60 * 60 * 1000; // EST is UTC-5
+  const estTime = new Date(utcTime + estOffset);
+  
+  // Market opens at 8am EST
+  const marketOpenTime = new Date(estTime);
+  marketOpenTime.setHours(8, 0, 0, 0);
+  
+  // If it's before 8am, use yesterday's opening price
+  if (estTime.getHours() < 8) {
+    marketOpenTime.setDate(marketOpenTime.getDate() - 1);
+  }
+  
+  const marketOpenTimestamp = marketOpenTime.toISOString();
+  
+  // Get opening prices for all entities in holdings
+  const openingPrices: Record<number, number> = {};
+  
+  for (const entityId of entityIds) {
+    // Query for the first price after market open
+    const openingPriceResult = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAMES.PRICE_HISTORY,
+        KeyConditionExpression: 'entityId = :entityId',
+        FilterExpression: 'timestamp >= :marketOpen',
+        ExpressionAttributeValues: {
+          ':entityId': entityId,
+          ':marketOpen': marketOpenTimestamp,
+        },
+        ScanIndexForward: true, // Oldest first
+        Limit: 1,
+      })
+    );
+    
+    if (openingPriceResult.Items && openingPriceResult.Items.length > 0) {
+      openingPrices[entityId] = (openingPriceResult.Items[0] as PriceHistory).price;
+    } else {
+      // Fallback: use current price if no opening price found (shouldn't happen normally)
+      openingPrices[entityId] = prices[entityId] || entities[entityId]?.basePrice || 0;
+    }
+  }
+  
+  // Calculate todayChange: sum of (current value - opening value) for each holding
+  for (const holding of holdingsWithPrices) {
+    const openingPrice = openingPrices[holding.entityId] || holding.currentPrice;
+    const openingValue = holding.quantity * openingPrice;
+    const currentValue = holding.totalValue;
+    todayChange += (currentValue - openingValue);
+  }
+  
   const todayChangePercent = totalValue > 0 ? (todayChange / totalValue) * 100 : 0;
 
   return {

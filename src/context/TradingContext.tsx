@@ -46,6 +46,8 @@ const INITIAL_CASH_BALANCE = 10000;
 
 // Storage keys
 const PENDING_TRADES_KEY = '@moro_pending_trades';
+const PRICE_HISTORY_CACHE_KEY = '@moro_price_history_cache';
+const OPENING_PRICES_KEY = '@moro_opening_prices';
 
 // Interface for pending trade tracking
 interface PendingTrade {
@@ -123,6 +125,12 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   // Global entity prices - fetched from backend, initialized as empty object
   // Prices will be populated by fetchEntityPrices() on mount
   const [entityPrices, setEntityPrices] = useState<Record<number, number>>({});
+  
+  // Opening prices for today (price at market open - 8am EST)
+  const [openingPrices, setOpeningPrices] = useState<Record<number, number>>({});
+  
+  // Price history cache for offline mode
+  const [priceHistoryCache, setPriceHistoryCache] = useState<Record<number, Array<{ timestamp: number; price: number }>>>({});
 
   // Portfolio value history for chart animation
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
@@ -241,6 +249,25 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, isAuthenticated, loadPendingTrades, removePendingTrade, fetchPortfolio, getToken]);
 
+  // Calculate todayChange from opening prices (client-side calculation)
+  const calculateTodayChange = useCallback(async (holdingsToCalculate: Holding[]): Promise<{ todayChange: number; todayChangePercent: number }> => {
+    const holdingsValue = holdingsToCalculate.reduce((sum, h) => sum + h.totalValue, 0);
+    const totalValue = cashBalance + holdingsValue;
+    let calculatedTodayChange = 0;
+    
+    for (const holding of holdingsToCalculate) {
+      const openingPrice = await getOpeningPrice(holding.entityId);
+      if (openingPrice !== null) {
+        const openingValue = holding.quantity * openingPrice;
+        const currentValue = holding.totalValue;
+        calculatedTodayChange += (currentValue - openingValue);
+      }
+    }
+    
+    const calculatedTodayChangePercent = totalValue > 0 ? (calculatedTodayChange / totalValue) * 100 : 0;
+    return { todayChange: calculatedTodayChange, todayChangePercent: calculatedTodayChangePercent };
+  }, [cashBalance, getOpeningPrice]);
+
   // Fetch portfolio from backend
   const fetchPortfolio = useCallback(async (signal?: AbortSignal) => {
     if (!token || !isAuthenticated || !isBackendConfigured()) return;
@@ -264,6 +291,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         if (validatedPortfolio) {
           setCashBalance(validatedPortfolio.cashBalance);
           setHoldings(validatedPortfolio.holdings);
+          
+          // Use backend-calculated todayChange (which now uses actual opening prices)
           setTodayChange(validatedPortfolio.todayChange);
           setTodayChangePercent(validatedPortfolio.todayChangePercent);
 
@@ -273,6 +302,21 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             prices[holding.entityId] = holding.currentPrice;
           });
           setEntityPrices((prev) => ({ ...prev, ...prices }));
+          
+          // Also recalculate client-side as a fallback/verification
+          // (This ensures we have accurate data even if backend calculation is off)
+          calculateTodayChange(validatedPortfolio.holdings).then((result) => {
+            // Only update if backend value seems incorrect (difference > 1%)
+            const backendValue = validatedPortfolio.todayChange;
+            const clientValue = result.todayChange;
+            if (Math.abs(backendValue - clientValue) > Math.abs(backendValue * 0.01)) {
+              console.debug('Client-side todayChange differs from backend, using client value');
+              setTodayChange(clientValue);
+              setTodayChangePercent(result.todayChangePercent);
+            }
+          }).catch((error) => {
+            console.debug('Error calculating client-side todayChange:', error);
+          });
         } else {
           console.warn('Invalid portfolio response format');
         }
@@ -286,7 +330,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [token, isAuthenticated]);
+  }, [token, isAuthenticated, calculateTodayChange]);
 
   // Fetch transactions from backend
   const fetchTransactions = useCallback(async (signal?: AbortSignal) => {
@@ -328,9 +372,108 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, isAuthenticated]);
 
+  // Get opening price for today (price at market open - 8am EST)
+  const getOpeningPrice = useCallback(async (entityId: number): Promise<number | null> => {
+    // Check if we already have opening price for today
+    const today = new Date();
+    const utcTime = today.getTime() + (today.getTimezoneOffset() * 60000);
+    const estOffset = -5 * 60 * 60 * 1000; // EST is UTC-5
+    const estTime = new Date(utcTime + estOffset);
+    const marketOpenTime = new Date(estTime);
+    marketOpenTime.setHours(8, 0, 0, 0);
+    
+    // If it's before 8am, use yesterday's opening price
+    if (estTime.getHours() < 8) {
+      marketOpenTime.setDate(marketOpenTime.getDate() - 1);
+    }
+    
+    const todayKey = marketOpenTime.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    try {
+      // Try to get from cache first
+      const cachedOpeningPrices = await AsyncStorage.getItem(OPENING_PRICES_KEY);
+      if (cachedOpeningPrices) {
+        const parsed = JSON.parse(cachedOpeningPrices);
+        if (parsed.date === todayKey && parsed.prices[entityId]) {
+          return parsed.prices[entityId];
+        }
+      }
+      
+      // If not in cache, fetch from backend
+      if (isBackendConfigured()) {
+        const marketOpenTimestamp = marketOpenTime.toISOString();
+        const response = await apiRequest<{ success?: boolean; data?: Array<{ timestamp: string; price: number }> }>(
+          `/api/entities/${entityId}/price-history?timeRange=1D&limit=100`,
+          { method: 'GET', signal: undefined }
+        );
+        
+        if (response.success && response.data && Array.isArray(response.data)) {
+          // Find first price after market open
+          const openingPriceEntry = response.data.find(
+            (entry) => new Date(entry.timestamp) >= marketOpenTime
+          );
+          
+          if (openingPriceEntry) {
+            const price = openingPriceEntry.price;
+            
+            // Cache the opening price
+            const cached = await AsyncStorage.getItem(OPENING_PRICES_KEY);
+            const parsed = cached ? JSON.parse(cached) : { date: '', prices: {} };
+            if (parsed.date !== todayKey) {
+              parsed.date = todayKey;
+              parsed.prices = {};
+            }
+            parsed.prices[entityId] = price;
+            await AsyncStorage.setItem(OPENING_PRICES_KEY, JSON.stringify(parsed));
+            
+            return price;
+          }
+        }
+      }
+      
+      // Fallback: use current price from entityPrices or MOCK_ENTITIES
+      if (entityPrices[entityId] !== undefined) {
+        return entityPrices[entityId];
+      }
+      const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+      return entity ? entity.basePrice : null;
+    } catch (error) {
+      console.debug('Error getting opening price:', error);
+      // Fallback: use current price from entityPrices or MOCK_ENTITIES
+      if (entityPrices[entityId] !== undefined) {
+        return entityPrices[entityId];
+      }
+      const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+      return entity ? entity.basePrice : null;
+    }
+  }, [entityPrices]);
+
   // Fetch entity prices - public endpoint, no auth required
   const fetchEntityPrices = useCallback(async (signal?: AbortSignal) => {
-    if (!isBackendConfigured()) return;
+    if (!isBackendConfigured()) {
+      // Try to load from cache if offline
+      try {
+        const cachedPrices = await AsyncStorage.getItem(PRICE_HISTORY_CACHE_KEY);
+        if (cachedPrices) {
+          const parsed = JSON.parse(cachedPrices);
+          const prices: Record<number, number> = {};
+          Object.keys(parsed).forEach((entityIdStr) => {
+            const entityId = parseInt(entityIdStr, 10);
+            const history = parsed[entityId];
+            if (history && history.length > 0) {
+              // Use most recent price from cache
+              prices[entityId] = history[history.length - 1].price;
+            }
+          });
+          if (Object.keys(prices).length > 0) {
+            setEntityPrices(prices);
+          }
+        }
+      } catch (error) {
+        console.debug('Error loading cached prices:', error);
+      }
+      return;
+    }
 
     try {
       // Use the new dedicated prices endpoint for better performance
@@ -349,6 +492,32 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         if (Object.keys(prices).length > 0) {
           setEntityPrices(prices);
           setLastPriceUpdateTime(Date.now());
+          
+          // Update price history cache
+          try {
+            const cached = await AsyncStorage.getItem(PRICE_HISTORY_CACHE_KEY);
+            const parsed = cached ? JSON.parse(cached) : {};
+            const now = Date.now();
+            
+            Object.keys(prices).forEach((entityIdStr) => {
+              const entityId = parseInt(entityIdStr, 10);
+              const price = prices[entityId];
+              if (!parsed[entityId]) {
+                parsed[entityId] = [];
+              }
+              // Add new price point
+              parsed[entityId].push({ timestamp: now, price });
+              // Keep only last 100 points per entity
+              if (parsed[entityId].length > 100) {
+                parsed[entityId] = parsed[entityId].slice(-100);
+              }
+            });
+            
+            await AsyncStorage.setItem(PRICE_HISTORY_CACHE_KEY, JSON.stringify(parsed));
+            setPriceHistoryCache(parsed);
+          } catch (error) {
+            console.debug('Error updating price history cache:', error);
+          }
         }
       } else {
         // Fallback to old endpoint if new one doesn't exist yet
@@ -373,6 +542,28 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       // Silently handle errors - don't crash the app
       console.debug('Error fetching entity prices (backend may not be running):', error);
+      
+      // Try to load from cache if offline
+      try {
+        const cachedPrices = await AsyncStorage.getItem(PRICE_HISTORY_CACHE_KEY);
+        if (cachedPrices) {
+          const parsed = JSON.parse(cachedPrices);
+          const prices: Record<number, number> = {};
+          Object.keys(parsed).forEach((entityIdStr) => {
+            const entityId = parseInt(entityIdStr, 10);
+            const history = parsed[entityId];
+            if (history && history.length > 0) {
+              // Use most recent price from cache
+              prices[entityId] = history[history.length - 1].price;
+            }
+          });
+          if (Object.keys(prices).length > 0) {
+            setEntityPrices(prices);
+          }
+        }
+      } catch (cacheError) {
+        console.debug('Error loading cached prices:', cacheError);
+      }
     }
   }, []);
 
@@ -586,10 +777,35 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       // Recalculate portfolio value for today change
       const holdingsValue = optimisticHoldings.reduce((sum, h) => sum + h.totalValue, 0);
       const totalValue = optimisticCashBalance + holdingsValue;
-      const totalCost = optimisticHoldings.reduce((sum, h) => sum + h.totalCost, 0);
-      const totalProfitLoss = optimisticHoldings.reduce((sum, h) => sum + h.profitLoss, 0);
-      optimisticTodayChange = totalProfitLoss * 0.1; // Mock: 10% of P&L
-      optimisticTodayChangePercent = totalValue > 0 ? (optimisticTodayChange / totalValue) * 100 : 0;
+      
+      // Calculate todayChange from actual price deltas (current price vs opening price)
+      // This will be calculated asynchronously, but we'll use a placeholder for now
+      // The actual calculation will happen when opening prices are fetched
+      optimisticTodayChange = 0; // Will be updated when opening prices are available
+      optimisticTodayChangePercent = 0;
+      
+      // Calculate todayChange asynchronously
+      (async () => {
+        try {
+          let calculatedTodayChange = 0;
+          
+          for (const holding of optimisticHoldings) {
+            const openingPrice = await getOpeningPrice(holding.entityId);
+            if (openingPrice !== null) {
+              const openingValue = holding.quantity * openingPrice;
+              const currentValue = holding.totalValue;
+              calculatedTodayChange += (currentValue - openingValue);
+            }
+          }
+          
+          const calculatedTodayChangePercent = totalValue > 0 ? (calculatedTodayChange / totalValue) * 100 : 0;
+          setTodayChange(calculatedTodayChange);
+          setTodayChangePercent(calculatedTodayChangePercent);
+        } catch (error) {
+          console.debug('Error calculating todayChange:', error);
+        }
+      })();
+      
       setTodayChange(optimisticTodayChange);
       setTodayChangePercent(optimisticTodayChangePercent);
 
