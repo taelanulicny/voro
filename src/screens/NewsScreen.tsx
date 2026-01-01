@@ -67,7 +67,7 @@ function NewsScreen() {
       <Text style={[styles.title, { color: theme.text }]}>News</Text>
       {breakingNews.length > 0 && (
         <View style={styles.breakingCountBadge}>
-          <Ionicons name="flash" size={12} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontSize: 12 }}>ⓜ</Text>
           <Text style={styles.breakingCountText}>{breakingNews.length}</Text>
         </View>
       )}
@@ -120,11 +120,14 @@ function NewsScreen() {
             setSelectedSentiment(undefined);
           }}
         >
-          <Ionicons
-            name="flash"
-            size={14}
-            color={selectedFilter === 'breaking' ? theme.primary : theme.textSecondary}
-          />
+          <Text
+            style={[
+              { fontSize: 14 },
+              { color: selectedFilter === 'breaking' ? theme.primary : theme.textSecondary }
+            ]}
+          >
+            ⓜ
+          </Text>
           <Text
             style={[
               styles.filterTabText,

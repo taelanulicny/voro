@@ -446,11 +446,14 @@ function FeedsScreen() {
               setSelectedSentiment(undefined);
             }}
           >
-            <Ionicons
-              name="flash"
-              size={14}
-              color={newsFilter === 'breaking' ? theme.primary : theme.textSecondary}
-            />
+            <Text
+              style={[
+                { fontSize: 14 },
+                { color: newsFilter === 'breaking' ? theme.primary : theme.textSecondary }
+              ]}
+            >
+              ⓜ
+            </Text>
             <Text
               style={[
                 styles.newsFilterTabText,

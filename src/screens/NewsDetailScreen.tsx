@@ -145,7 +145,7 @@ export default function NewsDetailScreen() {
         {/* Breaking Badge */}
         {article.isBreaking && (
           <View style={styles.breakingBadge}>
-            <Ionicons name="flash" size={16} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontSize: 16 }}>ⓜ</Text>
             <Text style={styles.breakingText}>BREAKING NEWS</Text>
           </View>
         )}

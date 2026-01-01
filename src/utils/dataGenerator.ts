@@ -1,7 +1,7 @@
 // Utility functions for formatting and generating mock data
 
-// Token symbol: ⚡ (lightning bolt)
-export const TOKEN_SYMBOL = '⚡';
+// Token symbol: ⓜ (m inside a circle)
+export const TOKEN_SYMBOL = 'ⓜ';
 
 export const formatCurrency = (value: number): string => {
   // Format as token instead of USD

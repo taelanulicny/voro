@@ -87,7 +87,7 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
       {/* Breaking News Badge */}
       {article.isBreaking && (
         <View style={styles.breakingBadge}>
-          <Ionicons name="flash" size={12} color="#FFFFFF" />
+          <Text style={[styles.breakingIcon, { color: '#FFFFFF' }]}>ⓜ</Text>
           <Text style={styles.breakingText}>BREAKING</Text>
         </View>
       )}
@@ -194,6 +194,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     gap: 4,
     zIndex: 1,
+  },
+  breakingIcon: {
+    fontSize: 12,
   },
   breakingText: {
     color: '#FFFFFF',
