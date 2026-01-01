@@ -1,11 +1,19 @@
 /**
  * Error Reporting Service
  * 
- * Centralized error reporting that can be extended to integrate with
- * crash reporting services like Sentry, Bugsnag, Firebase Crashlytics, etc.
+ * Centralized error reporting integrated with Sentry for production.
+ * Falls back to console logging in development.
  */
 
 import { ErrorInfo } from 'react';
+
+// Try to import Sentry (will be undefined if not installed)
+let Sentry: any;
+try {
+  Sentry = require('@sentry/react-native');
+} catch (e) {
+  // Sentry not installed - will use console logging
+}
 
 export interface ErrorReport {
   error: Error;
@@ -24,24 +32,40 @@ class ErrorReportingService {
 
   /**
    * Initialize the error reporting service
-   * In the future, this can initialize Sentry, Bugsnag, etc.
+   * Initializes Sentry in production if DSN is configured
    */
   init(): void {
     if (this.isInitialized) {
       return;
     }
 
-    // In development, just log to console
-    if (__DEV__) {
-      console.log('[ErrorReporting] Initialized (development mode)');
+    // Initialize Sentry if available and DSN is configured
+    if (Sentry && process.env.EXPO_PUBLIC_SENTRY_DSN) {
+      try {
+        Sentry.init({
+          dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+          environment: __DEV__ ? 'development' : 'production',
+          enableInExpoDevelopment: false, // Disable in Expo Go
+          debug: __DEV__,
+          tracesSampleRate: __DEV__ ? 1.0 : 0.1, // 100% in dev, 10% in prod
+          beforeSend(event) {
+            // Filter out sensitive data
+            if (event.request) {
+              delete event.request.cookies;
+              if (event.request.headers) {
+                delete event.request.headers.Authorization;
+              }
+            }
+            return event;
+          },
+        });
+        console.log('[ErrorReporting] Sentry initialized');
+      } catch (error) {
+        console.error('[ErrorReporting] Failed to initialize Sentry:', error);
+      }
+    } else if (__DEV__) {
+      console.log('[ErrorReporting] Initialized (development mode - console only)');
     }
-
-    // In production, you would initialize your crash reporting service here:
-    // Example with Sentry:
-    // Sentry.init({
-    //   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    //   environment: __DEV__ ? 'development' : 'production',
-    // });
 
     this.isInitialized = true;
     this.flushQueue();
@@ -80,9 +104,16 @@ class ErrorReportingService {
    * Report an error with user context
    */
   setUserContext(userId?: string, userData?: Record<string, any>): void {
-    // In production, you would set user context in your crash reporting service:
-    // Example with Sentry:
-    // Sentry.setUser({ id: userId, ...userData });
+    if (Sentry && this.isInitialized) {
+      try {
+        Sentry.setUser({
+          id: userId,
+          ...userData,
+        });
+      } catch (error) {
+        console.error('[ErrorReporting] Failed to set user context:', error);
+      }
+    }
     
     if (__DEV__) {
       console.log('[ErrorReporting] User context set:', { userId, userData });
@@ -93,9 +124,18 @@ class ErrorReportingService {
    * Add breadcrumb for debugging
    */
   addBreadcrumb(message: string, category?: string, data?: Record<string, any>): void {
-    // In production, you would add breadcrumb to your crash reporting service:
-    // Example with Sentry:
-    // Sentry.addBreadcrumb({ message, category, data, level: 'info' });
+    if (Sentry && this.isInitialized) {
+      try {
+        Sentry.addBreadcrumb({
+          message,
+          category: category || 'default',
+          data,
+          level: 'info',
+        });
+      } catch (error) {
+        console.error('[ErrorReporting] Failed to add breadcrumb:', error);
+      }
+    }
     
     if (__DEV__) {
       console.log('[ErrorReporting] Breadcrumb:', { message, category, data });
@@ -106,7 +146,26 @@ class ErrorReportingService {
    * Send error to reporting service
    */
   private sendError(report: ErrorReport): void {
-    // In development, log to console
+    // Send to Sentry if available
+    if (Sentry && this.isInitialized) {
+      try {
+        Sentry.captureException(report.error, {
+          contexts: {
+            react: report.errorInfo ? {
+              componentStack: report.errorInfo.componentStack,
+            } : undefined,
+          },
+          extra: report.context,
+          tags: {
+            source: report.errorInfo ? 'react' : 'javascript',
+          },
+        });
+      } catch (error) {
+        console.error('[ErrorReporting] Failed to send error to Sentry:', error);
+      }
+    }
+
+    // Always log to console in development
     if (__DEV__) {
       console.error('[ErrorReporting] Error reported:', {
         message: report.error.message,
@@ -114,27 +173,7 @@ class ErrorReportingService {
         componentStack: report.errorInfo?.componentStack,
         context: report.context,
       });
-      return;
     }
-
-    // In production, send to crash reporting service:
-    // Example with Sentry:
-    // Sentry.captureException(report.error, {
-    //   contexts: {
-    //     react: {
-    //       componentStack: report.errorInfo?.componentStack,
-    //     },
-    //   },
-    //   extra: report.context,
-    // });
-
-    // Example with Firebase Crashlytics:
-    // crashlytics().recordError(report.error);
-    // if (report.context) {
-    //   Object.entries(report.context).forEach(([key, value]) => {
-    //     crashlytics().setAttribute(key, String(value));
-    //   });
-    // }
   }
 
   /**

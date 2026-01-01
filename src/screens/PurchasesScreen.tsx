@@ -17,6 +17,7 @@ import Purchases, { PurchasesOffering, PurchasesPackage } from 'react-native-pur
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
+import { useScreenshotProtection } from '../utils/security';
 import { RootStackParamList } from '../types';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
@@ -37,6 +38,8 @@ export default function PurchasesScreen() {
   const { user, token } = useAuth();
   const { theme, isDark } = useTheme();
   const { refreshPortfolio } = useTrading();
+  // SECURITY: Enable screenshot protection for sensitive purchase data
+  const { BlurOverlay } = useScreenshotProtection(true);
 
   const [offerings, setOfferings] = useState<PurchasesOffering[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -240,6 +243,7 @@ export default function PurchasesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      {BlurOverlay}
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity

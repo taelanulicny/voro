@@ -116,6 +116,65 @@ export interface AuthResponse {
 const inFlightRequests = new Map<string, Promise<any>>();
 
 /**
+ * Client-side rate limiting
+ * Tracks request counts per endpoint to prevent abuse
+ */
+interface RateLimitEntry {
+  count: number;
+  resetTime: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+// Rate limit configuration per endpoint pattern
+const RATE_LIMITS: Record<string, { maxRequests: number; windowMs: number }> = {
+  '/api/trade/execute': { maxRequests: 10, windowMs: 60000 }, // 10 trades per minute
+  '/api/social/posts': { maxRequests: 5, windowMs: 60000 }, // 5 posts per minute
+  '/api/auth/login': { maxRequests: 5, windowMs: 300000 }, // 5 login attempts per 5 minutes
+  '/api/auth/signup': { maxRequests: 3, windowMs: 3600000 }, // 3 signups per hour
+  default: { maxRequests: 30, windowMs: 60000 }, // 30 requests per minute for other endpoints
+};
+
+function getRateLimitConfig(endpoint: string): { maxRequests: number; windowMs: number } {
+  // Check for exact matches first
+  for (const [pattern, config] of Object.entries(RATE_LIMITS)) {
+    if (endpoint.includes(pattern)) {
+      return config;
+    }
+  }
+  return RATE_LIMITS.default;
+}
+
+function checkRateLimit(endpoint: string): { allowed: boolean; retryAfter?: number } {
+  const config = getRateLimitConfig(endpoint);
+  const now = Date.now();
+  const key = endpoint;
+
+  let entry = rateLimitStore.get(key);
+
+  // Reset if window expired
+  if (!entry || now > entry.resetTime) {
+    entry = {
+      count: 0,
+      resetTime: now + config.windowMs,
+    };
+    rateLimitStore.set(key, entry);
+  }
+
+  // Check if limit exceeded
+  if (entry.count >= config.maxRequests) {
+    const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  // Increment count
+  entry.count++;
+  rateLimitStore.set(key, entry);
+
+  return { allowed: true };
+}
+
+/**
  * Offline request queue for failed POST/PUT/DELETE requests
  */
 interface QueuedRequest {

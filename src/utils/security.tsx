@@ -166,8 +166,10 @@ export function useScreenshotProtection(enabled: boolean = true): { BlurOverlay:
  * See CUSTOM_DEV_CLIENT_SETUP.md for complete setup guide
  */
 
+// Enable certificate pinning in production builds
 // Set to true after adding certificate pins below
-export const CERTIFICATE_PINNING_ENABLED = false;
+// In production, this will be enabled automatically if pins are configured
+export const CERTIFICATE_PINNING_ENABLED = !__DEV__ && process.env.EXPO_PUBLIC_ENABLE_CERT_PINNING === 'true';
 
 /**
  * Certificate pins for API Gateway

@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
+import { useScreenshotProtection } from '../utils/security';
 import { UserTransaction } from '../types';
 import { formatCurrency } from '../utils/dataGenerator';
 
@@ -18,6 +19,8 @@ export default function TradingHistoryScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { transactions } = useTrading();
+  // SECURITY: Enable screenshot protection for sensitive trading data
+  const { BlurOverlay } = useScreenshotProtection(true);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -65,6 +68,7 @@ export default function TradingHistoryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+      {BlurOverlay}
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity

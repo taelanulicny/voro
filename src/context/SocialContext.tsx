@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
-import { PostSchema, CommentSchema, validateArrayLoose, safeValidate, FeedResponseSchema, CreatePostRequestSchema, CreateCommentRequestSchema, CreateGroupRequestSchema } from '../validators';
+import { PostSchema, CommentSchema, GroupSchema, validateArrayLoose, safeValidate, FeedResponseSchema, CreatePostRequestSchema, CreateCommentRequestSchema, CreateGroupRequestSchema } from '../validators';
 
 interface PostDraft {
   id: string;
@@ -120,23 +120,32 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const DRAFTS_STORAGE_KEY = '@moro_post_drafts';
 
   // Helper to map backend post format to frontend format
-  const mapBackendPost = (p: any): Post => ({
-    id: p.postId || p.id,
-    userId: p.userId,
-    username: p.username,
-    displayName: p.displayName,
-    avatarUrl: p.avatarUrl,
-    content: p.content,
-    entityId: p.entityId,
-    entityTicker: p.entityTicker,
-    entityName: p.entityName,
-    sentiment: p.sentiment,
-    likes: p.likes || 0,
-    comments: p.comments || 0,
-    isLiked: p.isLiked || false,
-    isBookmarked: p.isBookmarked || false,
-    timestamp: p.timestamp,
-  });
+  // Uses Zod schema for validation and automatic ID transformation (postId -> id)
+  const mapBackendPost = (p: any): Post => {
+    const validated = safeValidate(PostSchema, p);
+    if (!validated) {
+      // Fallback mapping if validation fails (shouldn't happen in production)
+      return {
+        id: p.postId || p.id || '',
+        userId: p.userId || '',
+        username: p.username || '',
+        displayName: p.displayName || '',
+        avatarUrl: p.avatarUrl,
+        content: p.content || '',
+        entityId: p.entityId,
+        entityTicker: p.entityTicker,
+        entityName: p.entityName,
+        sentiment: p.sentiment,
+        images: p.images,
+        likes: p.likes || 0,
+        comments: p.comments || 0,
+        isLiked: p.isLiked || false,
+        isBookmarked: p.isBookmarked || false,
+        timestamp: p.timestamp || new Date().toISOString(),
+      };
+    }
+    return validated;
+  };
 
   // Fetch activity feed from backend (resets pagination)
   const refreshActivityFeed = useCallback(async () => {
@@ -342,27 +351,14 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.success && response.data) {
-        const newPost: Post = {
-          id: response.data.postId || response.data.id,
-          userId: response.data.userId,
-          username: response.data.username,
-          displayName: response.data.displayName,
-          avatarUrl: response.data.avatarUrl,
-          content: response.data.content,
-          entityId: response.data.entityId,
-          entityTicker: response.data.entityTicker,
-          entityName: response.data.entityName,
-          sentiment: response.data.sentiment,
-          images: response.data.images,
-          likes: response.data.likes || 0,
-          comments: response.data.comments || 0,
-          isLiked: false,
-          isBookmarked: false,
-          timestamp: response.data.timestamp,
-        };
+        // Use Zod schema for validation and automatic ID transformation (postId -> id)
+        const validatedPost = safeValidate(PostSchema, response.data);
+        if (!validatedPost) {
+          return { success: false, error: 'Failed to validate post response' };
+        }
 
-        setActivityFeed(prev => [newPost, ...prev]);
-        return { success: true, post: newPost };
+        setActivityFeed(prev => [validatedPost, ...prev]);
+        return { success: true, post: validatedPost };
       }
 
       return { success: false, error: response.error || 'Failed to create post' };
@@ -497,30 +493,24 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        // Recursively map comments and their replies
-        const mapComment = (c: any): Comment => ({
-          id: c.commentId || c.id,
-          postId: c.postId,
-          userId: c.userId,
-          username: c.username,
-          displayName: c.displayName,
-          avatarUrl: c.avatarUrl,
-          content: c.content,
-          likes: c.likes || 0,
-          isLiked: c.isLiked || false,
-          timestamp: c.timestamp,
-          parentCommentId: c.parentCommentId,
-          replyTo: c.replyTo || (c.replyToUserId ? {
-            userId: c.replyToUserId,
-            username: c.replyToUsername || '',
-            displayName: c.replyToDisplayName || '',
-          } : undefined),
-          replies: c.replies ? c.replies.map(mapComment) : undefined,
-          editedAt: c.editedAt,
-          isEdited: c.isEdited || false,
-        });
+        // Use Zod schema for validation and automatic ID transformation (commentId -> id)
+        const mapComment = (c: any): Comment | null => {
+          const validated = safeValidate(CommentSchema, c);
+          if (!validated) {
+            // Fallback for invalid comments
+            return null;
+          }
+          // Recursively map replies if present
+          if (c.replies && Array.isArray(c.replies)) {
+            const mappedReplies = c.replies.map(mapComment).filter((r): r is Comment => r !== null);
+            return { ...validated, replies: mappedReplies };
+          }
+          return validated;
+        };
 
-        const mappedComments: Comment[] = response.data.map(mapComment);
+        const mappedComments: Comment[] = response.data
+          .map(mapComment)
+          .filter((c): c is Comment => c !== null);
         setPostComments(prev => ({ ...prev, [postId]: mappedComments }));
       }
     } catch (error) {
@@ -545,25 +535,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-        const newComment: Comment = {
-          id: response.data.commentId || response.data.id,
-          postId: response.data.postId,
-          userId: response.data.userId,
-          username: response.data.username,
-          displayName: response.data.displayName,
-          avatarUrl: response.data.avatarUrl,
-          content: response.data.content,
-          likes: response.data.likes || 0,
-          isLiked: false,
-          timestamp: response.data.timestamp,
-          parentCommentId: response.data.parentCommentId,
-          replyTo: response.data.replyTo || (response.data.replyToUserId ? {
-            userId: response.data.replyToUserId,
-            username: response.data.replyToUsername || '',
-            displayName: response.data.replyToDisplayName || '',
-          } : undefined),
-          isEdited: false,
-        };
+        // Use Zod schema for validation and automatic ID transformation (commentId -> id)
+        const validatedComment = safeValidate(CommentSchema, response.data);
+        if (!validatedComment) {
+          return { success: false };
+        }
 
         // Refresh comments to get the proper nested structure
         await getComments(postId);
@@ -575,7 +551,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           );
         }
 
-        return { success: true, comment: newComment };
+        return { success: true, comment: validatedComment };
       }
 
       return { success: false };
@@ -760,17 +736,25 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   );
 
   // Helper to map backend group to frontend Group type
-  const mapBackendGroup = (backendGroup: any): Group => ({
-    id: backendGroup.groupId,
-    name: backendGroup.name,
-    description: backendGroup.description,
-    category: backendGroup.category,
-    memberCount: backendGroup.memberCount || 0,
-    isPrivate: backendGroup.isPrivate || false,
-    isMember: backendGroup.isMember || false,
-    coverImage: backendGroup.coverImage,
-    createdAt: backendGroup.createdAt,
-  });
+  // Uses Zod schema for validation and automatic ID transformation (groupId -> id)
+  const mapBackendGroup = (backendGroup: any): Group => {
+    const validated = safeValidate(GroupSchema, backendGroup);
+    if (!validated) {
+      // Fallback mapping if validation fails (shouldn't happen in production)
+      return {
+        id: backendGroup.groupId || backendGroup.id || '',
+        name: backendGroup.name || '',
+        description: backendGroup.description || '',
+        category: backendGroup.category || '',
+        memberCount: backendGroup.memberCount || 0,
+        isPrivate: backendGroup.isPrivate || false,
+        isMember: backendGroup.isMember || false,
+        coverImage: backendGroup.coverImage,
+        createdAt: backendGroup.createdAt || new Date().toISOString(),
+      };
+    }
+    return validated;
+  };
 
   const refreshGroups = useCallback(async () => {
     setIsLoadingGroups(true);

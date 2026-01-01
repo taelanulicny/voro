@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout, refreshToken as apiRefreshToken } from '../services/authService';
 import { isTokenExpiredOrNearExpiry, getTimeUntilExpiry } from '../utils/jwt';
 import { setTryRefreshTokenCallback } from '../config/api';
+import { errorReporting } from '../services/errorReporting';
 
 // Keys for secure storage (tokens) and async storage (non-sensitive data)
 const SECURE_AUTH_TOKEN_KEY = 'moro_auth_token';
@@ -221,6 +222,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(newToken);
       setUser(newUser);
       updateLastActiveTime();
+      
+      // Set user context in error reporting
+      errorReporting.setUserContext(newUser.id, {
+        username: newUser.username,
+        email: newUser.email,
+      });
     } catch (error) {
       console.error('Error saving auth data:', error);
     }
@@ -236,6 +243,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       setToken(null);
       setUser(null);
+      
+      // Clear user context in error reporting
+      errorReporting.setUserContext(undefined);
     } catch (error) {
       console.error('Error clearing auth data:', error);
     }

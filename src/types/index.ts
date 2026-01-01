@@ -37,18 +37,8 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
-// User Types
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  displayName: string;
-  avatarUrl?: string;
-  bio?: string;
-  followersCount: number;
-  followingCount: number;
-  isFollowing?: boolean;
-}
+// User Types - Generated from Zod schemas
+export type { ValidatedUser as User } from '../validators/schemas';
 
 export interface UserProfile extends User {
   postsCount: number;
@@ -56,21 +46,8 @@ export interface UserProfile extends User {
   joinedDate: string;
 }
 
-// Trading Types
-export interface Entity {
-  id: number;
-  ticker: string;
-  name: string;
-  type: 'stock' | 'crypto' | 'commodity' | 'forex';
-  currentPrice: number;
-  change24h: number;
-  changePercent24h: number;
-  volume24h: number;
-  marketCap: number;
-  description?: string;
-  logoUrl?: string;
-  category?: string; // Category field for entities
-}
+// Trading Types - Generated from Zod schemas
+export type { ValidatedEntity as Entity } from '../validators/schemas';
 
 export interface Position {
   id: string;
@@ -98,59 +75,10 @@ export interface Trade {
   status: 'pending' | 'completed' | 'failed';
 }
 
-// Social Types
-export interface Post {
-  id: string;
-  userId: string;
-  username: string;
-  displayName: string;
-  avatarUrl?: string;
-  content: string;
-  entityId?: number;
-  entityTicker?: string;
-  entityName?: string;
-  sentiment?: 'positive' | 'negative' | 'neutral';
-  images?: string[];
-  likes: number;
-  comments: number;
-  isLiked: boolean;
-  isBookmarked: boolean;
-  timestamp: string;
-}
-
-export interface Comment {
-  id: string;
-  postId: string;
-  userId: string;
-  username: string;
-  displayName: string;
-  avatarUrl?: string;
-  content: string;
-  likes: number;
-  isLiked: boolean;
-  timestamp: string;
-  parentCommentId?: string; // For nested replies/threading
-  replyTo?: {
-    userId: string;
-    username: string;
-    displayName: string;
-  }; // Info about the comment being replied to
-  replies?: Comment[]; // Nested replies
-  editedAt?: string; // When comment was last edited
-  isEdited?: boolean; // Whether comment has been edited
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  memberCount: number;
-  isPrivate: boolean;
-  isMember: boolean;
-  coverImage?: string;
-  createdAt: string;
-}
+// Social Types - Generated from Zod schemas
+export type { ValidatedPost as Post } from '../validators/schemas';
+export type { ValidatedComment as Comment } from '../validators/schemas';
+export type { ValidatedGroup as Group } from '../validators/schemas';
 
 export interface GroupMessage {
   id: string;
@@ -185,54 +113,11 @@ export interface Activity {
   timestamp: string;
 }
 
-// News Types
-export interface NewsArticle {
-  id: string;
-  title: string;
-  summary: string;
-  content: string;
-  source: string;
-  sourceUrl?: string;
-  imageUrl?: string;
-  author?: string;
-  publishedAt: string;
-  category: 'Tech' | 'Politics' | 'Events' | 'People' | 'General';
-  entityId?: number;
-  entityTicker?: string;
-  entityName?: string;
-  sentiment: 'positive' | 'negative' | 'neutral';
-  sentimentScore: number; // -100 to 100
-  impactLevel: 'low' | 'medium' | 'high' | 'critical';
-  tags: string[];
-  viewCount: number;
-  isBreaking: boolean;
-}
+// News Types - Generated from Zod schemas
+export type { ValidatedNewsArticle as NewsArticle } from '../validators/schemas';
 
-// Notification Types
-export interface Notification {
-  notificationId: string;
-  userId: string;
-  type: 'like' | 'comment' | 'reply' | 'follow' | 'mention' | 'trade' | 'price_alert' | 'group_invite' | 'group_post' | 'system';
-  title: string;
-  message: string;
-  isRead: boolean;
-  createdAt: string;
-  actorUserId?: string;
-  actorUsername?: string;
-  actorDisplayName?: string;
-  actorAvatarUrl?: string;
-  postId?: string;
-  commentId?: string;
-  entityId?: number;
-  entityTicker?: string;
-  entityName?: string;
-  groupId?: string;
-  groupName?: string;
-  targetPrice?: number;
-  currentPrice?: number;
-  actionUrl?: string;
-  metadata?: Record<string, any>;
-}
+// Notification Types - Generated from Zod schemas
+export type { ValidatedNotification as Notification } from '../validators/schemas';
 
 export interface NewsFilter {
   category?: string;
@@ -255,41 +140,12 @@ export interface LeaderboardEntry {
   tradesCount: number;
 }
 
-// Portfolio & Holdings Types
-export interface Holding {
-  entityId: number;
-  entityName: string;
-  entityTicker: string;
-  quantity: number;
-  averageCost: number;
-  currentPrice: number;
-  totalValue: number;
-  totalCost: number;
-  profitLoss: number;
-  profitLossPercent: number;
-  category: string;
-}
+// Portfolio & Holdings Types - Generated from Zod schemas
+export type { ValidatedHolding as Holding } from '../validators/schemas';
+export type { ValidatedPortfolio as Portfolio } from '../validators/schemas';
 
-export interface Portfolio {
-  cashBalance: number;
-  totalValue: number;
-  holdings: Holding[];
-  todayChange: number;
-  todayChangePercent: number;
-}
-
-export interface UserTransaction {
-  id: string;
-  entityId: number;
-  entityName: string;
-  entityTicker: string;
-  type: 'buy' | 'sell';
-  quantity: number;
-  pricePerToken: number;
-  totalAmount: number;
-  timestamp: string;
-  category: string;
-}
+// Transaction Types - Generated from Zod schemas
+export type { ValidatedTransaction as UserTransaction } from '../validators/schemas';
 
 // Chart Data Types
 export interface PriceDataPoint {
