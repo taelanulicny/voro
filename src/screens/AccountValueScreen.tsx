@@ -24,7 +24,7 @@ export default function AccountValueScreen() {
   const { portfolio, transactions } = useTrading();
   
   // SECURITY: Enable screenshot protection for sensitive financial data
-  useScreenshotProtection(true);
+  const { BlurOverlay } = useScreenshotProtection(true);
 
   // Calculate open P/L (unrealized profit/loss from current holdings)
   const openPL = useMemo(() => {

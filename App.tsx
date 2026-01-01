@@ -10,6 +10,9 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 // Error Reporting
 import { initErrorReporting } from './src/services/errorReporting';
 
+// Components
+import SessionTimeoutWarning from './src/components/SessionTimeoutWarning';
+
 // API Configuration
 import { initializeOfflineQueue } from './src/config/api';
 
@@ -346,6 +349,7 @@ export default function App() {
                         <NavigationContainer>
                           <StatusBar style="auto" />
                           <RootNavigator />
+                          <SessionTimeoutWarning />
                         </NavigationContainer>
                       </SideMenuProvider>
                     </NotificationsProvider>

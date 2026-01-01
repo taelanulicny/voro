@@ -17,7 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import InteractiveChart from '../components/InteractiveChart';
-import { RootStackParamList, PriceDataPoint, Post } from '../types';
+import { RootStackParamList, PriceDataPoint, Post, NewsArticle } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
@@ -219,7 +219,16 @@ function EntityScreen() {
   };
 
   const holding = getHolding(entityId);
-  const entityNews = getNewsByEntity(entityId);
+  const [entityNews, setEntityNews] = useState<NewsArticle[]>([]);
+  
+  // Fetch entity news
+  useEffect(() => {
+    const fetchEntityNews = async () => {
+      const news = await getNewsByEntity(entityId);
+      setEntityNews(news);
+    };
+    fetchEntityNews();
+  }, [entityId, getNewsByEntity]);
   
   // Get live price from global price system
   const currentPrice = getEntityPrice(entityId);

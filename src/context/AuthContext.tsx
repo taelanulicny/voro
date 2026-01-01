@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout, refreshToken as apiRefreshToken } from '../services/authService';
-import { isTokenExpiredOrNearExpiry } from '../utils/jwt';
+import { isTokenExpiredOrNearExpiry, getTimeUntilExpiry } from '../utils/jwt';
 import { setTryRefreshTokenCallback } from '../config/api';
 
 // Keys for secure storage (tokens) and async storage (non-sensitive data)
 const SECURE_AUTH_TOKEN_KEY = 'moro_auth_token';
 const SECURE_REFRESH_TOKEN_KEY = 'moro_refresh_token';
 const ASYNC_USER_KEY = 'moro_user'; // User profile data (not sensitive)
+const ASYNC_BIOMETRIC_ENABLED_KEY = 'moro_biometric_enabled'; // Biometric authentication preference
+const ASYNC_LAST_ACTIVE_KEY = 'moro_last_active'; // Last active timestamp for session timeout
 
 export interface User {
   id: string;
@@ -32,6 +35,12 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   tryRefreshToken: () => Promise<boolean>; // Try to refresh token if near expiry
   getToken: () => string | null; // Get current token (for authenticatedRequest)
+  isBiometricEnabled: boolean;
+  enableBiometric: () => Promise<boolean>;
+  disableBiometric: () => Promise<void>;
+  authenticateWithBiometric: () => Promise<boolean>;
+  showSessionTimeoutWarning: boolean;
+  dismissSessionTimeoutWarning: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,11 +49,120 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+  const [showSessionTimeoutWarning, setShowSessionTimeoutWarning] = useState(false);
+  const sessionTimeoutCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const isAuthenticated = !!user && !!token;
 
   useEffect(() => {
     loadAuthData();
+    loadBiometricPreference();
+  }, []);
+
+  const updateLastActiveTime = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(ASYNC_LAST_ACTIVE_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('Error updating last active time:', error);
+    }
+  }, []);
+
+  const checkSessionTimeout = useCallback(async () => {
+    if (!token) return;
+
+    const timeUntilExpiry = getTimeUntilExpiry(token);
+    if (!timeUntilExpiry) return;
+
+    // Show warning when 5 minutes or less remain
+    const warningThreshold = 5 * 60 * 1000; // 5 minutes in milliseconds
+    if (timeUntilExpiry <= warningThreshold && timeUntilExpiry > 0) {
+      setShowSessionTimeoutWarning(true);
+      
+      // Try to auto-refresh token
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        setShowSessionTimeoutWarning(false);
+      }
+    } else if (timeUntilExpiry <= 0) {
+      // Token expired, logout
+      await logout();
+    }
+  }, [token, tryRefreshToken, logout]);
+
+  // Check for session timeout and show warning
+  useEffect(() => {
+    if (!isAuthenticated || !token) {
+      if (sessionTimeoutCheckIntervalRef.current) {
+        clearInterval(sessionTimeoutCheckIntervalRef.current);
+        sessionTimeoutCheckIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Check every 30 seconds for session timeout
+    sessionTimeoutCheckIntervalRef.current = setInterval(() => {
+      checkSessionTimeout();
+    }, 30000);
+
+    // Check immediately
+    checkSessionTimeout();
+
+    // Update last active time when app comes to foreground
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && isAuthenticated) {
+        updateLastActiveTime();
+        checkSessionTimeout();
+      }
+    });
+
+    return () => {
+      if (sessionTimeoutCheckIntervalRef.current) {
+        clearInterval(sessionTimeoutCheckIntervalRef.current);
+      }
+      subscription.remove();
+    };
+  }, [isAuthenticated, token, checkSessionTimeout, updateLastActiveTime]);
+
+  const loadBiometricPreference = async () => {
+    try {
+      const enabled = await AsyncStorage.getItem(ASYNC_BIOMETRIC_ENABLED_KEY);
+      setIsBiometricEnabled(enabled === 'true');
+    } catch (error) {
+      console.error('Error loading biometric preference:', error);
+    }
+  };
+
+  // Biometric authentication function (defined early for use in loadAuthData)
+  const authenticateWithBiometric = useCallback(async (): Promise<boolean> => {
+    try {
+      // Dynamically import expo-local-authentication
+      const LocalAuthentication = await import('expo-local-authentication');
+      
+      // Check if biometric authentication is available
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      if (!compatible) {
+        return false;
+      }
+
+      // Check if biometrics are enrolled
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!enrolled) {
+        return false;
+      }
+
+      // Authenticate with biometrics
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate to access your account',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      return result.success;
+    } catch (error) {
+      console.error('Error with biometric authentication:', error);
+      return false;
+    }
   }, []);
 
   const loadAuthData = async () => {
@@ -54,6 +172,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const savedUser = await AsyncStorage.getItem(ASYNC_USER_KEY);
       
       if (savedToken && savedUser) {
+        // Check if biometric is enabled and app is returning from background
+        const biometricEnabled = await AsyncStorage.getItem(ASYNC_BIOMETRIC_ENABLED_KEY);
+        if (biometricEnabled === 'true') {
+          // Require biometric authentication before loading user data
+          const authenticated = await authenticateWithBiometric();
+          if (!authenticated) {
+            // User cancelled or failed biometric auth, clear data
+            await clearAuthData();
+            setIsLoading(false);
+            return;
+          }
+        }
+
         // Verify token is still valid
         const verification = await verifyToken(savedToken);
         
@@ -61,6 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Token is valid, use verified user data
           setToken(savedToken);
           setUser(verification.user);
+          updateLastActiveTime();
         } else {
           // Token is invalid, clear stored data
           await clearAuthData();
@@ -75,6 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+
   const saveAuthData = async (newToken: string, newUser: User, refreshToken?: string) => {
     try {
       // Store tokens in secure storage (encrypted)
@@ -87,6 +220,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       setToken(newToken);
       setUser(newUser);
+      updateLastActiveTime();
     } catch (error) {
       console.error('Error saving auth data:', error);
     }
@@ -151,7 +285,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       // Try to logout on server if we have a token
       if (token) {
@@ -163,7 +297,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       await clearAuthData();
     }
-  };
+  }, [token]);
 
   const loginWithGoogle = async (email: string, id: string, name: string, photo?: string, idToken?: string) => {
     try {
@@ -222,14 +356,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Cache refresh promise to prevent duplicate refresh calls
+  const refreshPromiseRef = useRef<Promise<boolean> | null>(null);
   const refreshInProgress = useRef(false);
 
   const tryRefreshToken = useCallback(async (): Promise<boolean> => {
-    // Prevent concurrent refresh attempts
-    if (refreshInProgress.current) {
-      return false;
-    }
-
     if (!token) {
       return false;
     }
@@ -239,46 +370,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return true; // Token is still valid
     }
 
-    try {
-      refreshInProgress.current = true;
-      
-      // Get refresh token from secure storage
-      const savedRefreshToken = await SecureStore.getItemAsync(SECURE_REFRESH_TOKEN_KEY);
-      if (!savedRefreshToken) {
-        return false;
-      }
-
-      // Attempt to refresh
-      const result = await apiRefreshToken(savedRefreshToken);
-      
-      if (result.success && result.token) {
-        // Update access token in secure storage
-        await SecureStore.setItemAsync(SECURE_AUTH_TOKEN_KEY, result.token);
-        
-        // Update refresh token if rotation is enabled (new refresh token provided)
-        if (result.refreshToken) {
-          await SecureStore.setItemAsync(SECURE_REFRESH_TOKEN_KEY, result.refreshToken);
-        }
-        
-        setToken(result.token);
-        
-        // Verify new token and update user
-        const verification = await verifyToken(result.token);
-        if (verification.success && verification.user) {
-          setUser(verification.user);
-          await AsyncStorage.setItem(ASYNC_USER_KEY, JSON.stringify(verification.user));
-        }
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error refreshing token:', error);
-      return false;
-    } finally {
-      refreshInProgress.current = false;
+    // If refresh is already in progress, return the existing promise
+    if (refreshInProgress.current && refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
     }
+
+    // Prevent concurrent refresh attempts
+    if (refreshInProgress.current) {
+      return false;
+    }
+
+    // Create and cache the refresh promise
+    const refreshPromise = (async (): Promise<boolean> => {
+      try {
+        refreshInProgress.current = true;
+        
+        // Get refresh token from secure storage
+        const savedRefreshToken = await SecureStore.getItemAsync(SECURE_REFRESH_TOKEN_KEY);
+        if (!savedRefreshToken) {
+          return false;
+        }
+
+        // Attempt to refresh
+        const result = await apiRefreshToken(savedRefreshToken);
+        
+        if (result.success && result.token) {
+          // Update access token in secure storage
+          await SecureStore.setItemAsync(SECURE_AUTH_TOKEN_KEY, result.token);
+          
+          // Update refresh token if rotation is enabled (new refresh token provided)
+          if (result.refreshToken) {
+            await SecureStore.setItemAsync(SECURE_REFRESH_TOKEN_KEY, result.refreshToken);
+          }
+          
+          setToken(result.token);
+          
+          // Verify new token and update user
+          const verification = await verifyToken(result.token);
+          if (verification.success && verification.user) {
+            setUser(verification.user);
+            await AsyncStorage.setItem(ASYNC_USER_KEY, JSON.stringify(verification.user));
+          }
+          
+          return true;
+        }
+        
+        return false;
+      } catch (error) {
+        console.error('Error refreshing token:', error);
+        return false;
+      } finally {
+        refreshInProgress.current = false;
+        refreshPromiseRef.current = null; // Clear cached promise
+      }
+    })();
+
+    // Cache the promise
+    refreshPromiseRef.current = refreshPromise;
+    
+    return refreshPromise;
   }, [token]);
 
   // Register tryRefreshToken callback with API config
@@ -316,6 +466,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Expose getToken function for authenticatedRequest
   const getToken = useCallback(() => token, [token]);
 
+  const enableBiometric = useCallback(async (): Promise<boolean> => {
+    try {
+      // Check if biometric authentication is available
+      const LocalAuthentication = await import('expo-local-authentication');
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      if (!compatible) {
+        return false;
+      }
+
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!enrolled) {
+        return false;
+      }
+
+      // Test authentication before enabling
+      const authenticated = await authenticateWithBiometric();
+      if (!authenticated) {
+        return false;
+      }
+
+      // Enable biometric authentication
+      await AsyncStorage.setItem(ASYNC_BIOMETRIC_ENABLED_KEY, 'true');
+      setIsBiometricEnabled(true);
+      return true;
+    } catch (error) {
+      console.error('Error enabling biometric authentication:', error);
+      return false;
+    }
+  }, [authenticateWithBiometric]);
+
+  const disableBiometric = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(ASYNC_BIOMETRIC_ENABLED_KEY);
+      setIsBiometricEnabled(false);
+    } catch (error) {
+      console.error('Error disabling biometric authentication:', error);
+    }
+  }, []);
+
+  const dismissSessionTimeoutWarning = useCallback(() => {
+    setShowSessionTimeoutWarning(false);
+  }, []);
+
   const value: AuthContextType = {
     user,
     token,
@@ -329,6 +522,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     refreshUser,
     tryRefreshToken,
     getToken,
+    isBiometricEnabled,
+    enableBiometric,
+    disableBiometric,
+    authenticateWithBiometric,
+    showSessionTimeoutWarning,
+    dismissSessionTimeoutWarning,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
