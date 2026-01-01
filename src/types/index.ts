@@ -18,13 +18,6 @@ export type RootStackParamList = {
   DiscoverNewAdditions: undefined;
   AccountValue: undefined;
   ChartDevelopment: undefined;
-  EditProfile: undefined;
-  PrivacySettings: undefined;
-  BlockedUsers: undefined;
-  TradingHistory: undefined;
-  TradingPreferences: undefined;
-  Purchases: undefined;
-  UserProfile: { userId: string };
 };
 
 export type MainTabParamList = {
@@ -71,7 +64,6 @@ export interface Entity {
   marketCap: number;
   description?: string;
   logoUrl?: string;
-  category?: string; // Category field for entities
 }
 
 export interface Position {
@@ -131,15 +123,6 @@ export interface Comment {
   likes: number;
   isLiked: boolean;
   timestamp: string;
-  parentCommentId?: string; // For nested replies/threading
-  replyTo?: {
-    userId: string;
-    username: string;
-    displayName: string;
-  }; // Info about the comment being replied to
-  replies?: Comment[]; // Nested replies
-  editedAt?: string; // When comment was last edited
-  isEdited?: boolean; // Whether comment has been edited
 }
 
 export interface Group {
@@ -208,32 +191,6 @@ export interface NewsArticle {
   tags: string[];
   viewCount: number;
   isBreaking: boolean;
-}
-
-// Notification Types
-export interface Notification {
-  notificationId: string;
-  userId: string;
-  type: 'like' | 'comment' | 'reply' | 'follow' | 'mention' | 'trade' | 'price_alert' | 'group_invite' | 'group_post' | 'system';
-  title: string;
-  message: string;
-  isRead: boolean;
-  createdAt: string;
-  actorUserId?: string;
-  actorUsername?: string;
-  actorDisplayName?: string;
-  actorAvatarUrl?: string;
-  postId?: string;
-  commentId?: string;
-  entityId?: number;
-  entityTicker?: string;
-  entityName?: string;
-  groupId?: string;
-  groupName?: string;
-  targetPrice?: number;
-  currentPrice?: number;
-  actionUrl?: string;
-  metadata?: Record<string, any>;
 }
 
 export interface NewsFilter {

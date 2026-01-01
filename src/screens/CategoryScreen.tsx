@@ -25,7 +25,7 @@ type CategoryRouteProp = RouteProp<RootStackParamList, 'Category'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-function CategoryScreen() {
+export default function CategoryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CategoryRouteProp>();
   const { categoryId } = route.params;
@@ -1038,8 +1038,6 @@ function CategoryScreen() {
     </SafeAreaView>
   );
 }
-
-export default React.memo(CategoryScreen);
 
 const styles = StyleSheet.create({
   container: {

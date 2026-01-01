@@ -11,16 +11,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { sanitizeContentForSubmission } from '../utils/sanitize';
-import { moderateContent } from '../utils/contentModeration';
-import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
 interface CreatePostModalProps {
   visible: boolean;
@@ -41,14 +36,12 @@ export default function CreatePostModal({
   slideFromBottom = false,
   prefillEntityTag = false,
 }: CreatePostModalProps) {
-  const { user, token, getToken } = useAuth();
+  const { user } = useAuth();
   const { createPost } = useSocial();
   const { theme } = useTheme();
   const [content, setContent] = useState('');
   const [sentiment, setSentiment] = useState<'positive' | 'negative' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<{ uri: string; type: string }[]>([]);
-  const [uploadedImageKeys, setUploadedImageKeys] = useState<string[]>([]);
 
   // Pre-fill entity tag when modal opens
   useEffect(() => {
@@ -61,157 +54,32 @@ export default function CreatePostModal({
       // Reset content when modal closes
       setContent('');
       setSentiment('neutral');
-      setSelectedImages([]);
-      setUploadedImageKeys([]);
     }
   }, [visible, prefillEntityTag, entityName]);
 
-  // Request permissions on mount
-  useEffect(() => {
-    (async () => {
-      if (Platform.OS !== 'web') {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          console.warn('Media library permission not granted');
-        }
-      }
-    })();
-  }, []);
-
-  const handlePickImage = async () => {
-    try {
-      if (selectedImages.length >= 4) {
-        Alert.alert('Limit Reached', 'You can only add up to 4 images per post');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-        allowsMultipleSelection: false,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        setSelectedImages(prev => [...prev, { uri: asset.uri, type: asset.mimeType || 'image/jpeg' }]);
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
-    setUploadedImageKeys(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const uploadImages = async (): Promise<string[]> => {
-    if (selectedImages.length === 0) return [];
-
-    const uploadedKeys: string[] = [];
-
-    for (let i = 0; i < selectedImages.length; i++) {
-      const image = selectedImages[i];
-      try {
-        // Get upload URL from backend
-        const urlResponse = await authenticatedRequest<{ uploadUrl: string; key: string }>(
-          `/api/social/posts/images/upload-url?contentType=${encodeURIComponent(image.type)}&imageIndex=${i}`,
-          token!,
-          { method: 'GET' },
-          getToken
-        );
-
-        if (!urlResponse.success || !urlResponse.data) {
-          throw new Error('Failed to get upload URL');
-        }
-
-        // Convert local URI to blob
-        const response = await fetch(image.uri);
-        const blob = await response.blob();
-
-        // Upload to S3
-        const uploadResponse = await fetch(urlResponse.data.uploadUrl, {
-          method: 'PUT',
-          body: blob,
-          headers: {
-            'Content-Type': image.type,
-          },
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload image');
-        }
-
-        uploadedKeys.push(urlResponse.data.key);
-      } catch (error) {
-        console.error(`Error uploading image ${i}:`, error);
-        throw new Error(`Failed to upload image ${i + 1}`);
-      }
-    }
-
-    return uploadedKeys;
-  };
-
   const handleSubmit = async () => {
-    if (!content.trim() && selectedImages.length === 0) {
-      Alert.alert('Error', 'Please enter some content or add an image for your post');
+    if (!content.trim()) {
+      Alert.alert('Error', 'Please enter some content for your post');
       return;
     }
 
-    // Client-side content moderation
-    if (content.trim()) {
-      const moderationResult = moderateContent(content.trim());
-      if (!moderationResult.approved) {
-        Alert.alert('Content Moderation', moderationResult.reason || 'Your post contains inappropriate content');
-        return;
-      }
-    }
-
     setIsSubmitting(true);
+    const result = await createPost({
+      content: content.trim(),
+      entityId,
+      entityTicker,
+      entityName,
+      sentiment, // Always include sentiment
+    });
 
-    try {
-      // Upload images first
-      let imageKeys: string[] = [];
-      if (selectedImages.length > 0 && isBackendConfigured()) {
-        try {
-          imageKeys = await uploadImages();
-          setUploadedImageKeys(imageKeys);
-        } catch (error) {
-          setIsSubmitting(false);
-          Alert.alert('Upload Error', error instanceof Error ? error.message : 'Failed to upload images. Please try again.');
-          return;
-        }
-      }
+    setIsSubmitting(false);
 
-      // Sanitize content before submission
-      const sanitizedContent = content.trim() ? sanitizeContentForSubmission(content.trim()) : '';
-      
-      const result = await createPost({
-        content: sanitizedContent,
-        entityId,
-        entityTicker,
-        entityName,
-        sentiment,
-        images: imageKeys.length > 0 ? imageKeys : undefined,
-      });
-
-      if (result.success) {
-        setContent('');
-        setSentiment('neutral');
-        setSelectedImages([]);
-        setUploadedImageKeys([]);
-        onClose();
-      } else {
-        Alert.alert('Error', result.error || 'Failed to create post');
-      }
-    } catch (error) {
-      console.error('Error creating post:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+    if (result.success) {
+      setContent('');
+      setSentiment('neutral');
+      onClose();
+    } else {
+      Alert.alert('Error', result.error || 'Failed to create post');
     }
   };
 
@@ -228,8 +96,6 @@ export default function CreatePostModal({
             onPress: () => {
               setContent('');
               setSentiment('neutral');
-              setSelectedImages([]);
-              setUploadedImageKeys([]);
               onClose();
             },
           },
@@ -238,8 +104,6 @@ export default function CreatePostModal({
     } else {
       setContent('');
       setSentiment('neutral');
-      setSelectedImages([]);
-      setUploadedImageKeys([]);
       onClose();
     }
   };
@@ -283,10 +147,10 @@ export default function CreatePostModal({
           
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={isSubmitting || (!content.trim() && selectedImages.length === 0)}
+            disabled={isSubmitting || !content.trim()}
             style={[
               styles.headerButton,
-              ((!content.trim() && selectedImages.length === 0) || isSubmitting) && styles.headerButtonDisabled,
+              (!content.trim() || isSubmitting) && styles.headerButtonDisabled,
             ]}
           >
             {isSubmitting ? (
@@ -295,7 +159,7 @@ export default function CreatePostModal({
               <Text
                 style={[
                   styles.headerButtonText,
-                  { color: ((!content.trim() && selectedImages.length === 0) || isSubmitting) ? theme.textTertiary : theme.primary },
+                  { color: (!content.trim() || isSubmitting) ? theme.textTertiary : theme.primary },
                 ]}
               >
                 Post
@@ -328,41 +192,10 @@ export default function CreatePostModal({
             onChangeText={setContent}
             multiline
             autoFocus
-            maxLength={5000}
+            maxLength={500}
           />
 
-          <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/5000</Text>
-
-          {/* Image Picker */}
-          <View style={styles.imageSection}>
-            <TouchableOpacity
-              style={[styles.addImageButton, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
-              onPress={handlePickImage}
-              disabled={selectedImages.length >= 4}
-            >
-              <Ionicons name="image-outline" size={24} color={theme.text} />
-              <Text style={[styles.addImageText, { color: theme.text }]}>
-                Add Image {selectedImages.length > 0 && `(${selectedImages.length}/4)`}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Selected Images Preview */}
-            {selectedImages.length > 0 && (
-              <View style={styles.imagePreviewContainer}>
-                {selectedImages.map((image, index) => (
-                  <View key={index} style={styles.imagePreviewWrapper}>
-                    <Image source={{ uri: image.uri }} style={styles.imagePreview} />
-                    <TouchableOpacity
-                      style={styles.removeImageButton}
-                      onPress={() => handleRemoveImage(index)}
-                    >
-                      <Ionicons name="close-circle" size={24} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+          <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/500</Text>
 
           {/* Sentiment Selector */}
           <View style={styles.sentimentSection}>
@@ -561,49 +394,6 @@ const styles = StyleSheet.create({
   sentimentButtonText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  imageSection: {
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  addImageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    gap: 8,
-  },
-  addImageText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  imagePreviewContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  imagePreviewWrapper: {
-    position: 'relative',
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: 'white',
-    borderRadius: 12,
   },
 });
 

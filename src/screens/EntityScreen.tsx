@@ -392,11 +392,11 @@ export default function EntityScreen() {
 
   // Filter price history - for now just use all available data (1min timeframe shows all data)
   const filteredPriceHistory = useMemo(() => {
-    // Combine original history with live updates
-    return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
-      // Remove duplicates by timestamp
-      return index === self.findIndex(p => p.timestamp === point.timestamp);
-    }).sort((a, b) => a.timestamp - b.timestamp);
+        // Combine original history with live updates
+        return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
+          // Remove duplicates by timestamp
+          return index === self.findIndex(p => p.timestamp === point.timestamp);
+        }).sort((a, b) => a.timestamp - b.timestamp);
   }, [priceHistory, entityData.priceHistory]);
 
 
@@ -522,7 +522,7 @@ export default function EntityScreen() {
               ]}>
                 ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
               </Text>
-            </View>
+          </View>
           </View>
           <View style={styles.entityStatsInfo}>
             <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
@@ -548,10 +548,10 @@ export default function EntityScreen() {
                 style={styles.tabSelector}
                 contentContainerStyle={styles.tabSelectorContent}
               >
-                <TouchableOpacity
+          <TouchableOpacity
                   style={styles.tabButton}
                   onPress={() => handleTabChange('chart')}
-                >
+          >
                   <Text
                     style={[
                       styles.tabButtonText,
@@ -563,7 +563,7 @@ export default function EntityScreen() {
                   >
                     Chart
                   </Text>
-                </TouchableOpacity>
+          </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.tabButton}
                   onPress={() => handleTabChange('about')}
@@ -578,7 +578,7 @@ export default function EntityScreen() {
                     ]}
                   >
                     About
-                  </Text>
+            </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.tabButton}
@@ -594,7 +594,7 @@ export default function EntityScreen() {
                     ]}
                   >
                     Feed
-                  </Text>
+            </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.tabButton}
@@ -613,7 +613,7 @@ export default function EntityScreen() {
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
-            </View>
+        </View>
 
             {/* SVG Chart */}
             <View style={styles.chartWithOverlay}>
@@ -688,14 +688,14 @@ export default function EntityScreen() {
 
           {/* Time Frame Selector */}
           <View style={styles.timeframeSelector}>
-            <TouchableOpacity
-              style={[
+              <TouchableOpacity
+                style={[
                 styles.timeframeButton,
                 {
                   backgroundColor: selectedTimeframe === '1min' ? theme.primary : theme.backgroundSecondary,
                   borderColor: theme.border,
                 },
-              ]}
+                ]}
               onPress={() => setSelectedTimeframe('1min')}
             >
               <Text style={[
@@ -706,7 +706,7 @@ export default function EntityScreen() {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
+                  style={[
                 styles.timeframeButton,
                 {
                   backgroundColor: theme.backgroundSecondary,
@@ -720,8 +720,8 @@ export default function EntityScreen() {
                 { color: theme.textSecondary }
               ]}>
                 More Timeframes Coming Soon
-              </Text>
-            </TouchableOpacity>
+                </Text>
+              </TouchableOpacity>
           </View>
         </View>
 
@@ -773,7 +773,7 @@ export default function EntityScreen() {
           <Text style={[styles.categoryName, { color: theme.textSecondary }]}>
             {displayCategoryId}
           </Text>
-        </View>
+            </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.searchButton}
@@ -799,8 +799,8 @@ export default function EntityScreen() {
               color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
             />
           </TouchableOpacity>
-        </View>
-      </View>
+            </View>
+            </View>
 
       {/* Content with horizontal swipe */}
       <ScrollView
@@ -832,7 +832,7 @@ export default function EntityScreen() {
             {/* Spacer for bottom buttons */}
             <View style={{ height: 100 }} />
           </ScrollView>
-        </View>
+            </View>
 
         {/* Feed Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
@@ -877,10 +877,10 @@ export default function EntityScreen() {
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
                   No news yet for this entity
                 </Text>
-              </View>
-            )}
-          />
         </View>
+            )}
+              />
+          </View>
       </ScrollView>
 
       {/* Fixed Bottom Trade Buttons */}

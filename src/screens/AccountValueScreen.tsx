@@ -14,7 +14,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
 import { RootStackParamList } from '../types';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { useScreenshotProtection } from '../utils/security';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -22,9 +21,6 @@ export default function AccountValueScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
   const { portfolio, transactions } = useTrading();
-  
-  // SECURITY: Enable screenshot protection for sensitive financial data
-  useScreenshotProtection(true);
 
   // Calculate open P/L (unrealized profit/loss from current holdings)
   const openPL = useMemo(() => {
@@ -102,7 +98,6 @@ export default function AccountValueScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      {BlurOverlay}
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity
