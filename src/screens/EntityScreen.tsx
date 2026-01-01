@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
+import Svg, { Defs, LinearGradient, Stop, Path, G, Line, Text as SvgText, Rect } from 'react-native-svg';
 import { RootStackParamList, PriceDataPoint, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
@@ -145,7 +145,7 @@ export default function EntityScreen() {
   // Generate entity data based on current entityId - updates when entityId changes
   const entityData = useMemo(() => generateMockEntityData(entityId, categoryId), [entityId, categoryId]);
   
-  const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'1min' | 'coming-soon'>('1min');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
   const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
@@ -192,6 +192,13 @@ export default function EntityScreen() {
   
   // Get entity info for feed
   const entity = getEntityById(entityId);
+  
+  // categoryId is already in the correct format (no mapping needed)
+  const displayCategoryId = categoryId
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
   
   // Entity-specific feed posts
   const entityFeedPosts = useMemo(() => {
@@ -383,90 +390,15 @@ export default function EntityScreen() {
   //   return () => clearInterval(interval);
   // }, [entityId, timeRange, getEntityPrice]);
 
-  // Filter price history based on selected time range (using live data)
+  // Filter price history - for now just use all available data (1min timeframe shows all data)
   const filteredPriceHistory = useMemo(() => {
-    const now = Date.now();
-    let cutoffTime: number;
-    
-    switch (timeRange) {
-      case '1D':
-        cutoffTime = now - 24 * 60 * 60 * 1000; // 1 day ago
-        break;
-      case '1W':
-        cutoffTime = now - 7 * 24 * 60 * 60 * 1000; // 1 week ago
-        break;
-      case '1M':
-        cutoffTime = now - 30 * 24 * 60 * 60 * 1000; // 1 month ago
-        break;
-      case 'ALL':
-      default:
-        // Combine original history with live updates
-        return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
-          // Remove duplicates by timestamp
-          return index === self.findIndex(p => p.timestamp === point.timestamp);
-        }).sort((a, b) => a.timestamp - b.timestamp);
-    }
-    
-    // Use live price history if available, otherwise fall back to original
-    const historyToUse = priceHistory.length > 0 ? priceHistory : entityData.priceHistory;
-    return historyToUse.filter(point => point.timestamp >= cutoffTime);
-  }, [timeRange, priceHistory, entityData.priceHistory]);
+    // Combine original history with live updates
+    return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
+      // Remove duplicates by timestamp
+      return index === self.findIndex(p => p.timestamp === point.timestamp);
+    }).sort((a, b) => a.timestamp - b.timestamp);
+  }, [priceHistory, entityData.priceHistory]);
 
-  // Generate chart data with appropriate labels based on time range
-  const chartData = useMemo(() => {
-    let labelInterval: number;
-    let labelFormatter: (point: PriceDataPoint, index: number) => string;
-    
-    switch (timeRange) {
-      case '1D':
-        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 6));
-        labelFormatter = (point) => {
-          const date = new Date(point.timestamp);
-          return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-        };
-        break;
-      case '1W':
-        labelInterval = 1; // Show all days
-        labelFormatter = (point) => {
-          const date = new Date(point.timestamp);
-          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-          return days[date.getDay()];
-        };
-        break;
-      case '1M':
-        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 5));
-        labelFormatter = (point) => {
-          const date = new Date(point.timestamp);
-          return `${date.getMonth() + 1}/${date.getDate()}`;
-        };
-        break;
-      case 'ALL':
-      default:
-        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 6));
-        labelFormatter = (point) => {
-          const date = new Date(point.timestamp);
-          return `${date.getMonth() + 1}/${date.getDate()}`;
-        };
-    }
-    
-    const labels = filteredPriceHistory
-      .map((point, index) => index % labelInterval === 0 ? labelFormatter(point, index) : '')
-      .filter((label, index) => index % labelInterval === 0 || label !== '');
-    
-    // Ensure we always have data points
-    const priceData = filteredPriceHistory.length > 0 
-      ? filteredPriceHistory.map((point) => point.price)
-      : [currentPrice]; // Fallback to current price if no history
-    
-    return {
-      labels: labels.length > 0 ? labels : priceData.map((_, i) => i % labelInterval === 0 ? `${i}` : ''),
-      datasets: [
-        {
-          data: priceData,
-        },
-      ],
-    };
-  }, [timeRange, filteredPriceHistory, currentPrice]);
 
   // Calculate price change from base price
   const basePrice = entityData.entity.currentPrice; // Original base price
@@ -505,140 +437,291 @@ export default function EntityScreen() {
     },
   };
 
-  const renderTabSelector = () => (
-    <View style={[styles.tabSelectorContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabSelector}
-        contentContainerStyle={styles.tabSelectorContent}
-      >
-        <TouchableOpacity
-          style={styles.tabButton}
-          onPress={() => handleTabChange('chart')}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              {
-                color: selectedTab === 'chart' ? theme.text : theme.textSecondary,
-                fontWeight: selectedTab === 'chart' ? '600' : '400',
-              }
-            ]}
-          >
-            Chart
-          </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-          style={styles.tabButton}
-          onPress={() => handleTabChange('about')}
-          >
-          <Text
-            style={[
-              styles.tabButtonText,
-              {
-                color: selectedTab === 'about' ? theme.text : theme.textSecondary,
-                fontWeight: selectedTab === 'about' ? '600' : '400',
-              }
-            ]}
-          >
-            About
-          </Text>
-          </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.tabButton}
-          onPress={() => handleTabChange('feed')}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              {
-                color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
-                fontWeight: selectedTab === 'feed' ? '600' : '400',
-              }
-            ]}
-          >
-            Feed
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.tabButton}
-          onPress={() => handleTabChange('news')}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              {
-                color: selectedTab === 'news' ? theme.text : theme.textSecondary,
-                fontWeight: selectedTab === 'news' ? '600' : '400',
-              }
-            ]}
-          >
-            News
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-        </View>
-  );
+  // Chart dimensions - full screen width
+  const chartHeight = 220;
+  const chartWidth = SCREEN_WIDTH;
+  const margin = { top: 50, right: 0, left: 0, bottom: 0 }; // Increased top margin for tab selector
+  const innerWidth = chartWidth - margin.left - margin.right;
+  const innerHeight = chartHeight - margin.top - margin.bottom;
+
+  // Convert filteredPriceHistory to chart data format
+  const chartPrices = useMemo(() => {
+    if (filteredPriceHistory.length === 0) return [currentPrice];
+    return filteredPriceHistory.map(point => point.price);
+  }, [filteredPriceHistory, currentPrice]);
+
+  // Calculate Y domain - center around starting price
+  const yDomain = useMemo(() => {
+    if (chartPrices.length === 0) {
+      const price = currentPrice;
+      const padding = price * 0.1;
+      return { yMin: price - padding, yMax: price + padding, yRange: padding * 2 };
+    }
+    const fullDataMin = Math.min(...chartPrices);
+    const fullDataMax = Math.max(...chartPrices);
+    const startPrice = chartPrices[0];
+    const dataRange = Math.max(fullDataMax - startPrice, startPrice - fullDataMin);
+    const yMin = startPrice - dataRange * 1.1;
+    const yMax = startPrice + dataRange * 1.1;
+    const yRange = yMax - yMin;
+    return { yMin, yMax, yRange };
+  }, [chartPrices, currentPrice]);
+
+  // Generate line path
+  const generateLinePath = () => {
+    if (chartPrices.length === 0) return '';
+    
+    const totalPoints = chartPrices.length;
+    const pointSpacing = innerWidth / Math.max(1, totalPoints - 1);
+    
+    const points = chartPrices.map((price, i) => {
+      const x = margin.left + (i * pointSpacing);
+      const y = margin.top + innerHeight - ((price - yDomain.yMin) / yDomain.yRange) * innerHeight;
+      return { x, y };
+    });
+
+    if (points.length === 1) {
+      return `M ${points[0].x} ${points[0].y}`;
+    }
+
+    let path = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const next = points[i + 1] || curr;
+      
+      const dx1 = (curr.x - prev.x) / 3;
+      const dy1 = (curr.y - prev.y) / 3;
+      const dx2 = (next.x - curr.x) / 3;
+      const dy2 = (next.y - curr.y) / 3;
+      
+      path += ` C ${prev.x + dx1} ${prev.y + dy1}, ${curr.x - dx2} ${curr.y - dy2}, ${curr.x} ${curr.y}`;
+    }
+    
+    return path;
+  };
 
   const renderChartContent = () => (
     <>
-        {/* Price Section */}
-        <View style={[styles.priceSection, { backgroundColor: theme.card }]}>
-          <Text style={[styles.price, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
-          <View style={styles.changeContainer}>
-            <Text style={[styles.change, { color: getChangeColor(priceChange) }]}>
-              {isPositive ? '+' : ''}
-              {formatCurrency(priceChange)}
+        {/* Price Header */}
+        <View style={[styles.entityHeader, { backgroundColor: theme.card }]}>
+          <View style={styles.entityPriceInfo}>
+            <Text style={[styles.entityCurrentPrice, { color: theme.text }]}>
+              {formatCurrency(currentPrice)}
             </Text>
-            <Text style={[styles.changePercent, { color: getChangeColor(priceChange) }]}>
-              ({isPositive ? '+' : ''}
-              {priceChangePercent.toFixed(2)}%)
+            <View style={styles.entityChangeContainer}>
+              <Text style={[
+                styles.entityChangeText,
+                { color: getChangeColor(priceChange, theme) }
+              ]}>
+                {isPositive ? '+' : ''}{formatCurrency(priceChange)}
+              </Text>
+              <Text style={[
+                styles.entityChangePercent,
+                { color: getChangeColor(priceChange, theme) }
+              ]}>
+                ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
+              </Text>
+            </View>
+          </View>
+          <View style={styles.entityStatsInfo}>
+            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+              Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData.stats.volume24h)}</Text>
+            </Text>
+            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+              High: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.high24h)}</Text>
+            </Text>
+            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+              Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.low24h)}</Text>
             </Text>
           </View>
         </View>
 
-        {/* Chart */}
-        <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
-          <LineChart
-            key={`entity-${entityId}-${timeRange}-${filteredPriceHistory.length}-${currentPrice.toFixed(2)}-${chartUpdateKey}`}
-            data={chartData}
-            width={SCREEN_WIDTH - 32}
-            height={220}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withInnerLines={timeRange !== '1D'}
-            withOuterLines={false}
-            withVerticalLabels={timeRange !== '1D'}
-            withHorizontalLabels={true}
-            withDots={timeRange === '1D' || filteredPriceHistory.length <= 7}
-            segments={timeRange === '1D' ? 6 : timeRange === '1W' ? 7 : 5}
-          />
-
-          {/* Time Range Selector */}
-          <View style={styles.timeRangeSelector}>
-            {(['1D', '1W', '1M', 'ALL'] as const).map((range) => (
-              <TouchableOpacity
-                key={range}
-                style={[
-                  styles.timeRangeButton,
-                  { backgroundColor: theme.backgroundSecondary },
-                  timeRange === range && { backgroundColor: theme.primary },
-                ]}
-                onPress={() => setTimeRange(range)}
+        {/* Chart Container */}
+        <View style={[styles.entityChartWrapperFullWidth, { backgroundColor: theme.card }]}>
+          <View style={styles.entityChartContainerFull}>
+            {/* Tab Selector - positioned above chart */}
+            <View style={[styles.tabSelectorContainerAboveChart, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.tabSelector}
+                contentContainerStyle={styles.tabSelectorContent}
               >
-                <Text
-                  style={[
-                    styles.timeRangeText,
-                    { color: theme.textSecondary },
-                    timeRange === range && { color: '#FFFFFF' },
-                  ]}
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('chart')}
                 >
-                  {range}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'chart' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'chart' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    Chart
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('about')}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'about' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'about' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    About
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('feed')}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'feed' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    Feed
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('news')}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'news' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'news' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    News
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+
+            {/* SVG Chart */}
+            <View style={styles.chartWithOverlay}>
+              <Svg width={chartWidth} height={chartHeight}>
+                <Defs>
+                  <LinearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="5%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity="0.8" />
+                    <Stop offset="95%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity="0.1" />
+                  </LinearGradient>
+                </Defs>
+                
+                {/* Horizontal line at bottom edge */}
+                <Line
+                  x1={0}
+                  y1={margin.top + innerHeight}
+                  x2={chartWidth}
+                  y2={margin.top + innerHeight}
+                  stroke="#000000"
+                  strokeWidth="1"
+                />
+                
+                {/* Line stroke */}
+                {chartPrices.length > 1 && (
+                  <Path
+                    d={generateLinePath()}
+                    stroke={isPositive ? "#10B981" : "#EF4444"}
+                    strokeWidth="2"
+                    fill="none"
+                  />
+                )}
+                
+                {/* Current price horizontal dotted line */}
+                {chartPrices.length > 0 && (() => {
+                  const currentPriceValue = chartPrices[chartPrices.length - 1];
+                  const currentPriceY = margin.top + innerHeight - ((currentPriceValue - yDomain.yMin) / yDomain.yRange) * innerHeight;
+                  return (
+                    <G>
+                      <Line
+                        x1={0}
+                        y1={currentPriceY}
+                        x2={chartWidth}
+                        y2={currentPriceY}
+                        stroke="#000000"
+                        strokeWidth="1"
+                        strokeDasharray="3 3"
+                      />
+                      {/* Price label box on the right */}
+                      <Rect
+                        x={chartWidth - 60}
+                        y={currentPriceY - 12}
+                        width={55}
+                        height={24}
+                        rx={4}
+                        fill={isPositive ? "#10B981" : "#EF4444"}
+                      />
+                      <SvgText
+                        x={chartWidth - 32.5}
+                        y={currentPriceY + 4}
+                        fontSize="12"
+                        fill="#FFFFFF"
+                        fontWeight="600"
+                        textAnchor="middle"
+                      >
+                        {currentPriceValue.toFixed(2)}
+                      </SvgText>
+                    </G>
+                  );
+                })()}
+              </Svg>
+            </View>
+          </View>
+
+          {/* Time Frame Selector */}
+          <View style={styles.timeframeSelector}>
+            <TouchableOpacity
+              style={[
+                styles.timeframeButton,
+                {
+                  backgroundColor: selectedTimeframe === '1min' ? theme.primary : theme.backgroundSecondary,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => setSelectedTimeframe('1min')}
+            >
+              <Text style={[
+                styles.timeframeButtonText,
+                { color: selectedTimeframe === '1min' ? '#FFFFFF' : theme.text }
+              ]}>
+                1 min
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.timeframeButton,
+                {
+                  backgroundColor: theme.backgroundSecondary,
+                  borderColor: theme.border,
+                },
+              ]}
+              disabled={true}
+            >
+              <Text style={[
+                styles.timeframeButtonText,
+                { color: theme.textSecondary }
+              ]}>
+                More Timeframes Coming Soon
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -675,71 +758,49 @@ export default function EntityScreen() {
           </View>
         )}
 
-        {/* Stats */}
-        <View style={[styles.statsCard, { backgroundColor: theme.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Statistics</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h High</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.high24h)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h Low</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.low24h)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Volume</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.volume24h)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Market Cap</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.marketCap)}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Holders</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {entityData.stats.holdersCount.toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Rank</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>#{entityData.stats.rank}</Text>
-            </View>
-          </View>
-        </View>
     </>
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
+        <View style={styles.headerLeft}>
           <Text style={[styles.entityName, { color: theme.text }]}>{entityData.entity.name}</Text>
+          <Text style={[styles.categoryName, { color: theme.textSecondary }]}>
+            {displayCategoryId}
+          </Text>
         </View>
-        <TouchableOpacity
-          style={styles.watchlistButton}
-          onPress={() => {
-            if (isInWatchlist(entityId)) {
-              removeFromWatchlist(entityId);
-            } else {
-              addToWatchlist(entityId);
-            }
-          }}
-        >
-          <Ionicons
-            name={isInWatchlist(entityId) ? 'star' : 'star-outline'}
-            size={24}
-            color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => {
+              navigation.navigate('Search');
+            }}
+          >
+            <Ionicons name="search" size={24} color={theme.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.watchlistButton}
+            onPress={() => {
+              if (isInWatchlist(entityId)) {
+                removeFromWatchlist(entityId);
+              } else {
+                addToWatchlist(entityId);
+              }
+            }}
+          >
+            <Ionicons
+              name={isInWatchlist(entityId) ? 'star' : 'star-outline'}
+              size={24}
+              color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
-
-      {/* Tab Selector */}
-      {renderTabSelector()}
+      </View>
 
       {/* Content with horizontal swipe */}
       <ScrollView
@@ -829,13 +890,13 @@ export default function EntityScreen() {
             style={[styles.tradeButton, styles.halfWidthButton, { backgroundColor: theme.primary }]}
           onPress={() => setTradeModalVisible(true)}
         >
-            <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
+            <Text style={styles.tradeButtonText}>Predict - {entityData.entity.name}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.shareOpinionButton, styles.halfWidthButton, { backgroundColor: theme.card, borderColor: theme.border }]}
             onPress={() => setShareOpinionModalVisible(true)}
           >
-            <Text style={[styles.shareOpinionButtonText, { color: theme.text }]}>Share Your Opinion</Text>
+            <Text style={[styles.shareOpinionButtonText, { color: theme.text }]}>Post Your Opinion</Text>
         </TouchableOpacity>
         </View>
       </View>
@@ -874,77 +935,120 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingLeft: 8,
+    paddingRight: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 8,
   },
-  backButtonText: {
-    fontSize: 28,
-  },
-  headerCenter: {
-    alignItems: 'center',
+  headerLeft: {
     flex: 1,
   },
   entityName: {
     fontSize: 18,
     fontWeight: 'bold',
   },
+  categoryName: {
+    fontSize: 14,
+    marginTop: 2,
+  },
   headerRight: {
-    width: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchButton: {
+    padding: 4,
   },
   watchlistButton: {
     padding: 4,
   },
-  priceSection: {
-    alignItems: 'center',
-    paddingVertical: 24,
+  entityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  price: {
-    fontSize: 48,
+  entityPriceInfo: {
+    alignItems: 'flex-start',
+    flex: 1,
+  },
+  entityStatsInfo: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  entityStatsLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  entityCurrentPrice: {
+    fontSize: 24,
     fontWeight: 'bold',
+    marginBottom: 4,
   },
-  changeContainer: {
+  entityChangeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
+    gap: 4,
   },
-  change: {
-    fontSize: 18,
+  entityChangeText: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  changePercent: {
-    fontSize: 18,
-    fontWeight: '600',
+  entityChangePercent: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  chartContainer: {
+  entityChartWrapperFullWidth: {
+    position: 'relative',
+    width: SCREEN_WIDTH,
     backgroundColor: '#FFFFFF',
-    marginTop: 1,
     paddingBottom: 16,
   },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 0,
+  entityChartContainerFull: {
+    width: SCREEN_WIDTH,
+    position: 'relative',
+    overflow: 'visible',
   },
-  timeRangeSelector: {
-    flexDirection: 'row',
+  chartWithOverlay: {
+    position: 'relative',
+    height: 220,
+  },
+  tabSelectorContainerAboveChart: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderTopWidth: 2,
     justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
   },
-  timeRangeButton: {
+  timeframeSelector: {
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingTop: 12,
+    paddingBottom: 16,
+    alignSelf: 'flex-start',
   },
-  timeRangeText: {
-    fontSize: 14,
+  timeframeButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  timeframeButtonText: {
+    fontSize: 12,
     fontWeight: '600',
   },
   positionCard: {
@@ -1100,7 +1204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 0,
     paddingBottom: 0,
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
   tabButton: {
     marginRight: 18,

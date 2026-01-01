@@ -129,25 +129,8 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         return;
       }
       
-      // Map entity category to categoryId format used in navigation
-      // For People category, need to check entity ID to distinguish Influencers vs Music Artists
-      let entityCategoryId: string;
-      if (entity.category === 'People') {
-        if (entity.id >= 11 && entity.id <= 20) {
-          entityCategoryId = 'Influencers';
-        } else if (entity.id >= 21 && entity.id <= 30) {
-          entityCategoryId = 'Music Artists';
-        } else {
-          entityCategoryId = 'Influencers'; // Default
-        }
-      } else {
-        const categoryMap: Record<string, string> = {
-          'Politics': 'Political Figures',
-          'Tech': 'Startups',
-          'Events': 'Sports',
-        };
-        entityCategoryId = categoryMap[entity.category] || entity.category;
-      }
+      // Category is already in the correct format (no mapping needed)
+      const entityCategoryId = entity.category;
       
       // Navigate to the clicked entity's chart page - use the found entity's ID, not the current entity
       navigation.navigate('Entity' as never, {
@@ -476,7 +459,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
               </TouchableOpacity>
             )}
           </View>
-          
+
           {/* Timestamp */}
           <Text style={[styles.timestamp, { color: theme.textTertiary }]}>{formatTimestamp(post.timestamp)}</Text>
         </View>

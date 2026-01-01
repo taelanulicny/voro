@@ -144,31 +144,11 @@ export default function WatchlistScreen() {
   };
 
   const handleEntityPress = (item: typeof sortedWatchlist[0]) => {
+    // Category is already in the correct format (no mapping needed)
     navigation.navigate('Entity', {
       entityId: item.entityId,
       categoryId: item.category,
     });
-  };
-
-  // Map entity categories to display category names
-  const getDisplayCategory = (entityId: number, category: string): string => {
-    // Distinguish between Influencers (IDs 11-20) and Music Artists (IDs 21-30) in People category
-    if (category === 'People') {
-      if (entityId >= 11 && entityId <= 20) {
-        return 'Influencers';
-      } else if (entityId >= 21 && entityId <= 30) {
-        return 'Music Artists';
-      }
-      return 'Influencers'; // Default for other People entities
-    }
-    
-    const categoryMap: Record<string, string> = {
-      'Tech': 'Startups',
-      'Politics': 'Political Figures',
-      'Events': 'Sports',
-    };
-    
-    return categoryMap[category] || category;
   };
 
   const sortOptions: { label: string; value: WatchlistSortOption }[] = [
@@ -206,7 +186,7 @@ export default function WatchlistScreen() {
               )}
             </View>
             <Text style={[styles.categoryText, { color: theme.textSecondary }]}>
-              {getDisplayCategory(item.entityId, item.category)}
+              {item.category}
             </Text>
           </View>
         </View>

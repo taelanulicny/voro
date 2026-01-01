@@ -23,22 +23,7 @@ export default function DiscoverNewAdditionsScreen() {
   const { theme } = useTheme();
   const { getEntityPrice } = useTrading();
 
-  // Get display category helper (same as HomeScreen)
-  const getDisplayCategory = (entityId: number, category: string): string => {
-    if (category === 'People') {
-      if (entityId >= 11 && entityId <= 20) {
-        return 'Influencers';
-      } else if (entityId >= 21 && entityId <= 30) {
-        return 'Music Artists';
-      }
-    }
-    const categoryMap: Record<string, string> = {
-      'Politics': 'Political Figures',
-      'Tech': 'Startups',
-      'Events': 'Sports',
-    };
-    return categoryMap[category] || category;
-  };
+  // Categories are now stored directly (no mapping needed)
 
   // Static dates from this week (newest to oldest: today to 6 days ago)
   // These dates are fixed and don't change
@@ -71,7 +56,7 @@ export default function DiscoverNewAdditionsScreen() {
     const fixedMusicArtist = musicArtists[0]; // Always use first one
     
     // Get 1 entity from Political Figures (IDs 31-39) - using a fixed index
-    const politicalFigures = MOCK_ENTITIES.filter(e => e.category === 'Politics' && e.id >= 31 && e.id <= 39);
+    const politicalFigures = MOCK_ENTITIES.filter(e => e.category === 'Political Figures' && e.id >= 31 && e.id <= 39);
     const fixedPolitical = politicalFigures[0]; // Always use first one
     
     // Get 1 more entity from any of these categories - using a fixed index
@@ -91,7 +76,7 @@ export default function DiscoverNewAdditionsScreen() {
       name: entity.name,
       ticker: entity.ticker,
       category: entity.category,
-      displayCategory: getDisplayCategory(entity.id, entity.category),
+      displayCategory: entity.category,
       currentPrice: getEntityPrice(entity.id),
       change24h: getEntityPrice(entity.id) - entity.basePrice,
       changePercent24h: ((getEntityPrice(entity.id) - entity.basePrice) / entity.basePrice) * 100,

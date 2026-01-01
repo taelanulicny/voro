@@ -288,15 +288,15 @@ export default function AllCategoriesScreen() {
       >
         {/* Treemap View */}
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.treemapWrapper}>
-              <Treemap
-                data={categoryTradeVolumes}
-                onItemPress={handleCategoryPress}
-                containerHeight={TREEMAP_HEIGHT}
-                padding={8}
-              />
-            </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.treemapWrapper}>
+          <Treemap
+            data={categoryTradeVolumes}
+            onItemPress={handleCategoryPress}
+            containerHeight={TREEMAP_HEIGHT}
+            padding={8}
+          />
+        </View>
           </ScrollView>
         </View>
 
