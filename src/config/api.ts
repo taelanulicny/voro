@@ -12,7 +12,13 @@
  * - When enabled, uses react-native-ssl-pinning for all API requests
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+// Storage key for offline request queue
+const OFFLINE_QUEUE_KEY = '@moro_offline_queue';
+const MAX_QUEUE_SIZE = 100; // Maximum number of queued requests
 
 // Try to import SSL pinning (will be undefined in managed workflow)
 let sslPinningFetch: any;
@@ -110,6 +116,24 @@ export interface AuthResponse {
 const inFlightRequests = new Map<string, Promise<any>>();
 
 /**
+ * Offline request queue for failed POST/PUT/DELETE requests
+ */
+interface QueuedRequest {
+  id: string;
+  endpoint: string;
+  method: string;
+  body?: string;
+  headers?: Record<string, string>;
+  timestamp: number;
+  retryCount: number;
+  maxRetries?: number;
+  retryConfig?: RetryConfig;
+}
+
+const offlineQueue: QueuedRequest[] = [];
+let isProcessingQueue = false;
+
+/**
  * Response cache for stale-while-revalidate pattern
  */
 interface CacheEntry<T> {
@@ -200,7 +224,209 @@ function invalidateCache(pattern?: string): void {
   }
 }
 
+/**
+ * Automatically invalidate cache based on endpoint and method
+ * POST/PUT/DELETE operations invalidate related GET caches
+ */
+function autoInvalidateCache(endpoint: string, method: string): void {
+  // Invalidate related caches based on endpoint patterns
+  if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+    // Invalidate portfolio cache after trades
+    if (endpoint.includes('/trade/execute')) {
+      invalidateCache('/portfolio');
+      invalidateCache('/transactions');
+      invalidateCache('/prices');
+    }
+    
+    // Invalidate social feed cache after post operations
+    if (endpoint.includes('/social/posts')) {
+      invalidateCache('/social/feed');
+      invalidateCache('/social/posts');
+      invalidateCache('/social/entities');
+    }
+    
+    // Invalidate comments cache after comment operations
+    if (endpoint.includes('/comments')) {
+      invalidateCache('/comments');
+      invalidateCache('/social/feed');
+    }
+    
+    // Invalidate user-related caches after follow/unfollow
+    if (endpoint.includes('/follow')) {
+      invalidateCache('/followers');
+      invalidateCache('/following');
+      invalidateCache('/user');
+    }
+    
+    // Invalidate watchlist cache after watchlist changes
+    if (endpoint.includes('/watchlist')) {
+      invalidateCache('/watchlist');
+    }
+    
+    // Invalidate entity-related caches after entity operations
+    if (endpoint.includes('/entities')) {
+      invalidateCache('/entities');
+    }
+  }
+}
+
 export { invalidateCache };
+
+/**
+ * Load offline queue from AsyncStorage
+ */
+async function loadOfflineQueue(): Promise<void> {
+  try {
+    const data = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        offlineQueue.length = 0;
+        offlineQueue.push(...parsed);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading offline queue:', error);
+  }
+}
+
+/**
+ * Save offline queue to AsyncStorage
+ */
+async function saveOfflineQueue(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
+  } catch (error) {
+    console.error('Error saving offline queue:', error);
+  }
+}
+
+/**
+ * Add request to offline queue
+ */
+async function queueRequest(request: QueuedRequest): Promise<void> {
+  // Limit queue size
+  if (offlineQueue.length >= MAX_QUEUE_SIZE) {
+    // Remove oldest request
+    offlineQueue.shift();
+  }
+  
+  offlineQueue.push(request);
+  await saveOfflineQueue();
+}
+
+/**
+ * Remove request from offline queue
+ */
+async function removeFromQueue(requestId: string): Promise<void> {
+  const index = offlineQueue.findIndex(r => r.id === requestId);
+  if (index >= 0) {
+    offlineQueue.splice(index, 1);
+    await saveOfflineQueue();
+  }
+}
+
+/**
+ * Process offline queue - retry failed requests
+ */
+async function processOfflineQueue(getToken?: () => string | null): Promise<void> {
+  if (isProcessingQueue || offlineQueue.length === 0) {
+    return;
+  }
+  
+  isProcessingQueue = true;
+  
+  try {
+    // Load queue from storage
+    await loadOfflineQueue();
+    
+    const requestsToProcess = [...offlineQueue];
+    
+    for (const queuedRequest of requestsToProcess) {
+      try {
+        // Check if request should be retried
+        const maxRetries = queuedRequest.maxRetries || 3;
+        if (queuedRequest.retryCount >= maxRetries) {
+          // Remove request that has exceeded max retries
+          await removeFromQueue(queuedRequest.id);
+          continue;
+        }
+        
+        // Get token if needed (for authenticated requests)
+        let authHeaders = queuedRequest.headers || {};
+        if (getToken && queuedRequest.headers?.Authorization) {
+          const token = getToken();
+          if (token) {
+            authHeaders = {
+              ...queuedRequest.headers,
+              Authorization: `Bearer ${token}`,
+            };
+          }
+        }
+        
+        // Reconstruct request
+        const options: RequestInit = {
+          method: queuedRequest.method as any,
+          body: queuedRequest.body,
+          headers: authHeaders,
+        };
+        
+        // Make the request
+        const response = await apiRequest(queuedRequest.endpoint, options, {
+          ...queuedRequest.retryConfig,
+          maxRetries: 1, // Don't retry again in queue processing
+        });
+        
+        if (response.success) {
+          // Request succeeded, remove from queue
+          await removeFromQueue(queuedRequest.id);
+          // Auto-invalidate cache after successful mutation
+          autoInvalidateCache(queuedRequest.endpoint, queuedRequest.method);
+        } else {
+          // Request failed, increment retry count
+          queuedRequest.retryCount++;
+          const index = offlineQueue.findIndex(r => r.id === queuedRequest.id);
+          if (index >= 0) {
+            offlineQueue[index] = queuedRequest;
+          }
+          await saveOfflineQueue();
+        }
+      } catch (error) {
+        // Request failed, increment retry count
+        queuedRequest.retryCount++;
+        const index = offlineQueue.findIndex(r => r.id === queuedRequest.id);
+        if (index >= 0) {
+          offlineQueue[index] = queuedRequest;
+        }
+        await saveOfflineQueue();
+      }
+    }
+  } catch (error) {
+    console.error('Error processing offline queue:', error);
+  } finally {
+    isProcessingQueue = false;
+  }
+}
+
+/**
+ * Initialize offline queue processing
+ * Call this on app startup
+ */
+export async function initializeOfflineQueue(getToken?: () => string | null): Promise<void> {
+  await loadOfflineQueue();
+  
+  // Process queue periodically (every 30 seconds)
+  setInterval(() => {
+    if (isBackendConfigured()) {
+      processOfflineQueue(getToken).catch(console.error);
+    }
+  }, 30000);
+  
+  // Process queue immediately
+  if (isBackendConfigured()) {
+    processOfflineQueue(getToken).catch(console.error);
+  }
+}
 
 /**
  * Retry helper with exponential backoff
@@ -208,11 +434,19 @@ export { invalidateCache };
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
-  initialDelay: number = 1000
+  initialDelay: number = 1000,
+  signal?: AbortSignal
 ): Promise<T> {
   let lastError: any;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // Check if request was cancelled
+    if (signal?.aborted) {
+      const abortError: any = new Error('Request cancelled');
+      abortError.name = 'AbortError';
+      throw abortError;
+    }
+    
     try {
       return await fn();
     } catch (error: any) {
@@ -232,7 +466,18 @@ async function retryWithBackoff<T>(
       
       // Calculate delay with exponential backoff
       const delay = initialDelay * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(resolve, delay);
+        // Cancel timeout if request is aborted
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            clearTimeout(timeoutId);
+            const abortError: any = new Error('Request cancelled');
+            abortError.name = 'AbortError';
+            reject(abortError);
+          });
+        }
+      });
     }
   }
   
@@ -255,6 +500,9 @@ export async function apiRequest<T = any>(
   const shouldRetry = retryConfig?.retryable !== false && (retryConfig?.maxRetries || 0) > 0;
   const maxRetries = retryConfig?.maxRetries || 0;
   const shouldDeduplicate = retryConfig?.deduplicate !== false;
+  const method = options.method || 'GET';
+  const isMutation = method === 'POST' || method === 'PUT' || method === 'DELETE';
+  const signal = options.signal; // Preserve AbortController signal
 
   const makeRequest = async (): Promise<ApiResponse<T>> => {
     try {
@@ -304,19 +552,55 @@ export async function apiRequest<T = any>(
       }
       
       // Regular fetch (managed workflow or development)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+      // Check if request was cancelled
+      if (signal?.aborted) {
+        const abortError: any = new Error('Request cancelled');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
       
-      response = await fetch(url, {
-        ...options,
-        headers: {
-          ...API_CONFIG.headers,
-          ...options.headers,
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+      // Create timeout controller if no signal provided, or combine with existing signal
+      let timeoutController: AbortController | null = null;
+      let timeoutId: NodeJS.Timeout | null = null;
+      let finalSignal = signal;
+      
+      if (signal) {
+        // User provided signal - still need timeout
+        timeoutController = new AbortController();
+        timeoutId = setTimeout(() => timeoutController!.abort(), API_CONFIG.timeout);
+        
+        // Combine both signals: abort if either is aborted
+        const combinedController = new AbortController();
+        const abortHandler = () => combinedController.abort();
+        signal.addEventListener('abort', abortHandler);
+        timeoutController.signal.addEventListener('abort', abortHandler);
+        finalSignal = combinedController.signal;
+      } else {
+        // No user signal - create timeout controller
+        timeoutController = new AbortController();
+        timeoutId = setTimeout(() => timeoutController!.abort(), API_CONFIG.timeout);
+        finalSignal = timeoutController.signal;
+      }
+      
+      try {
+        response = await fetch(url, {
+          ...options,
+          headers: {
+            ...API_CONFIG.headers,
+            ...options.headers,
+          },
+          signal: finalSignal,
+        });
+      } finally {
+        // Cleanup timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        // Cleanup signal listener if we combined signals
+        if (signal && timeoutController) {
+          signal.removeEventListener('abort', () => {});
+        }
+      }
 
       // Handle 401 Unauthorized - return gracefully instead of throwing
       if (response.status === 401) {
@@ -367,12 +651,25 @@ export async function apiRequest<T = any>(
         throw error;
       }
 
-      return {
+      const result: ApiResponse<T> = {
         success: true,
         data: data.data || data,
       };
+      
+      // Auto-invalidate cache after successful mutations
+      if (result.success && isMutation) {
+        autoInvalidateCache(endpoint, method);
+      }
+      
+      return result;
     } catch (error: any) {
-      clearTimeout(timeoutId);
+      // Check if request was cancelled
+      if (error.name === 'AbortError' || signal?.aborted) {
+        return {
+          success: false,
+          error: 'Request cancelled',
+        };
+      }
       
       // Don't log 404 or 400 errors as errors (client errors - expected)
       if (error.status === 404) {
@@ -411,6 +708,24 @@ export async function apiRequest<T = any>(
             error: 'Backend not available. App is running in standalone mode.',
           };
         }
+        
+        // Queue mutation requests for retry when connection is restored
+        if (isMutation) {
+          const queuedRequest: QueuedRequest = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            endpoint,
+            method,
+            body: options.body as string,
+            headers: options.headers as Record<string, string>,
+            timestamp: Date.now(),
+            retryCount: 0,
+            maxRetries: retryConfig?.maxRetries || 3,
+            retryConfig,
+          };
+          
+          queueRequest(queuedRequest).catch(console.error);
+        }
+        
         // Re-throw network errors for retry logic
         const networkError: any = new Error('Unable to connect to the server. Please check your internet connection and try again.');
         networkError.status = 0;
@@ -447,10 +762,13 @@ export async function apiRequest<T = any>(
     const ttl = getCacheTTL(endpoint);
     (async () => {
       try {
+        // Check if request was cancelled
+        if (signal?.aborted) return;
+        
         let result: ApiResponse<T>;
         if (shouldRetry && maxRetries > 0) {
           try {
-            result = await retryWithBackoff(makeRequest, maxRetries, 1000);
+            result = await retryWithBackoff(makeRequest, maxRetries, 1000, signal);
           } catch (error: any) {
             // Silently fail background refresh
             return;
@@ -460,7 +778,7 @@ export async function apiRequest<T = any>(
         }
         
         // Update cache with fresh data
-        if (result.success && result.data) {
+        if (result.success && result.data && !signal?.aborted) {
           setCachedResponse(cacheKey, result.data, ttl);
         }
       } catch (error) {
@@ -483,22 +801,37 @@ export async function apiRequest<T = any>(
     // Create new request and store it
     const requestPromise = (async () => {
       try {
+        // Check if request was cancelled
+        if (signal?.aborted) {
+          return {
+            success: false,
+            error: 'Request cancelled',
+          } as ApiResponse<T>;
+        }
+        
         let result: ApiResponse<T>;
         if (shouldRetry && maxRetries > 0) {
           try {
-            result = await retryWithBackoff(makeRequest, maxRetries, 1000);
+            result = await retryWithBackoff(makeRequest, maxRetries, 1000, signal);
           } catch (error: any) {
-            result = {
-              success: false,
-              error: error.message || 'An unexpected error occurred',
-            };
+            if (error.name === 'AbortError' || signal?.aborted) {
+              result = {
+                success: false,
+                error: 'Request cancelled',
+              };
+            } else {
+              result = {
+                success: false,
+                error: error.message || 'An unexpected error occurred',
+              };
+            }
           }
         } else {
           result = await makeRequest();
         }
         
         // Cache successful GET responses
-        if (result.success && result.data && cacheKey) {
+        if (result.success && result.data && cacheKey && !signal?.aborted) {
           const ttl = getCacheTTL(endpoint);
           setCachedResponse(cacheKey, result.data, ttl);
         }
@@ -516,22 +849,37 @@ export async function apiRequest<T = any>(
 
   // No deduplication, execute normally
   const executeRequest = async (): Promise<ApiResponse<T>> => {
+    // Check if request was cancelled
+    if (signal?.aborted) {
+      return {
+        success: false,
+        error: 'Request cancelled',
+      };
+    }
+    
     let result: ApiResponse<T>;
     if (shouldRetry && maxRetries > 0) {
       try {
-        result = await retryWithBackoff(makeRequest, maxRetries, 1000);
+        result = await retryWithBackoff(makeRequest, maxRetries, 1000, signal);
       } catch (error: any) {
-        result = {
-          success: false,
-          error: error.message || 'An unexpected error occurred',
-        };
+        if (error.name === 'AbortError' || signal?.aborted) {
+          result = {
+            success: false,
+            error: 'Request cancelled',
+          };
+        } else {
+          result = {
+            success: false,
+            error: error.message || 'An unexpected error occurred',
+          };
+        }
       }
     } else {
       result = await makeRequest();
     }
     
     // Cache successful GET responses
-    if (result.success && result.data && cacheKey) {
+    if (result.success && result.data && cacheKey && !signal?.aborted) {
       const ttl = getCacheTTL(endpoint);
       setCachedResponse(cacheKey, result.data, ttl);
     }
@@ -564,10 +912,19 @@ export async function authenticatedRequest<T = any>(
   getUpdatedToken?: () => string | null // Callback to get updated token after refresh
 ): Promise<ApiResponse<T>> {
   const { retryConfig, ...requestOptions } = options;
+  const signal = options.signal; // Preserve AbortController signal
+  
+  // Check if request was cancelled
+  if (signal?.aborted) {
+    return {
+      success: false,
+      error: 'Request cancelled',
+    };
+  }
   
   // Check if token needs refresh before making request
   let currentToken = token;
-  if (tryRefreshTokenCallback) {
+  if (tryRefreshTokenCallback && !signal?.aborted) {
     const refreshed = await tryRefreshTokenCallback();
     if (refreshed && getUpdatedToken) {
       // Get updated token after refresh
@@ -579,8 +936,17 @@ export async function authenticatedRequest<T = any>(
   }
   
   const makeAuthenticatedRequest = async (): Promise<ApiResponse<T>> => {
+    // Check if request was cancelled
+    if (signal?.aborted) {
+      return {
+        success: false,
+        error: 'Request cancelled',
+      };
+    }
+    
     const response = await apiRequest<T>(endpoint, {
       ...requestOptions,
+      signal, // Pass signal through
       headers: {
         ...requestOptions.headers,
         Authorization: `Bearer ${currentToken}`,
@@ -588,7 +954,7 @@ export async function authenticatedRequest<T = any>(
     }, retryConfig);
     
     // Handle 401 Unauthorized - try to refresh token and retry
-    if (!response.success && response.error?.includes('401') && tryRefreshTokenCallback) {
+    if (!response.success && response.error?.includes('401') && tryRefreshTokenCallback && !signal?.aborted) {
       const refreshed = await tryRefreshTokenCallback();
       if (refreshed && getUpdatedToken) {
         const newToken = getUpdatedToken();
@@ -596,6 +962,7 @@ export async function authenticatedRequest<T = any>(
           // Retry request with new token
           return apiRequest<T>(endpoint, {
             ...requestOptions,
+            signal, // Pass signal through
             headers: {
               ...requestOptions.headers,
               Authorization: `Bearer ${newToken}`,

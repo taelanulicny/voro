@@ -10,6 +10,9 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 // Error Reporting
 import { initErrorReporting } from './src/services/errorReporting';
 
+// API Configuration
+import { initializeOfflineQueue } from './src/config/api';
+
 // Context Providers
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocialProvider } from './src/context/SocialContext';
@@ -302,9 +305,12 @@ function RootNavigator() {
 }
 
 export default function App() {
-  // Initialize error reporting on app startup
+  // Initialize error reporting and offline queue on app startup
   React.useEffect(() => {
     initErrorReporting();
+    
+    // Initialize offline queue for failed requests
+    initializeOfflineQueue().catch(console.error);
     
     // Suppress NativeEventEmitter warning from native modules that don't fully implement the interface
     // This is a known issue with some React Native native modules and is harmless
