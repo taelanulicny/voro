@@ -260,7 +260,7 @@ export default function TradeModal({
               onPress={() => setActiveTab('buy')}
             >
               <Text style={[styles.tabText, { color: activeTab === 'buy' ? '#FFFFFF' : theme.textSecondary }]}>
-                Positive
+                Buy
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -271,7 +271,7 @@ export default function TradeModal({
               onPress={() => setActiveTab('sell')}
             >
               <Text style={[styles.tabText, { color: activeTab === 'sell' ? '#FFFFFF' : theme.textSecondary }]}>
-                Negative
+                Sell
               </Text>
             </TouchableOpacity>
           </View>
