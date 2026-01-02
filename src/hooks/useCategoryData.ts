@@ -76,8 +76,14 @@ export function useCategoryData() {
         const mapped = response.data.entities.map(mapBackendEntity);
         setTrending(mapped);
       }
-    } catch (error) {
-      console.error('Error fetching trending entities:', error);
+    } catch (error: any) {
+      console.error('[Categories] Error fetching trending entities:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/categories/trending',
+        hint: 'Trending entities unavailable. Check backend connectivity.',
+      });
     } finally {
       setIsLoadingTrending(false);
     }
@@ -96,8 +102,14 @@ export function useCategoryData() {
           losers: response.data.losers?.map(mapBackendEntity) || [],
         });
       }
-    } catch (error) {
-      console.error('Error fetching movers:', error);
+    } catch (error: any) {
+      console.error('[Categories] Error fetching movers:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/categories/movers',
+        hint: 'Top gainers/losers unavailable. Check backend connectivity.',
+      });
     } finally {
       setIsLoadingMovers(false);
     }
@@ -143,8 +155,14 @@ export function useCategoryData() {
         
         setDiscussed(discussedEntities as EntityWithStats[]);
       }
-    } catch (error) {
-      console.error('Error fetching discussed entities:', error);
+    } catch (error: any) {
+      console.error('[Categories] Error fetching discussed entities:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/categories/discussed',
+        hint: 'Most discussed entities unavailable. Check backend connectivity.',
+      });
     } finally {
       setIsLoadingDiscussed(false);
     }
@@ -173,8 +191,15 @@ export function useCategoryData() {
         setDiscoverCursor(response.data.nextCursor || null);
         setHasMoreDiscover(!!response.data.nextCursor);
       }
-    } catch (error) {
-      console.error('Error fetching discover entities:', error);
+    } catch (error: any) {
+      console.error('[Categories] Error fetching discover entities:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/categories/discover',
+        category: category || 'all',
+        hint: 'Discover feed unavailable. Check backend connectivity.',
+      });
     } finally {
       setIsLoadingDiscover(false);
     }
@@ -210,8 +235,15 @@ export function useCategoryData() {
         }
       }
       return null;
-    } catch (error) {
-      console.error(`Error fetching price history for entity ${entityId}:`, error);
+    } catch (error: any) {
+      console.error(`[Price History] Error fetching price history for entity ${entityId}:`, {
+        entityId,
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: `/api/entities/${entityId}/price-history`,
+        hint: 'Price history unavailable. Sparkline may not display.',
+      });
       return null;
     }
   }, []);
@@ -231,8 +263,14 @@ export function useCategoryData() {
         setForYouEntities(mapped);
         setForYouReasons(response.data.reasons || {});
       }
-    } catch (error) {
-      console.error('Error fetching for-you entities:', error);
+    } catch (error: any) {
+      console.error('[Categories] Error fetching for-you entities:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/categories/for-you',
+        hint: 'Personalized recommendations unavailable. Check backend connectivity and authentication.',
+      });
     } finally {
       setIsLoadingForYou(false);
     }

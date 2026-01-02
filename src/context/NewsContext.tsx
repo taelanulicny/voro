@@ -231,8 +231,16 @@ export function NewsProvider({ children }: { children: ReactNode }) {
         setEntityNewsCache(prev => ({ ...prev, [cacheKey]: [] }));
         return [];
       }
-    } catch (error) {
-      console.error('Error fetching entity news:', error);
+    } catch (error: any) {
+      console.error(`[News] Error fetching entity news for entity ${entityId}:`, {
+        entityId,
+        entityName: entityName || 'unknown',
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: `/api/news?entityId=${entityId}`,
+        hint: 'Entity-specific news unavailable. Returning empty array.',
+      });
     }
 
     // Return whatever we have locally (from initial backend fetch)

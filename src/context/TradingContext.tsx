@@ -254,14 +254,33 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     const holdingsValue = holdingsToCalculate.reduce((sum, h) => sum + h.totalValue, 0);
     const totalValue = cashBalance + holdingsValue;
     let calculatedTodayChange = 0;
+    let holdingsWithOpeningPrice = 0;
     
     for (const holding of holdingsToCalculate) {
       const openingPrice = await getOpeningPrice(holding.entityId);
-      if (openingPrice !== null) {
-        const openingValue = holding.quantity * openingPrice;
-        const currentValue = holding.totalValue;
-        calculatedTodayChange += (currentValue - openingValue);
+      if (openingPrice !== null && openingPrice > 0) {
+        // Only calculate if we have a valid opening price (not fallback to current price)
+        // Check if opening price is significantly different from current price
+        // If they're the same, it means we're using a fallback and shouldn't count it
+        const currentPrice = holding.currentPrice || 0;
+        const priceDiff = Math.abs(openingPrice - currentPrice);
+        const priceDiffPercent = currentPrice > 0 ? (priceDiff / currentPrice) : 0;
+        
+        // Only use opening price if it's different from current price (not a fallback)
+        // Or if the difference is very small (< 0.1%), it's likely the same price
+        if (priceDiffPercent > 0.001 || priceDiff > 0.01) {
+          const openingValue = holding.quantity * openingPrice;
+          const currentValue = holding.totalValue;
+          calculatedTodayChange += (currentValue - openingValue);
+          holdingsWithOpeningPrice++;
+        }
       }
+    }
+    
+    // If we couldn't get opening prices for any holdings, return 0
+    // This prevents false calculations when backend also returns 0
+    if (holdingsWithOpeningPrice === 0) {
+      return { todayChange: 0, todayChangePercent: 0 };
     }
     
     const calculatedTodayChangePercent = totalValue > 0 ? (calculatedTodayChange / totalValue) * 100 : 0;
@@ -305,18 +324,56 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           
           // Also recalculate client-side as a fallback/verification
           // (This ensures we have accurate data even if backend calculation is off)
-          calculateTodayChange(validatedPortfolio.holdings).then((result) => {
-            // Only update if backend value seems incorrect (difference > 1%)
-            const backendValue = validatedPortfolio.todayChange;
-            const clientValue = result.todayChange;
-            if (Math.abs(backendValue - clientValue) > Math.abs(backendValue * 0.01)) {
-              console.debug('Client-side todayChange differs from backend, using client value');
-              setTodayChange(clientValue);
-              setTodayChangePercent(result.todayChangePercent);
-            }
-          }).catch((error) => {
-            console.debug('Error calculating client-side todayChange:', error);
-          });
+          // Only do this if we have holdings (avoid unnecessary API calls)
+          if (validatedPortfolio.holdings.length > 0) {
+            calculateTodayChange(validatedPortfolio.holdings).then((result) => {
+              // Only update if backend value seems incorrect
+              // Use absolute difference to handle small values correctly
+              const backendValue = validatedPortfolio.todayChange;
+              const clientValue = result.todayChange;
+              const absoluteDiff = Math.abs(backendValue - clientValue);
+              
+              // Calculate percentage difference more safely
+              // If backend value is very small (< $0.10), use absolute difference only
+              // Otherwise, calculate percentage
+              let percentDiff = 0;
+              if (Math.abs(backendValue) > 0.1) {
+                percentDiff = Math.abs((backendValue - clientValue) / backendValue);
+              }
+              
+              // Only update if:
+              // 1. Absolute difference > $1 AND
+              // 2. Either backend value is very small (< $0.10) OR percentage difference > 5%
+              // This prevents false positives when backend returns near-zero values
+              const shouldUpdate = absoluteDiff > 1 && (
+                Math.abs(backendValue) < 0.1 || percentDiff > 0.05
+              );
+              
+              if (shouldUpdate) {
+                const percentDisplay = Math.abs(backendValue) < 0.1 
+                  ? 'N/A (backend value too small)' 
+                  : `${(percentDiff * 100).toFixed(1)}%`;
+                console.debug(`[Portfolio] todayChange mismatch detected:`, {
+                  backendValue: `$${backendValue.toFixed(2)}`,
+                  clientValue: `$${clientValue.toFixed(2)}`,
+                  absoluteDiff: `$${absoluteDiff.toFixed(2)}`,
+                  percentDiff: percentDisplay,
+                  holdingsCount: validatedPortfolio.holdings.length,
+                  action: 'Using client-calculated value',
+                  hint: 'Backend may be missing opening price data. Client calculation uses cached/API opening prices.',
+                });
+                setTodayChange(clientValue);
+                setTodayChangePercent(result.todayChangePercent);
+              }
+            }).catch((error) => {
+              // Silently ignore errors - backend value is acceptable
+              console.debug('[Portfolio] Error calculating client-side todayChange (using backend value):', {
+                error: error.message || String(error),
+                errorType: error.name || 'Error',
+                hint: 'Falling back to backend-calculated value',
+              });
+            });
+          }
         } else {
           console.warn('Invalid portfolio response format');
         }
@@ -324,9 +381,15 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         // Backend not configured - use default values
         console.log('Backend not configured, using default portfolio values');
       }
-    } catch (error) {
+    } catch (error: any) {
       // Silently handle errors - don't crash the app
-      console.debug('Error fetching portfolio (backend may not be running):', error);
+      console.debug('[Portfolio] Error fetching portfolio:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/portfolio',
+        hint: 'Backend may not be running or configured. Using default/previous portfolio values.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -366,54 +429,89 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           console.warn('Invalid transactions response format');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       // Silently handle errors - don't crash the app
-      console.debug('Error fetching transactions (backend may not be running):', error);
+      console.debug('[Transactions] Error fetching transactions:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/transactions',
+        hint: 'Backend may not be running or configured. Transaction history unavailable.',
+      });
     }
   }, [token, isAuthenticated]);
 
-  // Get opening price for today (price at market open - 8am EST)
+  // Track in-flight opening price requests to prevent duplicate API calls
+  const openingPriceRequests = useRef<Map<number, Promise<number | null>>>(new Map());
+
+  // Get opening price for today (price at market open - 8am EST/EDT)
   const getOpeningPrice = useCallback(async (entityId: number): Promise<number | null> => {
-    // Check if we already have opening price for today
-    const today = new Date();
-    const utcTime = today.getTime() + (today.getTimezoneOffset() * 60000);
-    const estOffset = -5 * 60 * 60 * 1000; // EST is UTC-5
-    const estTime = new Date(utcTime + estOffset);
-    const marketOpenTime = new Date(estTime);
-    marketOpenTime.setHours(8, 0, 0, 0);
+    // Check if there's already an in-flight request for this entity
+    const existingRequest = openingPriceRequests.current.get(entityId);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    // Use proper timezone handling (accounts for DST automatically)
+    // Market opens at 8am EST/EDT (America/New_York timezone)
+    // Match backend calculation exactly
+    const now = new Date();
+    const estTimeString = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      hour12: false,
+    }).formatToParts(now);
+    
+    const estHours = parseInt(estTimeString.find(p => p.type === 'hour')?.value || '0', 10);
+    const estYear = parseInt(estTimeString.find(p => p.type === 'year')?.value || '0', 10);
+    const estMonth = parseInt(estTimeString.find(p => p.type === 'month')?.value || '0', 10) - 1; // 0-indexed
+    const estDay = parseInt(estTimeString.find(p => p.type === 'day')?.value || '0', 10);
+    
+    // Create market open time (8am EST/EDT) in UTC - match backend exactly
+    const marketOpenTime = new Date(Date.UTC(estYear, estMonth, estDay, 8, 0, 0));
     
     // If it's before 8am, use yesterday's opening price
-    if (estTime.getHours() < 8) {
-      marketOpenTime.setDate(marketOpenTime.getDate() - 1);
+    if (estHours < 8) {
+      marketOpenTime.setUTCDate(marketOpenTime.getUTCDate() - 1);
     }
     
+    const marketOpenTimestamp = marketOpenTime.toISOString();
     const todayKey = marketOpenTime.toISOString().split('T')[0]; // YYYY-MM-DD
     
-    try {
-      // Try to get from cache first
-      const cachedOpeningPrices = await AsyncStorage.getItem(OPENING_PRICES_KEY);
-      if (cachedOpeningPrices) {
-        const parsed = JSON.parse(cachedOpeningPrices);
-        if (parsed.date === todayKey && parsed.prices[entityId]) {
-          return parsed.prices[entityId];
+    // Create the request promise
+    const requestPromise = (async () => {
+      try {
+        // Try to get from cache first
+        const cachedOpeningPrices = await AsyncStorage.getItem(OPENING_PRICES_KEY);
+        if (cachedOpeningPrices) {
+          const parsed = JSON.parse(cachedOpeningPrices);
+          if (parsed.date === todayKey && parsed.prices[entityId]) {
+            return parsed.prices[entityId];
+          }
         }
-      }
-      
-      // If not in cache, fetch from backend
-      if (isBackendConfigured()) {
-        const marketOpenTimestamp = marketOpenTime.toISOString();
-        const response = await apiRequest<{ success?: boolean; data?: Array<{ timestamp: string; price: number }> }>(
-          `/api/entities/${entityId}/price-history?timeRange=1D&limit=100`,
-          { method: 'GET', signal: undefined }
-        );
+        
+        // If not in cache, fetch from backend
+        if (isBackendConfigured()) {
+          const response = await apiRequest<{ success?: boolean; data?: Array<{ timestamp: string; price: number }> }>(
+            `/api/entities/${entityId}/price-history?timeRange=1D&limit=100`,
+            { method: 'GET', signal: undefined }
+          );
         
         if (response.success && response.data && Array.isArray(response.data)) {
+          // Sort by timestamp (oldest first) to find first price after market open
+          const sortedData = [...response.data].sort((a, b) => 
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          
           // Find first price after market open
-          const openingPriceEntry = response.data.find(
+          const openingPriceEntry = sortedData.find(
             (entry) => new Date(entry.timestamp) >= marketOpenTime
           );
           
-          if (openingPriceEntry) {
+          if (openingPriceEntry && typeof openingPriceEntry.price === 'number') {
             const price = openingPriceEntry.price;
             
             // Cache the opening price
@@ -428,24 +526,41 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             
             return price;
           }
+          }
         }
+        
+        // Fallback: use current price from entityPrices or MOCK_ENTITIES
+        if (entityPrices[entityId] !== undefined) {
+          return entityPrices[entityId];
+        }
+        const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+        return entity ? entity.basePrice : null;
+      } catch (error: any) {
+        console.debug(`[Opening Price] Error getting opening price for entity ${entityId}:`, {
+          entityId,
+          error: error.message || String(error),
+          errorType: error.name || 'Error',
+          status: error.status || 'unknown',
+          endpoint: `/api/entities/${entityId}/price-history`,
+          marketOpenTimestamp,
+          hint: 'Falling back to current price or base price. Opening price calculation may be inaccurate.',
+        });
+        // Fallback: use current price from entityPrices or MOCK_ENTITIES
+        if (entityPrices[entityId] !== undefined) {
+          return entityPrices[entityId];
+        }
+        const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+        return entity ? entity.basePrice : null;
+      } finally {
+        // Remove from in-flight requests map when done
+        openingPriceRequests.current.delete(entityId);
       }
-      
-      // Fallback: use current price from entityPrices or MOCK_ENTITIES
-      if (entityPrices[entityId] !== undefined) {
-        return entityPrices[entityId];
-      }
-      const entity = MOCK_ENTITIES.find(e => e.id === entityId);
-      return entity ? entity.basePrice : null;
-    } catch (error) {
-      console.debug('Error getting opening price:', error);
-      // Fallback: use current price from entityPrices or MOCK_ENTITIES
-      if (entityPrices[entityId] !== undefined) {
-        return entityPrices[entityId];
-      }
-      const entity = MOCK_ENTITIES.find(e => e.id === entityId);
-      return entity ? entity.basePrice : null;
-    }
+    })();
+
+    // Store the promise in the map
+    openingPriceRequests.current.set(entityId, requestPromise);
+    
+    return requestPromise;
   }, [entityPrices]);
 
   // Fetch entity prices - public endpoint, no auth required
@@ -589,12 +704,20 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     // Wrap in try-catch to prevent app crashes
     fetchPortfolio(abortController.signal).catch(err => {
       if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
-        console.debug('Error fetching portfolio:', err);
+        console.debug('[Startup] Error fetching portfolio on mount:', {
+          error: err.message || String(err),
+          errorType: err.name || 'Error',
+          hint: 'This may be expected if backend is not configured or user is not authenticated.',
+        });
       }
     });
     fetchTransactions(abortController.signal).catch(err => {
       if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
-        console.debug('Error fetching transactions:', err);
+        console.debug('[Startup] Error fetching transactions on mount:', {
+          error: err.message || String(err),
+          errorType: err.name || 'Error',
+          hint: 'This may be expected if backend is not configured or user is not authenticated.',
+        });
       }
     });
     
@@ -631,7 +754,15 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       } catch (err: any) {
         if (err.name !== 'AbortError' && err.error !== 'Request cancelled') {
           consecutiveErrors++;
-          console.debug(`Error fetching data (${consecutiveErrors} consecutive):`, err);
+          console.debug(`[Price Polling] Error fetching data (${consecutiveErrors} consecutive errors):`, {
+          consecutiveErrors,
+          error: err.message || String(err),
+          errorType: err.name || 'Error',
+          currentInterval: `${currentInterval}ms`,
+          hint: consecutiveErrors >= errorThreshold 
+            ? 'Polling stopped due to too many errors. Manual refresh required.'
+            : `Retrying in ${currentInterval}ms with exponential backoff.`,
+        });
           
           // Increase interval with exponential backoff
           if (consecutiveErrors < errorThreshold) {
@@ -802,7 +933,11 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           setTodayChange(calculatedTodayChange);
           setTodayChangePercent(calculatedTodayChangePercent);
         } catch (error) {
-          console.debug('Error calculating todayChange:', error);
+          console.debug('[Trade Execution] Error calculating todayChange for optimistic update:', {
+            error: error.message || String(error),
+            errorType: error.name || 'Error',
+            hint: 'Using backend-calculated value instead. This is non-critical.',
+          });
         }
       })();
       

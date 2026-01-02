@@ -20,155 +20,244 @@ export async function getUserPortfolio(userId: string): Promise<{
   todayChange: number;
   todayChangePercent: number;
 }> {
-  // Get user's cash balance
-  const userResult = await docClient.send(
-    new GetCommand({
-      TableName: TABLE_NAMES.USERS,
-      Key: { userId },
-    })
-  );
-
-  const cashBalance = userResult.Item?.cashBalance ?? INITIAL_CASH_BALANCE;
-
-  // Get all holdings for user
-  const holdingsResult = await docClient.send(
-    new QueryCommand({
-      TableName: TABLE_NAMES.PORTFOLIOS,
-      KeyConditionExpression: 'userId = :userId',
-      ExpressionAttributeValues: {
-        ':userId': userId,
-      },
-    })
-  );
-
-  const holdings = holdingsResult.Items || [];
-
-  // Get current prices for all entities
-  const entityIds = holdings.map((h: any) => h.entityId);
-  const prices: Record<number, number> = {};
-
-  for (const entityId of entityIds) {
-    const priceResult = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAMES.PRICE_HISTORY,
-        KeyConditionExpression: 'entityId = :entityId',
-        ExpressionAttributeValues: {
-          ':entityId': entityId,
-        },
-        ScanIndexForward: false,
-        Limit: 1,
-      })
-    );
-
-    if (priceResult.Items && priceResult.Items.length > 0) {
-      prices[entityId] = (priceResult.Items[0] as PriceHistory).price;
+  try {
+    // Get user's cash balance
+    let cashBalance = INITIAL_CASH_BALANCE;
+    try {
+      const userResult = await docClient.send(
+        new GetCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId },
+        })
+      );
+      cashBalance = userResult.Item?.cashBalance ?? INITIAL_CASH_BALANCE;
+    } catch (userError: any) {
+      // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+      if (userError.name === 'ResourceNotFoundException' || userError.name === 'TableNotFoundException') {
+        logger.warn('Users table not found, using default cash balance');
+      } else {
+        logger.warn('Error fetching user cash balance:', userError);
+      }
+      // Continue with default cash balance
     }
-  }
 
-  // Get entity details
-  const entities: Record<number, Entity> = {};
-  for (const entityId of entityIds) {
-    const entityResult = await docClient.send(
-      new GetCommand({
-        TableName: TABLE_NAMES.ENTITIES,
-        Key: { entityId },
-      })
-    );
-    if (entityResult.Item) {
-      entities[entityId] = entityResult.Item as Entity;
+    // Get all holdings for user
+    let holdings: any[] = [];
+    try {
+      const holdingsResult = await docClient.send(
+        new QueryCommand({
+          TableName: TABLE_NAMES.PORTFOLIOS,
+          KeyConditionExpression: 'userId = :userId',
+          ExpressionAttributeValues: {
+            ':userId': userId,
+          },
+        })
+      );
+      holdings = holdingsResult.Items || [];
+    } catch (holdingsError: any) {
+      // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+      if (holdingsError.name === 'ResourceNotFoundException' || holdingsError.name === 'TableNotFoundException') {
+        logger.warn('Portfolios table not found, using empty holdings');
+      } else {
+        logger.warn('Error fetching holdings:', holdingsError);
+      }
+      // Continue with empty holdings
     }
-  }
 
-  // Calculate holdings with current prices
-  const holdingsWithPrices = holdings.map((holding: any) => {
-    const currentPrice = prices[holding.entityId] || holding.averageCost;
-    const totalValue = holding.quantity * currentPrice;
-    const profitLoss = totalValue - holding.totalCost;
-    const profitLossPercent = (profitLoss / holding.totalCost) * 100;
+    // Get current prices for all entities
+    const entityIds = holdings.map((h: any) => h?.entityId).filter((id): id is number => typeof id === 'number' && id > 0);
+    const prices: Record<number, number> = {};
+
+    for (const entityId of entityIds) {
+      try {
+        const priceResult = await docClient.send(
+          new QueryCommand({
+            TableName: TABLE_NAMES.PRICE_HISTORY,
+            KeyConditionExpression: 'entityId = :entityId',
+            ExpressionAttributeValues: {
+              ':entityId': entityId,
+            },
+            ScanIndexForward: false,
+            Limit: 1,
+          })
+        );
+
+        if (priceResult.Items && priceResult.Items.length > 0) {
+          const priceItem = priceResult.Items[0] as PriceHistory;
+          if (priceItem && typeof priceItem.price === 'number') {
+            prices[entityId] = priceItem.price;
+          }
+        }
+      } catch (priceError: any) {
+        // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+        if (priceError.name === 'ResourceNotFoundException' || priceError.name === 'TableNotFoundException') {
+          logger.debug(`PriceHistory table not found for entity ${entityId}`);
+        } else {
+          logger.warn(`Error fetching price for entity ${entityId}:`, priceError);
+        }
+        // Continue without price for this entity
+      }
+    }
+
+    // Get entity details
+    const entities: Record<number, Entity> = {};
+    for (const entityId of entityIds) {
+      try {
+        const entityResult = await docClient.send(
+          new GetCommand({
+            TableName: TABLE_NAMES.ENTITIES,
+            Key: { entityId },
+          })
+        );
+        if (entityResult.Item) {
+          entities[entityId] = entityResult.Item as Entity;
+        }
+      } catch (entityError: any) {
+        // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+        if (entityError.name === 'ResourceNotFoundException' || entityError.name === 'TableNotFoundException') {
+          logger.debug(`Entities table not found for entity ${entityId}`);
+        } else {
+          logger.warn(`Error fetching entity ${entityId}:`, entityError);
+        }
+        // Continue without entity details
+      }
+    }
+
+    // Calculate holdings with current prices
+    const holdingsWithPrices = holdings
+      .filter((holding: any) => holding && holding.entityId && typeof holding.quantity === 'number')
+      .map((holding: any) => {
+        const currentPrice = prices[holding.entityId] || holding.averageCost || 0;
+        const quantity = holding.quantity || 0;
+        const totalCost = holding.totalCost || 0;
+        const totalValue = quantity * currentPrice;
+        const profitLoss = totalValue - totalCost;
+        const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
+
+        return {
+          entityId: holding.entityId,
+          entityName: entities[holding.entityId]?.name || 'Unknown',
+          entityTicker: entities[holding.entityId]?.ticker || 'UNK',
+          quantity,
+          averageCost: holding.averageCost || 0,
+          currentPrice,
+          totalValue,
+          totalCost,
+          profitLoss,
+          profitLossPercent,
+          category: entities[holding.entityId]?.category || 'Unknown',
+        };
+      });
+
+    const holdingsValue = holdingsWithPrices.reduce((sum, h) => sum + (h.totalValue || 0), 0);
+    const totalValue = cashBalance + holdingsValue;
+    
+    // Calculate todayChange from actual price deltas (current price vs opening price)
+    // Opening price is the first price after market open (8am EST/EDT)
+    // Use proper timezone handling (accounts for DST automatically)
+    let todayChange = 0;
+    
+    const now = new Date();
+    // Use Intl API to get proper EST/EDT time (handles DST automatically)
+    const estTimeString = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      hour12: false,
+    }).formatToParts(now);
+    
+    const estHours = parseInt(estTimeString.find(part => part.type === 'hour')?.value || '0', 10);
+    const estYear = parseInt(estTimeString.find(part => part.type === 'year')?.value || '0', 10);
+    const estMonth = parseInt(estTimeString.find(part => part.type === 'month')?.value || '0', 10) - 1; // 0-indexed
+    const estDay = parseInt(estTimeString.find(part => part.type === 'day')?.value || '0', 10);
+    
+    // Create market open time (8am EST/EDT) in UTC
+    const marketOpenTime = new Date(Date.UTC(estYear, estMonth, estDay, 8, 0, 0));
+    
+    // If it's before 8am, use yesterday's opening price
+    if (estHours < 8) {
+      marketOpenTime.setUTCDate(marketOpenTime.getUTCDate() - 1);
+    }
+    
+    const marketOpenTimestamp = marketOpenTime.toISOString();
+    
+    // Get opening prices for all entities in holdings
+    const openingPrices: Record<number, number> = {};
+    
+    for (const entityId of entityIds) {
+      try {
+        // Query for the first price after market open
+        const openingPriceResult = await docClient.send(
+          new QueryCommand({
+            TableName: TABLE_NAMES.PRICE_HISTORY,
+            KeyConditionExpression: 'entityId = :entityId',
+            FilterExpression: 'timestamp >= :marketOpen',
+            ExpressionAttributeValues: {
+              ':entityId': entityId,
+              ':marketOpen': marketOpenTimestamp,
+            },
+            ScanIndexForward: true, // Oldest first
+            Limit: 1,
+          })
+        );
+        
+        if (openingPriceResult.Items && openingPriceResult.Items.length > 0) {
+          const priceItem = openingPriceResult.Items[0] as PriceHistory;
+          if (priceItem && typeof priceItem.price === 'number') {
+            openingPrices[entityId] = priceItem.price;
+          } else {
+            // Fallback: use current price if opening price is invalid
+            openingPrices[entityId] = prices[entityId] || entities[entityId]?.basePrice || 0;
+          }
+        } else {
+          // Fallback: use current price if no opening price found
+          openingPrices[entityId] = prices[entityId] || entities[entityId]?.basePrice || 0;
+        }
+      } catch (openingPriceError: any) {
+        // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+        if (openingPriceError.name === 'ResourceNotFoundException' || openingPriceError.name === 'TableNotFoundException') {
+          logger.debug(`PriceHistory table not found for opening price of entity ${entityId}`);
+        } else {
+          logger.warn(`Error fetching opening price for entity ${entityId}:`, openingPriceError);
+        }
+        // Fallback: use current price if opening price query fails
+        openingPrices[entityId] = prices[entityId] || entities[entityId]?.basePrice || 0;
+      }
+    }
+  
+    // Calculate todayChange: sum of (current value - opening value) for each holding
+    for (const holding of holdingsWithPrices) {
+      const openingPrice = openingPrices[holding.entityId] || holding.currentPrice || 0;
+      const openingValue = (holding.quantity || 0) * openingPrice;
+      const currentValue = holding.totalValue || 0;
+      todayChange += (currentValue - openingValue);
+    }
+    
+    const todayChangePercent = totalValue > 0 ? (todayChange / totalValue) * 100 : 0;
 
     return {
-      entityId: holding.entityId,
-      entityName: entities[holding.entityId]?.name || 'Unknown',
-      entityTicker: entities[holding.entityId]?.ticker || 'UNK',
-      quantity: holding.quantity,
-      averageCost: holding.averageCost,
-      currentPrice,
+      cashBalance,
+      holdings: holdingsWithPrices,
       totalValue,
-      totalCost: holding.totalCost,
-      profitLoss,
-      profitLossPercent,
-      category: entities[holding.entityId]?.category || 'Unknown',
+      todayChange,
+      todayChangePercent,
     };
-  });
-
-  const holdingsValue = holdingsWithPrices.reduce((sum, h) => sum + h.totalValue, 0);
-  const totalValue = cashBalance + holdingsValue;
-  
-  // Calculate todayChange from actual price deltas (current price vs opening price)
-  // Opening price is the first price after market open (8am EST)
-  let todayChange = 0;
-  
-  // Get today's date in EST
-  const now = new Date();
-  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const estOffset = -5 * 60 * 60 * 1000; // EST is UTC-5
-  const estTime = new Date(utcTime + estOffset);
-  
-  // Market opens at 8am EST
-  const marketOpenTime = new Date(estTime);
-  marketOpenTime.setHours(8, 0, 0, 0);
-  
-  // If it's before 8am, use yesterday's opening price
-  if (estTime.getHours() < 8) {
-    marketOpenTime.setDate(marketOpenTime.getDate() - 1);
-  }
-  
-  const marketOpenTimestamp = marketOpenTime.toISOString();
-  
-  // Get opening prices for all entities in holdings
-  const openingPrices: Record<number, number> = {};
-  
-  for (const entityId of entityIds) {
-    // Query for the first price after market open
-    const openingPriceResult = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAMES.PRICE_HISTORY,
-        KeyConditionExpression: 'entityId = :entityId',
-        FilterExpression: 'timestamp >= :marketOpen',
-        ExpressionAttributeValues: {
-          ':entityId': entityId,
-          ':marketOpen': marketOpenTimestamp,
-        },
-        ScanIndexForward: true, // Oldest first
-        Limit: 1,
-      })
-    );
-    
-    if (openingPriceResult.Items && openingPriceResult.Items.length > 0) {
-      openingPrices[entityId] = (openingPriceResult.Items[0] as PriceHistory).price;
-    } else {
-      // Fallback: use current price if no opening price found (shouldn't happen normally)
-      openingPrices[entityId] = prices[entityId] || entities[entityId]?.basePrice || 0;
+  } catch (error: any) {
+    logger.error('Error getting user portfolio:', error);
+    if (error.stack) {
+      logger.error('Stack trace:', error.stack);
     }
+    // Return default portfolio instead of throwing
+    return {
+      cashBalance: INITIAL_CASH_BALANCE,
+      holdings: [],
+      totalValue: INITIAL_CASH_BALANCE,
+      todayChange: 0,
+      todayChangePercent: 0,
+    };
   }
-  
-  // Calculate todayChange: sum of (current value - opening value) for each holding
-  for (const holding of holdingsWithPrices) {
-    const openingPrice = openingPrices[holding.entityId] || holding.currentPrice;
-    const openingValue = holding.quantity * openingPrice;
-    const currentValue = holding.totalValue;
-    todayChange += (currentValue - openingValue);
-  }
-  
-  const todayChangePercent = totalValue > 0 ? (todayChange / totalValue) * 100 : 0;
-
-  return {
-    cashBalance,
-    holdings: holdingsWithPrices,
-    totalValue,
-    todayChange,
-    todayChangePercent,
-  };
 }
 
 export async function executeTrade(
@@ -488,70 +577,169 @@ export async function getTransactions(
   limit: number = 50,
   lastKey?: string
 ): Promise<{ transactions: Transaction[]; lastEvaluatedKey?: string }> {
-  const params: any = {
-    TableName: TABLE_NAMES.TRANSACTIONS,
-    KeyConditionExpression: 'userId = :userId',
-    ExpressionAttributeValues: {
-      ':userId': userId,
-    },
-    ScanIndexForward: false,
-    Limit: limit,
-  };
+  try {
+    // Validate userId
+    if (!userId || typeof userId !== 'string') {
+      logger.warn('Invalid userId for getTransactions:', userId);
+      return { transactions: [] };
+    }
 
-  if (lastKey) {
-    params.ExclusiveStartKey = JSON.parse(Buffer.from(lastKey, 'base64').toString());
+    const params: any = {
+      TableName: TABLE_NAMES.TRANSACTIONS,
+      KeyConditionExpression: 'userId = :userId',
+      ExpressionAttributeValues: {
+        ':userId': userId,
+      },
+      ScanIndexForward: false,
+      Limit: limit,
+    };
+
+    if (lastKey) {
+      try {
+        params.ExclusiveStartKey = JSON.parse(Buffer.from(lastKey, 'base64').toString());
+      } catch (parseError) {
+        logger.warn('Error parsing lastKey:', parseError);
+        // Continue without lastKey
+      }
+    }
+
+    let result;
+    try {
+      result = await docClient.send(new QueryCommand(params));
+    } catch (queryError: any) {
+      // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+      if (queryError.name === 'ResourceNotFoundException' || queryError.name === 'TableNotFoundException') {
+        logger.debug('Transactions table not found, returning empty array');
+      } else {
+        logger.warn('Error querying transactions table:', queryError);
+      }
+      return { transactions: [] };
+    }
+
+    const items = (result.Items || []) as Transaction[];
+    
+    // Validate and filter transactions
+    const validTransactions = items.filter((tx) => {
+      // Ensure transaction has required fields
+      if (!tx || !tx.transactionId || !tx.userId || !tx.entityId || !tx.timestamp) {
+        return false;
+      }
+      // Validate numeric fields
+      if (typeof tx.quantity !== 'number' || typeof tx.pricePerToken !== 'number' || typeof tx.totalAmount !== 'number') {
+        return false;
+      }
+      return true;
+    });
+
+    return {
+      transactions: validTransactions,
+      lastEvaluatedKey: result.LastEvaluatedKey
+        ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
+        : undefined,
+    };
+  } catch (error: any) {
+    logger.error('Error getting transactions:', error);
+    if (error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
+    // Return empty array instead of throwing
+    return { transactions: [] };
   }
-
-  const result = await docClient.send(new QueryCommand(params));
-
-  return {
-    transactions: (result.Items || []) as Transaction[],
-    lastEvaluatedKey: result.LastEvaluatedKey
-      ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
-      : undefined,
-  };
 }
 
 export async function getAllEntities(category?: string): Promise<Entity[]> {
-  if (category) {
-    const result = await docClient.send(
-      new ScanCommand({
-        TableName: TABLE_NAMES.ENTITIES,
-        FilterExpression: 'category = :category',
-        ExpressionAttributeValues: {
-          ':category': category,
-        },
-      })
-    );
-    return (result.Items || []) as Entity[];
-  }
+  try {
+    let result;
+    try {
+      if (category) {
+        result = await docClient.send(
+          new ScanCommand({
+            TableName: TABLE_NAMES.ENTITIES,
+            FilterExpression: 'category = :category',
+            ExpressionAttributeValues: {
+              ':category': category,
+            },
+          })
+        );
+      } else {
+        result = await docClient.send(
+          new ScanCommand({
+            TableName: TABLE_NAMES.ENTITIES,
+          })
+        );
+      }
+    } catch (scanError: any) {
+      // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+      if (scanError.name === 'ResourceNotFoundException' || scanError.name === 'TableNotFoundException') {
+        logger.debug('Entities table not found, returning empty array');
+      } else {
+        logger.warn('Error scanning entities table:', scanError);
+      }
+      return [];
+    }
 
-  const result = await docClient.send(
-    new ScanCommand({
-      TableName: TABLE_NAMES.ENTITIES,
-    })
-  );
-  return (result.Items || []) as Entity[];
+    const items = (result.Items || []) as Entity[];
+    
+    // Validate and filter entities
+    return items.filter((entity) => {
+      // Ensure entity has required fields
+      if (!entity || typeof entity.entityId !== 'number' || !entity.ticker || !entity.name) {
+        return false;
+      }
+      return true;
+    });
+  } catch (error: any) {
+    logger.error('Error getting all entities:', error);
+    if (error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
+    // Return empty array instead of throwing
+    return [];
+  }
 }
 
 export async function getEntityPrice(entityId: number): Promise<number | null> {
-  const result = await docClient.send(
-    new QueryCommand({
-      TableName: TABLE_NAMES.PRICE_HISTORY,
-      KeyConditionExpression: 'entityId = :entityId',
-      ExpressionAttributeValues: {
-        ':entityId': entityId,
-      },
-      ScanIndexForward: false,
-      Limit: 1,
-    })
-  );
+  try {
+    // Validate entityId
+    if (!entityId || isNaN(entityId) || entityId <= 0) {
+      return null;
+    }
 
-  if (result.Items && result.Items.length > 0) {
-    return (result.Items[0] as PriceHistory).price;
+    let result;
+    try {
+      result = await docClient.send(
+        new QueryCommand({
+          TableName: TABLE_NAMES.PRICE_HISTORY,
+          KeyConditionExpression: 'entityId = :entityId',
+          ExpressionAttributeValues: {
+            ':entityId': entityId,
+          },
+          ScanIndexForward: false,
+          Limit: 1,
+        })
+      );
+    } catch (queryError: any) {
+      // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+      if (queryError.name === 'ResourceNotFoundException' || queryError.name === 'TableNotFoundException') {
+        logger.debug(`PriceHistory table not found for entity ${entityId}`);
+      } else {
+        logger.warn(`Error querying price for entity ${entityId}:`, queryError);
+      }
+      return null;
+    }
+
+    if (result.Items && result.Items.length > 0) {
+      const priceItem = result.Items[0] as PriceHistory;
+      if (priceItem && typeof priceItem.price === 'number') {
+        return priceItem.price;
+      }
+    }
+
+    return null;
+  } catch (error: any) {
+    logger.warn(`Error getting entity price for ${entityId}:`, error);
+    return null;
   }
-
-  return null;
 }
 
 /**
@@ -563,13 +751,25 @@ export async function getAllEntityPrices(): Promise<Record<number, number>> {
     // Get all entities first
     const entities = await getAllEntities();
     
+    if (entities.length === 0) {
+      return {};
+    }
+    
     // Get prices for all entities in parallel
     const pricePromises = entities.map(async (entity) => {
-      const price = await getEntityPrice(entity.entityId);
-      return {
-        entityId: entity.entityId,
-        price: price || entity.basePrice,
-      };
+      try {
+        const price = await getEntityPrice(entity.entityId);
+        return {
+          entityId: entity.entityId,
+          price: price || entity.basePrice || 0,
+        };
+      } catch (priceError: any) {
+        logger.warn(`Error getting price for entity ${entity.entityId}:`, priceError);
+        return {
+          entityId: entity.entityId,
+          price: entity.basePrice || 0,
+        };
+      }
     });
     
     const prices = await Promise.all(pricePromises);
@@ -577,12 +777,17 @@ export async function getAllEntityPrices(): Promise<Record<number, number>> {
     // Convert to record
     const priceMap: Record<number, number> = {};
     prices.forEach(({ entityId, price }) => {
-      priceMap[entityId] = price;
+      if (entityId && typeof price === 'number' && price > 0) {
+        priceMap[entityId] = price;
+      }
     });
     
     return priceMap;
-  } catch (error) {
-    console.error('Error getting all entity prices:', error);
+  } catch (error: any) {
+    logger.error('Error getting all entity prices:', error);
+    if (error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
     return {};
   }
 }
@@ -635,8 +840,12 @@ export async function getPriceHistory(
         })
       );
     } catch (queryError: any) {
-      // If table doesn't exist or query fails, return empty array
-      logger.warn('Error querying price history table:', queryError);
+      // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
+      if (queryError.name === 'ResourceNotFoundException' || queryError.name === 'TableNotFoundException') {
+        logger.debug(`PriceHistory table not found for entity ${entityId}`);
+      } else {
+        logger.warn(`Error querying price history table for entity ${entityId}:`, queryError);
+      }
       return [];
     }
 

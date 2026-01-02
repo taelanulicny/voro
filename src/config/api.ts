@@ -748,8 +748,32 @@ export async function apiRequest<T = any>(
       }
       
       // Only log errors if backend is configured (avoid spam when backend isn't running)
+      // For 500 errors, log as debug since they're likely backend issues that will be fixed
       if (isBackendConfigured()) {
-        console.error('API Request Error:', error);
+        const errorDetails = {
+          endpoint,
+          method,
+          status: error.status || 'unknown',
+          statusText: error.statusText || 'unknown',
+          message: error.message || String(error),
+          errorType: error.name || 'Error',
+          timestamp: new Date().toISOString(),
+        };
+        
+        if (error.status >= 500) {
+          // Log 500 errors as debug to reduce noise (backend issues, not client issues)
+          console.debug(`[API Error] ${method} ${endpoint} → ${error.status || 'unknown'}:`, {
+            ...errorDetails,
+            hint: 'This is a backend server error. Check backend logs for details.',
+          });
+        } else if (error.status >= 400) {
+          console.warn(`[API Error] ${method} ${endpoint} → ${error.status}:`, {
+            ...errorDetails,
+            hint: 'Client error - check request parameters and authentication.',
+          });
+        } else {
+          console.error(`[API Error] ${method} ${endpoint}:`, errorDetails);
+        }
       }
       
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {

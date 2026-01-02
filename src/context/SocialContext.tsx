@@ -194,7 +194,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         setLastKey(null);
       }
     } catch (error) {
-      console.debug('Error fetching feed (backend may not be running):', error);
+      console.debug('[Social] Error fetching activity feed:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/social/feed',
+        hint: 'Backend may not be running. Activity feed unavailable.',
+      });
       setActivityFeed([]);
       setHasMorePosts(false);
       setLastKey(null);
