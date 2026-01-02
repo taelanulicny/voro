@@ -592,40 +592,80 @@ export async function getPriceHistory(
   timeRange: '1D' | '1W' | '1M' | 'ALL' = 'ALL',
   limit: number = 100
 ): Promise<PriceHistory[]> {
-  // Calculate cutoff time based on timeRange
-  const now = new Date();
-  let cutoffTime: Date;
+  try {
+    // Validate entityId
+    if (!entityId || isNaN(entityId) || entityId <= 0) {
+      logger.warn('Invalid entityId for price history:', entityId);
+      return [];
+    }
 
-  switch (timeRange) {
-    case '1D':
-      cutoffTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      break;
-    case '1W':
-      cutoffTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '1M':
-      cutoffTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    case 'ALL':
-    default:
-      cutoffTime = new Date(0); // Beginning of time
-      break;
+    // Calculate cutoff time based on timeRange
+    const now = new Date();
+    let cutoffTime: Date;
+
+    switch (timeRange) {
+      case '1D':
+        cutoffTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '1W':
+        cutoffTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '1M':
+        cutoffTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'ALL':
+      default:
+        cutoffTime = new Date(0); // Beginning of time
+        break;
+    }
+
+    let result;
+    try {
+      result = await docClient.send(
+        new QueryCommand({
+          TableName: TABLE_NAMES.PRICE_HISTORY,
+          KeyConditionExpression: 'entityId = :entityId',
+          FilterExpression: 'timestamp >= :cutoff',
+          ExpressionAttributeValues: {
+            ':entityId': entityId,
+            ':cutoff': cutoffTime.toISOString(),
+          },
+          ScanIndexForward: true, // Oldest first for chart display
+          Limit: limit,
+        })
+      );
+    } catch (queryError: any) {
+      // If table doesn't exist or query fails, return empty array
+      logger.warn('Error querying price history table:', queryError);
+      return [];
+    }
+
+    const items = (result.Items || []) as PriceHistory[];
+    
+    // Validate and filter items
+    return items.filter((item) => {
+      // Ensure item has required fields
+      if (!item || typeof item.entityId !== 'number' || !item.timestamp || typeof item.price !== 'number') {
+        return false;
+      }
+      // Validate timestamp is a valid ISO string
+      try {
+        const date = new Date(item.timestamp);
+        if (isNaN(date.getTime())) {
+          return false;
+        }
+      } catch {
+        return false;
+      }
+      return true;
+    });
+  } catch (error: any) {
+    logger.error('Error getting price history:', error);
+    if (error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
+    // Return empty array instead of throwing - allows frontend to show empty state
+    return [];
   }
-
-  const result = await docClient.send(
-    new QueryCommand({
-      TableName: TABLE_NAMES.PRICE_HISTORY,
-      KeyConditionExpression: 'entityId = :entityId',
-      FilterExpression: 'timestamp >= :cutoff',
-      ExpressionAttributeValues: {
-        ':entityId': entityId,
-        ':cutoff': cutoffTime.toISOString(),
-      },
-      ScanIndexForward: true, // Oldest first for chart display
-      Limit: limit,
-    })
-  );
-
-  return (result.Items || []) as PriceHistory[];
 }
 

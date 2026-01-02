@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio, Holding, UserTransaction } from '../types';
-import { authenticatedRequest, apiRequest, isBackendConfigured } from '../config/api';
+import { authenticatedRequest, apiRequest, isBackendConfigured, invalidateCache } from '../config/api';
 import { useAuth } from './AuthContext';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
 import {

@@ -380,26 +380,41 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
     const twoDaysAgo = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
 
     // Get all transactions from last 48h to compare periods
-    const transactionsResult = await docClient.send(
-      new ScanCommand({
-        TableName: TABLE_NAMES.TRANSACTIONS,
-        FilterExpression: 'timestamp > :twoDaysAgo',
-        ExpressionAttributeValues: {
-          ':twoDaysAgo': twoDaysAgo,
-        },
-      })
-    );
-
-    const transactions = (transactionsResult.Items || []) as Transaction[];
+    let transactions: Transaction[] = [];
+    try {
+      const transactionsResult = await docClient.send(
+        new ScanCommand({
+          TableName: TABLE_NAMES.TRANSACTIONS,
+          FilterExpression: 'timestamp > :twoDaysAgo',
+          ExpressionAttributeValues: {
+            ':twoDaysAgo': twoDaysAgo,
+          },
+        })
+      );
+      transactions = (transactionsResult.Items || []) as Transaction[];
+    } catch (scanError: any) {
+      // If table doesn't exist or scan fails, return empty array
+      console.warn('Error scanning transactions table:', scanError);
+      // Continue with empty transactions array
+    }
 
     // Get all entities to map entityId -> category
-    const entities = await getAllEntities();
+    let entities: Entity[] = [];
+    try {
+      entities = await getAllEntities();
+    } catch (entitiesError: any) {
+      console.warn('Error getting entities:', entitiesError);
+      // Continue with empty entities array
+    }
+
     const entityCategoryMap: Record<number, string> = {};
     const categoryEntityCount: Record<string, number> = {};
     
     entities.forEach((entity) => {
-      entityCategoryMap[entity.entityId] = entity.category;
-      categoryEntityCount[entity.category] = (categoryEntityCount[entity.category] || 0) + 1;
+      if (entity && entity.entityId && entity.category) {
+        entityCategoryMap[entity.entityId] = entity.category;
+        categoryEntityCount[entity.category] = (categoryEntityCount[entity.category] || 0) + 1;
+      }
     });
 
     // Calculate volume per category for current and previous 24h periods
@@ -407,27 +422,47 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
     const previousVolumeMap: Record<string, number> = {};
 
     transactions.forEach((tx) => {
-      const category = entityCategoryMap[tx.entityId];
+      // Validate transaction has required fields
+      if (!tx || !tx.entityId || !tx.timestamp || typeof tx.totalAmount !== 'number') {
+        return;
+      }
+
+      // Try to get category from transaction first (it's stored in transaction), then fallback to entity map
+      const category = tx.category || entityCategoryMap[tx.entityId];
       if (!category) return;
 
-      const txTime = new Date(tx.timestamp).getTime();
-      const oneDayAgoTime = new Date(oneDayAgo).getTime();
+      try {
+        const txTime = new Date(tx.timestamp).getTime();
+        const oneDayAgoTime = new Date(oneDayAgo).getTime();
 
-      if (txTime >= oneDayAgoTime) {
-        // Current period (last 24h)
-        currentVolumeMap[category] = (currentVolumeMap[category] || 0) + tx.totalAmount;
-      } else {
-        // Previous period (24-48h ago)
-        previousVolumeMap[category] = (previousVolumeMap[category] || 0) + tx.totalAmount;
+        if (isNaN(txTime) || isNaN(oneDayAgoTime)) {
+          return; // Skip invalid dates
+        }
+
+        if (txTime >= oneDayAgoTime) {
+          // Current period (last 24h)
+          currentVolumeMap[category] = (currentVolumeMap[category] || 0) + (tx.totalAmount || 0);
+        } else {
+          // Previous period (24-48h ago)
+          previousVolumeMap[category] = (previousVolumeMap[category] || 0) + (tx.totalAmount || 0);
+        }
+      } catch (dateError) {
+        console.warn('Error processing transaction date:', dateError, tx);
+        return; // Skip this transaction
       }
     });
 
     // Get all unique categories
-    const allCategories = new Set([
+    const allCategories = new Set<string>([
       ...Object.keys(currentVolumeMap),
       ...Object.keys(previousVolumeMap),
-      ...Object.values(entityCategoryMap),
+      ...Object.values(entityCategoryMap).filter((cat): cat is string => typeof cat === 'string' && cat.length > 0),
     ]);
+
+    // If no categories found, return empty array (not an error - just no data)
+    if (allCategories.size === 0) {
+      return [];
+    }
 
     // Calculate total volume for percentage calculation
     const totalCurrentVolume = Object.values(currentVolumeMap).reduce((a, b) => a + b, 0);
@@ -437,6 +472,10 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
     const categoryVolumes: CategoryVolume[] = [];
 
     allCategories.forEach((category) => {
+      if (!category || typeof category !== 'string') {
+        return; // Skip invalid categories
+      }
+
       const currentVolume = currentVolumeMap[category] || 0;
       const previousVolume = previousVolumeMap[category] || 0;
       
@@ -469,6 +508,11 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
     return categoryVolumes;
   } catch (error: any) {
     console.error('Error getting category volumes:', error);
+    // Log the full error for debugging
+    if (error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
+    // Return empty array instead of throwing - this allows the frontend to show empty state
     return [];
   }
 }

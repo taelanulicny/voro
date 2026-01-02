@@ -9,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,7 +19,17 @@ import { useTheme } from '../context/ThemeContext';
 import Treemap from '../components/Treemap';
 import { Ionicons } from '@expo/vector-icons';
 import EntityCard from '../components/EntityCard';
-import { useCategoryData } from '../hooks/useCategoryData';
+import CategoryFilterChips from '../components/CategoryFilterChips';
+import TradeModal from '../components/TradeModal';
+import EntityFeedCard from '../components/EntityFeedCard';
+import EntityFeedCardSkeleton from '../components/feed/EntityFeedCardSkeleton';
+import TrendingModule from '../components/feed/TrendingModule';
+import MoversModule from '../components/feed/MoversModule';
+import DiscussedModule from '../components/feed/DiscussedModule';
+import ForYouModule from '../components/feed/ForYouModule';
+import { useCategoryData, EntityWithStats } from '../hooks/useCategoryData';
+import { useTrading } from '../context/TradingContext';
+import { PriceDataPoint } from '../types';
 import { apiRequest, isBackendConfigured } from '../config/api';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -41,8 +52,12 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function AllCategoriesScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const { portfolio } = useTrading();
   const [viewType, setViewType] = useState<'treemap' | 'list' | 'browse'>('treemap');
   const [sortFilter, setSortFilter] = useState<'alphabetical' | 'volume-high-low' | 'volume-low-high' | 'trending'>('volume-high-low');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [tradeModalEntity, setTradeModalEntity] = useState<EntityWithStats | null>(null);
+  const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   
   // Category volumes from backend
@@ -69,9 +84,26 @@ export default function AllCategoriesScreen() {
     refreshDiscussed,
     refreshDiscover,
     refreshForYou,
+    fetchDiscover,
+    fetchEntityPriceHistory,
   } = useCategoryData();
   
   const [refreshing, setRefreshing] = useState(false);
+
+  // Price history cache for sparklines (lazy loaded)
+  const [priceHistoryCache, setPriceHistoryCache] = useState<Record<number, PriceDataPoint[]>>({});
+  const [loadingPriceHistory, setLoadingPriceHistory] = useState<Set<number>>(new Set());
+  const priceHistoryCacheRef = useRef<Record<number, PriceDataPoint[]>>({});
+  const loadingPriceHistoryRef = useRef<Set<number>>(new Set());
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    priceHistoryCacheRef.current = priceHistoryCache;
+  }, [priceHistoryCache]);
+
+  useEffect(() => {
+    loadingPriceHistoryRef.current = loadingPriceHistory;
+  }, [loadingPriceHistory]);
 
   // Fetch category volumes from backend
   const fetchCategoryVolumes = useCallback(async () => {
@@ -89,20 +121,36 @@ export default function AllCategoriesScreen() {
       
       if (response.success && response.data) {
         const data = response.data as any;
+        // Handle different response formats
         if (Array.isArray(data.volumes)) {
           setCategoryVolumes(data.volumes);
         } else if (Array.isArray(data)) {
           setCategoryVolumes(data);
+        } else if (data && typeof data === 'object' && 'volumes' in data && Array.isArray((data as any).volumes)) {
+          setCategoryVolumes((data as any).volumes);
         } else {
+          // If no volumes data, set empty array (no error - just no data yet)
           setCategoryVolumes([]);
         }
       } else {
-        setVolumesError(response.error || 'Failed to fetch category volumes');
-        setCategoryVolumes([]);
+        // If response is not successful but no error message, it might be empty data
+        if (response.error) {
+          setVolumesError(response.error);
+        } else {
+          // No error message means likely empty data, not an error
+          setCategoryVolumes([]);
+        }
       }
     } catch (error: any) {
       console.error('Error fetching category volumes:', error);
-      setVolumesError(error?.message || 'Failed to fetch category volumes');
+      // Only set error if it's a real error, not just empty data
+      const errorMessage = error?.message || 'Failed to fetch category volumes';
+      // Check if it's an "Internal server error" - might be backend issue
+      if (errorMessage.includes('Internal server error') || errorMessage.includes('500')) {
+        setVolumesError('Unable to load category volumes. Please try again later.');
+      } else {
+        setVolumesError(errorMessage);
+      }
       setCategoryVolumes([]);
     } finally {
       setIsLoadingVolumes(false);
@@ -372,10 +420,100 @@ export default function AllCategoriesScreen() {
     );
   };
 
+  const handleCategoryChange = useCallback((category: string | null) => {
+    setSelectedCategory(category);
+    // Refresh discover feed with new category filter
+    if (fetchDiscover) {
+      fetchDiscover(category, undefined, false);
+    } else {
+      refreshDiscover();
+    }
+  }, [refreshDiscover, fetchDiscover]);
+
+  const handleSearchPress = useCallback(() => {
+    navigation.navigate('Search');
+  }, [navigation]);
+
+  const handleEntityPress = useCallback((entity: EntityWithStats) => {
+    const categoryMap: Record<string, string> = {
+      'Tech': 'Startups',
+      'Politics': 'Political Figures',
+      'Events': 'Sports',
+      'People': 'Influencers',
+    };
+    const categoryId = categoryMap[entity.category || ''] || entity.category;
+    
+    navigation.navigate('Entity' as never, {
+      entityId: entity.id,
+      categoryId: categoryId || '',
+    } as never);
+  }, [navigation]);
+
+  const handleQuickBuy = useCallback((entity: EntityWithStats) => {
+    setTradeModalEntity(entity);
+    setTradeModalVisible(true);
+  }, []);
+
+  const handleQuickSell = useCallback((entity: EntityWithStats) => {
+    setTradeModalEntity(entity);
+    setTradeModalVisible(true);
+  }, []);
+
+  // Lazy load price history when entity becomes visible
+  const loadPriceHistory = useCallback(async (entityId: number) => {
+    // Check if already cached or loading using refs
+    if (priceHistoryCacheRef.current[entityId] || loadingPriceHistoryRef.current.has(entityId)) {
+      return;
+    }
+
+    if (!fetchEntityPriceHistory) return;
+
+    // Mark as loading
+    setLoadingPriceHistory(prev => new Set(prev).add(entityId));
+
+    try {
+      const history = await fetchEntityPriceHistory(entityId);
+      if (history) {
+        setPriceHistoryCache(prev => ({ ...prev, [entityId]: history }));
+      }
+    } catch (error) {
+      console.error('Error loading price history:', error);
+    } finally {
+      setLoadingPriceHistory(prev => {
+        const next = new Set(prev);
+        next.delete(entityId);
+        return next;
+      });
+    }
+  }, [fetchEntityPriceHistory]);
+
+  // Render entity card with optional sparkline
+  const renderDiscoverEntity = useCallback(({ item }: { item: EntityWithStats }) => {
+    return (
+      <EntityFeedCard
+        entity={item}
+        priceHistory={priceHistoryCache[item.id]}
+        showSparkline={!!priceHistoryCache[item.id] && priceHistoryCache[item.id].length >= 2}
+        onPress={() => handleEntityPress(item)}
+        onQuickBuy={() => handleQuickBuy(item)}
+        onQuickSell={() => handleQuickSell(item)}
+      />
+    );
+  }, [priceHistoryCache, handleEntityPress, handleQuickBuy, handleQuickSell]);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <Text style={[styles.title, { color: theme.text }]}>All Categories</Text>
+        {viewType === 'browse' && (
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={handleSearchPress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="search-outline" size={24} color={theme.text} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {renderFilterTabs()}
@@ -460,118 +598,73 @@ export default function AllCategoriesScreen() {
 
         {/* Browse View */}
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
+          {/* Category Filter Chips - Only show in Browse view */}
+          <View style={[styles.categoryFilterContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+            <CategoryFilterChips
+              selectedCategory={selectedCategory}
+              onCategoryChange={handleCategoryChange}
+            />
+          </View>
+
           <FlatList
             data={discoverEntities}
-            renderItem={({ item }) => (
-              <View style={styles.entityCardWrapper}>
-                <EntityCard entity={item} variant="full" />
-              </View>
-            )}
+            renderItem={renderDiscoverEntity}
             keyExtractor={(item) => item.id.toString()}
+            onViewableItemsChanged={useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+              // Load price history for visible items (lazy loading)
+              viewableItems.forEach((viewToken) => {
+                const entity = viewToken.item as EntityWithStats;
+                if (entity && !priceHistoryCacheRef.current[entity.id] && 
+                    !loadingPriceHistoryRef.current.has(entity.id)) {
+                  // Use setTimeout to avoid setState during render
+                  setTimeout(() => {
+                    loadPriceHistory(entity.id);
+                  }, 0);
+                }
+              });
+            }, [loadPriceHistory])}
+            viewabilityConfig={{
+              itemVisiblePercentThreshold: 50,
+            }}
             ListHeaderComponent={() => (
               <>
-                {/* Trending Section */}
-                <View style={styles.browseSection}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Trending Today</Text>
-                    {isLoadingTrending && <ActivityIndicator size="small" color={theme.primary} />}
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
-                    {trending.length > 0 ? (
-                      trending.map((entity) => (
-                        <View key={entity.id} style={styles.horizontalCardWrapper}>
-                          <EntityCard entity={entity} variant="compact" />
-                        </View>
-                      ))
-                    ) : (
-                      <View style={styles.emptyHorizontalSection}>
-                        <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No trending entities</Text>
-                      </View>
-                    )}
-                  </ScrollView>
-                </View>
+                <TrendingModule
+                  entities={trending}
+                  isLoading={isLoadingTrending}
+                  onEntityPress={handleEntityPress}
+                  onQuickBuy={handleQuickBuy}
+                  onQuickSell={handleQuickSell}
+                />
 
-                {/* Biggest Movers Section */}
-                <View style={styles.browseSection}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Biggest Movers</Text>
-                    {isLoadingMovers && <ActivityIndicator size="small" color={theme.primary} />}
-                  </View>
-                  <View style={styles.moversContainer}>
-                    <View style={styles.moverSubsection}>
-                      <Text style={[styles.subsectionTitle, { color: theme.success }]}>Gainers</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
-                        {movers.gainers.length > 0 ? (
-                          movers.gainers.map((entity) => (
-                            <View key={entity.id} style={styles.horizontalCardWrapper}>
-                              <EntityCard entity={entity} variant="compact" />
-                            </View>
-                          ))
-                        ) : (
-                          <View style={styles.emptyHorizontalSection}>
-                            <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No gainers</Text>
-                          </View>
-                        )}
-                      </ScrollView>
-                    </View>
-                    <View style={styles.moverSubsection}>
-                      <Text style={[styles.subsectionTitle, { color: theme.error }]}>Losers</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
-                        {movers.losers.length > 0 ? (
-                          movers.losers.map((entity) => (
-                            <View key={entity.id} style={styles.horizontalCardWrapper}>
-                              <EntityCard entity={entity} variant="compact" />
-                            </View>
-                          ))
-                        ) : (
-                          <View style={styles.emptyHorizontalSection}>
-                            <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No losers</Text>
-                          </View>
-                        )}
-                      </ScrollView>
-                    </View>
-                  </View>
-                </View>
+                <MoversModule
+                  gainers={movers.gainers}
+                  losers={movers.losers}
+                  isLoading={isLoadingMovers}
+                  onEntityPress={handleEntityPress}
+                  onQuickBuy={handleQuickBuy}
+                  onQuickSell={handleQuickSell}
+                />
 
-                {/* Most Discussed Section */}
-                <View style={styles.browseSection}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Most Discussed</Text>
-                    {isLoadingDiscussed && <ActivityIndicator size="small" color={theme.primary} />}
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
-                    {discussed.length > 0 ? (
-                      discussed.map((entity) => (
-                        <View key={entity.id} style={styles.horizontalCardWrapper}>
-                          <EntityCard entity={entity} variant="compact" />
-                        </View>
-                      ))
-                    ) : (
-                      <View style={styles.emptyHorizontalSection}>
-                        <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No discussed entities</Text>
-                      </View>
-                    )}
-                  </ScrollView>
-                </View>
+                <DiscussedModule
+                  entities={discussed}
+                  isLoading={isLoadingDiscussed}
+                  onEntityPress={handleEntityPress}
+                  onQuickBuy={handleQuickBuy}
+                  onQuickSell={handleQuickSell}
+                />
 
-                {/* For You Section */}
                 {forYouEntities.length > 0 && (
-                  <View style={styles.browseSection}>
-                    <View style={styles.sectionHeader}>
-                      <Text style={[styles.sectionTitle, { color: theme.text }]}>For You</Text>
-                      {isLoadingForYou && <ActivityIndicator size="small" color={theme.primary} />}
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
-                      {forYouEntities.map((entity) => (
-                        <View key={entity.id} style={styles.horizontalCardWrapper}>
-                          <EntityCard entity={entity} variant="compact" />
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </View>
+                  <ForYouModule
+                    entities={forYouEntities}
+                    reasons={forYouReasons}
+                    isLoading={isLoadingForYou}
+                    onEntityPress={handleEntityPress}
+                    onQuickBuy={handleQuickBuy}
+                    onQuickSell={handleQuickSell}
+                  />
                 )}
 
-                {/* Discover Feed Section */}
+                {/* Discover Feed Section Header */}
                 <View style={styles.browseSection}>
                   <View style={styles.sectionHeader}>
                     <Text style={[styles.sectionTitle, { color: theme.text }]}>Discover</Text>
@@ -582,14 +675,35 @@ export default function AllCategoriesScreen() {
                 </View>
               </>
             )}
-            ListFooterComponent={() => (
-              isLoadingDiscover && discoverEntities.length > 0 ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color={theme.primary} />
-                  <Text style={[styles.footerLoaderText, { color: theme.textSecondary }]}>Loading more...</Text>
-                </View>
-              ) : null
-            )}
+            ListFooterComponent={() => {
+              if (isLoadingDiscover && discoverEntities.length > 0) {
+                return (
+                  <View style={styles.footerLoader}>
+                    <ActivityIndicator size="small" color={theme.primary} />
+                    <Text style={[styles.footerLoaderText, { color: theme.textSecondary }]}>Loading more...</Text>
+                  </View>
+                );
+              }
+              if (!hasMoreDiscover && discoverEntities.length > 0) {
+                return (
+                  <View style={styles.footerLoader}>
+                    <Text style={[styles.footerLoaderText, { color: theme.textSecondary }]}>
+                      You've reached the end
+                    </Text>
+                  </View>
+                );
+              }
+              if (isLoadingDiscover && discoverEntities.length === 0) {
+                return (
+                  <View style={styles.skeletonContainer}>
+                    {[...Array(3)].map((_, i) => (
+                      <EntityFeedCardSkeleton key={i} />
+                    ))}
+                  </View>
+                );
+              }
+              return null;
+            }}
             ListEmptyComponent={() => (
               discoverEntities.length === 0 && !isLoadingDiscover ? (
                 <View style={styles.emptyState}>
@@ -608,8 +722,15 @@ export default function AllCategoriesScreen() {
                 tintColor={theme.primary}
               />
             }
-            onEndReached={loadMoreDiscover}
-            onEndReachedThreshold={0.5}
+            onEndReached={() => {
+              if (hasMoreDiscover && !isLoadingDiscover) {
+                loadMoreDiscover(selectedCategory);
+              }
+            }}
+            onEndReachedThreshold={0.3}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={5}
             contentContainerStyle={[
               styles.browseContent,
               discoverEntities.length === 0 && styles.emptyListContent,
@@ -618,6 +739,23 @@ export default function AllCategoriesScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* Trade Modal */}
+      {tradeModalEntity && (
+        <TradeModal
+          visible={tradeModalVisible}
+          onClose={() => {
+            setTradeModalVisible(false);
+            setTradeModalEntity(null);
+          }}
+          entityId={tradeModalEntity.id}
+          entityName={tradeModalEntity.name}
+          entityTicker={tradeModalEntity.ticker}
+          currentPrice={tradeModalEntity.currentPrice}
+          category={tradeModalEntity.category || ''}
+          existingQuantity={portfolio.holdings.find(h => h.entityId === tradeModalEntity.id)?.quantity}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -627,6 +765,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -634,6 +775,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+    flex: 1,
+  },
+  searchButton: {
+    padding: 4,
+  },
+  categoryFilterContainer: {
+    borderBottomWidth: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -867,6 +1015,9 @@ const styles = StyleSheet.create({
   },
   footerLoaderText: {
     fontSize: 14,
+  },
+  skeletonContainer: {
+    paddingVertical: 8,
   },
 });
 

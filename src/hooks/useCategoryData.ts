@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { authenticatedRequest, apiRequest, isBackendConfigured } from '../config/api';
-import { Entity } from '../types';
+import { Entity, PriceDataPoint } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 export interface EntityWithStats extends Entity {
@@ -150,13 +150,15 @@ export function useCategoryData() {
     }
   }, []);
 
-  const fetchDiscover = useCallback(async (category?: string, cursor?: string | null, append = false) => {
+  const fetchDiscover = useCallback(async (category?: string | null, cursor?: string | null, append = false) => {
     if (!isBackendConfigured()) return;
     
     setIsLoadingDiscover(true);
     try {
       const params = new URLSearchParams({ limit: '20' });
-      if (category) params.set('category', category);
+      if (category && category !== 'All') {
+        params.set('category', category);
+      }
       if (cursor) params.set('cursor', cursor);
       
       const response = await apiRequest<DiscoverData>(`/api/categories/discover?${params}`);
@@ -178,11 +180,41 @@ export function useCategoryData() {
     }
   }, []);
 
-  const loadMoreDiscover = useCallback(() => {
+  const loadMoreDiscover = useCallback((category?: string | null) => {
     if (!isLoadingDiscover && hasMoreDiscover && discoverCursor) {
-      fetchDiscover(undefined, discoverCursor, true);
+      fetchDiscover(category, discoverCursor, true);
     }
   }, [discoverCursor, hasMoreDiscover, isLoadingDiscover, fetchDiscover]);
+
+  // Fetch 24h price history for sparklines (lazy loading)
+  const fetchEntityPriceHistory = useCallback(async (entityId: number): Promise<PriceDataPoint[] | null> => {
+    if (!isBackendConfigured()) return null;
+    
+    try {
+      const response = await apiRequest<{ data?: PriceDataPoint[] }>(
+        `/api/entities/${entityId}/price-history?timeRange=1D`
+      );
+      
+      if (response.success && response.data) {
+        // Ensure data is in correct format
+        if (Array.isArray(response.data)) {
+          return response.data;
+        }
+        // Handle nested data structure
+        const data = response.data as any;
+        if (Array.isArray(data.data)) {
+          return data.data;
+        }
+        if (Array.isArray(data.priceHistory)) {
+          return data.priceHistory;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error fetching price history for entity ${entityId}:`, error);
+      return null;
+    }
+  }, []);
 
   const fetchForYou = useCallback(async () => {
     if (!isBackendConfigured() || !token || !isAuthenticated) return;
@@ -234,6 +266,8 @@ export function useCategoryData() {
     refreshDiscussed: fetchDiscussed,
     refreshDiscover: () => fetchDiscover(undefined, undefined, false),
     refreshForYou: fetchForYou,
+    fetchDiscover, // Expose for category filtering
+    fetchEntityPriceHistory, // Expose for sparkline data
   };
 }
 

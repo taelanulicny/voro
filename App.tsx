@@ -1,8 +1,16 @@
 import React from 'react';
+import { LogBox } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+
+// Suppress NativeEventEmitter warning from react-native-purchases in Expo Go
+// This is expected behavior - RevenueCat switches to Preview API Mode in Expo Go
+LogBox.ignoreLogs([
+  'new NativeEventEmitter() was called with a non-null argument without the required `addListener` method',
+  'new NativeEventEmitter() was called with a non-null argument without the required `removeListeners` method',
+]);
 
 // Error Boundary
 import ErrorBoundary from './src/components/ErrorBoundary';

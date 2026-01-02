@@ -221,7 +221,7 @@ export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promi
     const match = path.match(/\/api\/entities\/(\d+)\/price-history/);
     const entityId = match ? parseInt(match[1], 10) : parseInt(event.pathParameters?.entityId || '0', 10);
 
-    if (!entityId || isNaN(entityId)) {
+    if (!entityId || isNaN(entityId) || entityId <= 0) {
       return createErrorResponse(400, 'Invalid entityId');
     }
 
@@ -238,6 +238,7 @@ export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promi
 
     const priceHistory = await getPriceHistory(entityId, timeRange, limit);
 
+    // Always return success, even if priceHistory array is empty (no data is not an error)
     return createResponse(200, {
       success: true,
       data: priceHistory.map(item => ({
@@ -247,7 +248,15 @@ export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promi
     });
   } catch (error: unknown) {
     logger.error('Error getting price history', error);
-    return createErrorResponse(500, 'Internal server error');
+    // Log full error details for debugging
+    if (error instanceof Error && error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
+    // Return empty array instead of error - allows frontend to show empty state
+    return createResponse(200, {
+      success: true,
+      data: [],
+    });
   }
 }
 

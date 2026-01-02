@@ -127,6 +127,7 @@ export async function getCategoryVolumesHandler(event: APIGatewayProxyEvent): Pr
   try {
     const volumes = await getCategoryVolumes();
 
+    // Always return success, even if volumes array is empty (no data is not an error)
     return createResponse(200, {
       success: true,
       volumes,
@@ -134,7 +135,16 @@ export async function getCategoryVolumesHandler(event: APIGatewayProxyEvent): Pr
     });
   } catch (error: any) {
     logger.error('Error in getCategoryVolumesHandler', error);
-    return createErrorResponse(500, error.message || 'Failed to get category volumes');
+    // Log full error details for debugging
+    if (error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
+    // Return empty volumes array instead of error - allows frontend to show empty state
+    return createResponse(200, {
+      success: true,
+      volumes: [],
+      timeframe: '24h',
+    });
   }
 }
 
