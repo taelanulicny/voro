@@ -56,8 +56,8 @@ export default function HomeScreen() {
   const swipeableScrollRef = useRef<ScrollView>(null);
   const TOTAL_PAGES = 6;
   
-  const categories = ['For You', 'Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
-  const customizableCategories = ['Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
+  const categories = ['For You', 'Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const customizableCategories = ['Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
   
   // Get live entity prices
   const entityPrices = getAllEntityPrices();
