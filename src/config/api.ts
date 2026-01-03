@@ -13,12 +13,16 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { errorReporting } from '../services/errorReporting';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 // Storage key for offline request queue
 const OFFLINE_QUEUE_KEY = '@moro_offline_queue';
 const MAX_QUEUE_SIZE = 100; // Maximum number of queued requests
+
+// Storage key for request deduplication keys
+const DEDUPLICATION_KEYS_KEY = '@moro_deduplication_keys';
 
 // Try to import SSL pinning (will be undefined in managed workflow)
 let sslPinningFetch: any;
@@ -112,8 +116,43 @@ export interface AuthResponse {
 
 /**
  * Request deduplication: Track in-flight requests to prevent duplicates
+ * Persisted to AsyncStorage to survive app restarts
  */
 const inFlightRequests = new Map<string, Promise<any>>();
+const deduplicationKeys = new Set<string>();
+
+/**
+ * Load deduplication keys from AsyncStorage on startup
+ */
+async function loadDeduplicationKeys(): Promise<void> {
+  try {
+    const data = await AsyncStorage.getItem(DEDUPLICATION_KEYS_KEY);
+    if (data) {
+      const keys: string[] = JSON.parse(data);
+      keys.forEach(key => deduplicationKeys.add(key));
+    }
+  } catch (error) {
+    console.debug('Error loading deduplication keys:', error);
+  }
+}
+
+/**
+ * Save deduplication keys to AsyncStorage
+ */
+async function saveDeduplicationKeys(): Promise<void> {
+  try {
+    const keys = Array.from(deduplicationKeys);
+    // Only persist keys that are likely to be reused (e.g., recent requests)
+    // Limit to last 100 keys to avoid storage bloat
+    const keysToSave = keys.slice(-100);
+    await AsyncStorage.setItem(DEDUPLICATION_KEYS_KEY, JSON.stringify(keysToSave));
+  } catch (error) {
+    console.debug('Error saving deduplication keys:', error);
+  }
+}
+
+// Load deduplication keys on module load
+loadDeduplicationKeys().catch(() => {});
 
 /**
  * Client-side rate limiting
@@ -193,6 +232,21 @@ const offlineQueue: QueuedRequest[] = [];
 let isProcessingQueue = false;
 
 /**
+ * Get offline queue status for UI indicators
+ */
+export function getOfflineQueueStatus(): {
+  queueSize: number;
+  isProcessing: boolean;
+  oldestRequestTimestamp: number | null;
+} {
+  return {
+    queueSize: offlineQueue.length,
+    isProcessing: isProcessingQueue,
+    oldestRequestTimestamp: offlineQueue.length > 0 ? offlineQueue[0].timestamp : null,
+  };
+}
+
+/**
  * Response cache for stale-while-revalidate pattern
  */
 interface CacheEntry<T> {
@@ -203,13 +257,39 @@ interface CacheEntry<T> {
 
 const responseCache = new Map<string, CacheEntry<any>>();
 
+// Configurable cache TTLs (can be overridden via environment variables or config)
+export interface CacheTTLConfig {
+  prices: number;
+  portfolio: number;
+  entities: number;
+  default: number;
+}
+
 // Default TTLs for different data types (in milliseconds)
-const CACHE_TTL = {
-  prices: 5000,      // 5 seconds
-  portfolio: 30000,   // 30 seconds
-  entities: 300000,   // 5 minutes
-  default: 60000,     // 1 minute
-};
+// Can be configured via EXPO_PUBLIC_CACHE_TTL_* environment variables
+const getDefaultCacheTTL = (): CacheTTLConfig => ({
+  prices: parseInt(process.env.EXPO_PUBLIC_CACHE_TTL_PRICES || '5000', 10),      // 5 seconds default
+  portfolio: parseInt(process.env.EXPO_PUBLIC_CACHE_TTL_PORTFOLIO || '30000', 10),   // 30 seconds default
+  entities: parseInt(process.env.EXPO_PUBLIC_CACHE_TTL_ENTITIES || '300000', 10),   // 5 minutes default
+  default: parseInt(process.env.EXPO_PUBLIC_CACHE_TTL_DEFAULT || '60000', 10),     // 1 minute default
+});
+
+// Cache TTL configuration (can be updated at runtime)
+let CACHE_TTL: CacheTTLConfig = getDefaultCacheTTL();
+
+/**
+ * Update cache TTL configuration
+ */
+export function setCacheTTL(config: Partial<CacheTTLConfig>): void {
+  CACHE_TTL = { ...CACHE_TTL, ...config };
+}
+
+/**
+ * Get current cache TTL configuration
+ */
+export function getCacheTTLConfig(): CacheTTLConfig {
+  return { ...CACHE_TTL };
+}
 
 function getRequestKey(endpoint: string, options: RequestInit): string {
   const method = options.method || 'GET';
@@ -747,19 +827,32 @@ export async function apiRequest<T = any>(
         };
       }
       
+      // Report errors to error reporting service in production
+      const errorDetails = {
+        endpoint,
+        method,
+        status: error.status || 'unknown',
+        statusText: error.statusText || 'unknown',
+        message: error.message || String(error),
+        errorType: error.name || 'Error',
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Report to error reporting service for production errors
+      if (!__DEV__ && isBackendConfigured()) {
+        // Report 500 errors and network errors to Sentry
+        if (error.status >= 500 || !error.status) {
+          errorReporting.reportError(
+            new Error(`API Error: ${method} ${endpoint} → ${error.status || 'network error'}`),
+            undefined,
+            errorDetails
+          );
+        }
+      }
+      
       // Only log errors if backend is configured (avoid spam when backend isn't running)
       // For 500 errors, log as debug since they're likely backend issues that will be fixed
       if (isBackendConfigured()) {
-        const errorDetails = {
-          endpoint,
-          method,
-          status: error.status || 'unknown',
-          statusText: error.statusText || 'unknown',
-          message: error.message || String(error),
-          errorType: error.name || 'Error',
-          timestamp: new Date().toISOString(),
-        };
-        
         if (error.status >= 500) {
           // Log 500 errors as debug to reduce noise (backend issues, not client issues)
           console.debug(`[API Error] ${method} ${endpoint} → ${error.status || 'unknown'}:`, {
@@ -881,6 +974,13 @@ export async function apiRequest<T = any>(
       return existingRequest;
     }
     
+    // Track deduplication key (persist to AsyncStorage)
+    deduplicationKeys.add(requestKey);
+    // Save periodically (don't save on every request to avoid performance issues)
+    if (deduplicationKeys.size % 10 === 0) {
+      saveDeduplicationKeys().catch(() => {});
+    }
+    
     // Create new request and store it
     const requestPromise = (async () => {
       try {
@@ -923,6 +1023,8 @@ export async function apiRequest<T = any>(
       } finally {
         // Remove from in-flight requests after completion
         inFlightRequests.delete(requestKey);
+        // Save deduplication keys when request completes
+        saveDeduplicationKeys().catch(() => {});
       }
     })();
     

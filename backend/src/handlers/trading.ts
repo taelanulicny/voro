@@ -264,53 +264,69 @@ export async function getEntityPriceHandler(event: APIGatewayProxyEvent): Promis
 }
 
 export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  // Wrap everything in try-catch to ensure we never return 500 errors
   try {
-    // Extract entityId from path: /api/entities/:entityId/price-history
-    const path = event.path || '';
-    const match = path.match(/\/api\/entities\/(\d+)\/price-history/);
-    const entityId = match ? parseInt(match[1], 10) : parseInt(event.pathParameters?.entityId || '0', 10);
+    try {
+      // Extract entityId from path: /api/entities/:entityId/price-history
+      const path = event.path || '';
+      const match = path.match(/\/api\/entities\/(\d+)\/price-history/);
+      const entityId = match ? parseInt(match[1], 10) : parseInt(event.pathParameters?.entityId || '0', 10);
 
-    if (!entityId || isNaN(entityId) || entityId <= 0) {
-      return createErrorResponse(400, 'Invalid entityId');
+      if (!entityId || isNaN(entityId) || entityId <= 0) {
+        return createErrorResponse(400, 'Invalid entityId');
+      }
+
+      const timeRange = (event.queryStringParameters?.timeRange || 'ALL') as '1D' | '1W' | '1M' | 'ALL';
+      const limit = parseInt(event.queryStringParameters?.limit || '100', 10);
+
+      if (limit > 1000) {
+        return createErrorResponse(400, 'Limit cannot exceed 1000');
+      }
+
+      if (!['1D', '1W', '1M', 'ALL'].includes(timeRange)) {
+        return createErrorResponse(400, 'Invalid timeRange. Must be one of: 1D, 1W, 1M, ALL');
+      }
+
+      const priceHistory = await getPriceHistory(entityId, timeRange, limit);
+
+      // Always return success, even if priceHistory array is empty (no data is not an error)
+      // Map items safely - getPriceHistory already validates and filters items
+      const mappedData = priceHistory
+        .filter(item => item && item.timestamp && typeof item.price === 'number')
+        .map(item => ({
+          timestamp: item.timestamp,
+          price: item.price,
+        }));
+
+      return createResponse(200, {
+        success: true,
+        data: mappedData,
+      });
+    } catch (error: unknown) {
+      logger.error('Error getting price history', {
+        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+        path: event.path,
+        entityId: event.pathParameters?.entityId,
+        queryParams: event.queryStringParameters,
+      });
+      
+      // Return empty array instead of error - allows frontend to show empty state
+      // This prevents 500 errors from breaking the app
+      return createResponse(200, {
+        success: true,
+        data: [],
+      });
     }
-
-    const timeRange = (event.queryStringParameters?.timeRange || 'ALL') as '1D' | '1W' | '1M' | 'ALL';
-    const limit = parseInt(event.queryStringParameters?.limit || '100', 10);
-
-    if (limit > 1000) {
-      return createErrorResponse(400, 'Limit cannot exceed 1000');
-    }
-
-    if (!['1D', '1W', '1M', 'ALL'].includes(timeRange)) {
-      return createErrorResponse(400, 'Invalid timeRange. Must be one of: 1D, 1W, 1M, ALL');
-    }
-
-    const priceHistory = await getPriceHistory(entityId, timeRange, limit);
-
-    // Always return success, even if priceHistory array is empty (no data is not an error)
-    // Map items safely - getPriceHistory already validates and filters items
-    const mappedData = priceHistory
-      .filter(item => item && item.timestamp && typeof item.price === 'number')
-      .map(item => ({
-        timestamp: item.timestamp,
-        price: item.price,
-      }));
-
-    return createResponse(200, {
-      success: true,
-      data: mappedData,
-    });
-  } catch (error: unknown) {
-    logger.error('Error getting price history', error);
-    // Log full error details for debugging
-    if (error instanceof Error && error.stack) {
-      logger.error('Stack trace:', error.stack);
-    }
-    // Return empty array instead of error - allows frontend to show empty state
-    return createResponse(200, {
-      success: true,
-      data: [],
-    });
+  } catch (fatalError: unknown) {
+    // Ultimate fallback - if even createResponse fails, return a basic response
+    logger.error('Fatal error in getPriceHistoryHandler', fatalError);
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ success: true, data: [] }),
+    };
   }
 }
 

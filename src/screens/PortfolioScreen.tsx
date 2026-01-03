@@ -19,7 +19,7 @@ import { useScreenshotProtection } from '../utils/security';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 function PortfolioScreen() {
-  const { portfolio, transactions } = useTrading();
+  const { portfolio, transactions, loadMoreTransactions, hasMoreTransactions, isLoadingMoreTransactions, fetchTransactions } = useTrading();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<'holdings' | 'history'>('holdings');
@@ -28,10 +28,15 @@ function PortfolioScreen() {
   // SECURITY: Enable screenshot protection for sensitive financial data
   const { BlurOverlay } = useScreenshotProtection(true);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh - in real app would fetch updated prices
-    setTimeout(() => setRefreshing(false), 1000);
+    try {
+      await fetchTransactions();
+    } catch (error) {
+      console.error('Error refreshing transactions:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleHoldingPress = (entityId: number, category: string) => {
@@ -39,7 +44,8 @@ function PortfolioScreen() {
   };
 
   const sortedHoldings = [...portfolio.holdings].sort((a, b) => b.totalValue - a.totalValue);
-  const recentTransactions = transactions.slice(0, 20); // Last 20 transactions
+  // Show all transactions (pagination handled by loadMoreTransactions)
+  const recentTransactions = transactions;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]}>
@@ -217,6 +223,18 @@ function PortfolioScreen() {
                   </View>
                 </View>
               ))
+            )}
+            {/* Load More Button */}
+            {hasMoreTransactions && (
+              <TouchableOpacity
+                style={[styles.loadMoreButton, { backgroundColor: theme.card }]}
+                onPress={loadMoreTransactions}
+                disabled={isLoadingMoreTransactions}
+              >
+                <Text style={[styles.loadMoreText, { color: theme.primary }]}>
+                  {isLoadingMoreTransactions ? 'Loading...' : 'Load More Transactions'}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         )}
@@ -436,5 +454,17 @@ const styles = StyleSheet.create({
   },
   transactionTime: {
     fontSize: 12,
+  },
+  loadMoreButton: {
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

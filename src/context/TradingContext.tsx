@@ -17,6 +17,7 @@ interface TradingContextType {
   portfolio: Portfolio;
   transactions: UserTransaction[];
   isLoading: boolean;
+  isExecutingTrade: boolean;
   executeTrade: (
     entityId: number,
     entityName: string,
@@ -35,6 +36,9 @@ interface TradingContextType {
   portfolioHistory: number[];
   fetchPortfolio: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
+  loadMoreTransactions: () => Promise<void>;
+  hasMoreTransactions: boolean;
+  isLoadingMoreTransactions: boolean;
   isMarketOpen: boolean;
   marketStatusMessage: string;
   lastPriceUpdateTime: number | null;
@@ -48,6 +52,7 @@ const INITIAL_CASH_BALANCE = 10000;
 const PENDING_TRADES_KEY = '@moro_pending_trades';
 const PRICE_HISTORY_CACHE_KEY = '@moro_price_history_cache';
 const OPENING_PRICES_KEY = '@moro_opening_prices';
+const PORTFOLIO_HISTORY_KEY = '@moro_portfolio_history';
 
 // Interface for pending trade tracking
 interface PendingTrade {
@@ -72,7 +77,13 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [todayChange, setTodayChange] = useState(0);
   const [todayChangePercent, setTodayChangePercent] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExecutingTrade, setIsExecutingTrade] = useState(false);
   const [lastPriceUpdateTime, setLastPriceUpdateTime] = useState<number | null>(Date.now());
+  
+  // Transaction pagination state
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
+  const [isLoadingMoreTransactions, setIsLoadingMoreTransactions] = useState(false);
+  const lastEvaluatedKeyRef = useRef<string | undefined>(undefined);
 
   // Market Hours Logic
   const [isMarketOpen, setIsMarketOpen] = useState(true);
@@ -136,6 +147,34 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
   const portfolioHistoryRef = useRef<number[]>([]);
   const maxHistoryLength = 100;
+  
+  // Load portfolio history from AsyncStorage on mount
+  useEffect(() => {
+    const loadPortfolioHistory = async () => {
+      try {
+        const data = await AsyncStorage.getItem(PORTFOLIO_HISTORY_KEY);
+        if (data) {
+          const history: number[] = JSON.parse(data);
+          if (Array.isArray(history) && history.length > 0) {
+            portfolioHistoryRef.current = history;
+            setPortfolioHistory(history);
+          }
+        }
+      } catch (error) {
+        console.debug('Error loading portfolio history:', error);
+      }
+    };
+    loadPortfolioHistory();
+  }, []);
+  
+  // Save portfolio history to AsyncStorage whenever it updates
+  const savePortfolioHistory = useCallback(async (history: number[]) => {
+    try {
+      await AsyncStorage.setItem(PORTFOLIO_HISTORY_KEY, JSON.stringify(history));
+    } catch (error) {
+      console.debug('Error saving portfolio history:', error);
+    }
+  }, []);
 
   // Pending trades tracking
   const pendingTradesRef = useRef<Map<string, PendingTrade>>(new Map());
@@ -395,7 +434,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, isAuthenticated, calculateTodayChange]);
 
-  // Fetch transactions from backend
+  // Fetch transactions from backend (first page)
   const fetchTransactions = useCallback(async (signal?: AbortSignal) => {
     if (!token || !isAuthenticated || !isBackendConfigured()) return;
 
@@ -425,6 +464,10 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             category: t.category,
           }));
           setTransactions(mappedTransactions);
+          
+          // Update pagination state
+          lastEvaluatedKeyRef.current = validatedResponse.lastEvaluatedKey;
+          setHasMoreTransactions(!!validatedResponse.lastEvaluatedKey);
         } else {
           console.warn('Invalid transactions response format');
         }
@@ -440,9 +483,72 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       });
     }
   }, [token, isAuthenticated]);
+  
+  // Load more transactions (pagination)
+  const loadMoreTransactions = useCallback(async () => {
+    if (!token || !isAuthenticated || !isBackendConfigured() || !hasMoreTransactions || isLoadingMoreTransactions) {
+      return;
+    }
+
+    try {
+      setIsLoadingMoreTransactions(true);
+      const url = lastEvaluatedKeyRef.current
+        ? `/api/transactions?lastKey=${encodeURIComponent(lastEvaluatedKeyRef.current)}`
+        : '/api/transactions';
+      const response = await authenticatedRequest<{
+        transactions: UserTransaction[];
+        lastEvaluatedKey?: string;
+      }>(url, token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data) {
+        // Validate transactions response
+        const validatedResponse = safeValidate(TransactionsResponseSchema, response.data);
+        if (validatedResponse) {
+          const mappedTransactions: UserTransaction[] = validatedResponse.transactions.map((t) => ({
+            id: t.id,
+            entityId: t.entityId,
+            entityName: t.entityName,
+            entityTicker: t.entityTicker,
+            type: t.type,
+            quantity: t.quantity,
+            pricePerToken: t.pricePerToken,
+            totalAmount: t.totalAmount,
+            timestamp: t.timestamp,
+            category: t.category,
+          }));
+          
+          // Append to existing transactions
+          setTransactions((prev) => [...prev, ...mappedTransactions]);
+          
+          // Update pagination state
+          lastEvaluatedKeyRef.current = validatedResponse.lastEvaluatedKey;
+          setHasMoreTransactions(!!validatedResponse.lastEvaluatedKey);
+        } else {
+          console.warn('Invalid transactions response format');
+        }
+      }
+    } catch (error: any) {
+      // Silently handle errors - don't crash the app
+      console.debug('[Transactions] Error loading more transactions:', {
+        error: error.message || String(error),
+        errorType: error.name || 'Error',
+        status: error.status || 'unknown',
+        endpoint: '/api/transactions',
+        hint: 'Backend may not be running or configured. Transaction history unavailable.',
+      });
+    } finally {
+      setIsLoadingMoreTransactions(false);
+    }
+  }, [token, isAuthenticated, hasMoreTransactions, isLoadingMoreTransactions]);
 
   // Track in-flight opening price requests to prevent duplicate API calls
   const openingPriceRequests = useRef<Map<number, Promise<number | null>>>(new Map());
+  
+  // Track failed requests to prevent retry spam (cache failures for 5 minutes)
+  const failedOpeningPriceRequests = useRef<Map<number, number>>(new Map());
+  const FAILURE_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
   // Get opening price for today (price at market open - 8am EST/EDT)
   const getOpeningPrice = useCallback(async (entityId: number): Promise<number | null> => {
@@ -450,6 +556,17 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     const existingRequest = openingPriceRequests.current.get(entityId);
     if (existingRequest) {
       return existingRequest;
+    }
+    
+    // Check if this request recently failed (prevent retry spam)
+    const lastFailureTime = failedOpeningPriceRequests.current.get(entityId);
+    if (lastFailureTime && (Date.now() - lastFailureTime) < FAILURE_COOLDOWN_MS) {
+      // Recently failed, skip API call and use fallback
+      if (entityPrices[entityId] !== undefined) {
+        return entityPrices[entityId];
+      }
+      const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+      return entity ? entity.basePrice : null;
     }
 
     // Use proper timezone handling (accounts for DST automatically)
@@ -495,9 +612,11 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         
         // If not in cache, fetch from backend
         if (isBackendConfigured()) {
+          // Don't retry on server errors (500+) - they indicate backend issues
           const response = await apiRequest<{ success?: boolean; data?: Array<{ timestamp: string; price: number }> }>(
             `/api/entities/${entityId}/price-history?timeRange=1D&limit=100`,
-            { method: 'GET', signal: undefined }
+            { method: 'GET', signal: undefined },
+            { maxRetries: 0, retryable: false } // Don't retry - prevent spam on 500 errors
           );
         
         if (response.success && response.data && Array.isArray(response.data)) {
@@ -524,9 +643,15 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             parsed.prices[entityId] = price;
             await AsyncStorage.setItem(OPENING_PRICES_KEY, JSON.stringify(parsed));
             
+            // Clear failure cache on success
+            failedOpeningPriceRequests.current.delete(entityId);
+            
             return price;
           }
-          }
+        } else if (!response.success) {
+          // Request failed - cache the failure to prevent retry spam
+          failedOpeningPriceRequests.current.set(entityId, Date.now());
+        }
         }
         
         // Fallback: use current price from entityPrices or MOCK_ENTITIES
@@ -536,15 +661,21 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         const entity = MOCK_ENTITIES.find(e => e.id === entityId);
         return entity ? entity.basePrice : null;
       } catch (error: any) {
-        console.debug(`[Opening Price] Error getting opening price for entity ${entityId}:`, {
-          entityId,
-          error: error.message || String(error),
-          errorType: error.name || 'Error',
-          status: error.status || 'unknown',
-          endpoint: `/api/entities/${entityId}/price-history`,
-          marketOpenTimestamp,
-          hint: 'Falling back to current price or base price. Opening price calculation may be inaccurate.',
-        });
+        // Cache the failure to prevent retry spam
+        failedOpeningPriceRequests.current.set(entityId, Date.now());
+        
+        // Only log if it's not a 500 error (to reduce noise)
+        if (error.status !== 500) {
+          console.debug(`[Opening Price] Error getting opening price for entity ${entityId}:`, {
+            entityId,
+            error: error.message || String(error),
+            errorType: error.name || 'Error',
+            status: error.status || 'unknown',
+            endpoint: `/api/entities/${entityId}/price-history`,
+            marketOpenTimestamp,
+            hint: 'Falling back to current price or base price. Opening price calculation may be inaccurate.',
+          });
+        }
         // Fallback: use current price from entityPrices or MOCK_ENTITIES
         if (entityPrices[entityId] !== undefined) {
           return entityPrices[entityId];
@@ -797,8 +928,11 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     if (portfolioHistoryRef.current.length > maxHistoryLength) {
       portfolioHistoryRef.current = portfolioHistoryRef.current.slice(-maxHistoryLength);
     }
-    setPortfolioHistory([...portfolioHistoryRef.current]);
-  }, [holdings, cashBalance]);
+    const updatedHistory = [...portfolioHistoryRef.current];
+    setPortfolioHistory(updatedHistory);
+    // Persist to AsyncStorage
+    savePortfolioHistory(updatedHistory);
+  }, [holdings, cashBalance, savePortfolioHistory]);
 
   const executeTrade = async (
     entityId: number,
@@ -810,6 +944,12 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     category: string,
     idempotencyKey?: string
   ): Promise<{ success: boolean; error?: string; executionPrice?: number }> => {
+    // Prevent concurrent trade executions (race condition protection)
+    if (isExecutingTrade) {
+      console.warn('Trade execution already in progress');
+      return { success: false, error: 'A trade is already being processed. Please wait.' };
+    }
+    
     // Check Market Hours
     if (!isMarketOpen) {
       console.warn('Trade rejected: ' + marketStatusMessage);
@@ -820,6 +960,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       console.error('No authentication token');
       return { success: false, error: 'Not authenticated. Please log in.' };
     }
+    
+    // Set execution lock
+    setIsExecutingTrade(true);
 
     // Store current state for rollback
     const previousCashBalance = cashBalance;
@@ -1070,6 +1213,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
+      setIsExecutingTrade(false); // Release execution lock
     }
   };
 
@@ -1119,6 +1263,10 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     portfolioHistoryRef.current = [];
     setPortfolioHistory([]);
     setEntityPrices({});
+    lastEvaluatedKeyRef.current = undefined;
+    setHasMoreTransactions(false);
+    // Clear persisted portfolio history
+    AsyncStorage.removeItem(PORTFOLIO_HISTORY_KEY).catch(() => {});
   };
 
   const getEntityPrice = (entityId: number): number => {
@@ -1153,6 +1301,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         portfolio,
         transactions,
         isLoading,
+        isExecutingTrade,
         executeTrade,
         getHolding,
         updatePrices,
@@ -1162,6 +1311,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         portfolioHistory,
         fetchPortfolio,
         fetchTransactions,
+        loadMoreTransactions,
+        hasMoreTransactions,
+        isLoadingMoreTransactions,
         isMarketOpen,
         marketStatusMessage,
         lastPriceUpdateTime,

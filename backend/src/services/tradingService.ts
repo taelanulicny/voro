@@ -826,25 +826,39 @@ export async function getPriceHistory(
 
     let result;
     try {
-      result = await docClient.send(
-        new QueryCommand({
-          TableName: TABLE_NAMES.PRICE_HISTORY,
-          KeyConditionExpression: 'entityId = :entityId',
-          FilterExpression: 'timestamp >= :cutoff',
-          ExpressionAttributeValues: {
-            ':entityId': entityId,
-            ':cutoff': cutoffTime.toISOString(),
-          },
-          ScanIndexForward: true, // Oldest first for chart display
-          Limit: limit,
-        })
-      );
+      // Use KeyConditionExpression with timestamp range for better performance
+      // Since timestamp is the sort key, we can use it directly in KeyConditionExpression
+      const queryParams: any = {
+        TableName: TABLE_NAMES.PRICE_HISTORY,
+        KeyConditionExpression: 'entityId = :entityId',
+        ExpressionAttributeValues: {
+          ':entityId': entityId,
+        },
+        ScanIndexForward: true, // Oldest first for chart display
+        Limit: limit,
+      };
+
+      // Only add timestamp filter if not querying ALL (to use sort key efficiently)
+      if (timeRange !== 'ALL') {
+        queryParams.KeyConditionExpression += ' AND timestamp >= :cutoff';
+        queryParams.ExpressionAttributeValues[':cutoff'] = cutoffTime.toISOString();
+      }
+
+      result = await docClient.send(new QueryCommand(queryParams));
     } catch (queryError: any) {
       // Handle DynamoDB errors gracefully (table doesn't exist, no permissions, etc.)
       if (queryError.name === 'ResourceNotFoundException' || queryError.name === 'TableNotFoundException') {
         logger.debug(`PriceHistory table not found for entity ${entityId}`);
       } else {
-        logger.warn(`Error querying price history table for entity ${entityId}:`, queryError);
+        logger.error(`Error querying price history table for entity ${entityId}:`, {
+          error: queryError.message || String(queryError),
+          errorName: queryError.name,
+          errorCode: queryError.code,
+          stack: queryError.stack,
+          entityId,
+          timeRange,
+          limit,
+        });
       }
       return [];
     }
@@ -869,11 +883,18 @@ export async function getPriceHistory(
       return true;
     });
   } catch (error: any) {
-    logger.error('Error getting price history:', error);
-    if (error.stack) {
-      logger.error('Stack trace:', error.stack);
-    }
+    // Log error with full context for debugging
+    logger.error('Error getting price history:', {
+      error: error.message || String(error),
+      errorName: error.name,
+      errorCode: error.code,
+      stack: error.stack,
+      entityId,
+      timeRange,
+      limit,
+    });
     // Return empty array instead of throwing - allows frontend to show empty state
+    // This prevents 500 errors from breaking the app
     return [];
   }
 }

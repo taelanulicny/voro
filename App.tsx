@@ -20,6 +20,7 @@ import { initErrorReporting } from './src/services/errorReporting';
 
 // Components
 import SessionTimeoutWarning from './src/components/SessionTimeoutWarning';
+import OfflineQueueIndicator from './src/components/OfflineQueueIndicator';
 
 // API Configuration
 import { initializeOfflineQueue } from './src/config/api';
@@ -358,6 +359,7 @@ export default function App() {
                           <StatusBar style="auto" />
                           <RootNavigator />
                           <SessionTimeoutWarning />
+                          <OfflineQueueIndicator />
                         </NavigationContainer>
                       </SideMenuProvider>
                     </NotificationsProvider>

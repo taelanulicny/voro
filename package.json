@@ -40,6 +40,7 @@
     "react-native-screenshot-prevent": "^1.2.1",
     "react-native-ssl-pinning": "^1.6.0",
     "react-native-svg": "15.12.1",
+    "tslib": "^2.6.2",
     "zod": "^4.2.1"
   },
   "devDependencies": {

@@ -41,7 +41,7 @@ export default function TradeModal({
   category,
   existingQuantity = 0,
 }: TradeModalProps) {
-  const { portfolio, executeTrade, getHolding, isMarketOpen, marketStatusMessage, lastPriceUpdateTime, getEntityPrice } = useTrading();
+  const { portfolio, executeTrade, getHolding, isMarketOpen, marketStatusMessage, lastPriceUpdateTime, getEntityPrice, isExecutingTrade } = useTrading();
   const { theme } = useTheme();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
@@ -88,7 +88,7 @@ export default function TradeModal({
   const priceDifferencePercent = latestPrice > 0 ? Math.abs((currentPrice - latestPrice) / latestPrice) * 100 : 0;
   const isPriceSignificantlyDifferent = priceDifferencePercent > 2;
   
-  const canExecute = (canBuy || canSell) && isMarketOpen;
+  const canExecute = (canBuy || canSell) && isMarketOpen && !isExecutingTrade;
 
   const handleQuantityChange = (text: string) => {
     // Only allow numbers and one decimal point
@@ -396,10 +396,10 @@ export default function TradeModal({
                 !canExecute && { opacity: 0.5 },
               ]}
               onPress={handleExecuteTrade}
-              disabled={!canExecute || isProcessing}
+              disabled={!canExecute || isProcessing || isExecutingTrade}
             >
               <Text style={styles.buttonTextPrimary}>
-                {isProcessing ? 'Processing...' : (!isMarketOpen ? 'Market Closed' : 'Confirm')}
+                {isProcessing || isExecutingTrade ? 'Processing...' : (!isMarketOpen ? 'Market Closed' : 'Confirm')}
               </Text>
             </TouchableOpacity>
           </View>
