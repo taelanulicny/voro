@@ -82,10 +82,14 @@ export default function FeedsScreen() {
   const mapCategoryToNewsCategory = (displayCategory: string): string => {
     const categoryMap: Record<string, string> = {
       'Influencers': 'People',
-      'Music Artists': 'People',
-      'Sports': 'Events',
       'Political Figures': 'Politics',
       'Startups': 'Tech',
+      'NFL': 'Events',
+      'NBA': 'Events',
+      'College Basketball': 'Events',
+      'Hip Hop': 'People',
+      'Country Music': 'People',
+      'Pop Music': 'People',
     };
     return categoryMap[displayCategory] || displayCategory;
   };
@@ -288,7 +292,7 @@ export default function FeedsScreen() {
   );
 
   const renderNewsFilterTabs = () => {
-    const categories = ['Influencers', 'Music Artists', 'Sports', 'Political Figures', 'Startups'];
+    const categories = ['Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
     const sentiments = [
       { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
       { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },

@@ -52,7 +52,6 @@ export default function EntityCard({
       const categoryMap: Record<string, string> = {
         'Tech': 'Startups',
         'Politics': 'Political Figures',
-        'Events': 'Sports',
         'People': 'Influencers',
       };
       const categoryId = categoryMap[entity.category] || entity.category;

@@ -71,10 +71,10 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
 
   const handleEntityPress = () => {
     if (article.entityId) {
-      navigation.navigate('Entity' as never, {
+      navigation.navigate('Entity', {
         entityId: article.entityId,
         categoryId: article.category,
-      } as never);
+      });
     }
   };
 

@@ -24,10 +24,14 @@ const TREEMAP_HEIGHT = SCREEN_HEIGHT * 0.67; // 2/3 of screen height
 // previousPercentage is yesterday's percentage to calculate the change
 const categoryTradeVolumes = [
   { name: 'Influencers', percentage: 32.0, previousPercentage: 28.0, categoryId: 'Influencers', color: 'green' as const },
-  { name: 'Music Artists', percentage: 24.5, previousPercentage: 26.0, categoryId: 'Music Artists', color: 'red' as const },
-  { name: 'Sports', percentage: 18.3, previousPercentage: 17.5, categoryId: 'Sports', color: 'green' as const },
   { name: 'Political Figures', percentage: 15.2, previousPercentage: 14.8, categoryId: 'Political Figures', color: 'green' as const },
   { name: 'Startups', percentage: 10.0, previousPercentage: 13.7, categoryId: 'Startups', color: 'red' as const },
+  { name: 'NFL', percentage: 8.5, previousPercentage: 8.2, categoryId: 'NFL', color: 'green' as const },
+  { name: 'NBA', percentage: 7.3, previousPercentage: 7.1, categoryId: 'NBA', color: 'green' as const },
+  { name: 'College Basketball', percentage: 5.8, previousPercentage: 5.5, categoryId: 'College Basketball', color: 'green' as const },
+  { name: 'Hip Hop', percentage: 4.2, previousPercentage: 4.0, categoryId: 'Hip Hop', color: 'green' as const },
+  { name: 'Country Music', percentage: 3.5, previousPercentage: 3.3, categoryId: 'Country Music', color: 'green' as const },
+  { name: 'Pop Music', percentage: 2.8, previousPercentage: 2.6, categoryId: 'Pop Music', color: 'green' as const },
 ];
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
