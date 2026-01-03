@@ -75,11 +75,19 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       });
 
       if (response.success && response.data) {
-        const validatedNotifications = validateArrayLoose(NotificationSchema, response.data);
+        // Handle both array and object response structures
+        const notificationsArray = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any).data || [];
+        const lastKey = Array.isArray(response.data) 
+          ? undefined 
+          : (response.data as any).lastEvaluatedKey;
+        
+        const validatedNotifications = validateArrayLoose(NotificationSchema, notificationsArray);
         const mappedNotifications = validatedNotifications.map(mapBackendNotification);
         setNotifications(mappedNotifications);
-        setLastEvaluatedKey(response.data.lastEvaluatedKey);
-        setHasMore(!!response.data.lastEvaluatedKey);
+        setLastEvaluatedKey(lastKey);
+        setHasMore(!!lastKey);
       } else {
         setNotifications([]);
       }
@@ -115,11 +123,19 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       });
 
       if (response.success && response.data) {
-        const validatedNotifications = validateArrayLoose(NotificationSchema, response.data);
+        // Handle both array and object response structures
+        const notificationsArray = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any).data || [];
+        const lastKey = Array.isArray(response.data) 
+          ? undefined 
+          : (response.data as any).lastEvaluatedKey;
+        
+        const validatedNotifications = validateArrayLoose(NotificationSchema, notificationsArray);
         const mappedNotifications = validatedNotifications.map(mapBackendNotification);
         setNotifications(prev => [...prev, ...mappedNotifications]);
-        setLastEvaluatedKey(response.data.lastEvaluatedKey);
-        setHasMore(!!response.data.lastEvaluatedKey);
+        setLastEvaluatedKey(lastKey);
+        setHasMore(!!lastKey);
       }
     } catch (error) {
       console.error('Error loading more notifications:', error);
