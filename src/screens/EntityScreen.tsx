@@ -914,7 +914,14 @@ export default function EntityScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => {}}
+              onPress={() => navigation.navigate('CreateAlert', {
+                entityId: entityId,
+                entityName: entityData.entity.name,
+                entityTicker: entityData.entity.ticker,
+                currentPrice: currentPrice,
+                change24h: priceChange,
+                changePercent24h: priceChangePercent,
+              })}
             >
               <Ionicons name="notifications-outline" size={24} color={theme.text} />
             </TouchableOpacity>

@@ -19,6 +19,7 @@ export type RootStackParamList = {
   AccountValue: undefined;
   ChartDevelopment: undefined;
   TradeHistory: undefined;
+  CreateAlert: { entityId: number; entityName: string; entityTicker: string; currentPrice: number; change24h: number; changePercent24h: number };
 };
 
 export type MainTabParamList = {

@@ -31,6 +31,7 @@ import DiscoverNewAdditionsScreen from './src/screens/DiscoverNewAdditionsScreen
 import AccountValueScreen from './src/screens/AccountValueScreen';
 import ChartDevelopmentScreen from './src/screens/ChartDevelopmentScreen';
 import TradeHistoryScreen from './src/screens/TradeHistoryScreen';
+import CreateAlertScreen from './src/screens/CreateAlertScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -112,6 +113,14 @@ function RootNavigator() {
           <Stack.Screen 
             name="TradeHistory" 
             component={TradeHistoryScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="CreateAlert" 
+            component={CreateAlertScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
