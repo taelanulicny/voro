@@ -8,6 +8,7 @@ import {
   Dimensions,
   FlatList,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -148,6 +149,7 @@ export default function EntityScreen() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'1min' | 'coming-soon'>('1min');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
+  const [positionsModalVisible, setPositionsModalVisible] = useState(false);
   const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
@@ -906,7 +908,7 @@ export default function EntityScreen() {
           <View style={styles.rightIconButtons}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => {}}
+              onPress={() => setPositionsModalVisible(true)}
             >
               <Ionicons name="briefcase-outline" size={24} color={theme.text} />
             </TouchableOpacity>
@@ -948,6 +950,88 @@ export default function EntityScreen() {
         slideFromBottom={true}
         prefillEntityTag={true}
       />
+
+      {/* Positions Modal */}
+      <Modal
+        visible={positionsModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setPositionsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalOverlay} edges={['bottom']}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setPositionsModalVisible(false)}
+          />
+          <View style={[styles.positionsModalContent, { backgroundColor: theme.backgroundSecondary }]}>
+            {/* Handle bar */}
+            <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+            
+            {/* Header */}
+            <View style={[styles.positionsModalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.positionsModalTitle, { color: theme.text }]}>
+                Positions - {entityData.entity.name}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setPositionsModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            {holding ? (
+              <ScrollView style={styles.positionsModalBody} showsVerticalScrollIndicator={false}>
+                <View style={[styles.positionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <View style={styles.positionRow}>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Quantity</Text>
+                    <Text style={[styles.positionValue, { color: theme.text }]}>{holding.quantity}</Text>
+                  </View>
+                  <View style={styles.positionRow}>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Average Cost</Text>
+                    <Text style={[styles.positionValue, { color: theme.text }]}>
+                      {formatCurrency(holding.averageCost)}
+                    </Text>
+                  </View>
+                  <View style={styles.positionRow}>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Current Price</Text>
+                    <Text style={[styles.positionValue, { color: theme.text }]}>
+                      {formatCurrency(holding.currentPrice)}
+                    </Text>
+                  </View>
+                  <View style={styles.positionRow}>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Total Value</Text>
+                    <Text style={[styles.positionValue, { color: theme.text }]}>
+                      {formatCurrency(holding.totalValue)}
+                    </Text>
+                  </View>
+                  <View style={[styles.positionDivider, { backgroundColor: theme.border }]} />
+                  <View style={styles.positionRow}>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>P&L</Text>
+                    <Text style={[styles.positionValue, { color: getChangeColor(holding.profitLoss, theme) }]}>
+                      {holding.profitLoss >= 0 ? '+' : ''}{formatCurrency(holding.profitLoss)}
+                    </Text>
+                  </View>
+                  <View style={styles.positionRow}>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>P&L %</Text>
+                    <Text style={[styles.positionValue, { color: getChangeColor(holding.profitLoss, theme) }]}>
+                      {holding.profitLossPercent >= 0 ? '+' : ''}{holding.profitLossPercent.toFixed(2)}%
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyPositionsContainer}>
+                <Text style={[styles.emptyPositionsText, { color: theme.textSecondary }]}>
+                  You don't have any open positions
+                </Text>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1281,6 +1365,82 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     marginTop: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  positionsModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '45%',
+    paddingBottom: 20,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  positionsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  positionsModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  positionsModalBody: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    flex: 1,
+  },
+  positionCard: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  positionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  positionLabel: {
+    fontSize: 15,
+  },
+  positionValue: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  positionDivider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  emptyPositionsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 20,
+  },
+  emptyPositionsText: {
+    fontSize: 14,
   },
 });
 
