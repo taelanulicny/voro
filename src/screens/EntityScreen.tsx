@@ -440,7 +440,7 @@ export default function EntityScreen() {
   // Chart dimensions - full screen width
   const chartHeight = 220;
   const chartWidth = SCREEN_WIDTH;
-  const margin = { top: 50, right: 0, left: 0, bottom: 0 }; // Increased top margin for tab selector
+  const margin = { top: 20, right: 0, left: 0, bottom: 0 }; // Reduced top margin since tab selector is now persistent
   const innerWidth = chartWidth - margin.left - margin.right;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
@@ -503,118 +503,9 @@ export default function EntityScreen() {
 
   const renderChartContent = () => (
     <>
-        {/* Price Header */}
-        <View style={[styles.entityHeader, { backgroundColor: theme.card }]}>
-          <View style={styles.entityPriceInfo}>
-            <Text style={[styles.entityCurrentPrice, { color: theme.text }]}>
-              {formatCurrency(currentPrice)}
-            </Text>
-            <View style={styles.entityChangeContainer}>
-              <Text style={[
-                styles.entityChangeText,
-                { color: getChangeColor(priceChange, theme) }
-              ]}>
-                {isPositive ? '+' : ''}{formatCurrency(priceChange)}
-              </Text>
-              <Text style={[
-                styles.entityChangePercent,
-                { color: getChangeColor(priceChange, theme) }
-              ]}>
-                ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
-              </Text>
-          </View>
-          </View>
-          <View style={styles.entityStatsInfo}>
-            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-              Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData.stats.volume24h)}</Text>
-            </Text>
-            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-              High: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.high24h)}</Text>
-            </Text>
-            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-              Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.low24h)}</Text>
-            </Text>
-          </View>
-        </View>
-
         {/* Chart Container */}
         <View style={[styles.entityChartWrapperFullWidth, { backgroundColor: theme.card }]}>
           <View style={styles.entityChartContainerFull}>
-            {/* Tab Selector - positioned above chart */}
-            <View style={[styles.tabSelectorContainerAboveChart, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.tabSelector}
-                contentContainerStyle={styles.tabSelectorContent}
-              >
-          <TouchableOpacity
-                  style={styles.tabButton}
-                  onPress={() => handleTabChange('chart')}
-          >
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      {
-                        color: selectedTab === 'chart' ? theme.text : theme.textSecondary,
-                        fontWeight: selectedTab === 'chart' ? '600' : '400',
-                      }
-                    ]}
-                  >
-                    Chart
-                  </Text>
-          </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.tabButton}
-                  onPress={() => handleTabChange('about')}
-                >
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      {
-                        color: selectedTab === 'about' ? theme.text : theme.textSecondary,
-                        fontWeight: selectedTab === 'about' ? '600' : '400',
-                      }
-                    ]}
-                  >
-                    About
-            </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.tabButton}
-                  onPress={() => handleTabChange('feed')}
-                >
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      {
-                        color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
-                        fontWeight: selectedTab === 'feed' ? '600' : '400',
-                      }
-                    ]}
-                  >
-                    Feed
-            </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.tabButton}
-                  onPress={() => handleTabChange('news')}
-                >
-                  <Text
-                    style={[
-                      styles.tabButtonText,
-                      {
-                        color: selectedTab === 'news' ? theme.text : theme.textSecondary,
-                        fontWeight: selectedTab === 'news' ? '600' : '400',
-                      }
-                    ]}
-                  >
-                    News
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
-        </View>
-
             {/* SVG Chart */}
             <View style={styles.chartWithOverlay}>
               <Svg width={chartWidth} height={chartHeight}>
@@ -801,6 +692,115 @@ export default function EntityScreen() {
           </TouchableOpacity>
             </View>
             </View>
+
+      {/* Price Header - Persists across all tabs */}
+      <View style={[styles.entityHeader, { backgroundColor: theme.card }]}>
+        <View style={styles.entityPriceInfo}>
+          <Text style={[styles.entityCurrentPrice, { color: theme.text }]}>
+            {formatCurrency(currentPrice)}
+          </Text>
+          <View style={styles.entityChangeContainer}>
+            <Text style={[
+              styles.entityChangeText,
+              { color: getChangeColor(priceChange, theme) }
+            ]}>
+              {isPositive ? '+' : ''}{formatCurrency(priceChange)}
+            </Text>
+            <Text style={[
+              styles.entityChangePercent,
+              { color: getChangeColor(priceChange, theme) }
+            ]}>
+              ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
+            </Text>
+          </View>
+        </View>
+        <View style={styles.entityStatsInfo}>
+          <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+            Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData.stats.volume24h)}</Text>
+          </Text>
+          <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+            High: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.high24h)}</Text>
+          </Text>
+          <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+            Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.low24h)}</Text>
+          </Text>
+        </View>
+      </View>
+
+      {/* Tab Selector - Persists across all tabs */}
+      <View style={[styles.tabSelectorContainerPersistent, { backgroundColor: theme.card, borderBottomColor: 'rgba(0, 0, 0, 0.08)' }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabSelector}
+          contentContainerStyle={styles.tabSelectorContent}
+        >
+          <TouchableOpacity
+            style={styles.tabButton}
+            onPress={() => handleTabChange('chart')}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                {
+                  color: selectedTab === 'chart' ? theme.text : theme.textSecondary,
+                  fontWeight: selectedTab === 'chart' ? '600' : '400',
+                }
+              ]}
+            >
+              Chart
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tabButton}
+            onPress={() => handleTabChange('about')}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                {
+                  color: selectedTab === 'about' ? theme.text : theme.textSecondary,
+                  fontWeight: selectedTab === 'about' ? '600' : '400',
+                }
+              ]}
+            >
+              About
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tabButton}
+            onPress={() => handleTabChange('feed')}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                {
+                  color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
+                  fontWeight: selectedTab === 'feed' ? '600' : '400',
+                }
+              ]}
+            >
+              Feed
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tabButton}
+            onPress={() => handleTabChange('news')}
+          >
+            <Text
+              style={[
+                styles.tabButtonText,
+                {
+                  color: selectedTab === 'news' ? theme.text : theme.textSecondary,
+                  fontWeight: selectedTab === 'news' ? '600' : '400',
+                }
+              ]}
+            >
+              News
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
 
       {/* Content with horizontal swipe */}
       <ScrollView
@@ -1031,6 +1031,11 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     borderTopWidth: 2,
     justifyContent: 'center',
+  },
+  tabSelectorContainerPersistent: {
+    borderBottomWidth: 0.5,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   timeframeSelector: {
     flexDirection: 'row',
