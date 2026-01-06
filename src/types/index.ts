@@ -18,6 +18,7 @@ export type RootStackParamList = {
   DiscoverNewAdditions: undefined;
   AccountValue: undefined;
   ChartDevelopment: undefined;
+  TradeHistory: undefined;
 };
 
 export type MainTabParamList = {

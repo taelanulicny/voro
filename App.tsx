@@ -30,6 +30,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import DiscoverNewAdditionsScreen from './src/screens/DiscoverNewAdditionsScreen';
 import AccountValueScreen from './src/screens/AccountValueScreen';
 import ChartDevelopmentScreen from './src/screens/ChartDevelopmentScreen';
+import TradeHistoryScreen from './src/screens/TradeHistoryScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -103,6 +104,14 @@ function RootNavigator() {
           <Stack.Screen 
             name="AccountValue" 
             component={AccountValueScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="TradeHistory" 
+            component={TradeHistoryScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',

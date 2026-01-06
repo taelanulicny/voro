@@ -149,7 +149,15 @@ export default function AccountValueScreen() {
 
         {/* Realized Tokens */}
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.cardLabel, { color: theme.textSecondary }]}>Realized Tokens</Text>
+          <View style={styles.cardHeaderRow}>
+            <Text style={[styles.cardLabel, { color: theme.textSecondary }]}>Realized Tokens</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('TradeHistory')}
+              style={styles.seeHistoryButton}
+            >
+              <Text style={[styles.seeHistoryButtonText, { color: theme.primary }]}>See Trade History</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={[styles.cardValue, { color: getChangeColor(realizedTokens, theme) }]}>
             {realizedTokens >= 0 ? '+' : ''}{formatCurrency(realizedTokens)}
           </Text>
@@ -234,6 +242,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 8,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  seeHistoryButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  seeHistoryButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   cardValue: {
     fontSize: 32,
