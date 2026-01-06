@@ -9,6 +9,7 @@ import {
   FlatList,
   RefreshControl,
   Modal,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -413,6 +414,30 @@ export default function EntityScreen() {
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
     if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
     return `$${value.toFixed(2)}`;
+  };
+
+  const handleShare = async () => {
+    try {
+      const entityName = entityData.entity.name;
+      const priceText = formatCurrency(currentPrice);
+      const changeText = `${isPositive ? '+' : ''}${formatCurrency(priceChange)} (${isPositive ? '+' : ''}${priceChangePercent.toFixed(2)}%)`;
+      
+      // Format category name
+      const categoryName = categoryId
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      const shareMessage = `${entityName}\nCategory: ${categoryName}\n\nPrice: ${priceText}\nChange: ${changeText}\n\nCheck it out on Moro!`;
+      
+      await Share.share({
+        message: shareMessage,
+        title: `Share ${entityName}`,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
   };
 
   // Convert hex color to rgba for chart
@@ -927,7 +952,7 @@ export default function EntityScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => {}}
+              onPress={handleShare}
             >
               <Ionicons name="share-outline" size={24} color={theme.text} />
             </TouchableOpacity>

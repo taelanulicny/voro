@@ -166,9 +166,7 @@ export default function CreateAlertScreen() {
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Create Alert</Text>
-        <TouchableOpacity style={styles.settingsButton}>
-          <Ionicons name="settings-outline" size={24} color={theme.text} />
-        </TouchableOpacity>
+        <View style={styles.placeholder} />
       </View>
 
       <ScrollView
@@ -991,11 +989,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  settingsButton: {
+  placeholder: {
     width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scrollView: {
     flex: 1,
