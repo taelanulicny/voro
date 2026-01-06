@@ -886,18 +886,43 @@ export default function EntityScreen() {
       {/* Fixed Bottom Trade Buttons */}
       <View style={[styles.bottomBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
         <View style={styles.bottomButtonsContainer}>
-        <TouchableOpacity
-            style={[styles.tradeButton, styles.halfWidthButton, { backgroundColor: theme.primary }]}
-          onPress={() => setTradeModalVisible(true)}
-        >
-            <Text style={styles.tradeButtonText}>Predict - {entityData.entity.name}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.shareOpinionButton, styles.halfWidthButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => setShareOpinionModalVisible(true)}
-          >
-            <Text style={[styles.shareOpinionButtonText, { color: theme.text }]}>Post Your Opinion</Text>
-        </TouchableOpacity>
+          {/* Left Side: Segmented Control */}
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              style={[styles.segmentButton, styles.segmentButtonActive]}
+              onPress={() => setTradeModalVisible(true)}
+            >
+              <Text style={styles.segmentButtonTextActive}>Predict</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.segmentButton, styles.segmentButtonInactive]}
+              onPress={() => setShareOpinionModalVisible(true)}
+            >
+              <Text style={styles.segmentButtonTextInactive}>Post</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Right Side: Icon Buttons */}
+          <View style={styles.rightIconButtons}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {}}
+            >
+              <Ionicons name="briefcase-outline" size={24} color={theme.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {}}
+            >
+              <Ionicons name="notifications-outline" size={24} color={theme.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {}}
+            >
+              <Ionicons name="share-outline" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -1160,39 +1185,54 @@ const styles = StyleSheet.create({
   },
   bottomButtonsContainer: {
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
   },
-  halfWidthButton: {
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 14,
+  segmentedControl: {
+    flexDirection: 'row',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  segmentButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 40,
   },
-  tradeButton: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  segmentButtonActive: {
+    backgroundColor: '#3B82F6', // Blue
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
   },
-  tradeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
+  segmentButtonInactive: {
+    backgroundColor: '#10B981', // Green
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    paddingHorizontal: 32, // Extra padding to balance with "Predict"
   },
-  shareOpinionButton: {
-    borderWidth: 1.5,
-  },
-  shareOpinionButtonText: {
+  segmentButtonTextActive: {
     fontSize: 15,
     fontWeight: '600',
-    letterSpacing: 0.1,
-    textAlign: 'center',
-    lineHeight: 20,
+    color: '#FFFFFF',
+  },
+  segmentButtonTextInactive: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  rightIconButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   horizontalScrollView: {
     flex: 1,
