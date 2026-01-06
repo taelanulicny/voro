@@ -54,6 +54,49 @@ export default function CreateAlertScreen() {
   const [sharpFallEnabled, setSharpFallEnabled] = useState(true);
   const [new52WeekHighEnabled, setNew52WeekHighEnabled] = useState(true);
   const [new52WeekLowEnabled, setNew52WeekLowEnabled] = useState(true);
+  const [scheduledAlertEnabled, setScheduledAlertEnabled] = useState(false);
+  const [alertFrequency, setAlertFrequency] = useState('Only Once');
+  const [showFrequencyModal, setShowFrequencyModal] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  
+  // Time picker state
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState('Tue');
+  const [selectedHour, setSelectedHour] = useState(16);
+  const [selectedMinute, setSelectedMinute] = useState(28);
+  const [selectedAmPm, setSelectedAmPm] = useState('PM');
+  const [selectedDayOfMonth, setSelectedDayOfMonth] = useState(6);
+
+  // Format fixed alert time display based on frequency
+  const getFixedAlertTimeDisplay = () => {
+    if (alertFrequency === 'At Market Open & Close') {
+      return '8am EST & 2am EST';
+    } else if (alertFrequency === 'Only Once') {
+      const date = selectedDate;
+      const month = date.toLocaleString('default', { month: 'short' });
+      const day = date.getDate();
+      const year = date.getFullYear();
+      // Convert 24-hour to 12-hour format
+      let hour12 = selectedHour;
+      if (selectedHour === 0) hour12 = 12;
+      else if (selectedHour > 12) hour12 = selectedHour - 12;
+      return `${month} ${day}, ${year} ${hour12}:${selectedMinute.toString().padStart(2, '0')} ${selectedAmPm}`;
+    } else if (alertFrequency === 'Every Week') {
+      // Convert 24-hour to 12-hour format
+      let hour12 = selectedHour;
+      if (selectedHour === 0) hour12 = 12;
+      else if (selectedHour > 12) hour12 = selectedHour - 12;
+      return `${selectedDayOfWeek} ${hour12}:${selectedMinute.toString().padStart(2, '0')} ${selectedAmPm}`;
+    } else if (alertFrequency === 'Every Month') {
+      // Convert 24-hour to 12-hour format
+      let hour12 = selectedHour;
+      if (selectedHour === 0) hour12 = 12;
+      else if (selectedHour > 12) hour12 = selectedHour - 12;
+      const suffix = selectedDayOfMonth === 1 ? 'st' : selectedDayOfMonth === 2 ? 'nd' : selectedDayOfMonth === 3 ? 'rd' : 'th';
+      return `${selectedDayOfMonth}${suffix} ${hour12}:${selectedMinute.toString().padStart(2, '0')} ${selectedAmPm}`;
+    }
+    return 'Jan 06, 2026 15:00';
+  };
 
   const isPositive = change24h >= 0;
 
@@ -349,8 +392,52 @@ export default function CreateAlertScreen() {
 
         {/* Scheduled Price Alert Section */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Scheduled Price Alert</Text>
-          {/* Scheduled Price Alert content will be added here */}
+          <View style={styles.scheduledAlertHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Scheduled Price Alert</Text>
+            <Switch
+              value={scheduledAlertEnabled}
+              onValueChange={setScheduledAlertEnabled}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+          
+          {/* Alert Frequency */}
+          <TouchableOpacity
+            style={styles.scheduledOptionRow}
+            onPress={() => setShowFrequencyModal(true)}
+          >
+            <Text style={[styles.scheduledOptionLabel, { color: theme.text }]}>Alert Frequency</Text>
+            <View style={styles.scheduledOptionRight}>
+              <Text style={[styles.scheduledOptionValue, { color: theme.textSecondary }]}>
+                {alertFrequency}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Fixed Alert Time */}
+          {alertFrequency === 'At Market Open & Close' ? (
+            <View style={styles.scheduledOptionRow}>
+              <Text style={[styles.scheduledOptionLabel, { color: theme.text }]}>Fixed Alert Time</Text>
+              <Text style={[styles.scheduledOptionValue, { color: theme.textSecondary }]}>
+                8am EST & 2am EST
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.scheduledOptionRow}
+              onPress={() => setShowTimeModal(true)}
+            >
+              <Text style={[styles.scheduledOptionLabel, { color: theme.text }]}>Fixed Alert Time</Text>
+              <View style={styles.scheduledOptionRight}>
+                <Text style={[styles.scheduledOptionValue, { color: theme.textSecondary }]}>
+                  {getFixedAlertTimeDisplay()}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Spacer for bottom button */}
@@ -402,6 +489,478 @@ export default function CreateAlertScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Alert Frequency Modal */}
+      <Modal
+        visible={showFrequencyModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFrequencyModal(false)}
+      >
+        <SafeAreaView style={styles.modalOverlay} edges={['bottom']}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowFrequencyModal(false)}
+          />
+          <View style={[styles.addAlertModalContent, { backgroundColor: theme.card }]}>
+            {/* Handle bar */}
+            <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+            
+            {/* Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Alert Frequency</Text>
+            </View>
+
+            {/* Options */}
+            <View style={styles.modalOptions}>
+              {['At Market Open & Close', 'Only Once', 'Every Week', 'Every Month'].map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.modalOption, { borderBottomColor: theme.border }]}
+                  onPress={() => {
+                    setAlertFrequency(option);
+                    setShowFrequencyModal(false);
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, { color: theme.text }]}>
+                    {option}
+                  </Text>
+                  {alertFrequency === option && (
+                    <Ionicons name="checkmark" size={20} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Fixed Alert Time Modal */}
+      <Modal
+        visible={showTimeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTimeModal(false)}
+      >
+        <SafeAreaView style={styles.modalOverlay} edges={['bottom']}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowTimeModal(false)}
+          />
+          <View style={[styles.timePickerModalContent, { backgroundColor: theme.card }]}>
+            {/* Handle bar */}
+            <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+            
+            {/* Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Fixed Alert Time</Text>
+            </View>
+
+            {/* Picker Content */}
+            <View style={styles.pickerContainer}>
+              {alertFrequency === 'Only Once' && (
+                <View style={styles.pickerRow}>
+                  {/* Date Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 30 }, (_, i) => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + i);
+                      const isToday = i === 0;
+                      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                      const month = date.toLocaleDateString('en-US', { month: 'short' });
+                      const day = date.getDate();
+                      const label = isToday ? 'Today' : `${dayName} ${month} ${day}`;
+                      const isSelected = date.toDateString() === selectedDate.toDateString();
+                      
+                      return (
+                        <TouchableOpacity
+                          key={i}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => setSelectedDate(date)}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Hour Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const hour12 = i + 1;
+                      // Convert to 24-hour for comparison
+                      let hour24 = hour12;
+                      if (selectedAmPm === 'PM' && hour12 !== 12) hour24 = hour12 + 12;
+                      if (selectedAmPm === 'AM' && hour12 === 12) hour24 = 0;
+                      const isSelected = selectedHour === hour24;
+                      return (
+                        <TouchableOpacity
+                          key={hour12}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => {
+                            // Convert 12-hour to 24-hour
+                            let newHour24 = hour12;
+                            if (selectedAmPm === 'PM' && hour12 !== 12) newHour24 = hour12 + 12;
+                            if (selectedAmPm === 'AM' && hour12 === 12) newHour24 = 0;
+                            setSelectedHour(newHour24);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {hour12}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Minute Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 60 }, (_, i) => {
+                      const minute = i;
+                      const isSelected = selectedMinute === minute;
+                      return (
+                        <TouchableOpacity
+                          key={minute}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => setSelectedMinute(minute)}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {minute.toString().padStart(2, '0')}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* AM/PM Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {['AM', 'PM'].map((ampm) => {
+                      const isSelected = selectedAmPm === ampm;
+                      return (
+                        <TouchableOpacity
+                          key={ampm}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => {
+                            // Convert hour when AM/PM changes
+                            let newHour = selectedHour;
+                            if (ampm === 'PM' && selectedHour < 12 && selectedHour !== 0) {
+                              newHour = selectedHour + 12;
+                            } else if (ampm === 'PM' && selectedHour === 0) {
+                              newHour = 12; // 12 AM -> 12 PM
+                            } else if (ampm === 'AM' && selectedHour >= 12) {
+                              newHour = selectedHour - 12;
+                            } else if (ampm === 'AM' && selectedHour === 0) {
+                              newHour = 0; // 12 AM stays 0
+                            }
+                            setSelectedHour(newHour);
+                            setSelectedAmPm(ampm);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {ampm}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {alertFrequency === 'Every Week' && (
+                <View style={styles.pickerRow}>
+                  {/* Day of Week Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => {
+                      const isSelected = selectedDayOfWeek === day;
+                      return (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => setSelectedDayOfWeek(day)}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Hour Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const hour12 = i + 1;
+                      // Convert to 24-hour for comparison
+                      let hour24 = hour12;
+                      if (selectedAmPm === 'PM' && hour12 !== 12) hour24 = hour12 + 12;
+                      if (selectedAmPm === 'AM' && hour12 === 12) hour24 = 0;
+                      const isSelected = selectedHour === hour24;
+                      return (
+                        <TouchableOpacity
+                          key={hour12}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => {
+                            // Convert 12-hour to 24-hour
+                            let newHour24 = hour12;
+                            if (selectedAmPm === 'PM' && hour12 !== 12) newHour24 = hour12 + 12;
+                            if (selectedAmPm === 'AM' && hour12 === 12) newHour24 = 0;
+                            setSelectedHour(newHour24);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {hour12}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Minute Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 60 }, (_, i) => {
+                      const minute = i;
+                      const isSelected = selectedMinute === minute;
+                      return (
+                        <TouchableOpacity
+                          key={minute}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => setSelectedMinute(minute)}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {minute.toString().padStart(2, '0')}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* AM/PM Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {['AM', 'PM'].map((ampm) => {
+                      const isSelected = selectedAmPm === ampm;
+                      return (
+                        <TouchableOpacity
+                          key={ampm}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => {
+                            // Convert hour when AM/PM changes
+                            let newHour = selectedHour;
+                            if (ampm === 'PM' && selectedHour < 12 && selectedHour !== 0) {
+                              newHour = selectedHour + 12;
+                            } else if (ampm === 'PM' && selectedHour === 0) {
+                              newHour = 12; // 12 AM -> 12 PM
+                            } else if (ampm === 'AM' && selectedHour >= 12) {
+                              newHour = selectedHour - 12;
+                            } else if (ampm === 'AM' && selectedHour === 0) {
+                              newHour = 0; // 12 AM stays 0
+                            }
+                            setSelectedHour(newHour);
+                            setSelectedAmPm(ampm);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {ampm}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {alertFrequency === 'Every Month' && (
+                <View style={styles.pickerRow}>
+                  {/* Day of Month Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 31 }, (_, i) => {
+                      const day = i + 1;
+                      const isSelected = selectedDayOfMonth === day;
+                      const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
+                      return (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => setSelectedDayOfMonth(day)}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {day}{suffix}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Hour Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const hour12 = i + 1;
+                      // Convert to 24-hour for comparison
+                      let hour24 = hour12;
+                      if (selectedAmPm === 'PM' && hour12 !== 12) hour24 = hour12 + 12;
+                      if (selectedAmPm === 'AM' && hour12 === 12) hour24 = 0;
+                      const isSelected = selectedHour === hour24;
+                      return (
+                        <TouchableOpacity
+                          key={hour12}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => {
+                            // Convert 12-hour to 24-hour
+                            let newHour24 = hour12;
+                            if (selectedAmPm === 'PM' && hour12 !== 12) newHour24 = hour12 + 12;
+                            if (selectedAmPm === 'AM' && hour12 === 12) newHour24 = 0;
+                            setSelectedHour(newHour24);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {hour12}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Minute Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: 60 }, (_, i) => {
+                      const minute = i;
+                      const isSelected = selectedMinute === minute;
+                      return (
+                        <TouchableOpacity
+                          key={minute}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => setSelectedMinute(minute)}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {minute.toString().padStart(2, '0')}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* AM/PM Picker */}
+                  <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
+                    {['AM', 'PM'].map((ampm) => {
+                      const isSelected = selectedAmPm === ampm;
+                      return (
+                        <TouchableOpacity
+                          key={ampm}
+                          style={[
+                            styles.pickerItem,
+                            isSelected && { backgroundColor: theme.backgroundSecondary }
+                          ]}
+                          onPress={() => {
+                            // Convert hour when AM/PM changes
+                            let newHour = selectedHour;
+                            if (ampm === 'PM' && selectedHour < 12 && selectedHour !== 0) {
+                              newHour = selectedHour + 12;
+                            } else if (ampm === 'PM' && selectedHour === 0) {
+                              newHour = 12; // 12 AM -> 12 PM
+                            } else if (ampm === 'AM' && selectedHour >= 12) {
+                              newHour = selectedHour - 12;
+                            } else if (ampm === 'AM' && selectedHour === 0) {
+                              newHour = 0; // 12 AM stays 0
+                            }
+                            setSelectedHour(newHour);
+                            setSelectedAmPm(ampm);
+                          }}
+                        >
+                          <Text style={[
+                            styles.pickerItemText,
+                            { color: isSelected ? theme.text : theme.textSecondary }
+                          ]}>
+                            {ampm}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            {/* Save Button */}
+            <View style={styles.timePickerFooter}>
+              <TouchableOpacity
+                style={[styles.timePickerSaveButton, { backgroundColor: theme.primary }]}
+                onPress={() => setShowTimeModal(false)}
+              >
+                <Text style={styles.timePickerSaveButtonText}>Save</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </SafeAreaView>
@@ -651,6 +1210,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 0.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   modalOptionText: {
     fontSize: 16,
@@ -686,6 +1248,76 @@ const styles = StyleSheet.create({
   priceMovementDescription: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  scheduledAlertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  scheduledOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  scheduledOptionLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  scheduledOptionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scheduledOptionValue: {
+    fontSize: 15,
+  },
+  timePickerModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '50%',
+    paddingBottom: 20,
+  },
+  pickerContainer: {
+    flex: 1,
+    paddingVertical: 20,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    flex: 1,
+    justifyContent: 'space-around',
+  },
+  pickerColumn: {
+    flex: 1,
+    maxHeight: 200,
+  },
+  pickerItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  pickerItemText: {
+    fontSize: 18,
+  },
+  timePickerFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  timePickerSaveButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timePickerSaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 
