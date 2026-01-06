@@ -21,7 +21,7 @@ import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
-import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
 import { getEntityById } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
@@ -208,19 +208,30 @@ export default function EntityScreen() {
     const now = Date.now();
     const entityName = entity?.name || '';
     
-    // Generate posts with variety - some with other entity mentions, some without
-    // Base template posts that work for any entity
+    // Pool of realistic user names
+    const firstNames = ['Alex', 'Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Sam', 'Jamie', 'Drew', 'Quinn', 'Blake', 'Cameron', 'Avery', 'Sage', 'River', 'Phoenix', 'Skylar', 'Dakota', 'Reese', 'Hayden'];
+    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee'];
+    
+    // Generate random user for each post
+    const getRandomUser = () => {
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const displayName = `${firstName} ${lastName}`;
+      const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
+      return { displayName, username, userId: `user-${Math.random().toString(36).substr(2, 9)}` };
+    };
+    
+    // Generate posts that are all about this specific entity
+    // Each post starts with @(entity name) and comments about them
     const entityMentionName = entityName?.replace(/\s+/g, '') || '';
     const posts: Post[] = [
       {
         id: `entity-${entityId}-1`,
-        userId: 'user-1',
-        username: 'trading_pro',
-        displayName: 'Trading Pro',
-        content: `just dropped @TaylorSwift's name in the conversation and now her moro score is skyrocketing 📈`,
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} just dropped a new project and their moro score is skyrocketing 📈`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: 'Taylor Swift',
+        entityName: entityName,
         sentiment: 'positive',
         likes: 289,
         comments: 45,
@@ -230,13 +241,11 @@ export default function EntityScreen() {
       },
       {
         id: `entity-${entityId}-2`,
-        userId: 'user-2',
-        username: 'market_watcher',
-        displayName: 'Market Watcher',
-        content: 'The trajectory looks solid. Really impressed with the recent performance and strategic moves.',
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} The trajectory looks solid. Really impressed with the recent performance and strategic moves.`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: undefined,
+        entityName: entityName,
         sentiment: 'positive',
         likes: 145,
         comments: 23,
@@ -246,13 +255,11 @@ export default function EntityScreen() {
       },
       {
         id: `entity-${entityId}-3`,
-        userId: 'user-3',
-        username: 'trend_analyst',
-        displayName: 'Trend Analyst',
-        content: 'A collab with @MrBeast would create insane value for both parties. The cross-audience potential is huge.',
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} A potential collab would create insane value. The cross-audience potential is huge.`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: 'MrBeast',
+        entityName: entityName,
         sentiment: 'positive',
         likes: 234,
         comments: 38,
@@ -262,13 +269,11 @@ export default function EntityScreen() {
       },
       {
         id: `entity-${entityId}-4`,
-        userId: 'user-4',
-        username: 'content_creator',
-        displayName: 'Content Creator',
-        content: 'The recent moves have been interesting. Curious to see what direction things take from here.',
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} The recent moves have been interesting. Curious to see what direction things take from here.`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: undefined,
+        entityName: entityName,
         sentiment: undefined,
         likes: 98,
         comments: 14,
@@ -278,13 +283,11 @@ export default function EntityScreen() {
       },
       {
         id: `entity-${entityId}-5`,
-        userId: 'user-5',
-        username: 'influence_tracker',
-        displayName: 'Influence Tracker',
-        content: 'Engagement metrics are through the roof. Wonder if @Drake would consider a partnership? The synergy would be perfect.',
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} Engagement metrics are through the roof. The synergy with recent partnerships is perfect.`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: 'Drake',
+        entityName: entityName,
         sentiment: 'positive',
         likes: 312,
         comments: 52,
@@ -294,13 +297,11 @@ export default function EntityScreen() {
       },
       {
         id: `entity-${entityId}-6`,
-        userId: 'user-6',
-        username: 'social_metrics',
-        displayName: 'Social Metrics',
-        content: 'Not feeling great about the recent direction. The numbers aren\'t adding up like they used to.',
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} Not feeling great about the recent direction. The numbers aren't adding up like they used to.`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: undefined,
+        entityName: entityName,
         sentiment: 'negative',
         likes: 167,
         comments: 29,
@@ -310,13 +311,11 @@ export default function EntityScreen() {
       },
       {
         id: `entity-${entityId}-7`,
-        userId: 'user-7',
-        username: 'industry_insider',
-        displayName: 'Industry Insider',
-        content: `@KanyeWest's recent comments about @Drake caused some controversy. The drama might actually help engagement though.`,
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} Recent moves caused some controversy. The drama might actually help engagement though.`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: 'Kanye West',
+        entityName: entityName,
         sentiment: 'negative',
         likes: 445,
         comments: 78,
@@ -326,13 +325,11 @@ export default function EntityScreen() {
       },
       {
         id: `entity-${entityId}-8`,
-        userId: 'user-8',
-        username: 'brand_analyst',
-        displayName: 'Brand Analyst',
-        content: 'The partnership deals are looking strong. Multiple big brands are showing interest.',
-        entityId: undefined,
+        ...getRandomUser(),
+        content: `@${entityMentionName} The partnership deals are looking strong. Multiple big brands are showing interest.`,
+        entityId: entityId,
         entityTicker: undefined,
-        entityName: undefined,
+        entityName: entityName,
         sentiment: 'positive',
         likes: 198,
         comments: 31,
@@ -344,6 +341,58 @@ export default function EntityScreen() {
     
     return posts;
   }, [entityId, entity]);
+
+  // Get biggest trade in this entity for today (mock data)
+  const biggestEntityTrade = useMemo(() => {
+    // Mock data - in real app, this would come from backend
+    // Generate random trade amount between 1,000 and 22,000
+    const mockUsers = [
+      { name: 'Alex Morgan', initials: 'AM' },
+      { name: 'Jordan Smith', initials: 'JS' },
+      { name: 'Taylor Kim', initials: 'TK' },
+      { name: 'Casey Johnson', initials: 'CJ' },
+      { name: 'Morgan Davis', initials: 'MD' },
+      { name: 'Riley Brown', initials: 'RB' },
+    ];
+    
+    // Random user and amount for this entity
+    const randomUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
+    const randomAmount = Math.floor(Math.random() * 21000) + 1000; // 1,000 to 22,000
+    const isPositive = Math.random() > 0.5; // Random positive/negative
+    
+    return {
+      userName: randomUser.name,
+      userInitials: randomUser.initials,
+      entityName: entityData.entity.name,
+      category: displayCategoryId,
+      amount: randomAmount,
+      isPositive: isPositive,
+    };
+  }, [entityId, entityData.entity.name, displayCategoryId]);
+
+  // Get top comment/post from entity feed today
+  const topFeedPost = useMemo(() => {
+    if (!entityFeedPosts || entityFeedPosts.length === 0) {
+      return null;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Filter posts from today and sort by engagement (likes + comments)
+    const todayPosts = entityFeedPosts.filter(post => {
+      const postDate = new Date(post.timestamp);
+      return postDate >= today;
+    });
+
+    if (todayPosts.length === 0) {
+      // If no posts today, get the most recent post
+      return entityFeedPosts[0];
+    }
+
+    // Sort by engagement (likes + comments)
+    return todayPosts.sort((a, b) => (b.likes + b.comments) - (a.likes + a.comments))[0];
+  }, [entityFeedPosts]);
   
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -642,6 +691,89 @@ export default function EntityScreen() {
               </TouchableOpacity>
           </View>
         </View>
+
+        {/* Biggest Trade in Entity Today */}
+        <View style={[styles.infoCard, styles.biggestTradeCard, { backgroundColor: theme.card }]}>
+          <Text style={[styles.infoCardTitle, { color: theme.text }]}>Biggest Trade Today</Text>
+          <View style={styles.biggestTradeContainer}>
+            {/* Top Row: User (left) and Entity (right) */}
+            <View style={styles.biggestTradeTopRow}>
+              <View style={styles.biggestTradeLeft}>
+                <View style={[styles.userAvatar, { backgroundColor: theme.primary + '20' }]}>
+                  <Text style={[styles.userAvatarText, { color: theme.primary }]}>
+                    {biggestEntityTrade.userInitials}
+                  </Text>
+                </View>
+                <Text style={[styles.userName, { color: theme.text }]}>
+                  {biggestEntityTrade.userName}
+                </Text>
+              </View>
+              <View style={styles.biggestTradeRight}>
+                <Text style={[styles.entityNameInTrade, { color: theme.text }]}>
+                  {biggestEntityTrade.entityName}
+                </Text>
+                <Text style={[styles.categoryInTrade, { color: theme.textSecondary }]}>
+                  {biggestEntityTrade.category}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Divider */}
+            <View style={[styles.biggestTradeDivider, { backgroundColor: theme.borderLight }]} />
+            
+            {/* Bottom Row: Amount (left) and Positive/Negative (right) */}
+            <View style={styles.biggestTradeBottomRow}>
+              <Text style={[styles.tradeAmount, { color: theme.text }]}>
+                {TOKEN_SYMBOL}{biggestEntityTrade.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+              <Text style={[
+                styles.tradeSentiment,
+                { color: biggestEntityTrade.isPositive ? '#10B981' : '#EF4444' }
+              ]}>
+                {biggestEntityTrade.isPositive ? 'Positive' : 'Negative'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Top Comment in Entity Feed Today */}
+        {topFeedPost && (
+          <View style={[styles.infoCard, { backgroundColor: theme.card }]}>
+            <Text style={[styles.infoCardTitle, { color: theme.text }]}>Top Comment Today</Text>
+            <View style={styles.commentInfo}>
+              <View style={styles.commentHeader}>
+                <Text style={[styles.commentAuthor, { color: theme.text }]}>
+                  {topFeedPost.displayName}
+                </Text>
+                <Text style={[styles.commentTime, { color: theme.textSecondary }]}>
+                  {(() => {
+                    const now = Date.now();
+                    const postTime = new Date(topFeedPost.timestamp).getTime();
+                    const diffMs = now - postTime;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    return 'Today';
+                  })()}
+                </Text>
+              </View>
+              <Text style={[styles.commentContent, { color: theme.text }]} numberOfLines={3}>
+                {topFeedPost.content}
+              </Text>
+              <View style={styles.commentEngagement}>
+                <Ionicons name="heart-outline" size={14} color={theme.textSecondary} />
+                <Text style={[styles.commentEngagementText, { color: theme.textSecondary }]}>
+                  {topFeedPost.likes}
+                </Text>
+                <Ionicons name="chatbubble-outline" size={14} color={theme.textSecondary} style={{ marginLeft: 12 }} />
+                <Text style={[styles.commentEngagementText, { color: theme.textSecondary }]}>
+                  {topFeedPost.comments}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Your Position (if any) */}
         {holding && (
@@ -1196,6 +1328,114 @@ const styles = StyleSheet.create({
   timeframeButtonText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  infoCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  biggestTradeCard: {
+    marginTop: 16,
+  },
+  infoCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  biggestTradeContainer: {
+    gap: 12,
+  },
+  biggestTradeTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  biggestTradeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userAvatarText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  biggestTradeRight: {
+    alignItems: 'flex-end',
+  },
+  entityNameInTrade: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  categoryInTrade: {
+    fontSize: 13,
+  },
+  biggestTradeDivider: {
+    height: 1,
+    width: '100%',
+  },
+  biggestTradeBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tradeAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  tradeSentiment: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  commentInfo: {
+    gap: 8,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  commentAuthor: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  commentTime: {
+    fontSize: 12,
+  },
+  commentContent: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  commentEngagement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  commentEngagementText: {
+    fontSize: 12,
+    marginLeft: 4,
   },
   positionCard: {
     margin: 16,
