@@ -49,6 +49,7 @@ export default function CreateAlertScreen() {
   const [inputValue, setInputValue] = useState('');
   const [showInput, setShowInput] = useState(false);
   const [deleteMenuVisible, setDeleteMenuVisible] = useState<string | null>(null);
+  const [newsAlertEnabled, setNewsAlertEnabled] = useState(false);
 
   const isPositive = change24h >= 0;
 
@@ -264,7 +265,19 @@ export default function CreateAlertScreen() {
         {/* News Section */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>News</Text>
-          {/* News content will be added here */}
+          <View style={styles.newsAlertRow}>
+            <View style={styles.newsAlertLeft}>
+              <Text style={[styles.newsAlertDescription, { color: theme.textSecondary }]}>
+                Get alerted when News that mentions this entity is posted
+              </Text>
+            </View>
+            <Switch
+              value={newsAlertEnabled}
+              onValueChange={setNewsAlertEnabled}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
         </View>
 
         {/* Price Movement Section */}
@@ -580,6 +593,19 @@ const styles = StyleSheet.create({
   },
   modalOptionText: {
     fontSize: 16,
+  },
+  newsAlertRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  newsAlertLeft: {
+    flex: 1,
+    marginRight: 16,
+  },
+  newsAlertDescription: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
 
