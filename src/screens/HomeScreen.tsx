@@ -790,9 +790,17 @@ export default function HomeScreen() {
                   <View key={index} style={styles.swipeablePage}>
                     <View style={styles.comparisonChartContainer}>
                       {/* Header */}
-                      <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
-                        Influencers - Top 3
-                      </Text>
+                      <View style={styles.comparisonChartHeaderRow}>
+                        <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
+                          Influencers - Top 3
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate('Category', { categoryId: 'Influencers' })}
+                          style={styles.headerArrowButton}
+                        >
+                          <Ionicons name="chevron-forward" size={20} color={theme.text} />
+                        </TouchableOpacity>
+                      </View>
                       
                       {/* Legend/Key showing entities horizontally */}
                       <View style={styles.chartLegend}>
@@ -2447,11 +2455,20 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 0,
   },
+  comparisonChartHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
   comparisonChartHeader: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 16,
-    paddingHorizontal: 16,
+  },
+  headerArrowButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   chartLegend: {
     flexDirection: 'row',
