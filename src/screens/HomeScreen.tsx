@@ -56,6 +56,7 @@ export default function HomeScreen() {
   const swipeableScrollRef = useRef<ScrollView>(null);
   const TOTAL_PAGES = 6;
   
+  // Categories match the treemap categories from AllCategoriesScreen
   const categories = ['For You', 'Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
   const customizableCategories = ['Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
   
@@ -500,18 +501,23 @@ export default function HomeScreen() {
     const influencers = MOCK_ENTITIES.filter(e => e.id >= 11 && e.id <= 20);
     const fixedInfluencer = influencers[0]; // Always use first one
     
+    // Get 1 entity from Music Artists (IDs 21-30) - using a fixed index
+    const musicArtists = MOCK_ENTITIES.filter(e => e.id >= 21 && e.id <= 30);
+    const fixedMusicArtist = musicArtists[0]; // Always use first one
+    
     // Get 1 entity from Political Figures (IDs 31-39) - using a fixed index
     const politicalFigures = MOCK_ENTITIES.filter(e => e.category === 'Politics' && e.id >= 31 && e.id <= 39);
     const fixedPolitical = politicalFigures[0]; // Always use first one
     
     // Get 1 more entity from any of these categories - using a fixed index
-    const allCandidates = [...influencers, ...politicalFigures];
-    const fixedThird = allCandidates[2]; // Always use same one
+    const allCandidates = [...influencers, ...musicArtists, ...politicalFigures];
+    const fixedFourth = allCandidates[3]; // Always use same one
     
     const entities = [
       fixedInfluencer,
+      fixedMusicArtist,
       fixedPolitical,
-      fixedThird,
+      fixedFourth,
     ].filter(Boolean); // Remove any undefined values
     
     // Assign dates from this week to each entity (newest dates first)
