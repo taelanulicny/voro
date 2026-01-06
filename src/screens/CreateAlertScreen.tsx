@@ -50,6 +50,10 @@ export default function CreateAlertScreen() {
   const [showInput, setShowInput] = useState(false);
   const [deleteMenuVisible, setDeleteMenuVisible] = useState<string | null>(null);
   const [newsAlertEnabled, setNewsAlertEnabled] = useState(false);
+  const [sharpRiseEnabled, setSharpRiseEnabled] = useState(true);
+  const [sharpFallEnabled, setSharpFallEnabled] = useState(true);
+  const [new52WeekHighEnabled, setNew52WeekHighEnabled] = useState(true);
+  const [new52WeekLowEnabled, setNew52WeekLowEnabled] = useState(true);
 
   const isPositive = change24h >= 0;
 
@@ -283,7 +287,64 @@ export default function CreateAlertScreen() {
         {/* Price Movement Section */}
         <View style={[styles.section, { backgroundColor: theme.card }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Price Movement</Text>
-          {/* Price Movement content will be added here */}
+          
+          {/* Sharp Rise */}
+          <View style={styles.priceMovementRow}>
+            <View style={styles.priceMovementLeft}>
+              <Text style={[styles.priceMovementLabel, { color: theme.text }]}>Sharp Rise</Text>
+              <Text style={[styles.priceMovementDescription, { color: theme.textSecondary }]}>
+                Rose by 3% within 5 minutes
+              </Text>
+            </View>
+            <Switch
+              value={sharpRiseEnabled}
+              onValueChange={setSharpRiseEnabled}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Sharp Fall */}
+          <View style={styles.priceMovementRow}>
+            <View style={styles.priceMovementLeft}>
+              <Text style={[styles.priceMovementLabel, { color: theme.text }]}>Sharp Fall</Text>
+              <Text style={[styles.priceMovementDescription, { color: theme.textSecondary }]}>
+                Dropped by 3% within 5 minutes
+              </Text>
+            </View>
+            <Switch
+              value={sharpFallEnabled}
+              onValueChange={setSharpFallEnabled}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Hit a New 52 Week High */}
+          <View style={styles.priceMovementRow}>
+            <View style={styles.priceMovementLeft}>
+              <Text style={[styles.priceMovementLabel, { color: theme.text }]}>Hit a New 52 Week High</Text>
+            </View>
+            <Switch
+              value={new52WeekHighEnabled}
+              onValueChange={setNew52WeekHighEnabled}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Hit a New 52 Week Low */}
+          <View style={styles.priceMovementRow}>
+            <View style={styles.priceMovementLeft}>
+              <Text style={[styles.priceMovementLabel, { color: theme.text }]}>Hit a New 52 Week Low</Text>
+            </View>
+            <Switch
+              value={new52WeekLowEnabled}
+              onValueChange={setNew52WeekLowEnabled}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
         </View>
 
         {/* Scheduled Price Alert Section */}
@@ -604,6 +665,25 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   newsAlertDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  priceMovementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  priceMovementLeft: {
+    flex: 1,
+    marginRight: 16,
+  },
+  priceMovementLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  priceMovementDescription: {
     fontSize: 13,
     lineHeight: 18,
   },
