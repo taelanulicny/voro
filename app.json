@@ -2,7 +2,7 @@
   "expo": {
     "name": "moro-mobile",
     "slug": "moro-mobile",
-    "version": "10.1.0",
+    "version": "10.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.moro.mobile",
-      "buildNumber": "20",
+      "buildNumber": "21",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -40,6 +40,12 @@
       "eas": {
         "projectId": "708bec65-057b-4d09-af4e-c6360b12450e"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/708bec65-057b-4d09-af4e-c6360b12450e"
     }
   }
 }
