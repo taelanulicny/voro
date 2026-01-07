@@ -25,7 +25,7 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Home: undefined;
   News: undefined;
-  Feeds: undefined;
+  Community: undefined;
   Groups: undefined;
   Portfolio: undefined;
   Watchlist: undefined;

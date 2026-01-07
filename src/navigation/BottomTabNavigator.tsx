@@ -11,7 +11,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
 import NewsScreen from '../screens/NewsScreen';
-import FeedsScreen from '../screens/FeedsScreen';
+import CommunityScreen from '../screens/CommunityScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
 import WatchlistScreen from '../screens/WatchlistScreen';
@@ -34,7 +34,7 @@ function HomeScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: Botto
   );
 }
 
-function FeedsScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: BottomTabNavigationProp<MainTabParamList>) => void }) {
+function CommunityScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: BottomTabNavigationProp<MainTabParamList>) => void }) {
   const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   
   useEffect(() => {
@@ -43,7 +43,7 @@ function FeedsScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: Bott
   
   return (
     <ErrorBoundary>
-      <FeedsScreen />
+      <CommunityScreen />
     </ErrorBoundary>
   );
 }
@@ -84,7 +84,7 @@ function FloatingNavWrapper({ activeTab }: { activeTab: string }) {
       'Portfolio': 'Portfolio',
       'Watchlist': 'Watchlist',
       'Categories': 'Categories', // Links to all categories screen
-      'Feeds': 'Feeds', // Links to feeds screen
+      'Community': 'Community', // Links to community screen
       'SeasonalCompetition': 'SeasonalCompetition', // Links to seasonal competition screen
       'Profile': 'Profile',
     };
@@ -174,8 +174,8 @@ export default function BottomTabNavigator() {
               </ErrorBoundary>
             )}
           </Tab.Screen>
-          <Tab.Screen name="Feeds">
-            {() => <FeedsScreenWrapper setTabNavigation={handleSetTabNavigation} />}
+          <Tab.Screen name="Community">
+            {() => <CommunityScreenWrapper setTabNavigation={handleSetTabNavigation} />}
           </Tab.Screen>
           <Tab.Screen name="Groups">
             {() => <GroupsScreenWrapper setTabNavigation={handleSetTabNavigation} />}

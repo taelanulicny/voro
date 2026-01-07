@@ -118,23 +118,23 @@ export default function FloatingBottomNav({ activeTab, onTabPress }: FloatingBot
           />
         </TouchableOpacity>
 
-        {/* People/Feeds Icon */}
+        {/* People/Community Icon */}
         <TouchableOpacity
           style={[
             styles.middleButton,
             {
               width: middleButtonSize,
               height: middleButtonSize,
-              backgroundColor: isActive('Feeds') ? theme.text : 'transparent',
+              backgroundColor: isActive('Community') ? theme.text : 'transparent',
             }
           ]}
-          onPress={() => handlePress('Feeds')}
+          onPress={() => handlePress('Community')}
           activeOpacity={0.7}
         >
           <Ionicons 
-            name={isActive('Feeds') ? 'people' : 'people-outline'} 
+            name={isActive('Community') ? 'people' : 'people-outline'} 
             size={20} 
-            color={isActive('Feeds') ? theme.card : theme.textSecondary} 
+            color={isActive('Community') ? theme.card : theme.textSecondary} 
           />
         </TouchableOpacity>
 

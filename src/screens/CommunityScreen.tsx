@@ -28,7 +28,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function FeedsScreen() {
+export default function CommunityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser } = useSocial();
@@ -799,11 +799,11 @@ const styles = StyleSheet.create({
   },
   groupsContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
   groupsHeader: {
-    marginTop: 24,
+    marginTop: 8,
     marginBottom: 32,
   },
   groupsTitleContainer: {
