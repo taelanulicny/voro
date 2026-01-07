@@ -724,7 +724,7 @@ export default function EntityScreen() {
             {/* Bottom Row: Amount (left) and Positive/Negative (right) */}
             <View style={styles.biggestTradeBottomRow}>
               <Text style={[styles.tradeAmount, { color: theme.text }]}>
-                {TOKEN_SYMBOL}{biggestEntityTrade.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {biggestEntityTrade.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {TOKEN_SYMBOL}
               </Text>
               <Text style={[
                 styles.tradeSentiment,

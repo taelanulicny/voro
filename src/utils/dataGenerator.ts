@@ -9,7 +9,7 @@ export const formatCurrency = (value: number): string => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-  return `${TOKEN_SYMBOL}${formatted}`;
+  return `${formatted} ${TOKEN_SYMBOL}`;
 };
 
 export const formatPercent = (value: number): string => {
