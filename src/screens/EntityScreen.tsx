@@ -1118,7 +1118,7 @@ export default function EntityScreen() {
           <FlatList
             data={categoryId === 'NFL' ? [] : entityFeedPosts}
             ListHeaderComponent={liveGameData ? (
-              <View style={[styles.liveGameModule, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+              <View style={[styles.liveGameModule, { backgroundColor: theme.card }]}>
                 <View style={styles.liveGameHeader}>
                   <View style={styles.liveGameHeaderLeft}>
                     <View style={[styles.sportIcon, { backgroundColor: '#1E40AF' }]}>
@@ -1238,7 +1238,7 @@ export default function EntityScreen() {
           <FlatList
             data={entityNews}
             ListHeaderComponent={liveGameData ? (
-              <View style={[styles.liveGameModule, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+              <View style={[styles.liveGameModule, { backgroundColor: theme.card }]}>
                 <View style={styles.liveGameHeader}>
                   <View style={styles.liveGameHeaderLeft}>
                     <View style={[styles.sportIcon, { backgroundColor: '#1E40AF' }]}>
@@ -2021,10 +2021,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   liveGameModule: {
+    marginHorizontal: 16,
+    marginVertical: 8,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 20,
-    borderBottomWidth: 1,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   liveGameHeader: {
     flexDirection: 'row',

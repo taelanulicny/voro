@@ -13,17 +13,78 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Ellipse, Line, Rect } from 'react-native-svg';
 import { RootStackParamList, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { getEntitiesByCategory } from '../utils/mockEntities';
+import { getEntitiesByCategory, getEntityById } from '../utils/mockEntities';
 import PostCard from '../components/PostCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type CategoryRouteProp = RouteProp<RootStackParamList, 'Category'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Custom American Football Icon Component
+interface FootballIconProps {
+  size: number;
+  color: string;
+}
+
+const FootballIcon: React.FC<FootballIconProps> = ({ size, color }) => {
+  const width = size;
+  const height = size * 0.65; // Football is elongated oval
+  const centerX = width / 2;
+  const centerY = height / 2;
+  
+  return (
+    <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {/* Football body (elongated oval) */}
+      <Ellipse
+        cx={centerX}
+        cy={centerY}
+        rx={width / 2 - 1}
+        ry={height / 2 - 1}
+        fill={color}
+      />
+      
+      {/* Laces - 8 parallel horizontal lines in the center */}
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <Line
+          key={`lace-${i}`}
+          x1={centerX - width * 0.2}
+          y1={centerY - height * 0.15 + (i * height * 0.04)}
+          x2={centerX + width * 0.2}
+          y2={centerY - height * 0.15 + (i * height * 0.04)}
+          stroke="#FFFFFF"
+          strokeWidth={1.2}
+          strokeLinecap="round"
+        />
+      ))}
+      
+      {/* Top end stripe (thick horizontal band) */}
+      <Rect
+        x={centerX - width * 0.35}
+        y={1}
+        width={width * 0.7}
+        height={height * 0.15}
+        fill="#FFFFFF"
+        rx={1}
+      />
+      
+      {/* Bottom end stripe (thick horizontal band) */}
+      <Rect
+        x={centerX - width * 0.35}
+        y={height - height * 0.15 - 1}
+        width={width * 0.7}
+        height={height * 0.15}
+        fill="#FFFFFF"
+        rx={1}
+      />
+    </Svg>
+  );
+};
 
 export default function CategoryScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -538,6 +599,97 @@ export default function CategoryScreen() {
     );
   };
 
+  // Render a single live game module
+  const renderLiveGameModule = (game: typeof allLiveGames[0]) => {
+    const awayTeamTag = `@${formatTeamTag(game.isAway ? game.teamName : game.opponentName)}`;
+    const homeTeamTag = `@${formatTeamTag(game.isAway ? game.opponentName : game.teamName)}`;
+    const fullTitle = `${awayTeamTag} at ${homeTeamTag}`;
+    const shouldWrap = fullTitle.length > 32;
+    const awayTeamId = game.isAway ? game.teamId : game.opponentId;
+    const homeTeamId = game.isAway ? game.opponentId : game.teamId;
+    
+    return (
+      <View key={`${game.teamId}-${game.opponentId}`} style={[styles.liveGameModule, { backgroundColor: theme.card }]}>
+        <View style={styles.liveGameHeader}>
+          <View style={styles.liveGameHeaderLeft}>
+            <View style={[styles.sportIcon, { backgroundColor: '#1E40AF' }]}>
+              <FootballIcon size={20} color="#FFFFFF" />
+            </View>
+            <View>
+              <Text style={[styles.liveGameCategory, { color: theme.textSecondary }]}>
+                NFL
+              </Text>
+              {shouldWrap ? (
+                <View style={styles.liveGameTitleContainerWrapped}>
+                  <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                    <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                      {awayTeamTag}
+                    </Text>
+                  </TouchableOpacity>
+                  <View style={styles.liveGameTitleRow}>
+                    <Text style={[styles.liveGameTitle, { color: theme.text }]}>at </Text>
+                    <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                      <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                        {homeTeamTag}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.liveGameTitleContainer}>
+                  <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                    <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                      {awayTeamTag}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
+                  <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                    <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                      {homeTeamTag}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+        
+        <View style={styles.liveGameScoreSection}>
+          <View style={styles.liveGameStatusRow}>
+            <View style={styles.liveGameStatusLeft}>
+              <View style={[styles.liveGameStatusDot, { backgroundColor: '#EF4444' }]} />
+              <Text style={[styles.liveGameStatus, { color: theme.text }]}>
+                {game.status} · {game.quarter} - {game.time}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.liveGameScoreRow}>
+            <View style={styles.liveGameTeamScore}>
+              <Text style={[styles.liveGameScoreValue, { color: theme.text }]}>
+                {game.teamScore}
+              </Text>
+              <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
+                {game.teamTicker.substring(0, 3)}
+              </Text>
+            </View>
+            
+            <Text style={[styles.liveGameScoreSeparator, { color: theme.text }]}>-</Text>
+            
+            <View style={styles.liveGameTeamScore}>
+              <Text style={[styles.liveGameScoreValue, { color: theme.text }]}>
+                {game.opponentScore}
+              </Text>
+              <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
+                {game.opponentTicker.substring(0, 3)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     // Simulate refresh
@@ -576,6 +728,56 @@ export default function CategoryScreen() {
       categoryId: entityCategory,
     });
   };
+
+  // Helper function to convert team name to camelCase format for @tag
+  const formatTeamTag = (teamName: string): string => {
+    return teamName.replace(/\s+/g, '');
+  };
+
+  // Handler to navigate to team entity page
+  const handleTeamPress = (teamId: number) => {
+    navigation.navigate('Entity' as never, {
+      entityId: teamId,
+      categoryId: 'NFL',
+    } as never);
+  };
+
+  // Generate all live game data for top 5 NFL teams (only for NFL category)
+  const allLiveGames = useMemo(() => {
+    if (categoryId !== 'NFL') return [];
+    
+    // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
+    const top5Teams = [
+      { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
+      { id: 114, name: 'Dallas Cowboys', ticker: 'DALCO' },
+      { id: 116, name: 'Philadelphia Eagles', ticker: 'PHIEA' },
+      { id: 127, name: 'San Francisco 49ers', ticker: 'SF49' },
+      { id: 101, name: 'Buffalo Bills', ticker: 'BUFBI' },
+    ];
+    
+    // Create matchups for each top 5 team
+    const matchups = [
+      { team: top5Teams[0], opponent: top5Teams[4], teamScore: 24, opponentScore: 21, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: true }, // Chiefs at Bills
+      { team: top5Teams[1], opponent: top5Teams[3], teamScore: 31, opponentScore: 28, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: true }, // Cowboys at 49ers
+      { team: top5Teams[2], opponent: top5Teams[0], teamScore: 17, opponentScore: 14, quarter: 'Q2', time: '5:32', status: 'LIVE', isAway: true }, // Eagles at Chiefs
+    ];
+    
+    // Return all games
+    return matchups.map(game => ({
+      teamName: game.team.name,
+      teamTicker: game.team.ticker,
+      teamId: game.team.id,
+      teamScore: game.teamScore,
+      opponentName: game.opponent.name,
+      opponentTicker: game.opponent.ticker,
+      opponentId: game.opponent.id,
+      opponentScore: game.opponentScore,
+      quarter: game.quarter,
+      time: game.time,
+      status: game.status,
+      isAway: game.isAway,
+    }));
+  }, [categoryId]);
 
   const renderEntity = ({ item }: { item: typeof entities[0] }) => {
     // Get initials from name (first 2 letters)
@@ -772,6 +974,11 @@ export default function CategoryScreen() {
         {/* News Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
           <ScrollView showsVerticalScrollIndicator={false}>
+            {categoryId === 'NFL' && allLiveGames.length > 0 && (
+              <View style={{ paddingTop: 16 }}>
+                {allLiveGames.map(game => renderLiveGameModule(game))}
+              </View>
+            )}
             <View style={styles.comingSoonContainer}>
               <Text style={[styles.comingSoonText, { color: theme.textSecondary }]}>
                 {displayName} news coming soon
@@ -938,6 +1145,107 @@ const styles = StyleSheet.create({
   },
   feedContent: {
     paddingBottom: 16,
+  },
+  liveGameModule: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  liveGameHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  liveGameHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
+    gap: 12,
+  },
+  sportIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveGameCategory: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  liveGameTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  liveGameTitleContainerWrapped: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  liveGameTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveGameTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  liveGameScoreSection: {
+    marginTop: 8,
+  },
+  liveGameStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  liveGameStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  liveGameStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  liveGameStatus: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  liveGameScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  liveGameTeamScore: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  liveGameScoreValue: {
+    fontSize: 48,
+    fontWeight: '700',
+  },
+  liveGameTeamAbbr: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  liveGameScoreSeparator: {
+    fontSize: 32,
+    fontWeight: '700',
   },
 });
 
