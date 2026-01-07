@@ -995,29 +995,38 @@ export default function EntityScreen() {
 
         {/* Feed Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
-          <FlatList
-            data={entityFeedPosts}
-            renderItem={({ item }) => (
-              <PostCard 
-                post={item} 
-                isEntityFeed={true}
-                entityId={entityId}
-                entityName={entity?.name}
-                categoryId={categoryId}
-              />
-            )}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.feedContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            ListEmptyComponent={() => (
-              <View style={styles.emptyState}>
-                <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
-                <Text style={[styles.emptyStateText, { color: theme.text }]}>
-                  No posts yet for this entity
-                </Text>
-          </View>
-        )}
-          />
+          {categoryId === 'NFL' ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                Feeds are coming soon
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={entityFeedPosts}
+              renderItem={({ item }) => (
+                <PostCard 
+                  post={item} 
+                  isEntityFeed={true}
+                  entityId={entityId}
+                  entityName={entity?.name}
+                  categoryId={categoryId}
+                />
+              )}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.feedContent}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              ListEmptyComponent={() => (
+                <View style={styles.emptyState}>
+                  <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
+                  <Text style={[styles.emptyStateText, { color: theme.text }]}>
+                    No posts yet for this entity
+                  </Text>
+                </View>
+              )}
+            />
+          )}
         </View>
 
         {/* News Tab */}
