@@ -20,7 +20,7 @@
       "ios": {
         "simulator": false
       },
-      "autoIncrement": true
+      "autoIncrement": false
     }
   },
   "submit": {

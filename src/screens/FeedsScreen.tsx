@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -39,19 +38,16 @@ export default function FeedsScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'trending' | 'following'>('trending');
   const [refreshing, setRefreshing] = useState(false);
   const [newsRefreshing, setNewsRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'feed' | 'news'>('feed');
+  const [selectedTab, setSelectedTab] = useState<'feed' | 'news' | 'groups'>('feed');
   const [newsFilter, setNewsFilter] = useState<'all' | 'breaking' | 'category' | 'sentiment'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [selectedSentiment, setSelectedSentiment] = useState<'positive' | 'negative' | 'neutral' | undefined>();
   const [filteredNews, setFilteredNews] = useState<NewsArticle[]>(news);
   const scrollViewRef = useRef<ScrollView>(null);
-  const slideAnim = useRef(new Animated.Value(0)).current; // 0 for Feed, 1 for News
 
   useEffect(() => {
     loadFeed();
     loadNews();
-    // Initialize animation position based on selectedTab
-    slideAnim.setValue(selectedTab === 'feed' ? 0 : 1);
   }, []);
 
   useEffect(() => {
@@ -107,30 +103,18 @@ export default function FeedsScreen() {
     }
   };
 
-  const handleTabChange = (tab: 'feed' | 'news') => {
+  const handleTabChange = (tab: 'feed' | 'news' | 'groups') => {
     setSelectedTab(tab);
-    const scrollToX = tab === 'feed' ? 0 : SCREEN_WIDTH;
+    const scrollToX = tab === 'feed' ? 0 : tab === 'news' ? SCREEN_WIDTH : SCREEN_WIDTH * 2;
     scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
-    // Animate the sliding indicator
-    Animated.timing(slideAnim, {
-      toValue: tab === 'feed' ? 0 : 1,
-      duration: 200,
-      useNativeDriver: false, // We need to animate layout properties
-    }).start();
   };
 
   const handleScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
-    const newTab = pageIndex === 0 ? 'feed' : 'news';
+    const newTab = pageIndex === 0 ? 'feed' : pageIndex === 1 ? 'news' : 'groups';
     if (newTab !== selectedTab) {
       setSelectedTab(newTab);
-      // Animate the sliding indicator
-      Animated.timing(slideAnim, {
-        toValue: newTab === 'feed' ? 0 : 1,
-        duration: 200,
-        useNativeDriver: false,
-      }).start();
     }
   };
 
@@ -145,33 +129,16 @@ export default function FeedsScreen() {
   const hasFollowedUsers = followedUsers.size > 0;
 
   const renderHeader = () => {
-    // Fixed button width for smaller, centered buttons
-    const buttonWidth = 120;
-    const gap = 8;
-    
-    const slidePosition = slideAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, buttonWidth + gap],
-    });
-
     return (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={[styles.segmentedControl, { backgroundColor: 'transparent' }]}>
-          {/* Sliding background indicator */}
-          <Animated.View
-            style={[
-              styles.slidingIndicator,
-              {
-                transform: [{ translateX: slidePosition }],
-              },
-            ]}
-          />
           <TouchableOpacity
             style={styles.segmentButton}
             onPress={() => handleTabChange('feed')}
           >
             <Text style={[
               styles.segmentButtonText,
+              { color: theme.text },
               selectedTab === 'feed' && styles.segmentButtonTextActive
             ]}>
               Feed
@@ -183,9 +150,22 @@ export default function FeedsScreen() {
       >
             <Text style={[
               styles.segmentButtonText,
+              { color: theme.text },
               selectedTab === 'news' && styles.segmentButtonTextActive
             ]}>
               News
+            </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+            style={styles.segmentButton}
+            onPress={() => handleTabChange('groups')}
+      >
+            <Text style={[
+              styles.segmentButtonText,
+              { color: theme.text },
+              selectedTab === 'groups' && styles.segmentButtonTextActive
+            ]}>
+              Groups
             </Text>
       </TouchableOpacity>
         </View>
@@ -528,6 +508,106 @@ export default function FeedsScreen() {
     );
   };
 
+  const renderGroupsContent = () => {
+    return (
+      <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor: theme.backgroundSecondary }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.groupsContent}
+        >
+          {/* Build Your Community Header */}
+          <View style={styles.groupsHeader}>
+            <View style={[styles.groupsTitleContainer, { backgroundColor: theme.card }]}>
+              <Text style={[styles.groupsTitle, { color: theme.text }]}>Build Your Community</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.referFriendButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                // TODO: Implement invite code functionality
+              }}
+            >
+              <Ionicons name="gift-outline" size={20} color={theme.primary} />
+              <Text style={[styles.referFriendButtonText, { color: theme.text }]}>Refer a Friend</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Getting Started Section */}
+          <View style={styles.gettingStartedSection}>
+            <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>GETTING STARTED</Text>
+            
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                // TODO: Implement enter invite code functionality
+              }}
+            >
+              <Ionicons name="search-outline" size={20} color={theme.text} />
+              <Text style={[styles.actionButtonText, { color: theme.text }]}>Enter Invite Code</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                // TODO: Implement create team functionality
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={theme.text} />
+              <Text style={[styles.actionButtonText, { color: theme.text }]}>Create Team</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Recommended Teams Section */}
+          <View style={styles.recommendedTeamsSection}>
+            <View style={styles.recommendedTeamsHeader}>
+              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>RECOMMENDED TEAMS</Text>
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => {
+                  // TODO: Implement view all teams functionality
+                }}
+              >
+                <Text style={[styles.viewAllText, { color: theme.text }]}>VIEW ALL</Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.teamsScrollContent}
+            >
+              {[
+                { id: '1', name: 'UTAH', members: 6277, icon: 'flag-outline', color: '#1E40AF' },
+                { id: '2', name: 'Brown University', members: 4234, icon: 'school-outline', color: '#7C3AED' },
+                { id: '3', name: 'MEN', members: 203376, icon: 'people-outline', color: '#0EA5E9' },
+                { id: '4', name: 'FITNESS', members: 45231, icon: 'fitness-outline', color: '#10B981' },
+                { id: '5', name: 'TECH', members: 89123, icon: 'hardware-chip-outline', color: '#F59E0B' },
+              ].map((team) => (
+                <TouchableOpacity
+                  key={team.id}
+                  style={[styles.teamCard, { backgroundColor: theme.card }]}
+                  onPress={() => {
+                    // TODO: Navigate to team details
+                  }}
+                >
+                  <View style={[styles.teamCardImage, { backgroundColor: team.color + '40' }]}>
+                    <View style={[styles.teamCardIcon, { backgroundColor: team.color }]}>
+                      <Ionicons name={team.icon as any} size={24} color="#FFFFFF" />
+                    </View>
+                  </View>
+                  <Text style={[styles.teamCardName, { color: theme.text }]}>{team.name}</Text>
+                  <Text style={[styles.teamCardMembers, { color: theme.textSecondary }]}>
+                    {team.members.toLocaleString()} MEMBERS
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {renderHeader()}
@@ -543,6 +623,7 @@ export default function FeedsScreen() {
       >
         {renderFeedContent()}
         {renderNewsContent()}
+        {renderGroupsContent()}
       </ScrollView>
 
       <CreatePostModal
@@ -575,16 +656,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  slidingIndicator: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    width: 120,
-    height: 36, // Match button height (paddingVertical 10 + text height ~16)
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    zIndex: 0,
-  },
   segmentButton: {
     paddingHorizontal: 24,
     paddingVertical: 10,
@@ -601,11 +672,9 @@ const styles = StyleSheet.create({
   segmentButtonText: {
     fontSize: 17,
     fontWeight: '400',
-    color: '#374151',
   },
   segmentButtonTextActive: {
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '700',
   },
   filterTabs: {
     flexDirection: 'row',
@@ -727,5 +796,118 @@ const styles = StyleSheet.create({
   newsSentimentChipText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  groupsContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 100,
+  },
+  groupsHeader: {
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  groupsTitleContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupsTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  referFriendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  referFriendButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  gettingStartedSection: {
+    marginTop: 8,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 12,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  recommendedTeamsSection: {
+    marginTop: 32,
+  },
+  recommendedTeamsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  teamsScrollContent: {
+    paddingRight: 16,
+    gap: 12,
+  },
+  teamCard: {
+    width: 160,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  teamCardImage: {
+    width: '100%',
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  teamCardIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  teamCardName: {
+    fontSize: 20,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  teamCardMembers: {
+    fontSize: 12,
+    fontWeight: '500',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
 });
