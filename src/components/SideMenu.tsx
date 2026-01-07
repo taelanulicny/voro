@@ -5,14 +5,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { RootStackParamList, MainTabParamList } from '../types';
 import { useSideMenu } from '../context/SideMenuContext';
 
 interface SideMenuProps {
   onClose?: () => void;
 }
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RootStackParamList>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MENU_WIDTH = SCREEN_WIDTH * 0.67; // 2/3 of screen width
@@ -118,6 +123,19 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                 <Ionicons name="bulb-outline" size={16} color={theme.text} />
               </View>
               <Text style={[styles.menuItemText, { color: theme.text }]}>New Additions</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                handleClose();
+                navigation.navigate('Main', { screen: 'Watchlist' });
+              }}
+            >
+              <View style={[styles.menuItemIcon, { borderColor: theme.textSecondary, borderWidth: 1 }]}>
+                <Ionicons name="star-outline" size={16} color={theme.text} />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Watchlist</Text>
             </TouchableOpacity>
           </View>
 
