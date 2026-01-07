@@ -91,6 +91,60 @@ const FootballIcon: React.FC<FootballIconProps> = ({ size, color }) => {
   );
 };
 
+// Custom Basketball Icon Component
+interface BasketballIconProps {
+  size: number;
+  color: string;
+}
+
+const BasketballIcon: React.FC<BasketballIconProps> = ({ size, color }) => {
+  const radius = size / 2 - 1;
+  const centerX = size / 2;
+  const centerY = size / 2;
+  
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Basketball circle */}
+      <Ellipse
+        cx={centerX}
+        cy={centerY}
+        rx={radius}
+        ry={radius}
+        fill={color}
+      />
+      
+      {/* Basketball lines - curved lines typical of a basketball */}
+      <Line
+        x1={centerX - radius * 0.7}
+        y1={centerY - radius * 0.3}
+        x2={centerX + radius * 0.7}
+        y2={centerY + radius * 0.3}
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <Line
+        x1={centerX - radius * 0.7}
+        y1={centerY + radius * 0.3}
+        x2={centerX + radius * 0.7}
+        y2={centerY - radius * 0.3}
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <Line
+        x1={centerX}
+        y1={centerY - radius * 0.8}
+        x2={centerX}
+        y2={centerY + radius * 0.8}
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+};
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Chart config will be created dynamically based on theme
@@ -263,51 +317,99 @@ export default function EntityScreen() {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
-  // Generate mock live game data for top 5 NFL teams
+  // Generate mock live game data for top 5 NFL and NBA teams
   const liveGameData = useMemo(() => {
-    if (categoryId !== 'NFL' || !entity) return null;
+    if ((categoryId !== 'NFL' && categoryId !== 'NBA') || !entity) return null;
     
-    // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
-    const top5TeamIds = [100, 114, 116, 127, 101];
+    if (categoryId === 'NFL') {
+      // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
+      const top5TeamIds = [100, 114, 116, 127, 101];
+      
+      // Check if current entity is in top 5
+      if (!top5TeamIds.includes(entityId)) return null;
+      
+      // Get all top 5 teams with their info
+      const top5Teams = [
+        { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
+        { id: 114, name: 'Dallas Cowboys', ticker: 'DALCO' },
+        { id: 116, name: 'Philadelphia Eagles', ticker: 'PHIEA' },
+        { id: 127, name: 'San Francisco 49ers', ticker: 'SF49' },
+        { id: 101, name: 'Buffalo Bills', ticker: 'BUFBI' },
+      ];
+      
+      // Create matchups for each top 5 team
+      const matchups: Record<number, { opponent: typeof top5Teams[0], teamScore: number, opponentScore: number, quarter: string, time: string, status: string, isAway: boolean }> = {
+        100: { opponent: top5Teams[4], teamScore: 24, opponentScore: 21, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: true }, // Chiefs at Bills
+        114: { opponent: top5Teams[3], teamScore: 31, opponentScore: 28, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: true }, // Cowboys at 49ers
+        116: { opponent: top5Teams[0], teamScore: 17, opponentScore: 14, quarter: 'Q2', time: '5:32', status: 'LIVE', isAway: true }, // Eagles at Chiefs
+        127: { opponent: top5Teams[1], teamScore: 28, opponentScore: 31, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: false }, // 49ers vs Cowboys (home)
+        101: { opponent: top5Teams[0], teamScore: 21, opponentScore: 24, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: false }, // Bills vs Chiefs (home)
+      };
+      
+      const game = matchups[entityId];
+      if (!game) return null;
+      
+      return {
+        teamName: entity.name,
+        teamTicker: entity.ticker,
+        teamId: entityId,
+        teamScore: game.teamScore,
+        opponentName: game.opponent.name,
+        opponentTicker: game.opponent.ticker,
+        opponentId: game.opponent.id,
+        opponentScore: game.opponentScore,
+        quarter: game.quarter,
+        time: game.time,
+        status: game.status,
+        isAway: game.isAway,
+        sportCategory: 'NFL',
+      };
+    } else if (categoryId === 'NBA') {
+      // Top 5 NBA teams by basePrice: Celtics (200), Bucks (201), Nuggets (202), Suns (203), Lakers (204)
+      const top5TeamIds = [200, 201, 202, 203, 204];
+      
+      // Check if current entity is in top 5
+      if (!top5TeamIds.includes(entityId)) return null;
+      
+      // Get all top 5 teams with their info
+      const top5Teams = [
+        { id: 200, name: 'Boston Celtics', ticker: 'BOSCE' },
+        { id: 201, name: 'Milwaukee Bucks', ticker: 'MILBU' },
+        { id: 202, name: 'Denver Nuggets', ticker: 'DENNU' },
+        { id: 203, name: 'Phoenix Suns', ticker: 'PHOEN' },
+        { id: 204, name: 'Los Angeles Lakers', ticker: 'LALAK' },
+      ];
+      
+      // Create matchups for each top 5 team (matching CategoryScreen)
+      const matchups: Record<number, { opponent: typeof top5Teams[0], teamScore: number, opponentScore: number, quarter: string, time: string, status: string, isAway: boolean }> = {
+        200: { opponent: top5Teams[4], teamScore: 112, opponentScore: 108, quarter: 'Q4', time: '3:24', status: 'LIVE', isAway: true }, // Celtics at Lakers
+        201: { opponent: top5Teams[2], teamScore: 98, opponentScore: 105, quarter: 'Q3', time: '7:15', status: 'LIVE', isAway: true }, // Bucks at Nuggets
+        202: { opponent: top5Teams[3], teamScore: 124, opponentScore: 118, quarter: 'Q4', time: '2:18', status: 'LIVE', isAway: false }, // Nuggets vs Suns (home)
+        203: { opponent: top5Teams[0], teamScore: 119, opponentScore: 115, quarter: 'Q4', time: '1:42', status: 'LIVE', isAway: true }, // Suns at Celtics
+        204: { opponent: top5Teams[1], teamScore: 102, opponentScore: 109, quarter: 'Q3', time: '5:33', status: 'LIVE', isAway: false }, // Lakers vs Bucks (home)
+      };
+      
+      const game = matchups[entityId];
+      if (!game) return null;
+      
+      return {
+        teamName: entity.name,
+        teamTicker: entity.ticker,
+        teamId: entityId,
+        teamScore: game.teamScore,
+        opponentName: game.opponent.name,
+        opponentTicker: game.opponent.ticker,
+        opponentId: game.opponent.id,
+        opponentScore: game.opponentScore,
+        quarter: game.quarter,
+        time: game.time,
+        status: game.status,
+        isAway: game.isAway,
+        sportCategory: 'NBA',
+      };
+    }
     
-    // Check if current entity is in top 5
-    if (!top5TeamIds.includes(entityId)) return null;
-    
-    // Get all top 5 teams with their info
-    const top5Teams = [
-      { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
-      { id: 114, name: 'Dallas Cowboys', ticker: 'DALCO' },
-      { id: 116, name: 'Philadelphia Eagles', ticker: 'PHIEA' },
-      { id: 127, name: 'San Francisco 49ers', ticker: 'SF49' },
-      { id: 101, name: 'Buffalo Bills', ticker: 'BUFBI' },
-    ];
-    
-    // Create matchups for each top 5 team
-    const matchups: Record<number, { opponent: typeof top5Teams[0], teamScore: number, opponentScore: number, quarter: string, time: string, status: string, isAway: boolean }> = {
-      100: { opponent: top5Teams[4], teamScore: 24, opponentScore: 21, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: true }, // Chiefs at Bills
-      114: { opponent: top5Teams[3], teamScore: 31, opponentScore: 28, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: true }, // Cowboys at 49ers
-      116: { opponent: top5Teams[0], teamScore: 17, opponentScore: 14, quarter: 'Q2', time: '5:32', status: 'LIVE', isAway: true }, // Eagles at Chiefs
-      127: { opponent: top5Teams[1], teamScore: 28, opponentScore: 31, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: false }, // 49ers vs Cowboys (home)
-      101: { opponent: top5Teams[0], teamScore: 21, opponentScore: 24, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: false }, // Bills vs Chiefs (home)
-    };
-    
-    const game = matchups[entityId];
-    if (!game) return null;
-    
-    return {
-      teamName: entity.name,
-      teamTicker: entity.ticker,
-      teamId: entityId,
-      teamScore: game.teamScore,
-      opponentName: game.opponent.name,
-      opponentTicker: game.opponent.ticker,
-      opponentId: game.opponent.id,
-      opponentScore: game.opponentScore,
-      quarter: game.quarter,
-      time: game.time,
-      status: game.status,
-      isAway: game.isAway,
-    };
+    return null;
   }, [entityId, categoryId, entity]);
 
   // Helper function to convert team name to camelCase format for @tag
@@ -316,10 +418,10 @@ export default function EntityScreen() {
   };
 
   // Handler to navigate to team entity page
-  const handleTeamPress = (teamId: number) => {
+  const handleTeamPress = (teamId: number, sportCategory?: string) => {
     navigation.navigate('Entity' as never, {
       entityId: teamId,
-      categoryId: 'NFL',
+      categoryId: sportCategory || categoryId,
     } as never);
   };
   
@@ -1079,7 +1181,7 @@ export default function EntityScreen() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+            </View>
 
       {/* Content with horizontal swipe */}
       <ScrollView
@@ -1117,16 +1219,25 @@ export default function EntityScreen() {
         <View style={{ width: SCREEN_WIDTH }}>
           <FlatList
             data={categoryId === 'NFL' ? [] : entityFeedPosts}
-            ListHeaderComponent={liveGameData ? (
+            ListHeaderComponent={liveGameData ? (() => {
+              const sportCategory = liveGameData.sportCategory || categoryId;
+              const isNBA = sportCategory === 'NBA';
+              const iconColor = isNBA ? '#C8102E' : '#1E40AF';
+              
+              return (
               <View style={[styles.liveGameModule, { backgroundColor: theme.card }]}>
                 <View style={styles.liveGameHeader}>
                   <View style={styles.liveGameHeaderLeft}>
-                    <View style={[styles.sportIcon, { backgroundColor: '#1E40AF' }]}>
-                      <FootballIcon size={20} color="#FFFFFF" />
+                    <View style={[styles.sportIcon, { backgroundColor: iconColor }]}>
+                      {isNBA ? (
+                        <BasketballIcon size={20} color="#FFFFFF" />
+                      ) : (
+                        <FootballIcon size={20} color="#FFFFFF" />
+                      )}
                     </View>
                     <View>
                       <Text style={[styles.liveGameCategory, { color: theme.textSecondary }]}>
-                        NFL
+                        {liveGameData.sportCategory || categoryId}
                       </Text>
                       {(() => {
                         const awayTeamTag = `@${formatTeamTag(liveGameData.isAway ? liveGameData.teamName : liveGameData.opponentName)}`;
@@ -1139,14 +1250,14 @@ export default function EntityScreen() {
                         if (shouldWrap) {
                           return (
                             <View style={styles.liveGameTitleContainerWrapped}>
-                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId, liveGameData.sportCategory || categoryId)}>
                                 <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                   {awayTeamTag}
                                 </Text>
                               </TouchableOpacity>
                               <View style={styles.liveGameTitleRow}>
                                 <Text style={[styles.liveGameTitle, { color: theme.text }]}>at </Text>
-                                <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                                <TouchableOpacity onPress={() => handleTeamPress(homeTeamId, liveGameData.sportCategory || categoryId)}>
                                   <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                     {homeTeamTag}
                                   </Text>
@@ -1157,13 +1268,13 @@ export default function EntityScreen() {
                         } else {
                           return (
                             <View style={styles.liveGameTitleContainer}>
-                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId, liveGameData.sportCategory || categoryId)}>
                                 <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                   {awayTeamTag}
                                 </Text>
                               </TouchableOpacity>
                               <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
-                              <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                              <TouchableOpacity onPress={() => handleTeamPress(homeTeamId, liveGameData.sportCategory || categoryId)}>
                                 <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                   {homeTeamTag}
                                 </Text>
@@ -1209,7 +1320,8 @@ export default function EntityScreen() {
                   </View>
                 </View>
               </View>
-            ) : null}
+              );
+            })() : null}
             renderItem={({ item }) => (
               <PostCard 
                 post={item} 
@@ -1228,8 +1340,8 @@ export default function EntityScreen() {
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
                   {categoryId === 'NFL' ? 'Feeds are coming soon' : 'No posts yet for this entity'}
                 </Text>
-              </View>
-            )}
+          </View>
+        )}
           />
         </View>
 
@@ -1237,16 +1349,25 @@ export default function EntityScreen() {
         <View style={{ width: SCREEN_WIDTH }}>
           <FlatList
             data={entityNews}
-            ListHeaderComponent={liveGameData ? (
+            ListHeaderComponent={liveGameData ? (() => {
+              const sportCategory = liveGameData.sportCategory || categoryId;
+              const isNBA = sportCategory === 'NBA';
+              const iconColor = isNBA ? '#C8102E' : '#1E40AF';
+              
+              return (
               <View style={[styles.liveGameModule, { backgroundColor: theme.card }]}>
                 <View style={styles.liveGameHeader}>
                   <View style={styles.liveGameHeaderLeft}>
-                    <View style={[styles.sportIcon, { backgroundColor: '#1E40AF' }]}>
-                      <FootballIcon size={20} color="#FFFFFF" />
+                    <View style={[styles.sportIcon, { backgroundColor: iconColor }]}>
+                      {isNBA ? (
+                        <BasketballIcon size={20} color="#FFFFFF" />
+                      ) : (
+                        <FootballIcon size={20} color="#FFFFFF" />
+                      )}
                     </View>
                     <View>
                       <Text style={[styles.liveGameCategory, { color: theme.textSecondary }]}>
-                        NFL
+                        {liveGameData.sportCategory || categoryId}
                       </Text>
                       {(() => {
                         const awayTeamTag = `@${formatTeamTag(liveGameData.isAway ? liveGameData.teamName : liveGameData.opponentName)}`;
@@ -1259,14 +1380,14 @@ export default function EntityScreen() {
                         if (shouldWrap) {
                           return (
                             <View style={styles.liveGameTitleContainerWrapped}>
-                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId, liveGameData.sportCategory || categoryId)}>
                                 <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                   {awayTeamTag}
                                 </Text>
                               </TouchableOpacity>
                               <View style={styles.liveGameTitleRow}>
                                 <Text style={[styles.liveGameTitle, { color: theme.text }]}>at </Text>
-                                <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                                <TouchableOpacity onPress={() => handleTeamPress(homeTeamId, liveGameData.sportCategory || categoryId)}>
                                   <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                     {homeTeamTag}
                                   </Text>
@@ -1277,13 +1398,13 @@ export default function EntityScreen() {
                         } else {
                           return (
                             <View style={styles.liveGameTitleContainer}>
-                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId, liveGameData.sportCategory || categoryId)}>
                                 <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                   {awayTeamTag}
                                 </Text>
                               </TouchableOpacity>
                               <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
-                              <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                              <TouchableOpacity onPress={() => handleTeamPress(homeTeamId, liveGameData.sportCategory || categoryId)}>
                                 <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                                   {homeTeamTag}
                                 </Text>
@@ -1329,7 +1450,8 @@ export default function EntityScreen() {
                   </View>
                 </View>
               </View>
-            ) : null}
+              );
+            })() : null}
             renderItem={({ item }) => (
               <NewsCard article={item} showEntity={false} />
             )}
@@ -1353,18 +1475,18 @@ export default function EntityScreen() {
         <View style={styles.bottomButtonsContainer}>
           {/* Left Side: Segmented Control */}
           <View style={styles.segmentedControl}>
-            <TouchableOpacity
+        <TouchableOpacity
               style={[styles.segmentButton, styles.segmentButtonActive]}
-              onPress={() => setTradeModalVisible(true)}
-            >
+          onPress={() => setTradeModalVisible(true)}
+        >
               <Text style={styles.segmentButtonTextActive}>Predict</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+          </TouchableOpacity>
+          <TouchableOpacity
               style={[styles.segmentButton, styles.segmentButtonInactive]}
-              onPress={() => setShareOpinionModalVisible(true)}
-            >
+            onPress={() => setShareOpinionModalVisible(true)}
+          >
               <Text style={styles.segmentButtonTextInactive}>Post</Text>
-            </TouchableOpacity>
+        </TouchableOpacity>
           </View>
 
           {/* Right Side: Icon Buttons */}

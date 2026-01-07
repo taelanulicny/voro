@@ -86,6 +86,60 @@ const FootballIcon: React.FC<FootballIconProps> = ({ size, color }) => {
   );
 };
 
+// Custom Basketball Icon Component
+interface BasketballIconProps {
+  size: number;
+  color: string;
+}
+
+const BasketballIcon: React.FC<BasketballIconProps> = ({ size, color }) => {
+  const radius = size / 2 - 1;
+  const centerX = size / 2;
+  const centerY = size / 2;
+  
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Basketball circle */}
+      <Ellipse
+        cx={centerX}
+        cy={centerY}
+        rx={radius}
+        ry={radius}
+        fill={color}
+      />
+      
+      {/* Basketball lines - curved lines typical of a basketball */}
+      <Line
+        x1={centerX - radius * 0.7}
+        y1={centerY - radius * 0.3}
+        x2={centerX + radius * 0.7}
+        y2={centerY + radius * 0.3}
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <Line
+        x1={centerX - radius * 0.7}
+        y1={centerY + radius * 0.3}
+        x2={centerX + radius * 0.7}
+        y2={centerY - radius * 0.3}
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <Line
+        x1={centerX}
+        y1={centerY - radius * 0.8}
+        x2={centerX}
+        y2={centerY + radius * 0.8}
+        stroke="#FFFFFF"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+};
+
 export default function CategoryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CategoryRouteProp>();
@@ -607,28 +661,35 @@ export default function CategoryScreen() {
     const shouldWrap = fullTitle.length > 32;
     const awayTeamId = game.isAway ? game.teamId : game.opponentId;
     const homeTeamId = game.isAway ? game.opponentId : game.teamId;
+    const sportCategory = game.sportCategory || categoryId;
+    const isNBA = sportCategory === 'NBA';
+    const iconColor = isNBA ? '#C8102E' : '#1E40AF'; // Red for NBA, Blue for NFL
     
     return (
       <View key={`${game.teamId}-${game.opponentId}`} style={[styles.liveGameModule, { backgroundColor: theme.card }]}>
         <View style={styles.liveGameHeader}>
           <View style={styles.liveGameHeaderLeft}>
-            <View style={[styles.sportIcon, { backgroundColor: '#1E40AF' }]}>
-              <FootballIcon size={20} color="#FFFFFF" />
+            <View style={[styles.sportIcon, { backgroundColor: iconColor }]}>
+              {isNBA ? (
+                <BasketballIcon size={20} color="#FFFFFF" />
+              ) : (
+                <FootballIcon size={20} color="#FFFFFF" />
+              )}
             </View>
             <View>
               <Text style={[styles.liveGameCategory, { color: theme.textSecondary }]}>
-                NFL
+                {sportCategory}
               </Text>
               {shouldWrap ? (
                 <View style={styles.liveGameTitleContainerWrapped}>
-                  <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                  <TouchableOpacity onPress={() => handleTeamPress(awayTeamId, sportCategory)}>
                     <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                       {awayTeamTag}
                     </Text>
                   </TouchableOpacity>
                   <View style={styles.liveGameTitleRow}>
                     <Text style={[styles.liveGameTitle, { color: theme.text }]}>at </Text>
-                    <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                    <TouchableOpacity onPress={() => handleTeamPress(homeTeamId, sportCategory)}>
                       <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                         {homeTeamTag}
                       </Text>
@@ -637,13 +698,13 @@ export default function CategoryScreen() {
                 </View>
               ) : (
                 <View style={styles.liveGameTitleContainer}>
-                  <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                  <TouchableOpacity onPress={() => handleTeamPress(awayTeamId, sportCategory)}>
                     <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                       {awayTeamTag}
                     </Text>
                   </TouchableOpacity>
                   <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
-                  <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                  <TouchableOpacity onPress={() => handleTeamPress(homeTeamId, sportCategory)}>
                     <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
                       {homeTeamTag}
                     </Text>
@@ -735,48 +796,86 @@ export default function CategoryScreen() {
   };
 
   // Handler to navigate to team entity page
-  const handleTeamPress = (teamId: number) => {
+  const handleTeamPress = (teamId: number, sportCategory: string) => {
     navigation.navigate('Entity' as never, {
       entityId: teamId,
-      categoryId: 'NFL',
+      categoryId: sportCategory,
     } as never);
   };
 
-  // Generate all live game data for top 5 NFL teams (only for NFL category)
+  // Generate all live game data for top 5 teams (NFL or NBA)
   const allLiveGames = useMemo(() => {
-    if (categoryId !== 'NFL') return [];
+    if (categoryId === 'NFL') {
+      // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
+      const top5Teams = [
+        { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
+        { id: 114, name: 'Dallas Cowboys', ticker: 'DALCO' },
+        { id: 116, name: 'Philadelphia Eagles', ticker: 'PHIEA' },
+        { id: 127, name: 'San Francisco 49ers', ticker: 'SF49' },
+        { id: 101, name: 'Buffalo Bills', ticker: 'BUFBI' },
+      ];
+      
+      // Create matchups for each top 5 team
+      const matchups = [
+        { team: top5Teams[0], opponent: top5Teams[4], teamScore: 24, opponentScore: 21, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: true }, // Chiefs at Bills
+        { team: top5Teams[1], opponent: top5Teams[3], teamScore: 31, opponentScore: 28, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: true }, // Cowboys at 49ers
+        { team: top5Teams[2], opponent: top5Teams[0], teamScore: 17, opponentScore: 14, quarter: 'Q2', time: '5:32', status: 'LIVE', isAway: true }, // Eagles at Chiefs
+      ];
+      
+      // Return all games
+      return matchups.map(game => ({
+        teamName: game.team.name,
+        teamTicker: game.team.ticker,
+        teamId: game.team.id,
+        teamScore: game.teamScore,
+        opponentName: game.opponent.name,
+        opponentTicker: game.opponent.ticker,
+        opponentId: game.opponent.id,
+        opponentScore: game.opponentScore,
+        quarter: game.quarter,
+        time: game.time,
+        status: game.status,
+        isAway: game.isAway,
+        sportCategory: 'NFL',
+      }));
+    } else if (categoryId === 'NBA') {
+      // Top 5 NBA teams by basePrice: Celtics (200), Bucks (201), Nuggets (202), Suns (203), Lakers (204)
+      const top5Teams = [
+        { id: 200, name: 'Boston Celtics', ticker: 'BOSCE' },
+        { id: 201, name: 'Milwaukee Bucks', ticker: 'MILBU' },
+        { id: 202, name: 'Denver Nuggets', ticker: 'DENNU' },
+        { id: 203, name: 'Phoenix Suns', ticker: 'PHOEN' },
+        { id: 204, name: 'Los Angeles Lakers', ticker: 'LALAK' },
+      ];
+      
+      // Create matchups with realistic NBA scores (typically 90-130 range)
+      const matchups = [
+        { team: top5Teams[0], opponent: top5Teams[4], teamScore: 112, opponentScore: 108, quarter: 'Q4', time: '3:24', status: 'LIVE', isAway: true }, // Celtics at Lakers
+        { team: top5Teams[1], opponent: top5Teams[2], teamScore: 98, opponentScore: 105, quarter: 'Q3', time: '7:15', status: 'LIVE', isAway: true }, // Bucks at Nuggets
+        { team: top5Teams[3], opponent: top5Teams[0], teamScore: 119, opponentScore: 115, quarter: 'Q4', time: '1:42', status: 'LIVE', isAway: true }, // Suns at Celtics
+        { team: top5Teams[4], opponent: top5Teams[1], teamScore: 102, opponentScore: 109, quarter: 'Q3', time: '5:33', status: 'LIVE', isAway: false }, // Lakers vs Bucks (home)
+        { team: top5Teams[2], opponent: top5Teams[3], teamScore: 124, opponentScore: 118, quarter: 'Q4', time: '2:18', status: 'LIVE', isAway: false }, // Nuggets vs Suns (home)
+      ];
+      
+      // Return all games
+      return matchups.map(game => ({
+        teamName: game.team.name,
+        teamTicker: game.team.ticker,
+        teamId: game.team.id,
+        teamScore: game.teamScore,
+        opponentName: game.opponent.name,
+        opponentTicker: game.opponent.ticker,
+        opponentId: game.opponent.id,
+        opponentScore: game.opponentScore,
+        quarter: game.quarter,
+        time: game.time,
+        status: game.status,
+        isAway: game.isAway,
+        sportCategory: 'NBA',
+      }));
+    }
     
-    // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
-    const top5Teams = [
-      { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
-      { id: 114, name: 'Dallas Cowboys', ticker: 'DALCO' },
-      { id: 116, name: 'Philadelphia Eagles', ticker: 'PHIEA' },
-      { id: 127, name: 'San Francisco 49ers', ticker: 'SF49' },
-      { id: 101, name: 'Buffalo Bills', ticker: 'BUFBI' },
-    ];
-    
-    // Create matchups for each top 5 team
-    const matchups = [
-      { team: top5Teams[0], opponent: top5Teams[4], teamScore: 24, opponentScore: 21, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: true }, // Chiefs at Bills
-      { team: top5Teams[1], opponent: top5Teams[3], teamScore: 31, opponentScore: 28, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: true }, // Cowboys at 49ers
-      { team: top5Teams[2], opponent: top5Teams[0], teamScore: 17, opponentScore: 14, quarter: 'Q2', time: '5:32', status: 'LIVE', isAway: true }, // Eagles at Chiefs
-    ];
-    
-    // Return all games
-    return matchups.map(game => ({
-      teamName: game.team.name,
-      teamTicker: game.team.ticker,
-      teamId: game.team.id,
-      teamScore: game.teamScore,
-      opponentName: game.opponent.name,
-      opponentTicker: game.opponent.ticker,
-      opponentId: game.opponent.id,
-      opponentScore: game.opponentScore,
-      quarter: game.quarter,
-      time: game.time,
-      status: game.status,
-      isAway: game.isAway,
-    }));
+    return [];
   }, [categoryId]);
 
   const renderEntity = ({ item }: { item: typeof entities[0] }) => {
@@ -974,7 +1073,7 @@ export default function CategoryScreen() {
         {/* News Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {categoryId === 'NFL' && allLiveGames.length > 0 && (
+            {(categoryId === 'NFL' || categoryId === 'NBA') && allLiveGames.length > 0 && (
               <View style={{ paddingTop: 16 }}>
                 {allLiveGames.map(game => renderLiveGameModule(game))}
               </View>
