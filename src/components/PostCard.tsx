@@ -169,8 +169,10 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
   const renderContentWithMentions = () => {
     if (isEntityFeed) {
       // Entity feed: Start with @EntityName prefix (no spaces) - e.g., @KanyeWest not @Kanye West
-      const entityMentionFormatted = entityName ? `@${entityNameToMention(entityName)} ` : '';
-      const fullContent = entityMentionFormatted + post.content;
+      // Only add prefix if content doesn't already start with the entity mention
+      const entityMentionFormatted = entityName ? `@${entityNameToMention(entityName)}` : '';
+      const contentStartsWithMention = entityMentionFormatted && post.content.trim().startsWith(`@${entityNameToMention(entityName)}`);
+      const fullContent = contentStartsWithMention ? post.content : (entityMentionFormatted ? `@${entityNameToMention(entityName)} ${post.content}` : post.content);
       
       // Use regex to find all @mentions - now matches single word format (no spaces)
       const parts: React.ReactNode[] = [];

@@ -24,7 +24,7 @@ import PostCard from '../components/PostCard';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type CategoryRouteProp = RouteProp<RootStackParamList, 'Category'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Custom American Football Icon Component
 interface FootballIconProps {
@@ -149,6 +149,8 @@ export default function CategoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'entities' | 'about' | 'feed' | 'news'>('entities');
   const scrollViewRef = useRef<ScrollView>(null);
+  const [currentGamePageIndex, setCurrentGamePageIndex] = useState(0);
+  const gamesScrollRef = useRef<ScrollView>(null);
 
   // Category-specific feed posts
   const categoryFeedPosts = useMemo(() => {
@@ -790,6 +792,13 @@ export default function CategoryScreen() {
     });
   };
 
+  // Handle games scroll for page indicators
+  const handleGamesScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
+    setCurrentGamePageIndex(pageIndex);
+  };
+
   // Helper function to convert team name to camelCase format for @tag
   const formatTeamTag = (teamName: string): string => {
     return teamName.replace(/\s+/g, '');
@@ -1074,8 +1083,43 @@ export default function CategoryScreen() {
         <View style={{ width: SCREEN_WIDTH }}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {(categoryId === 'NFL' || categoryId === 'NBA') && allLiveGames.length > 0 && (
-              <View style={{ paddingTop: 16 }}>
-                {allLiveGames.map(game => renderLiveGameModule(game))}
+              <View>
+                {/* Swipeable Games Section */}
+                <View style={styles.gamesSwipeableContainer}>
+                  <ScrollView
+                    ref={gamesScrollRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={handleGamesScroll}
+                    scrollEventThrottle={16}
+                    style={styles.gamesScrollView}
+                    contentContainerStyle={styles.gamesScrollContent}
+                  >
+                    {allLiveGames.map((game, index) => (
+                      <View key={`${game.teamId}-${game.opponentId}`} style={styles.gamePage}>
+                        {renderLiveGameModule(game)}
+                      </View>
+                    ))}
+                  </ScrollView>
+                  
+                  {/* Page Indicator Dots */}
+                  <View style={styles.pageIndicatorContainer}>
+                    {allLiveGames.map((_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.pageIndicatorDot,
+                          {
+                            backgroundColor: currentGamePageIndex === index ? theme.primary : theme.border,
+                            width: currentGamePageIndex === index ? 8 : 6,
+                            height: currentGamePageIndex === index ? 8 : 6,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
               </View>
             )}
             <View style={styles.comingSoonContainer}>
@@ -1260,6 +1304,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    flex: 1,
+    justifyContent: 'center',
   },
   liveGameHeader: {
     flexDirection: 'row',
@@ -1347,6 +1393,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: -20,
     lineHeight: 48,
+  },
+  gamesSwipeableContainer: {
+    height: 280,
+    marginTop: 16,
+  },
+  gamesScrollView: {
+    flex: 1,
+  },
+  gamesScrollContent: {
+    flexDirection: 'row',
+  },
+  gamePage: {
+    width: SCREEN_WIDTH,
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+  },
+  pageIndicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  pageIndicatorDot: {
+    borderRadius: 4,
   },
 });
 
