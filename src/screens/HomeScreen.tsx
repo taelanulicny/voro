@@ -771,7 +771,7 @@ export default function HomeScreen() {
             contentContainerStyle={styles.swipeableScrollContent}
           >
             {/* Duplicate of page 6 at the start for circular scrolling */}
-            <View key="duplicate-6" style={styles.swipeablePage}>
+            <View key="duplicate-6" style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
               <View style={styles.swipeablePageContent}>
                 <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
                   Page 6
@@ -787,7 +787,7 @@ export default function HomeScreen() {
               // Page 1: Multi entity chart for top 3 influencers
               if (index === 0) {
                 return (
-                  <View key={index} style={styles.swipeablePage}>
+                  <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.comparisonChartContainer}>
                       {/* Header */}
                       <View style={styles.comparisonChartHeaderRow}>
@@ -977,7 +977,7 @@ export default function HomeScreen() {
                 };
                 
                 return (
-                  <View key={index} style={styles.swipeablePage}>
+                  <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.topMoversContainer}>
                       <Text style={[styles.topMoversHeader, { color: theme.text }]}>
                         Today's Top Movers
@@ -1087,7 +1087,7 @@ export default function HomeScreen() {
                 };
                 
                 return (
-                  <View key={index} style={styles.swipeablePage}>
+                  <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.imoContainer}>
                       {/* Header with badge-style tag */}
                       <View style={styles.imoHeader}>
@@ -1160,7 +1160,7 @@ export default function HomeScreen() {
                 };
 
                 return (
-                  <View key={index} style={styles.swipeablePage}>
+                  <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.mostLikedContainer}>
                       <Text style={[styles.mostLikedHeader, { color: theme.text }]}>
                         Most Liked Today
@@ -1241,7 +1241,7 @@ export default function HomeScreen() {
                 };
 
                 return (
-                  <View key={index} style={styles.swipeablePage}>
+                  <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.discoverContainer}>
                       <View style={styles.discoverHeader}>
                         <Text style={[styles.discoverHeaderText, { color: theme.text }]}>
@@ -1350,7 +1350,7 @@ export default function HomeScreen() {
                 ];
 
                 return (
-                  <View key={index} style={styles.swipeablePage}>
+                  <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.topTradesContainer}>
                       <Text style={[styles.topTradesHeader, { color: theme.text }]}>
                         Top 2 Biggest Trades Today
@@ -1413,7 +1413,7 @@ export default function HomeScreen() {
               
               // Other pages: placeholder
               return (
-                <View key={index} style={styles.swipeablePage}>
+                <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                   <View style={styles.swipeablePageContent}>
                     <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
                       Page {index + 1}
@@ -1427,7 +1427,7 @@ export default function HomeScreen() {
             })}
             
             {/* Duplicate of page 6 at the end for circular scrolling */}
-            <View key="duplicate-6-end" style={styles.swipeablePage}>
+            <View key="duplicate-6-end" style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
               <View style={styles.swipeablePageContent}>
                 <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
                   Page 6
@@ -1440,7 +1440,7 @@ export default function HomeScreen() {
           </ScrollView>
           
           {/* Page Indicator Dots */}
-          <View style={styles.pageIndicatorContainer}>
+          <View style={[styles.pageIndicatorContainer, { backgroundColor: theme.backgroundSecondary }]}>
             {Array.from({ length: TOTAL_PAGES }, (_, index) => (
               <View
                 key={index}
@@ -2472,7 +2472,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     height: 360, // Fixed height - locked
     paddingHorizontal: 0,
-    backgroundColor: '#F5F5F5', // Light grey background
+    // backgroundColor will be set dynamically using theme
   },
   swipeablePageContent: {
     flex: 1,
@@ -2495,7 +2495,7 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 12,
     gap: 8,
-    backgroundColor: '#F5F5F5',
+    // backgroundColor will be set dynamically using theme
   },
   pageIndicatorDot: {
     borderRadius: 4,
