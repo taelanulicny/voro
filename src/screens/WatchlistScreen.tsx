@@ -256,9 +256,9 @@ export default function WatchlistScreen() {
         <View style={styles.headerLeft}>
           <TouchableOpacity
             style={styles.menuButton}
-            onPress={() => setSideMenuVisible(true)}
+            onPress={() => navigation.goBack()}
           >
-            <Ionicons name="menu" size={24} color={theme.text} />
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
           </TouchableOpacity>
           
           <Text style={[styles.logoText, { color: theme.text }]}>Watchlist</Text>
