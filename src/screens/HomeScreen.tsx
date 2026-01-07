@@ -13,6 +13,7 @@ import {
   FlatList,
   Animated,
   Image,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -28,7 +29,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useSideMenu } from '../context/SideMenuContext';
 import { useSocial } from '../context/SocialContext';
-import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
 import { getEntityById, getAllEntities, MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
 import TradeModal from '../components/TradeModal';
 import SideMenu from '../components/SideMenu';
@@ -48,6 +49,7 @@ export default function HomeScreen() {
   const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
   const { activityFeed } = useSocial();
   const [refreshing, setRefreshing] = useState(false);
+  const [referralModalVisible, setReferralModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('For You');
   const [addedCategories, setAddedCategories] = useState<string[]>([]);
   
@@ -696,9 +698,7 @@ export default function HomeScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => {
-              // Will be linked later
-            }}
+            onPress={() => setReferralModalVisible(true)}
           >
             <Ionicons name="gift-outline" size={24} color={theme.text} />
           </TouchableOpacity>
@@ -1753,6 +1753,56 @@ export default function HomeScreen() {
           existingQuantity={portfolio.holdings.find(h => h.entityId === selectedEntity.id)?.quantity}
         />
       )}
+
+      {/* Referral Modal */}
+      <Modal
+        visible={referralModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setReferralModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.referralModal, { backgroundColor: theme.card }]}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setReferralModalVisible(false)}
+            >
+              <Ionicons name="close" size={24} color={theme.text} />
+            </TouchableOpacity>
+            
+            <Text style={[styles.referralModalTitle, { color: theme.text }]}>
+              Refer Friends
+            </Text>
+            
+            <Text style={[styles.referralModalText, { color: theme.textSecondary }]}>
+              Send the link to 2 friends and receive
+            </Text>
+            
+            <Text style={[styles.referralTokenAmount, { color: theme.text }]}>
+              50 {TOKEN_SYMBOL}
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.referralShareButton, { backgroundColor: theme.primary }]}
+              onPress={async () => {
+                try {
+                  const shareMessage = `Join me on Moro! 🚀\n\nMoro is the social platform where you can trade, predict, and connect with others around the things you care about.\n\nCreate your account and start building your community today!\n\nDownload Moro now!`;
+                  
+                  await Share.share({
+                    message: shareMessage,
+                    title: 'Invite a Friend to Moro',
+                  });
+                } catch (error) {
+                  console.error('Error sharing:', error);
+                }
+              }}
+            >
+              <Ionicons name="share-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.referralShareButtonText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Side Menu */}
       <SideMenu />
@@ -2826,6 +2876,110 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  referralModal: {
+    width: SCREEN_WIDTH * 0.85,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 4,
+  },
+  referralModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  referralModalText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  referralTokenAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  referralShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    width: '100%',
+  },
+  referralShareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  referralModal: {
+    width: SCREEN_WIDTH * 0.85,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 4,
+  },
+  referralModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  referralModalText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  referralTokenAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  referralShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    width: '100%',
+  },
+  referralShareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   topTradeUserInfo: {
     flexDirection: 'row',
