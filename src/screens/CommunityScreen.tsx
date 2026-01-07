@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -72,6 +73,19 @@ export default function CommunityScreen() {
     setNewsRefreshing(true);
     await refreshNews();
     setNewsRefreshing(false);
+  };
+
+  const handleReferFriend = async () => {
+    try {
+      const shareMessage = `Join me on Moro! 🚀\n\nMoro is the social platform where you can trade, predict, and connect with others around the things you care about.\n\nCreate your account and start building your community today!\n\nDownload Moro now!`;
+      
+      await Share.share({
+        message: shareMessage,
+        title: 'Invite a Friend to Moro',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
   };
 
   // Map display categories to NewsContext category names
@@ -522,11 +536,9 @@ export default function CommunityScreen() {
             </View>
             <TouchableOpacity
               style={[styles.referFriendButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() => {
-                // TODO: Implement invite code functionality
-              }}
+              onPress={handleReferFriend}
             >
-              <Ionicons name="gift-outline" size={20} color={theme.primary} />
+              <Ionicons name="share-outline" size={20} color={theme.primary} />
               <Text style={[styles.referFriendButtonText, { color: theme.text }]}>Refer a Friend</Text>
             </TouchableOpacity>
           </View>
