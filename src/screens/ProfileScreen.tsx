@@ -39,6 +39,7 @@ export default function ProfileScreen() {
   const followersCount = 245; // Mock count
   const followingCount = followedUsers.size;
   const postsCount = userPosts.length;
+  const groupsCount = 0; // Mock count - will be replaced with actual data later
 
   // Load account value visibility preference
   useEffect(() => {
@@ -182,6 +183,11 @@ export default function ProfileScreen() {
           <Text style={[styles.statValue, { color: theme.text }]}>{followingCount}</Text>
           <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Following</Text>
         </TouchableOpacity>
+        <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+        <View style={styles.statItem}>
+          <Text style={[styles.statValue, { color: theme.text }]}>{groupsCount}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Groups</Text>
+        </View>
       </View>
     </View>
   );
