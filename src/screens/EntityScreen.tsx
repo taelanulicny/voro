@@ -1128,37 +1128,50 @@ export default function EntityScreen() {
                       <Text style={[styles.liveGameCategory, { color: theme.textSecondary }]}>
                         NFL
                       </Text>
-                      <View style={styles.liveGameTitleContainer}>
-                        {liveGameData.isAway ? (
-                          <>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.teamId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.teamName)}
-                              </Text>
-                            </TouchableOpacity>
-                            <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.opponentId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.opponentName)}
-                              </Text>
-                            </TouchableOpacity>
-                          </>
-                        ) : (
-                          <>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.opponentId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.opponentName)}
-                              </Text>
-                            </TouchableOpacity>
-                            <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.teamId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.teamName)}
-                              </Text>
-                            </TouchableOpacity>
-                          </>
-                        )}
-                      </View>
+                      {(() => {
+                        const awayTeamTag = `@${formatTeamTag(liveGameData.isAway ? liveGameData.teamName : liveGameData.opponentName)}`;
+                        const homeTeamTag = `@${formatTeamTag(liveGameData.isAway ? liveGameData.opponentName : liveGameData.teamName)}`;
+                        const fullTitle = `${awayTeamTag} at ${homeTeamTag}`;
+                        const shouldWrap = fullTitle.length > 32;
+                        const awayTeamId = liveGameData.isAway ? liveGameData.teamId : liveGameData.opponentId;
+                        const homeTeamId = liveGameData.isAway ? liveGameData.opponentId : liveGameData.teamId;
+                        
+                        if (shouldWrap) {
+                          return (
+                            <View style={styles.liveGameTitleContainerWrapped}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                                <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                  {awayTeamTag}
+                                </Text>
+                              </TouchableOpacity>
+                              <View style={styles.liveGameTitleRow}>
+                                <Text style={[styles.liveGameTitle, { color: theme.text }]}>at </Text>
+                                <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                                  <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                    {homeTeamTag}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        } else {
+                          return (
+                            <View style={styles.liveGameTitleContainer}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                                <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                  {awayTeamTag}
+                                </Text>
+                              </TouchableOpacity>
+                              <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
+                              <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                                <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                  {homeTeamTag}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        }
+                      })()}
                     </View>
                   </View>
                 </View>
@@ -1235,37 +1248,50 @@ export default function EntityScreen() {
                       <Text style={[styles.liveGameCategory, { color: theme.textSecondary }]}>
                         NFL
                       </Text>
-                      <View style={styles.liveGameTitleContainer}>
-                        {liveGameData.isAway ? (
-                          <>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.teamId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.teamName)}
-                              </Text>
-                            </TouchableOpacity>
-                            <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.opponentId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.opponentName)}
-                              </Text>
-                            </TouchableOpacity>
-                          </>
-                        ) : (
-                          <>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.opponentId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.opponentName)}
-                              </Text>
-                            </TouchableOpacity>
-                            <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
-                            <TouchableOpacity onPress={() => handleTeamPress(liveGameData.teamId)}>
-                              <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
-                                @{formatTeamTag(liveGameData.teamName)}
-                              </Text>
-                            </TouchableOpacity>
-                          </>
-                        )}
-                      </View>
+                      {(() => {
+                        const awayTeamTag = `@${formatTeamTag(liveGameData.isAway ? liveGameData.teamName : liveGameData.opponentName)}`;
+                        const homeTeamTag = `@${formatTeamTag(liveGameData.isAway ? liveGameData.opponentName : liveGameData.teamName)}`;
+                        const fullTitle = `${awayTeamTag} at ${homeTeamTag}`;
+                        const shouldWrap = fullTitle.length > 32;
+                        const awayTeamId = liveGameData.isAway ? liveGameData.teamId : liveGameData.opponentId;
+                        const homeTeamId = liveGameData.isAway ? liveGameData.opponentId : liveGameData.teamId;
+                        
+                        if (shouldWrap) {
+                          return (
+                            <View style={styles.liveGameTitleContainerWrapped}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                                <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                  {awayTeamTag}
+                                </Text>
+                              </TouchableOpacity>
+                              <View style={styles.liveGameTitleRow}>
+                                <Text style={[styles.liveGameTitle, { color: theme.text }]}>at </Text>
+                                <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                                  <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                    {homeTeamTag}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        } else {
+                          return (
+                            <View style={styles.liveGameTitleContainer}>
+                              <TouchableOpacity onPress={() => handleTeamPress(awayTeamId)}>
+                                <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                  {awayTeamTag}
+                                </Text>
+                              </TouchableOpacity>
+                              <Text style={[styles.liveGameTitle, { color: theme.text }]}> at </Text>
+                              <TouchableOpacity onPress={() => handleTeamPress(homeTeamId)}>
+                                <Text style={[styles.liveGameTitle, { color: theme.primary }]}>
+                                  {homeTeamTag}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        }
+                      })()}
                     </View>
                   </View>
                 </View>
@@ -2027,6 +2053,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  liveGameTitleContainerWrapped: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  liveGameTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   liveGameTitle: {
     fontSize: 18,
