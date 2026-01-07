@@ -211,39 +211,6 @@ export default function WatchlistScreen() {
               </Text>
             </View>
           </View>
-
-          <View style={styles.actionsRow}>
-            {holding ? (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.sellButton, { backgroundColor: theme.error + '20' }]}
-                onPress={() => handleQuickSell(item)}
-              >
-                <Text style={[styles.actionButtonText, { color: theme.error }]}>Negative</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.buyButton, { backgroundColor: theme.primary + '20' }]}
-                onPress={() => handleQuickBuy(item)}
-              >
-                <Text style={[styles.actionButtonText, { color: theme.primary }]}>Positive</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.backgroundSecondary }]}
-              onPress={() => {
-                setSelectedEntity({ id: item.entityId, ticker: item.entityTicker, name: item.entityName });
-                setShowAlertModal(true);
-              }}
-            >
-              <Ionicons name="notifications-outline" size={18} color={theme.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.backgroundSecondary }]}
-              onPress={() => handleRemove(item.entityId, item.entityName)}
-            >
-              <Ionicons name="trash-outline" size={18} color={theme.error} />
-            </TouchableOpacity>
-          </View>
         </View>
       </TouchableOpacity>
     );
@@ -591,29 +558,6 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   changePercent: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 50,
-  },
-  buyButton: {
-    // Styled via backgroundColor
-  },
-  sellButton: {
-    // Styled via backgroundColor
-  },
-  actionButtonText: {
     fontSize: 12,
     fontWeight: '600',
   },
