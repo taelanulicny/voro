@@ -808,7 +808,7 @@ export default function HomeScreen() {
                           <View
                             style={[
                               styles.legendColorDot,
-                              { backgroundColor: '#000000' },
+                              { backgroundColor: '#EC4899' },
                             ]}
                           />
                           <View style={styles.legendText}>
@@ -818,7 +818,7 @@ export default function HomeScreen() {
                             <Text
                               style={[
                                 styles.legendPrice,
-                                { color: '#000000' },
+                                { color: '#EC4899' },
                               ]}
                             >
                               {formatCurrency(200)}
@@ -882,11 +882,11 @@ export default function HomeScreen() {
                             strokeWidth="1"
                           />
                           
-                          {/* Alix Earle line - Black color */}
+                          {/* Alix Earle line - Pink color */}
                           {multiEntityData.alixEarle.length > 1 && (
                             <Path
                               d={generateMultiEntityLinePath(multiEntityData.alixEarle)}
-                              stroke="#000000"
+                              stroke="#EC4899"
                               strokeWidth="2"
                               fill="none"
                             />
