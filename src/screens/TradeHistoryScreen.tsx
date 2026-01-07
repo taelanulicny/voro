@@ -120,10 +120,7 @@ export default function TradeHistoryScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <TouchableOpacity style={styles.orderRecordsButton}>
-            <Text style={[styles.orderRecordsText, { color: theme.primary }]}>Order Records</Text>
-            <Ionicons name="chevron-down" size={16} color={theme.primary} style={styles.chevronIcon} />
-          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Trade History</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 
@@ -206,13 +203,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  orderRecordsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  orderRecordsText: {
-    fontSize: 16,
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '600',
   },
   headerRight: {
