@@ -134,6 +134,27 @@ export default function Treemap({
   
   const rectangles = squarifyTreemap(data, treemapWidth, treemapHeight);
   
+  // Calculate dynamic font sizes based on trading volume
+  // Find min and max percentages
+  const percentages = data.map(item => item.percentage);
+  const maxPercentage = Math.max(...percentages);
+  const minPercentage = Math.min(...percentages);
+  
+  // Font size range: largest category gets 28px, smallest gets 14px
+  const maxFontSize = 28;
+  const minFontSize = 14;
+  
+  // Function to calculate font size based on percentage
+  const getFontSize = (percentage: number): number => {
+    if (maxPercentage === minPercentage) {
+      // All categories have same percentage, use middle size
+      return (maxFontSize + minFontSize) / 2;
+    }
+    // Linear interpolation between min and max
+    const ratio = (percentage - minPercentage) / (maxPercentage - minPercentage);
+    return minFontSize + (maxFontSize - minFontSize) * ratio;
+  };
+  
   return (
     <View style={[styles.container, { paddingHorizontal: padding, paddingTop: padding, paddingBottom: padding }]}>
       <View style={[styles.treemapContainer, { width: treemapWidth, height: treemapHeight }]}>
@@ -162,7 +183,10 @@ export default function Treemap({
           >
             <View style={styles.labelContainer}>
               <Text
-                style={[styles.categoryName, { color: '#FFFFFF' }]}
+                style={[
+                  styles.categoryName,
+                  { color: '#FFFFFF', fontSize: getFontSize(rect.item.percentage) }
+                ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
               >
