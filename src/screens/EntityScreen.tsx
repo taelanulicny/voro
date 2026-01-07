@@ -2130,6 +2130,8 @@ const styles = StyleSheet.create({
   liveGameScoreSeparator: {
     fontSize: 32,
     fontWeight: '700',
+    marginTop: -20,
+    lineHeight: 48,
   },
 });
 
