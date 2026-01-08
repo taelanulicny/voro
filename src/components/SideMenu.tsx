@@ -112,6 +112,24 @@ export default function SideMenu({ onClose }: SideMenuProps) {
           <View style={styles.menuBody}>
             <Text style={[styles.menuTitle, { color: theme.text }]}>Menu</Text>
             
+            {/* Buy Tokens - Prominent */}
+            <TouchableOpacity
+              style={[styles.menuItem, styles.prominentMenuItem, { backgroundColor: theme.primary + '15' }]}
+              onPress={() => {
+                handleClose();
+                navigation.navigate('Purchases');
+              }}
+            >
+              <View style={[styles.menuItemIcon, { backgroundColor: theme.primary, borderWidth: 0 }]}>
+                <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+              </View>
+              <View style={styles.menuItemContent}>
+                <Text style={[styles.menuItemText, { color: theme.text }]}>Buy Tokens</Text>
+                <Text style={[styles.menuItemSubtext, { color: theme.textSecondary }]}>Purchase tokens for trading</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
@@ -213,6 +231,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
+  prominentMenuItem: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    marginHorizontal: -4,
+  },
   menuItemIcon: {
     width: 32,
     height: 32,
@@ -221,9 +245,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
+  menuItemContent: {
+    flex: 1,
+  },
   menuItemText: {
     fontSize: 18,
     fontWeight: '500',
+  },
+  menuItemSubtext: {
+    fontSize: 12,
+    marginTop: 2,
   },
   menuFooter: {
     borderTopWidth: 1,

@@ -1,5 +1,6 @@
 {
   "expo": {
+<<<<<<< HEAD
     "name": "moro-mobile",
     "slug": "moro-mobile",
     "version": "10.1.2",
@@ -13,11 +14,23 @@
     },
     "assetBundlePatterns": [
       "**/*"
+=======
+    "plugins": [
+      "expo-apple-authentication",
+      "expo-secure-store",
+      "expo-font",
+      "expo-web-browser",
+      "expo-dev-client"
+>>>>>>> parent of ec2acad (Update token symbol to ⓜ, add page 6 with top trades, update entity screen buttons and category display, add skipAuth function)
     ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.moro.mobile",
+<<<<<<< HEAD
       "buildNumber": "25",
+=======
+      "buildNumber": "15",
+>>>>>>> parent of ec2acad (Update token symbol to ⓜ, add page 6 with top trades, update entity screen buttons and category display, add skipAuth function)
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -32,9 +45,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-apple-authentication"
-    ],
     "scheme": "moro",
     "extra": {
       "eas": {

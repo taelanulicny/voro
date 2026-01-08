@@ -666,11 +666,11 @@ export default function EntityScreen() {
 
   // Filter price history - for now just use all available data (1min timeframe shows all data)
   const filteredPriceHistory = useMemo(() => {
-        // Combine original history with live updates
-        return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
-          // Remove duplicates by timestamp
-          return index === self.findIndex(p => p.timestamp === point.timestamp);
-        }).sort((a, b) => a.timestamp - b.timestamp);
+    // Combine original history with live updates
+    return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
+      // Remove duplicates by timestamp
+      return index === self.findIndex(p => p.timestamp === point.timestamp);
+    }).sort((a, b) => a.timestamp - b.timestamp);
   }, [priceHistory, entityData.priceHistory]);
 
 
@@ -801,9 +801,124 @@ export default function EntityScreen() {
 
   const renderChartContent = () => (
     <>
+<<<<<<< HEAD
         {/* Chart Container */}
         <View style={[styles.entityChartWrapperFullWidth, { backgroundColor: theme.card }]}>
           <View style={styles.entityChartContainerFull}>
+=======
+        {/* Price Header */}
+        <View style={[styles.entityHeader, { backgroundColor: theme.card }]}>
+          <View style={styles.entityPriceInfo}>
+            <Text style={[styles.entityCurrentPrice, { color: theme.text }]}>
+              {formatCurrency(currentPrice)}
+            </Text>
+            <View style={styles.entityChangeContainer}>
+              <Text style={[
+                styles.entityChangeText,
+                { color: getChangeColor(priceChange, theme) }
+              ]}>
+                {isPositive ? '+' : ''}{formatCurrency(priceChange)}
+              </Text>
+              <Text style={[
+                styles.entityChangePercent,
+                { color: getChangeColor(priceChange, theme) }
+              ]}>
+                ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
+              </Text>
+            </View>
+          </View>
+          <View style={styles.entityStatsInfo}>
+            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+              Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData.stats.volume24h)}</Text>
+            </Text>
+            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+              High: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.high24h)}</Text>
+            </Text>
+            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
+              Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.low24h)}</Text>
+            </Text>
+          </View>
+        </View>
+
+        {/* Chart Container */}
+        <View style={[styles.entityChartWrapperFullWidth, { backgroundColor: theme.card }]}>
+          <View style={styles.entityChartContainerFull}>
+            {/* Tab Selector - positioned above chart */}
+            <View style={[styles.tabSelectorContainerAboveChart, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.tabSelector}
+                contentContainerStyle={styles.tabSelectorContent}
+              >
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('chart')}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'chart' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'chart' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    Chart
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('about')}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'about' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'about' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    About
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('feed')}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'feed' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    Feed
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => handleTabChange('news')}
+                >
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      {
+                        color: selectedTab === 'news' ? theme.text : theme.textSecondary,
+                        fontWeight: selectedTab === 'news' ? '600' : '400',
+                      }
+                    ]}
+                  >
+                    News
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+
+>>>>>>> parent of ec2acad (Update token symbol to ⓜ, add page 6 with top trades, update entity screen buttons and category display, add skipAuth function)
             {/* SVG Chart */}
             <View style={styles.chartWithOverlay}>
               <Svg width={chartWidth} height={chartHeight}>
@@ -877,14 +992,14 @@ export default function EntityScreen() {
 
           {/* Time Frame Selector */}
           <View style={styles.timeframeSelector}>
-              <TouchableOpacity
-                style={[
+            <TouchableOpacity
+              style={[
                 styles.timeframeButton,
                 {
                   backgroundColor: selectedTimeframe === '1min' ? theme.primary : theme.backgroundSecondary,
                   borderColor: theme.border,
                 },
-                ]}
+              ]}
               onPress={() => setSelectedTimeframe('1min')}
             >
               <Text style={[
@@ -895,7 +1010,7 @@ export default function EntityScreen() {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-                  style={[
+              style={[
                 styles.timeframeButton,
                 {
                   backgroundColor: theme.backgroundSecondary,
@@ -909,8 +1024,8 @@ export default function EntityScreen() {
                 { color: theme.textSecondary }
               ]}>
                 More Timeframes Coming Soon
-                </Text>
-              </TouchableOpacity>
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1045,7 +1160,7 @@ export default function EntityScreen() {
           <Text style={[styles.categoryName, { color: theme.textSecondary }]}>
             {displayCategoryId}
           </Text>
-            </View>
+        </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.searchButton}
@@ -1071,8 +1186,8 @@ export default function EntityScreen() {
               color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
             />
           </TouchableOpacity>
-            </View>
-            </View>
+        </View>
+      </View>
 
       {/* Price Header - Persists across all tabs */}
       <View style={[styles.entityHeader, { backgroundColor: theme.card }]}>
@@ -1213,7 +1328,7 @@ export default function EntityScreen() {
             {/* Spacer for bottom buttons */}
             <View style={{ height: 100 }} />
           </ScrollView>
-            </View>
+        </View>
 
         {/* Feed Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
@@ -1464,10 +1579,10 @@ export default function EntityScreen() {
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
                   No news yet for this entity
                 </Text>
-        </View>
+              </View>
             )}
-              />
-          </View>
+          />
+        </View>
       </ScrollView>
 
       {/* Fixed Bottom Trade Buttons */}

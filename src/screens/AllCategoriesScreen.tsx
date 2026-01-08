@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Dimensions,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,10 +17,14 @@ import { RootStackParamList } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import Treemap from '../components/Treemap';
 import { Ionicons } from '@expo/vector-icons';
+import EntityCard from '../components/EntityCard';
+import { useCategoryData } from '../hooks/useCategoryData';
+import { apiRequest, isBackendConfigured } from '../config/api';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TREEMAP_HEIGHT = SCREEN_HEIGHT * 0.67; // 2/3 of screen height
 
+<<<<<<< HEAD
 // Hardcoded trade volume data (will be replaced with real data later)
 // Colors: green = volume up, red = volume down
 // previousPercentage is yesterday's percentage to calculate the change
@@ -33,30 +39,112 @@ const categoryTradeVolumes = [
   { name: 'Country Music', percentage: 3.5, previousPercentage: 3.3, categoryId: 'Country Music', color: 'green' as const },
   { name: 'Pop Music', percentage: 2.8, previousPercentage: 2.6, categoryId: 'Pop Music', color: 'green' as const },
 ];
+=======
+// Type for category volume data from backend
+interface CategoryVolume {
+  name: string;
+  categoryId: string;
+  percentage: number;
+  previousPercentage: number;
+  color: 'green' | 'red';
+  volume24h: number;
+  previousVolume24h: number;
+  entityCount: number;
+}
+>>>>>>> parent of ec2acad (Update token symbol to ⓜ, add page 6 with top trades, update entity screen buttons and category display, add skipAuth function)
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AllCategoriesScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const [viewType, setViewType] = useState<'treemap' | 'list'>('treemap');
+  const [viewType, setViewType] = useState<'treemap' | 'list' | 'browse'>('treemap');
   const [sortFilter, setSortFilter] = useState<'alphabetical' | 'volume-high-low' | 'volume-low-high' | 'trending'>('volume-high-low');
   const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Category volumes from backend
+  const [categoryVolumes, setCategoryVolumes] = useState<CategoryVolume[]>([]);
+  const [isLoadingVolumes, setIsLoadingVolumes] = useState(true);
+  const [volumesError, setVolumesError] = useState<string | null>(null);
+  
+  const {
+    trending,
+    movers,
+    discussed,
+    discoverEntities,
+    forYouEntities,
+    forYouReasons,
+    isLoadingTrending,
+    isLoadingMovers,
+    isLoadingDiscussed,
+    isLoadingDiscover,
+    isLoadingForYou,
+    hasMoreDiscover,
+    loadMoreDiscover,
+    refreshTrending,
+    refreshMovers,
+    refreshDiscussed,
+    refreshDiscover,
+    refreshForYou,
+  } = useCategoryData();
+  
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch category volumes from backend
+  const fetchCategoryVolumes = useCallback(async () => {
+    if (!isBackendConfigured()) {
+      setVolumesError('Backend not configured');
+      setIsLoadingVolumes(false);
+      return;
+    }
+
+    setIsLoadingVolumes(true);
+    setVolumesError(null);
+    
+    try {
+      const response = await apiRequest<{ success?: boolean; volumes?: CategoryVolume[] }>('/api/categories/volumes');
+      
+      if (response.success && response.data) {
+        const data = response.data as any;
+        if (Array.isArray(data.volumes)) {
+          setCategoryVolumes(data.volumes);
+        } else if (Array.isArray(data)) {
+          setCategoryVolumes(data);
+        } else {
+          setCategoryVolumes([]);
+        }
+      } else {
+        setVolumesError(response.error || 'Failed to fetch category volumes');
+        setCategoryVolumes([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching category volumes:', error);
+      setVolumesError(error?.message || 'Failed to fetch category volumes');
+      setCategoryVolumes([]);
+    } finally {
+      setIsLoadingVolumes(false);
+    }
+  }, []);
+
+  // Load category volumes on mount
+  useEffect(() => {
+    fetchCategoryVolumes();
+  }, [fetchCategoryVolumes]);
 
   const handleCategoryPress = (categoryId: string) => {
     navigation.navigate('Category', { categoryId });
   };
 
-  const handleViewChange = (view: 'treemap' | 'list') => {
+  const handleViewChange = (view: 'treemap' | 'list' | 'browse') => {
     setViewType(view);
-    const scrollToX = view === 'treemap' ? 0 : SCREEN_WIDTH;
+    const scrollToX = view === 'treemap' ? 0 : view === 'list' ? SCREEN_WIDTH : SCREEN_WIDTH * 2;
     scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
   };
 
   const handleScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
-    const newView = pageIndex === 0 ? 'treemap' : 'list';
+    const newView = pageIndex === 0 ? 'treemap' : pageIndex === 1 ? 'list' : 'browse';
     if (newView !== viewType) {
       setViewType(newView);
     }
@@ -66,11 +154,24 @@ export default function AllCategoriesScreen() {
   useEffect(() => {
     // Small delay to ensure ScrollView is mounted
     const timer = setTimeout(() => {
-      const scrollToX = viewType === 'treemap' ? 0 : SCREEN_WIDTH;
+      const scrollToX = viewType === 'treemap' ? 0 : viewType === 'list' ? SCREEN_WIDTH : SCREEN_WIDTH * 2;
       scrollViewRef.current?.scrollTo({ x: scrollToX, animated: false });
     }, 100);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchCategoryVolumes(),
+      refreshTrending(),
+      refreshMovers(),
+      refreshDiscussed(),
+      refreshDiscover(),
+      refreshForYou(),
+    ]);
+    setRefreshing(false);
+  };
 
   const renderFilterTabs = () => (
     <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -105,12 +206,28 @@ export default function AllCategoriesScreen() {
         </Text>
         {viewType === 'list' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.filterTab}
+        onPress={() => handleViewChange('browse')}
+      >
+        <Text
+          style={[
+            styles.filterTabText,
+            { color: viewType === 'browse' ? theme.primary : theme.textSecondary },
+            viewType === 'browse' && { fontWeight: '600' },
+          ]}
+        >
+          Browse
+        </Text>
+        {viewType === 'browse' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+      </TouchableOpacity>
     </View>
   );
 
-  // Sort categories based on selected filter
+  // Sort categories based on selected filter (using real data from backend)
   const sortedCategories = useMemo(() => {
-    const sorted = [...categoryTradeVolumes];
+    const sorted = [...categoryVolumes];
     
     switch (sortFilter) {
       case 'alphabetical':
@@ -134,7 +251,7 @@ export default function AllCategoriesScreen() {
       default:
         return sorted;
     }
-  }, [sortFilter]);
+  }, [sortFilter, categoryVolumes]);
 
   const renderFilterButtons = () => (
     <View style={[styles.filterSection, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -230,7 +347,7 @@ export default function AllCategoriesScreen() {
     </View>
   );
 
-  const renderCategoryItem = ({ item }: { item: typeof categoryTradeVolumes[0] }) => {
+  const renderCategoryItem = ({ item }: { item: CategoryVolume }) => {
     const changePercent = item.percentage - item.previousPercentage;
     const isPositive = changePercent > 0;
     const changeColor = isPositive ? '#10B981' : '#EF4444';
@@ -292,15 +409,57 @@ export default function AllCategoriesScreen() {
       >
         {/* Treemap View */}
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.treemapWrapper}>
-          <Treemap
-            data={categoryTradeVolumes}
-            onItemPress={handleCategoryPress}
-            containerHeight={TREEMAP_HEIGHT}
-            padding={8}
-          />
-        </View>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {isLoadingVolumes ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+                  Loading category volumes...
+                </Text>
+              </View>
+            ) : volumesError ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={48} color={theme.error} />
+                <Text style={[styles.errorText, { color: theme.text }]}>
+                  {volumesError}
+                </Text>
+                <TouchableOpacity 
+                  style={[styles.retryButton, { backgroundColor: theme.primary }]}
+                  onPress={fetchCategoryVolumes}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : categoryVolumes.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="folder-open-outline" size={48} color={theme.textTertiary} />
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No trading activity yet
+                </Text>
+                <Text style={[styles.emptySubtext, { color: theme.textTertiary }]}>
+                  Start trading to see category volumes
+                </Text>
+              </View>
+            ) : categoryVolumes.every(cat => cat.volume24h === 0) ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="trending-up-outline" size={48} color={theme.textTertiary} />
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  No trading activity yet
+                </Text>
+                <Text style={[styles.emptySubtext, { color: theme.textTertiary }]}>
+                  Make your first trade to see category volumes
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.treemapWrapper}>
+                <Treemap
+                  data={categoryVolumes.filter(cat => cat.volume24h > 0)}
+                  onItemPress={handleCategoryPress}
+                  containerHeight={TREEMAP_HEIGHT}
+                  padding={8}
+                />
+              </View>
+            )}
           </ScrollView>
         </View>
 
@@ -312,6 +471,166 @@ export default function AllCategoriesScreen() {
             renderItem={renderCategoryItem}
             keyExtractor={(item) => item.categoryId}
             contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
+
+        {/* Browse View */}
+        <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
+          <FlatList
+            data={discoverEntities}
+            renderItem={({ item }) => (
+              <View style={styles.entityCardWrapper}>
+                <EntityCard entity={item} variant="full" />
+              </View>
+            )}
+            keyExtractor={(item) => item.id.toString()}
+            ListHeaderComponent={() => (
+              <>
+                {/* Trending Section */}
+                <View style={styles.browseSection}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Trending Today</Text>
+                    {isLoadingTrending && <ActivityIndicator size="small" color={theme.primary} />}
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
+                    {trending.length > 0 ? (
+                      trending.map((entity) => (
+                        <View key={entity.id} style={styles.horizontalCardWrapper}>
+                          <EntityCard entity={entity} variant="compact" />
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.emptyHorizontalSection}>
+                        <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No trending entities</Text>
+                      </View>
+                    )}
+                  </ScrollView>
+                </View>
+
+                {/* Biggest Movers Section */}
+                <View style={styles.browseSection}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Biggest Movers</Text>
+                    {isLoadingMovers && <ActivityIndicator size="small" color={theme.primary} />}
+                  </View>
+                  <View style={styles.moversContainer}>
+                    <View style={styles.moverSubsection}>
+                      <Text style={[styles.subsectionTitle, { color: theme.success }]}>Gainers</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
+                        {movers.gainers.length > 0 ? (
+                          movers.gainers.map((entity) => (
+                            <View key={entity.id} style={styles.horizontalCardWrapper}>
+                              <EntityCard entity={entity} variant="compact" />
+                            </View>
+                          ))
+                        ) : (
+                          <View style={styles.emptyHorizontalSection}>
+                            <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No gainers</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+                    <View style={styles.moverSubsection}>
+                      <Text style={[styles.subsectionTitle, { color: theme.error }]}>Losers</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
+                        {movers.losers.length > 0 ? (
+                          movers.losers.map((entity) => (
+                            <View key={entity.id} style={styles.horizontalCardWrapper}>
+                              <EntityCard entity={entity} variant="compact" />
+                            </View>
+                          ))
+                        ) : (
+                          <View style={styles.emptyHorizontalSection}>
+                            <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No losers</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Most Discussed Section */}
+                <View style={styles.browseSection}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Most Discussed</Text>
+                    {isLoadingDiscussed && <ActivityIndicator size="small" color={theme.primary} />}
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
+                    {discussed.length > 0 ? (
+                      discussed.map((entity) => (
+                        <View key={entity.id} style={styles.horizontalCardWrapper}>
+                          <EntityCard entity={entity} variant="compact" />
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.emptyHorizontalSection}>
+                        <Text style={[styles.emptySectionText, { color: theme.textSecondary }]}>No discussed entities</Text>
+                      </View>
+                    )}
+                  </ScrollView>
+                </View>
+
+                {/* For You Section */}
+                {forYouEntities.length > 0 && (
+                  <View style={styles.browseSection}>
+                    <View style={styles.sectionHeader}>
+                      <Text style={[styles.sectionTitle, { color: theme.text }]}>For You</Text>
+                      {isLoadingForYou && <ActivityIndicator size="small" color={theme.primary} />}
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSection}>
+                      {forYouEntities.map((entity) => (
+                        <View key={entity.id} style={styles.horizontalCardWrapper}>
+                          <EntityCard entity={entity} variant="compact" />
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {/* Discover Feed Section */}
+                <View style={styles.browseSection}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Discover</Text>
+                    {isLoadingDiscover && discoverEntities.length === 0 && (
+                      <ActivityIndicator size="small" color={theme.primary} />
+                    )}
+                  </View>
+                </View>
+              </>
+            )}
+            ListFooterComponent={() => (
+              isLoadingDiscover && discoverEntities.length > 0 ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={theme.primary} />
+                  <Text style={[styles.footerLoaderText, { color: theme.textSecondary }]}>Loading more...</Text>
+                </View>
+              ) : null
+            )}
+            ListEmptyComponent={() => (
+              discoverEntities.length === 0 && !isLoadingDiscover ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="search-outline" size={64} color={theme.textTertiary} />
+                  <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No entities found</Text>
+                  <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+                    Try refreshing to load more entities
+                  </Text>
+                </View>
+              ) : null
+            )}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={theme.primary}
+              />
+            }
+            onEndReached={loadMoreDiscover}
+            onEndReachedThreshold={0.5}
+            contentContainerStyle={[
+              styles.browseContent,
+              discoverEntities.length === 0 && styles.emptyListContent,
+            ]}
             showsVerticalScrollIndicator={false}
           />
         </View>
@@ -332,6 +651,54 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptySubtext: {
+    marginTop: 8,
+    fontSize: 14,
   },
   filterTabs: {
     flexDirection: 'row',
@@ -439,6 +806,84 @@ const styles = StyleSheet.create({
   sortFilterTabText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  browseContent: {
+    paddingBottom: 100,
+  },
+  browseSection: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  horizontalSection: {
+    marginBottom: 8,
+  },
+  horizontalCardWrapper: {
+    marginLeft: 16,
+  },
+  entityCardWrapper: {
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  moversContainer: {
+    marginBottom: 16,
+  },
+  moverSubsection: {
+    marginBottom: 16,
+  },
+  emptyHorizontalSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  emptySectionText: {
+    fontSize: 14,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 32,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyListContent: {
+    flexGrow: 1,
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  footerLoaderText: {
+    fontSize: 14,
   },
 });
 
