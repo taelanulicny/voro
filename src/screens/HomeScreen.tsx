@@ -559,37 +559,75 @@ export default function HomeScreen() {
     });
   }, [getEntityPrice]); // Only recalculate if getEntityPrice changes
 
-  // Calculate trending entities (top 5 by absolute percentage change)
+  // Hardcoded Top Movers (top 5 by absolute percentage change)
   const topGainers = useMemo(() => {
-    const entitiesWithData = MOCK_ENTITIES.map(entity => {
-      const livePrice = getEntityPrice(entity.id);
-      const change = livePrice - entity.basePrice;
-      const changePercent = (change / entity.basePrice) * 100;
-      return {
-        id: entity.id,
-        ticker: entity.ticker,
-        name: entity.name,
-        category: entity.category,
-        displayCategory: entity.category,
-        currentPrice: livePrice,
-        changePercent24h: changePercent,
-        change24h: change,
-      };
-    });
-    
-    // Sort by absolute percentage change and get top 5
-    const top5 = entitiesWithData
-      .sort((a, b) => Math.abs(b.changePercent24h) - Math.abs(a.changePercent24h))
-      .slice(0, 5);
-    
-    // Calculate position changes within each entity's category
-    return top5.map(entity => {
+    // Hardcoded top movers with specific entities and percentage changes
+    // Polymarket is #1 with -6%
+    const hardcodedMovers = [
+      {
+        id: 301, // Polymarket
+        ticker: 'POLYM',
+        name: 'Polymarket',
+        category: 'Prediction Markets',
+        changePercent24h: -6.00,
+      },
+      {
+        id: 11, // Alix Earle
+        ticker: 'ALIX',
+        name: 'Alix Earle',
+        category: 'Influencers',
+        changePercent24h: 5.42,
+      },
+      {
+        id: 127, // San Francisco 49ers
+        ticker: 'SF49',
+        name: 'San Francisco 49ers',
+        category: 'NFL',
+        changePercent24h: 4.87,
+      },
+      {
+        id: 41, // Perplexity
+        ticker: 'PERPL',
+        name: 'Perplexity',
+        category: 'Startups',
+        changePercent24h: -4.23,
+      },
+      {
+        id: 200, // Boston Celtics
+        ticker: 'BOSCE',
+        name: 'Boston Celtics',
+        category: 'NBA',
+        changePercent24h: 3.91,
+      },
+    ];
+
+    // Map and sort by absolute percentage change (descending) to ensure Polymarket is first
+    const moversWithData = hardcodedMovers.map(entity => {
+      const baseEntity = getEntityById(entity.id);
+      if (!baseEntity) {
+        // Fallback if entity not found
+        return {
+          id: entity.id,
+          ticker: entity.ticker,
+          name: entity.name,
+          category: entity.category,
+          displayCategory: entity.category,
+          currentPrice: 100,
+          changePercent24h: entity.changePercent24h,
+          change24h: (100 * entity.changePercent24h) / 100,
+          rank: 1,
+          previousRank: 1,
+          positionChange: 0,
+        };
+      }
+
+      // Calculate current price from base price and change percentage
+      const change24h = (baseEntity.basePrice * entity.changePercent24h) / 100;
+      const currentPrice = baseEntity.basePrice + change24h;
+
+      // Get position in category
       const previousDayRanks = getPreviousDayRanks(entity.category);
-      
-      // Get all entities in this category to calculate current rank
       const categoryEntities = getEntitiesByCategory(entity.category);
-      
-      // Calculate current rank in category (by price)
       const categoryEntitiesWithPrices = categoryEntities.map(e => ({
         id: e.id,
         currentPrice: getEntityPrice(e.id),
@@ -598,14 +636,24 @@ export default function HomeScreen() {
       const currentRank = sortedCategory.findIndex(e => e.id === entity.id) + 1;
       const previousRank = previousDayRanks[entity.id] || currentRank;
       const positionChange = previousRank - currentRank;
-      
+
       return {
-        ...entity,
+        id: entity.id,
+        ticker: entity.ticker,
+        name: entity.name,
+        category: entity.category,
+        displayCategory: entity.category,
+        currentPrice,
+        changePercent24h: entity.changePercent24h,
+        change24h,
         rank: currentRank,
         previousRank,
         positionChange,
       };
     });
+
+    // Sort by absolute percentage change (descending) to ensure Polymarket (-6%) is first
+    return moversWithData.sort((a, b) => Math.abs(b.changePercent24h) - Math.abs(a.changePercent24h));
   }, [entityPrices, getEntityPrice]);
 
   // Mock spotlight items - can be ads, entities, users, or events

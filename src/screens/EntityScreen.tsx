@@ -310,7 +310,7 @@ export default function EntityScreen() {
   // Hardcoded change percentages for Prediction Markets entities (IDs 300-325)
   const predictionMarketChanges: Record<number, number> = {
     300: 2.38,   // Kalshi - up
-    301: -1.45,  // Polymarket - down
+    301: -6.00,  // Polymarket - down
     302: 3.12,   // PredictIt - up
     303: -2.67,  // Betfair - down
     304: 1.89,   // Smarkets - up
