@@ -26,14 +26,10 @@
     "react-native-purchases": "^8.3.0",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-<<<<<<< HEAD
     "react-native-screenshot-prevent": "^1.2.1",
     "react-native-ssl-pinning": "^1.6.0",
     "react-native-svg": "15.12.1",
     "zod": "^4.2.1"
-=======
-    "react-native-svg": "15.12.1"
->>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
