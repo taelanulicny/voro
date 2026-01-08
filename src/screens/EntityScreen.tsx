@@ -304,11 +304,48 @@ export default function EntityScreen() {
   const holding = getHolding(entityId);
   const entityNews = getNewsByEntity(entityId);
   
-  // Get live price from global price system
-  const currentPrice = getEntityPrice(entityId);
-  
   // Get entity info for feed
   const entity = getEntityById(entityId);
+  
+  // Hardcoded change percentages for Prediction Markets entities (IDs 300-325)
+  const predictionMarketChanges: Record<number, number> = {
+    300: 2.38,   // Kalshi - up
+    301: -1.45,  // Polymarket - down
+    302: 3.12,   // PredictIt - up
+    303: -2.67,  // Betfair - down
+    304: 1.89,   // Smarkets - up
+    305: -3.24,  // Augur - down
+    306: 2.56,   // Gnosis - up
+    307: -1.78,  // Omen - down
+    308: 4.23,   // Zeitgeist - up
+    309: -2.34,  // PlotX - down
+    310: 1.67,   // Reality.eth - up
+    311: -3.45,  // Stox - down
+    312: 2.89,   // Catnip Exchange - up
+    313: -1.23,  // Manifold Markets - down
+    314: 3.56,   // Metaculus - up
+    315: -2.12,  // Good Judgment Project - down
+    316: 1.34,   // Hypermind - up
+    317: -4.67,  // Numerai - down
+    318: 2.78,   // Kleros - up
+    319: -1.56,  // Forecaster - down
+    320: 3.89,   // Infer - up
+    321: -2.45,  // Crowdwise - down
+    322: 1.12,   // Insight Prediction - up
+    323: -3.78,  // Cultivat3 - down
+    324: 2.23,   // Lay3rs - up
+    325: -1.89,  // Polymarket Clone - down
+  };
+  
+  // Get live price from global price system, or calculate for Prediction Markets
+  let currentPrice: number;
+  if (entityId >= 300 && entityId <= 325 && predictionMarketChanges[entityId] !== undefined && entity) {
+    const changePercent = predictionMarketChanges[entityId];
+    const change = (entity.basePrice * changePercent) / 100;
+    currentPrice = entity.basePrice + change;
+  } else {
+    currentPrice = getEntityPrice(entityId);
+  }
   
   // categoryId is already in the correct format (no mapping needed)
   const displayCategoryId = categoryId
@@ -673,11 +710,22 @@ export default function EntityScreen() {
         }).sort((a, b) => a.timestamp - b.timestamp);
   }, [priceHistory, entityData.priceHistory]);
 
-
-  // Calculate price change from base price
-  const basePrice = entityData.entity.currentPrice; // Original base price
-  const priceChange = currentPrice - basePrice;
-  const priceChangePercent = (priceChange / basePrice) * 100;
+  // Get base price from entity data
+  const basePrice = entity?.basePrice || entityData.entity.currentPrice;
+  
+  // For Prediction Markets, use hardcoded change percentage
+  let priceChange: number;
+  let priceChangePercent: number;
+  
+  if (entityId >= 300 && entityId <= 325 && predictionMarketChanges[entityId] !== undefined) {
+    priceChangePercent = predictionMarketChanges[entityId];
+    priceChange = (basePrice * priceChangePercent) / 100;
+  } else {
+    // Calculate price change from base price
+    priceChange = currentPrice - basePrice;
+    priceChangePercent = (priceChange / basePrice) * 100;
+  }
+  
   const isPositive = priceChange >= 0;
 
   const formatVolume = (value: number) => {
