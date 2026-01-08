@@ -28,6 +28,7 @@ const categoryTradeVolumes = [
   { name: 'Startups', percentage: 10.0, previousPercentage: 13.7, categoryId: 'Startups', color: 'red' as const },
   { name: 'NFL', percentage: 8.5, previousPercentage: 8.8, categoryId: 'NFL', color: 'red' as const },
   { name: 'NBA', percentage: 7.3, previousPercentage: 7.1, categoryId: 'NBA', color: 'green' as const },
+  { name: 'Prediction Markets', percentage: 6.2, previousPercentage: 5.9, categoryId: 'Prediction Markets', color: 'green' as const },
   { name: 'College Basketball', percentage: 5.8, previousPercentage: 5.5, categoryId: 'College Basketball', color: 'green' as const },
   { name: 'Hip Hop', percentage: 4.2, previousPercentage: 4.0, categoryId: 'Hip Hop', color: 'green' as const },
   { name: 'Country Music', percentage: 3.5, previousPercentage: 3.3, categoryId: 'Country Music', color: 'green' as const },

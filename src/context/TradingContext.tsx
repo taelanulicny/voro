@@ -310,8 +310,45 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     // Fallback: calculate price with 3-5% move from basePrice
     const entity = MOCK_ENTITIES.find(e => e.id === entityId);
     if (entity) {
-      // Use entity ID to determine a consistent change percentage (alternating pattern)
-      const changePercent = (entityId % 2 === 0 ? 1 : -1) * (3 + (entityId % 3) * 0.5); // 3-5% range
+      let changePercent: number;
+      
+      // Prediction Markets (IDs 300-325) get specific varied change percentages
+      if (entityId >= 300 && entityId <= 325) {
+        // Specific change percentages for each prediction market entity
+        const predictionMarketChanges: Record<number, number> = {
+          300: 2.38,   // Kalshi - up
+          301: -1.45,  // Polymarket - down
+          302: 3.12,   // PredictIt - up
+          303: -2.67,  // Betfair - down
+          304: 1.89,   // Smarkets - up
+          305: -3.24,  // Augur - down
+          306: 2.56,   // Gnosis - up
+          307: -1.78,  // Omen - down
+          308: 4.23,   // Zeitgeist - up
+          309: -2.34,  // PlotX - down
+          310: 1.67,   // Reality.eth - up
+          311: -3.45,  // Stox - down
+          312: 2.89,   // Catnip Exchange - up
+          313: -1.23,  // Manifold Markets - down
+          314: 3.56,   // Metaculus - up
+          315: -2.12,  // Good Judgment Project - down
+          316: 1.34,   // Hypermind - up
+          317: -4.67,  // Numerai - down
+          318: 2.78,   // Kleros - up
+          319: -1.56,  // Forecaster - down
+          320: 3.89,   // Infer - up
+          321: -2.45,  // Crowdwise - down
+          322: 1.12,   // Insight Prediction - up
+          323: -3.78,  // Cultivat3 - down
+          324: 2.23,   // Lay3rs - up
+          325: -1.89,  // Polymarket Clone - down
+        };
+        changePercent = predictionMarketChanges[entityId] || 0;
+      } else {
+        // Use entity ID to determine a consistent change percentage (alternating pattern)
+        changePercent = (entityId % 2 === 0 ? 1 : -1) * (3 + (entityId % 3) * 0.5); // 3-5% range
+      }
+      
       const cappedChangePercent = Math.max(-12, Math.min(12, changePercent));
       let price = entity.basePrice * (1 + cappedChangePercent / 100);
       price = Math.max(80, Math.min(200, price));
