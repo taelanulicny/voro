@@ -1,20 +1,13 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
-import { logger } from '../utils/logger';
 import {
   createPost as createPostService,
   getFeed as getFeedService,
   toggleLikePost as toggleLikePostService,
   addComment as addCommentService,
   getComments as getCommentsService,
-  editComment as editCommentService,
   toggleFollowUser as toggleFollowUserService,
-  checkMutualFollow as checkMutualFollowService,
   searchUsers as searchUsersService,
-  deletePost as deletePostService,
-  toggleBookmarkPost as toggleBookmarkPostService,
-  toggleLikeComment as toggleLikeCommentService,
-  generatePostImageUploadUrl,
 } from '../services/socialService';
 
 export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -27,15 +20,10 @@ export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewa
     const userId = auth.event.userId!;
     const body = JSON.parse(event.body || '{}');
 
-    const { content, entityId, entityTicker, entityName, sentiment, images } = body;
+    const { content, entityId, entityTicker, entityName, sentiment } = body;
 
     if (!content) {
       return createErrorResponse(400, 'Missing required field: content');
-    }
-
-    // Validate images array if provided
-    if (images && (!Array.isArray(images) || images.length > 4)) {
-      return createErrorResponse(400, 'Invalid images: maximum 4 images allowed');
     }
 
     const result = await createPostService(
@@ -44,8 +32,7 @@ export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewa
       entityId,
       entityTicker,
       entityName,
-      sentiment,
-      images // Array of S3 keys
+      sentiment
     );
 
     if (!result.success) {
@@ -57,7 +44,7 @@ export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewa
       data: result.post,
     });
   } catch (error: any) {
-    logger.error('Error creating post', error);
+    console.error('Error creating post:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -83,7 +70,7 @@ export async function getFeed(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       },
     });
   } catch (error: any) {
-    logger.error('Error getting feed', error);
+    console.error('Error getting feed:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -113,7 +100,7 @@ export async function toggleLikePost(event: APIGatewayProxyEvent): Promise<APIGa
       data: { isLiked: result.isLiked },
     });
   } catch (error: any) {
-    logger.error('Error toggling like', error);
+    console.error('Error toggling like:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -137,8 +124,7 @@ export async function addComment(event: APIGatewayProxyEvent): Promise<APIGatewa
       return createErrorResponse(400, 'Missing required field: content');
     }
 
-    const { parentCommentId } = body;
-    const result = await addCommentService(userId, postId, body.content, parentCommentId);
+    const result = await addCommentService(userId, postId, body.content);
 
     if (!result.success) {
       return createErrorResponse(400, result.error || 'Failed to add comment');
@@ -149,7 +135,7 @@ export async function addComment(event: APIGatewayProxyEvent): Promise<APIGatewa
       data: result.comment,
     });
   } catch (error: any) {
-    logger.error('Error adding comment', error);
+    console.error('Error adding comment:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -170,7 +156,7 @@ export async function getComments(event: APIGatewayProxyEvent): Promise<APIGatew
       data: comments,
     });
   } catch (error: any) {
-    logger.error('Error getting comments', error);
+    console.error('Error getting comments:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -195,80 +181,12 @@ export async function toggleFollowUser(event: APIGatewayProxyEvent): Promise<API
       return createErrorResponse(400, result.error || 'Failed to toggle follow');
     }
 
-    // Check mutual follow status
-    const mutualStatus = await checkMutualFollowService(userId, followingUserId);
-
     return createResponse(200, {
       success: true,
-      data: {
-        isFollowing: result.isFollowing,
-        isMutual: mutualStatus.isMutual,
-        otherFollowsUser: mutualStatus.otherFollowsUser,
-      },
+      data: { isFollowing: result.isFollowing },
     });
   } catch (error: any) {
-    logger.error('Error toggling follow', error);
-    return createErrorResponse(500, 'Internal server error', error);
-  }
-}
-
-export async function checkMutualFollowHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  try {
-    const auth = await authenticateRequest(event);
-    if (!auth.authenticated || !auth.event) {
-      return createErrorResponse(401, 'Unauthorized');
-    }
-
-    const userId = auth.event.userId!;
-    const otherUserId = event.pathParameters?.userId;
-
-    if (!otherUserId) {
-      return createErrorResponse(400, 'Missing userId');
-    }
-
-    const result = await checkMutualFollowService(userId, otherUserId);
-
-    return createResponse(200, {
-      success: true,
-      data: result,
-    });
-  } catch (error: any) {
-    logger.error('Error checking mutual follow', error);
-    return createErrorResponse(500, 'Internal server error', error);
-  }
-}
-
-export async function editCommentHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  try {
-    const auth = await authenticateRequest(event);
-    if (!auth.authenticated || !auth.event) {
-      return createErrorResponse(401, 'Unauthorized');
-    }
-
-    const userId = auth.event.userId!;
-    const commentId = event.pathParameters?.commentId;
-    const body = JSON.parse(event.body || '{}');
-
-    if (!commentId) {
-      return createErrorResponse(400, 'Missing commentId');
-    }
-
-    if (!body.content) {
-      return createErrorResponse(400, 'Missing required field: content');
-    }
-
-    const result = await editCommentService(userId, commentId, body.content);
-
-    if (!result.success) {
-      return createErrorResponse(400, result.error || 'Failed to edit comment');
-    }
-
-    return createResponse(200, {
-      success: true,
-      data: result.comment,
-    });
-  } catch (error: any) {
-    logger.error('Error editing comment', error);
+    console.error('Error toggling follow:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -296,131 +214,8 @@ export async function searchUsers(event: APIGatewayProxyEvent): Promise<APIGatew
       })),
     });
   } catch (error: any) {
-    logger.error('Error searching users', error);
+    console.error('Error searching users:', error);
     return createErrorResponse(500, 'Internal server error', error);
-  }
-}
-
-export async function deletePost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  try {
-    const auth = await authenticateRequest(event);
-    if (!auth.authenticated || !auth.event) {
-      return createErrorResponse(401, 'Unauthorized');
-    }
-
-    const userId = auth.event.userId!;
-    const postId = event.pathParameters?.postId;
-
-    if (!postId) {
-      return createErrorResponse(400, 'Missing postId');
-    }
-
-    const result = await deletePostService(userId, postId);
-
-    if (!result.success) {
-      return createErrorResponse(400, result.error || 'Failed to delete post');
-    }
-
-    return createResponse(200, {
-      success: true,
-    });
-  } catch (error: any) {
-    logger.error('Error deleting post', error);
-    return createErrorResponse(500, 'Internal server error', error);
-  }
-}
-
-export async function toggleBookmarkPost(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  try {
-    const auth = await authenticateRequest(event);
-    if (!auth.authenticated || !auth.event) {
-      return createErrorResponse(401, 'Unauthorized');
-    }
-
-    const userId = auth.event.userId!;
-    const postId = event.pathParameters?.postId;
-
-    if (!postId) {
-      return createErrorResponse(400, 'Missing postId');
-    }
-
-    const result = await toggleBookmarkPostService(userId, postId);
-
-    if (!result.success) {
-      return createErrorResponse(400, result.error || 'Failed to toggle bookmark');
-    }
-
-    return createResponse(200, {
-      success: true,
-      data: { isBookmarked: result.isBookmarked },
-    });
-  } catch (error: any) {
-    logger.error('Error toggling bookmark', error);
-    return createErrorResponse(500, 'Internal server error', error);
-  }
-}
-
-export async function toggleLikeComment(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  try {
-    const auth = await authenticateRequest(event);
-    if (!auth.authenticated || !auth.event) {
-      return createErrorResponse(401, 'Unauthorized');
-    }
-
-    const userId = auth.event.userId!;
-    const commentId = event.pathParameters?.commentId;
-
-    if (!commentId) {
-      return createErrorResponse(400, 'Missing commentId');
-    }
-
-    const result = await toggleLikeCommentService(userId, commentId);
-
-    if (!result.success) {
-      return createErrorResponse(400, result.error || 'Failed to toggle like');
-    }
-
-    return createResponse(200, {
-      success: true,
-      data: { isLiked: result.isLiked },
-    });
-  } catch (error: any) {
-    logger.error('Error toggling comment like', error);
-    return createErrorResponse(500, 'Internal server error', error);
-  }
-}
-
-export async function getPostImageUploadUrl(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  try {
-    const auth = await authenticateRequest(event);
-    if (!auth.authenticated || !auth.event) {
-      return createErrorResponse(401, 'Unauthorized');
-    }
-
-    const userId = auth.event.userId!;
-    const contentType = event.queryStringParameters?.contentType || 'image/jpeg';
-    const imageIndex = parseInt(event.queryStringParameters?.imageIndex || '0', 10);
-
-    if (!contentType.startsWith('image/')) {
-      return createErrorResponse(400, 'Invalid content type: must be an image');
-    }
-
-    const result = await generatePostImageUploadUrl(userId, contentType, imageIndex);
-
-    if (!result.success) {
-      return createErrorResponse(400, result.error || 'Failed to generate upload URL');
-    }
-
-    return createResponse(200, {
-      success: true,
-      data: {
-        uploadUrl: result.uploadUrl,
-        key: result.key,
-      },
-    });
-  } catch (error: any) {
-    logger.error('Error generating post image upload URL', error);
-    return createErrorResponse(500, 'Internal server error');
   }
 }
 

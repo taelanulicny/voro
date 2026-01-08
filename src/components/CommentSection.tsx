@@ -7,8 +7,6 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  Alert,
-  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Comment } from '../types';
@@ -21,14 +19,10 @@ interface CommentSectionProps {
 
 export default function CommentSection({ postId }: CommentSectionProps) {
   const { user } = useAuth();
-  const { postComments, getComments, addComment, editComment, toggleLikeComment } = useSocial();
+  const { postComments, getComments, addComment, toggleLikeComment } = useSocial();
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [replyingTo, setReplyingTo] = useState<{ commentId: string; username: string } | null>(null);
-  const [editingComment, setEditingComment] = useState<{ commentId: string; content: string } | null>(null);
-  const [editText, setEditText] = useState('');
-  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
   const comments = postComments[postId] || [];
 
@@ -46,38 +40,12 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     if (!commentText.trim()) return;
 
     setIsSubmitting(true);
-    const result = await addComment(postId, commentText.trim(), replyingTo?.commentId);
+    const result = await addComment(postId, commentText.trim());
     setIsSubmitting(false);
 
     if (result.success) {
       setCommentText('');
-      setReplyingTo(null);
     }
-  };
-
-  const handleEditComment = async () => {
-    if (!editingComment || !editText.trim()) return;
-
-    const result = await editComment(postId, editingComment.commentId, editText.trim());
-
-    if (result.success) {
-      setEditingComment(null);
-      setEditText('');
-    } else {
-      Alert.alert('Error', result.error || 'Failed to edit comment');
-    }
-  };
-
-  const toggleReplies = (commentId: string) => {
-    setExpandedReplies(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId);
-      } else {
-        newSet.add(commentId);
-      }
-      return newSet;
-    });
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -96,114 +64,45 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     return commentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const renderComment = (
-    comment: Comment,
-    level: number = 0,
-    isReply: boolean = false
-  ) => {
-    const isOwnComment = user?.userId === comment.userId;
-    const hasReplies = comment.replies && comment.replies.length > 0;
-    const isExpanded = expandedReplies.has(comment.id);
-    const maxDepth = 5; // Limit nesting depth
-
-    return (
-      <View key={comment.id} style={[styles.commentItem, level > 0 && styles.replyItem]}>
-        <View style={styles.commentAvatar}>
-          <Ionicons name="person-circle" size={level > 0 ? 24 : 32} color="#9CA3AF" />
+  const renderComment = ({ item }: { item: Comment }) => (
+    <View style={styles.commentItem}>
+      <View style={styles.commentAvatar}>
+        <Ionicons name="person-circle" size={32} color="#9CA3AF" />
+      </View>
+      
+      <View style={styles.commentContent}>
+        <View style={styles.commentHeader}>
+          <Text style={styles.commentUsername}>
+            {item.displayName}
+          </Text>
+          <Text style={styles.commentTimestamp}>
+            {formatTimestamp(item.timestamp)}
+          </Text>
         </View>
         
-        <View style={styles.commentContent}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>
-              {comment.displayName}
+        <Text style={styles.commentText}>{item.content}</Text>
+        
+        <TouchableOpacity
+          style={styles.commentLikeButton}
+          onPress={() => toggleLikeComment(postId, item.id)}
+        >
+          <Ionicons
+            name={item.isLiked ? 'heart' : 'heart-outline'}
+            size={16}
+            color={item.isLiked ? '#EF4444' : '#9CA3AF'}
+          />
+          {item.likes > 0 && (
+            <Text style={[
+              styles.commentLikeText,
+              item.isLiked && styles.commentLikeTextActive
+            ]}>
+              {item.likes}
             </Text>
-            {comment.replyTo && (
-              <Text style={styles.replyToText}>
-                {' '}→ {comment.replyTo.displayName}
-              </Text>
-            )}
-            <Text style={styles.commentTimestamp}>
-              {formatTimestamp(comment.timestamp)}
-              {comment.isEdited && ' · edited'}
-            </Text>
-          </View>
-          
-          <Text style={styles.commentText}>{comment.content}</Text>
-          
-          <View style={styles.commentActions}>
-            <TouchableOpacity
-              style={styles.commentLikeButton}
-              onPress={() => toggleLikeComment(postId, comment.id)}
-            >
-              <Ionicons
-                name={comment.isLiked ? 'heart' : 'heart-outline'}
-                size={16}
-                color={comment.isLiked ? '#EF4444' : '#9CA3AF'}
-              />
-              {comment.likes > 0 && (
-                <Text style={[
-                  styles.commentLikeText,
-                  comment.isLiked && styles.commentLikeTextActive
-                ]}>
-                  {comment.likes}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            {level < maxDepth && (
-              <TouchableOpacity
-                style={styles.commentActionButton}
-                onPress={() => setReplyingTo({ commentId: comment.id, username: comment.username })}
-              >
-                <Text style={styles.commentActionText}>Reply</Text>
-              </TouchableOpacity>
-            )}
-
-            {isOwnComment && (
-              <>
-                <TouchableOpacity
-                  style={styles.commentActionButton}
-                  onPress={() => {
-                    setEditingComment({ commentId: comment.id, content: comment.content });
-                    setEditText(comment.content);
-                  }}
-                >
-                  <Text style={styles.commentActionText}>Edit</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-
-          {/* Render replies */}
-          {hasReplies && (
-            <View style={styles.repliesContainer}>
-              {level < maxDepth && (
-                <TouchableOpacity
-                  style={styles.toggleRepliesButton}
-                  onPress={() => toggleReplies(comment.id)}
-                >
-                  <Ionicons
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color="#9CA3AF"
-                  />
-                  <Text style={styles.toggleRepliesText}>
-                    {isExpanded ? 'Hide' : 'Show'} {comment.replies!.length} {comment.replies!.length === 1 ? 'reply' : 'replies'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {isExpanded && (
-                <View style={styles.repliesList}>
-                  {comment.replies!.map(reply => renderComment(reply, level + 1, true))}
-                </View>
-              )}
-            </View>
           )}
-        </View>
+        </TouchableOpacity>
       </View>
-    );
-  };
+    </View>
+  );
 
   if (isLoading) {
     return (
@@ -219,7 +118,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       {comments.length > 0 ? (
         <FlatList
           data={comments}
-          renderItem={({ item }) => renderComment(item)}
+          renderItem={renderComment}
           keyExtractor={(item) => item.id}
           style={styles.commentsList}
           scrollEnabled={false}
@@ -231,18 +130,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         </View>
       )}
 
-      {/* Reply indicator */}
-      {replyingTo && (
-        <View style={styles.replyingToIndicator}>
-          <Text style={styles.replyingToText}>
-            Replying to {replyingTo.username}
-          </Text>
-          <TouchableOpacity onPress={() => setReplyingTo(null)}>
-            <Ionicons name="close" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-      )}
-
       {/* Add Comment Input */}
       <View style={styles.inputContainer}>
         <View style={styles.inputAvatar}>
@@ -251,7 +138,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         
         <TextInput
           style={styles.input}
-          placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : "Add a comment..."}
+          placeholder="Add a comment..."
           placeholderTextColor="#9CA3AF"
           value={commentText}
           onChangeText={setCommentText}
@@ -278,54 +165,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
           )}
         </TouchableOpacity>
       </View>
-
-      {/* Edit Comment Modal */}
-      <Modal
-        visible={!!editingComment}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditingComment(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Comment</Text>
-              <TouchableOpacity onPress={() => setEditingComment(null)}>
-                <Ionicons name="close" size={24} color="#111827" />
-              </TouchableOpacity>
-            </View>
-            
-            <TextInput
-              style={styles.editInput}
-              value={editText}
-              onChangeText={setEditText}
-              multiline
-              maxLength={300}
-              placeholder="Edit your comment..."
-              placeholderTextColor="#9CA3AF"
-              autoFocus
-            />
-            
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setEditingComment(null)}
-              >
-                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSave, !editText.trim() && styles.modalButtonDisabled]}
-                onPress={handleEditComment}
-                disabled={!editText.trim()}
-              >
-                <Text style={[styles.modalButtonTextSave, !editText.trim() && styles.modalButtonTextDisabled]}>
-                  Save
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -349,13 +188,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 16,
   },
-  replyItem: {
-    marginLeft: 48,
-    marginBottom: 12,
-    paddingLeft: 12,
-    borderLeftWidth: 2,
-    borderLeftColor: '#E5E7EB',
-  },
   commentAvatar: {
     width: 32,
     height: 32,
@@ -369,19 +201,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
-    flexWrap: 'wrap',
   },
   commentUsername: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
-    marginRight: 4,
-  },
-  replyToText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-    marginRight: 4,
+    marginRight: 8,
   },
   commentTimestamp: {
     fontSize: 12,
@@ -393,24 +218,11 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 6,
   },
-  commentActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 4,
-  },
   commentLikeButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: 4,
-  },
-  commentActionButton: {
-    paddingVertical: 4,
-  },
-  commentActionText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
   },
   commentLikeText: {
     fontSize: 12,
@@ -420,23 +232,6 @@ const styles = StyleSheet.create({
   commentLikeTextActive: {
     color: '#EF4444',
   },
-  repliesContainer: {
-    marginTop: 8,
-  },
-  toggleRepliesButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-  },
-  toggleRepliesText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  repliesList: {
-    marginTop: 8,
-  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 24,
@@ -445,20 +240,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     marginTop: 8,
-  },
-  replyingToIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F3F4F6',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  replyingToText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -493,69 +274,5 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     opacity: 0.5,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    width: '90%',
-    maxWidth: 500,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  editInput: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#111827',
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 16,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  modalButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  modalButtonCancel: {
-    backgroundColor: '#F3F4F6',
-  },
-  modalButtonSave: {
-    backgroundColor: '#3B82F6',
-  },
-  modalButtonDisabled: {
-    opacity: 0.5,
-  },
-  modalButtonTextCancel: {
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  modalButtonTextSave: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  modalButtonTextDisabled: {
-    color: '#9CA3AF',
-  },
 });
+

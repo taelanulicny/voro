@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -401,3 +402,5 @@ const styles = StyleSheet.create({
   },
 });
 
+=======
+>>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)

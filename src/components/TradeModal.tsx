@@ -14,9 +14,7 @@ import {
 } from 'react-native';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../utils/dataGenerator';
-import { isValidEntityId } from '../utils/idValidation';
 
 const { height } = Dimensions.get('window');
 
@@ -41,19 +39,12 @@ export default function TradeModal({
   category,
   existingQuantity = 0,
 }: TradeModalProps) {
-  const { portfolio, executeTrade, getHolding, isMarketOpen, marketStatusMessage, lastPriceUpdateTime, getEntityPrice } = useTrading();
+  const { portfolio, executeTrade, getHolding } = useTrading();
   const { theme } = useTheme();
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
   const [quantity, setQuantity] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [slideAnim] = useState(new Animated.Value(height));
-
-  // Validate entityId
-  if (!isValidEntityId(entityId)) {
-    console.error('Invalid entityId in TradeModal:', entityId);
-    return null;
-  }
 
   const holding = useMemo(() => getHolding(entityId), [entityId, portfolio.holdings]);
 
@@ -81,14 +72,7 @@ export default function TradeModal({
 
   const canBuy = activeTab === 'buy' && quantityNum > 0 && hasSufficientFunds;
   const canSell = activeTab === 'sell' && quantityNum > 0 && hasSufficientShares;
-  const isPriceStale = lastPriceUpdateTime ? (Date.now() - lastPriceUpdateTime) > 60000 : false;
-  
-  // Check if trade price differs significantly from current price (>2%)
-  const latestPrice = getEntityPrice(entityId);
-  const priceDifferencePercent = latestPrice > 0 ? Math.abs((currentPrice - latestPrice) / latestPrice) * 100 : 0;
-  const isPriceSignificantlyDifferent = priceDifferencePercent > 2;
-  
-  const canExecute = (canBuy || canSell) && isMarketOpen;
+  const canExecute = canBuy || canSell;
 
   const handleQuantityChange = (text: string) => {
     // Only allow numbers and one decimal point
@@ -110,83 +94,43 @@ export default function TradeModal({
     }
   };
 
-  const handleExecuteTrade = async () => {
+  const handleExecuteTrade = () => {
     if (!canExecute) return;
-
-    if (!isMarketOpen) {
-      Alert.alert('Market Closed', marketStatusMessage);
-      return;
-    }
-
-    // Auto-refresh prices if they differ significantly
-    if (isPriceSignificantlyDifferent && latestPrice > 0) {
-      Alert.alert(
-        'Price Updated',
-        `The current price (${formatCurrency(latestPrice)}) differs from the displayed price. Using the latest price.`,
-        [{ text: 'OK' }]
-      );
-      // Update the price used for the trade
-      // Note: This will trigger a re-render, but we'll use latestPrice in the trade
-    }
 
     setIsProcessing(true);
 
-    try {
-      // Validate user and entity IDs
-      if (!user?.id) {
-        Alert.alert('Error', 'User ID is required to execute trades.');
-        return;
-      }
-      
-      // Generate idempotency key to prevent duplicate trades
-      const idempotencyKey = `${user.id}-${entityId}-${activeTab}-${quantityNum}-${Date.now()}`;
-
-      // Use latest price if available and significantly different
-      const tradePrice = (isPriceSignificantlyDifferent && latestPrice > 0) ? latestPrice : currentPrice;
-
-      const result = await executeTrade(
+    // Simulate slight delay for realistic feel
+    setTimeout(() => {
+      const success = executeTrade(
         entityId,
         entityName,
         entityTicker,
         activeTab,
         quantityNum,
-        tradePrice,
-        category,
-        idempotencyKey
+        currentPrice,
+        category
       );
 
-      if (result.success) {
-        // Show success message with execution price if different
-        const executionPrice = result.executionPrice || currentPrice;
-        const message = result.error 
-          ? `${activeTab === 'buy' ? 'Purchased' : 'Sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(executionPrice)}. ${result.error}`
-          : `Successfully ${activeTab === 'buy' ? 'purchased' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(executionPrice)}`;
-        
+      setIsProcessing(false);
+
+      if (success) {
+        // Show success message
         Alert.alert(
           'Trade Executed',
-          message,
+          `Successfully ${activeTab === 'buy' ? 'purchased' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(currentPrice)}`,
           [{ text: 'OK', onPress: () => handleClose() }]
         );
       } else {
-        // Show error message from server (e.g., slippage, market closed, etc.)
+        // Show error message
         Alert.alert(
           'Trade Failed',
-          result.error || (activeTab === 'buy'
+          activeTab === 'buy'
             ? 'Insufficient funds to complete this purchase.'
-            : 'Insufficient shares to complete this sale.'),
+            : 'Insufficient shares to complete this sale.',
           [{ text: 'OK' }]
         );
       }
-    } catch (error) {
-      console.error('Error executing trade:', error);
-      Alert.alert(
-        'Trade Failed',
-        'An error occurred while executing the trade. Please try again.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsProcessing(false);
-    }
+    }, 300);
   };
 
   const handleClose = () => {
@@ -240,15 +184,6 @@ export default function TradeModal({
               </View>
             </View>
           </View>
-
-          {/* Market Status & Staleness Warning */}
-          {(!isMarketOpen || isPriceStale) && (
-            <View style={{ marginHorizontal: 20, marginBottom: 12, padding: 8, backgroundColor: isMarketOpen ? '#FEF3C7' : '#FEE2E2', borderRadius: 8 }}>
-              <Text style={{ color: isMarketOpen ? '#D97706' : '#DC2626', textAlign: 'center', fontSize: 12, fontWeight: '600' }}>
-                {!isMarketOpen ? marketStatusMessage : '⚠️ Price may be outdated. Check connection.'}
-              </Text>
-            </View>
-          )}
 
           {/* Buy/Sell Tabs */}
           <View style={[styles.tabs, { backgroundColor: theme.backgroundSecondary }]}>
@@ -399,7 +334,7 @@ export default function TradeModal({
               disabled={!canExecute || isProcessing}
             >
               <Text style={styles.buttonTextPrimary}>
-                {isProcessing ? 'Processing...' : (!isMarketOpen ? 'Market Closed' : 'Confirm')}
+                {isProcessing ? 'Processing...' : 'Confirm'}
               </Text>
             </TouchableOpacity>
           </View>

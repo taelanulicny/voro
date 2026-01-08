@@ -140,7 +140,7 @@ const BasketballIcon: React.FC<BasketballIconProps> = ({ size, color }) => {
   );
 };
 
-function CategoryScreen() {
+export default function CategoryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CategoryRouteProp>();
   const { categoryId } = route.params;
@@ -1133,8 +1133,6 @@ function CategoryScreen() {
     </SafeAreaView>
   );
 }
-
-export default React.memo(CategoryScreen);
 
 const styles = StyleSheet.create({
   container: {

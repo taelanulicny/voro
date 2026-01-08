@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,57 +24,31 @@ import { Group, RootStackParamList } from '../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-function GroupsScreen() {
+export default function GroupsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { 
-    groups, 
-    myGroups,
-    isLoadingGroups, 
-    isLoadingMyGroups,
-    refreshGroups, 
-    refreshUserGroups,
-    createGroup, 
-    joinGroup, 
-    leaveGroup 
-  } = useSocial();
+  const { groups, isLoadingGroups, refreshGroups, createGroup, joinGroup, leaveGroup } = useSocial();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'my' | 'explore'>('my');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'my'>('all');
 
   useEffect(() => {
     loadGroups();
   }, []);
 
   const loadGroups = async () => {
-    await Promise.all([
-      refreshGroups(),
-      refreshUserGroups(),
-    ]);
+    await refreshGroups();
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([
-      refreshGroups(),
-      refreshUserGroups(),
-    ]);
+    await refreshGroups();
     setRefreshing(false);
   };
 
-  // Filter groups for Explore tab based on search query
-  const filteredExploreGroups = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return groups;
-    }
-    const query = searchQuery.toLowerCase();
-    return groups.filter(group => 
-      group.name.toLowerCase().includes(query) ||
-      group.description.toLowerCase().includes(query) ||
-      group.category.toLowerCase().includes(query)
-    );
-  }, [groups, searchQuery]);
+  const filteredGroups = filter === 'my' 
+    ? groups.filter(g => g.isMember)
+    : groups;
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -88,67 +62,45 @@ function GroupsScreen() {
     </View>
   );
 
-  const renderTabs = () => (
-    <View style={[styles.tabsContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+  const renderFilterTabs = () => (
+    <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       <TouchableOpacity
-        style={[styles.tab, selectedTab === 'my' && styles.tabActive]}
-        onPress={() => setSelectedTab('my')}
+        style={[
+          styles.filterTab,
+        ]}
+        onPress={() => setFilter('all')}
       >
         <Text
           style={[
-            styles.tabText,
-            { color: selectedTab === 'my' ? theme.primary : theme.textSecondary },
-            selectedTab === 'my' && { fontWeight: '600' },
+            styles.filterTabText,
+            { color: filter === 'all' ? theme.primary : theme.textSecondary },
+            filter === 'all' && { fontWeight: '600' },
+          ]}
+        >
+          All Groups
+        </Text>
+        {filter === 'all' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.filterTab,
+        ]}
+        onPress={() => setFilter('my')}
+      >
+        <Text
+          style={[
+            styles.filterTabText,
+            { color: filter === 'my' ? theme.primary : theme.textSecondary },
+            filter === 'my' && { fontWeight: '600' },
           ]}
         >
           My Groups
         </Text>
-        {selectedTab === 'my' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.tab, selectedTab === 'explore' && styles.tabActive]}
-        onPress={() => setSelectedTab('explore')}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            { color: selectedTab === 'explore' ? theme.primary : theme.textSecondary },
-            selectedTab === 'explore' && { fontWeight: '600' },
-          ]}
-        >
-          Explore
-        </Text>
-        {selectedTab === 'explore' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
+        {filter === 'my' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
       </TouchableOpacity>
     </View>
   );
-
-  const renderSearchBar = () => {
-    if (selectedTab !== 'explore') return null;
-    
-    return (
-      <View style={[styles.searchContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <View style={[styles.searchBar, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
-          <Ionicons name="search" size={20} color={theme.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={[styles.searchInput, { color: theme.text }]}
-            placeholder="Search groups..."
-            placeholderTextColor={theme.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  };
 
   const renderGroupCard = ({ item }: { item: Group }) => (
     <TouchableOpacity
@@ -178,95 +130,71 @@ function GroupsScreen() {
         {item.description}
       </Text>
 
-      {selectedTab === 'explore' && (
-        <TouchableOpacity
+      <TouchableOpacity
+        style={[
+          styles.actionButton,
+          { backgroundColor: item.isMember ? theme.backgroundTertiary : theme.primary },
+          item.isMember && { borderWidth: 1.5, borderColor: theme.border },
+        ]}
+        onPress={(e) => {
+          e.stopPropagation(); // Prevent navigation when tapping join/leave
+          item.isMember ? leaveGroup(item.id) : joinGroup(item.id);
+        }}
+      >
+        <Text
           style={[
-            styles.actionButton,
-            { backgroundColor: item.isMember ? theme.backgroundTertiary : theme.primary },
-            item.isMember && { borderWidth: 1.5, borderColor: theme.border },
+            styles.actionButtonText,
+            { color: item.isMember ? theme.textSecondary : '#FFFFFF' },
           ]}
-          onPress={(e) => {
-            e.stopPropagation();
-            item.isMember ? leaveGroup(item.id) : joinGroup(item.id);
-          }}
         >
-          <Text
-            style={[
-              styles.actionButtonText,
-              { color: item.isMember ? theme.textSecondary : '#FFFFFF' },
-            ]}
-          >
-            {item.isMember ? 'Leave' : 'Join'}
-          </Text>
-        </TouchableOpacity>
-      )}
+          {item.isMember ? 'Leave' : 'Join'}
+        </Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
-  const renderEmptyState = () => {
-    const isLoading = selectedTab === 'my' ? isLoadingMyGroups : isLoadingGroups;
-    const isEmpty = selectedTab === 'my' ? myGroups.length === 0 : filteredExploreGroups.length === 0;
-    
-    if (isLoading) {
-      return (
-        <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>Loading groups...</Text>
-        </View>
-      );
-    }
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="people-outline" size={64} color={theme.textTertiary} />
+      <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+        {filter === 'my' ? 'No groups yet' : 'No groups found'}
+      </Text>
+      <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+        {filter === 'my'
+          ? 'Join groups to connect with like-minded traders'
+          : 'Be the first to create a trading group!'}
+      </Text>
+      <TouchableOpacity
+        style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
+        onPress={() => setShowCreateModal(true)}
+      >
+        <Text style={styles.emptyStateButtonText}>Create Group</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
+  if (isLoadingGroups && groups.length === 0) {
     return (
-      <View style={styles.emptyState}>
-        <Ionicons name="people-outline" size={64} color={theme.textTertiary} />
-        <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-          {selectedTab === 'my' 
-            ? 'No groups yet' 
-            : searchQuery.trim() 
-              ? 'No groups found' 
-              : 'No groups available'}
-        </Text>
-        <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-          {selectedTab === 'my'
-            ? 'Join groups to connect with like-minded traders'
-            : searchQuery.trim()
-              ? 'Try a different search term'
-              : 'Be the first to create a trading group!'}
-        </Text>
-        {selectedTab === 'my' && (
-          <TouchableOpacity
-            style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-            onPress={() => setSelectedTab('explore')}
-          >
-            <Text style={styles.emptyStateButtonText}>Explore Groups</Text>
-          </TouchableOpacity>
-        )}
-        {selectedTab === 'explore' && (
-          <TouchableOpacity
-            style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-            onPress={() => setShowCreateModal(true)}
-          >
-            <Text style={styles.emptyStateButtonText}>Create Group</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+        {renderHeader()}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading groups...</Text>
+        </View>
+      </SafeAreaView>
     );
-  };
-
-  const currentGroups = selectedTab === 'my' ? myGroups : filteredExploreGroups;
-  const isLoading = selectedTab === 'my' ? isLoadingMyGroups : isLoadingGroups;
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       <FlatList
-        data={currentGroups}
+        data={filteredGroups}
         renderItem={renderGroupCard}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <>
             {renderHeader()}
-            {renderTabs()}
-            {renderSearchBar()}
+            {renderFilterTabs()}
           </>
         }
         ListEmptyComponent={renderEmptyState}
@@ -279,7 +207,7 @@ function GroupsScreen() {
         }
         contentContainerStyle={[
           styles.listContent,
-          currentGroups.length === 0 && styles.emptyListContent,
+          filteredGroups.length === 0 && styles.emptyListContent,
         ]}
         showsVerticalScrollIndicator={false}
       />
@@ -288,26 +216,19 @@ function GroupsScreen() {
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={createGroup}
-        onSuccess={() => {
-          refreshUserGroups();
-          refreshGroups();
-        }}
       />
     </SafeAreaView>
   );
 }
-
-export default React.memo(GroupsScreen);
 
 // Create Group Modal Component
 interface CreateGroupModalProps {
   visible: boolean;
   onClose: () => void;
   onCreate: (params: { name: string; description: string; category: string; isPrivate: boolean }) => Promise<{ success: boolean; group?: Group }>;
-  onSuccess: () => void;
 }
 
-function CreateGroupModal({ visible, onClose, onCreate, onSuccess }: CreateGroupModalProps) {
+function CreateGroupModal({ visible, onClose, onCreate }: CreateGroupModalProps) {
   const { theme } = useTheme();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -338,10 +259,7 @@ function CreateGroupModal({ visible, onClose, onCreate, onSuccess }: CreateGroup
       setCategory('');
       setIsPrivate(false);
       onClose();
-      onSuccess();
       Alert.alert('Success', 'Group created successfully!');
-    } else {
-      Alert.alert('Error', result.error || 'Failed to create group');
     }
   };
 
@@ -476,53 +394,27 @@ const styles = StyleSheet.create({
   createButton: {
     padding: 4,
   },
-  tabsContainer: {
+  filterTabs: {
     flexDirection: 'row',
     borderBottomWidth: 1,
+    marginBottom: 16,
   },
-  tab: {
+  filterTab: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 16,
     position: 'relative',
   },
-  tabActive: {
-    // Active tab styling handled by indicator
-  },
-  tabText: {
+  filterTabText: {
     fontSize: 15,
     fontWeight: '500',
   },
-  tabIndicator: {
+  filterTabIndicator: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     height: 2,
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    padding: 0,
-  },
-  clearButton: {
-    padding: 4,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -586,6 +478,17 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
   },
   emptyListContent: {
     flexGrow: 1,
@@ -716,3 +619,4 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
 });
+

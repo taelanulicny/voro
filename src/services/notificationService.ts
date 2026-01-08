@@ -8,7 +8,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { formatCurrency } from '../utils/dataGenerator';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -167,7 +166,7 @@ export async function sendPriceAlertNotification(
   await scheduleLocalNotification({
     type: 'price_alert',
     title: `${direction} ${entityTicker} Alert`,
-    body: `${entityName} is ${action} ${Math.abs(changePercent).toFixed(2)}% to ${formatCurrency(currentPrice)}`,
+    body: `${entityName} is ${action} ${Math.abs(changePercent).toFixed(2)}% to $${currentPrice.toFixed(2)}`,
     data: {
       entityTicker,
       screen: 'Entity',

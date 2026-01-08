@@ -1,112 +1,47 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { CognitoIdentityProviderClient, GetUserCommand } from '@aws-sdk/client-cognito-identity-provider';
-import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import jwt from 'jsonwebtoken';
-import { logger } from '../utils/logger';
 
 const cognitoClient = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION || 'us-east-1',
 });
 
-// JWT secret for OAuth tokens (should match oauth.ts)
-// SECURITY: Must be set via environment variable - never use a hardcoded fallback
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  logger.error('FATAL: JWT_SECRET environment variable is not set');
-}
-
-// Cognito JWT verifier - cryptographically verifies ID tokens
-// This verifies the signature against Cognito's JWKS and checks issuer, audience, expiration
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
-const CLIENT_ID = process.env.COGNITO_CLIENT_ID;
-
-let cognitoJwtVerifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
-
-if (USER_POOL_ID && CLIENT_ID) {
-  try {
-    cognitoJwtVerifier = CognitoJwtVerifier.create({
-      userPoolId: USER_POOL_ID,
-      tokenUse: 'id', // Verify ID tokens (not access tokens)
-      clientId: CLIENT_ID,
-    });
-  } catch (error) {
-      logger.error('Failed to create Cognito JWT verifier', error);
-  }
-}
-
-// Verify token - supports both Cognito tokens and our custom OAuth JWT tokens
-async function verifyToken(token: string): Promise<any> {
-  // First, try to decode the token to check its type
-  const decoded = jwt.decode(token, { complete: true }) as any;
-  
-  if (!decoded || typeof decoded === 'string') {
-    throw new Error('Invalid token format');
-  }
-
-  // Check if it's a Cognito token (has cognito-specific claims)
-  const payload = decoded.payload;
-  
-  if (payload.iss && payload.iss.includes('cognito')) {
-    // It's a Cognito token - verify with Cognito
-    return verifyCognitoToken(token);
-  } else {
-    // It's our custom OAuth JWT - verify with our secret
-    return verifyOAuthToken(token);
-  }
-}
-
-// Verify Cognito token with cryptographic signature verification
+// For JWT verification, we'll use a simpler approach with Cognito's public keys
+// In production, you'd want to cache the JWKS
 async function verifyCognitoToken(token: string): Promise<any> {
   try {
-    // Use the Cognito JWT verifier to cryptographically verify ID tokens
-    if (cognitoJwtVerifier) {
-      try {
-        const payload = await cognitoJwtVerifier.verify(token);
-        // Payload is already verified - signature, issuer, audience, expiration all checked
-        return {
-          sub: payload.sub,
-          email: payload.email as string | undefined,
-        };
-      } catch (verifyError) {
-        // If verification fails, it's not a valid Cognito ID token
-        // Try GetUser as fallback for access tokens (legacy support)
-        logger.warn('Cognito ID token verification failed, trying GetUser for access token', verifyError);
-      }
+    // Decode without verification first to get the kid
+    const decoded = jwt.decode(token, { complete: true });
+    if (!decoded || typeof decoded === 'string') {
+      throw new Error('Invalid token format');
     }
 
-    // Fallback: Try using GetUser for access tokens (legacy support)
-    // Note: This is less secure than JWT verification but may be needed for some tokens
-    try {
-      const command = new GetUserCommand({ AccessToken: token });
-      const response = await cognitoClient.send(command);
-      
-      return {
-        sub: response.UserAttributes?.find(attr => attr.Name === 'sub')?.Value || response.Username,
-        email: response.UserAttributes?.find(attr => attr.Name === 'email')?.Value,
-      };
-    } catch (getUserError) {
-      // If GetUser also fails, the token is invalid
-      throw new Error('Invalid Cognito token: verification and GetUser both failed');
+    // For now, we'll use a simpler verification
+    // In production, fetch JWKS from Cognito and verify properly
+    const userPoolId = process.env.COGNITO_USER_POOL_ID;
+    if (!userPoolId) {
+      throw new Error('COGNITO_USER_POOL_ID not set');
     }
-  } catch (error) {
-    logger.error('Error verifying Cognito token', error);
-    throw error;
-  }
-}
 
-// Verify our custom OAuth JWT token
-function verifyOAuthToken(token: string): any {
-  if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  try {
-    const payload = jwt.verify(token, JWT_SECRET) as any;
+    // Use Cognito's GetUser to verify the token
+    const command = new GetUserCommand({ AccessToken: token });
+    const response = await cognitoClient.send(command);
+    
     return {
-      sub: payload.sub,
-      email: payload.email,
+      sub: response.Username,
+      email: response.UserAttributes?.find(attr => attr.Name === 'email')?.Value,
     };
   } catch (error) {
-    throw new Error('Invalid OAuth token');
+    // If GetUser fails, try to verify as ID token
+    try {
+      const decoded = jwt.decode(token) as any;
+      if (decoded && decoded.sub) {
+        return decoded;
+      }
+    } catch (e) {
+      throw error;
+    }
+    throw error;
   }
 }
 
@@ -128,7 +63,7 @@ export async function authenticateRequest(
     const token = authHeader.substring(7);
     
     try {
-      const payload = await verifyToken(token);
+      const payload = await verifyCognitoToken(token);
       
       const authenticatedEvent: AuthenticatedEvent = {
         ...event,
@@ -154,8 +89,9 @@ export function createResponse(
     statusCode,
     headers: {
       'Content-Type': 'application/json',
-      // SECURITY: No CORS headers for mobile-only API (mobile apps don't use CORS)
-      // If web access is needed, configure specific origins in API Gateway
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
       ...headers,
     },
     body: JSON.stringify(body),
@@ -170,9 +106,7 @@ export function createErrorResponse(
   return createResponse(statusCode, {
     success: false,
     error: message,
-    // SECURITY: Only include error details in non-production environments
-    // Double negative check for safety: ensure we're NOT in production
-    ...(error && process.env.NODE_ENV !== 'production' && { details: error }),
+    ...(error && process.env.NODE_ENV === 'development' && { details: error }),
   });
 }
 

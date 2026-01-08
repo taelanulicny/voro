@@ -75,7 +75,6 @@ export async function signup(data: SignupData): Promise<{
   success: boolean;
   error?: string;
   token?: string;
-  refreshToken?: string;
   user?: AuthResponse['user'];
 }> {
   try {
@@ -117,13 +116,12 @@ export async function loginWithOAuth(data: OAuthLoginData): Promise<{
   success: boolean;
   error?: string;
   token?: string;
-  refreshToken?: string;
   user?: AuthResponse['user'];
 }> {
   try {
     const endpoint = data.provider === 'google' ? '/api/auth/google' : '/api/auth/apple';
     
-    const response = await apiRequest<AuthResponse & { refreshToken?: string }>(endpoint, {
+    const response = await apiRequest<AuthResponse>(endpoint, {
       method: 'POST',
       body: JSON.stringify({
         email: data.email,
@@ -145,7 +143,6 @@ export async function loginWithOAuth(data: OAuthLoginData): Promise<{
     return {
       success: true,
       token: response.data.token,
-      refreshToken: response.data.refreshToken,
       user: response.data.user,
     };
   } catch (error: any) {

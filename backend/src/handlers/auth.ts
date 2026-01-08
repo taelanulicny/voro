@@ -1,7 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
 import { signup as signupService, login as loginService, refreshToken as refreshTokenService, getUserById } from '../services/authService';
-import { logger } from '../utils/logger';
 
 export async function signup(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -26,7 +25,7 @@ export async function signup(event: APIGatewayProxyEvent): Promise<APIGatewayPro
       },
     });
   } catch (error: any) {
-    logger.error('Error in signup handler', error);
+    console.error('Error in signup handler:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -55,7 +54,7 @@ export async function login(event: APIGatewayProxyEvent): Promise<APIGatewayProx
       },
     });
   } catch (error: any) {
-    logger.error('Error in login handler', error);
+    console.error('Error in login handler:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -82,7 +81,7 @@ export async function refreshToken(event: APIGatewayProxyEvent): Promise<APIGate
       },
     });
   } catch (error: any) {
-    logger.error('Error in refreshToken handler', error);
+    console.error('Error in refreshToken handler:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }
@@ -101,15 +100,6 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
       return createErrorResponse(404, 'User not found');
     }
 
-    // Generate presigned URL for avatar (avatars are private, accessed via presigned URLs)
-    let avatarUrl = user.avatarUrl;
-    if (avatarUrl && !avatarUrl.startsWith('http')) {
-      // If avatarUrl is an S3 key, generate a presigned URL
-      const { getAvatarUrl } = await import('../services/userService');
-      const presignedUrl = await getAvatarUrl(avatarUrl);
-      avatarUrl = presignedUrl || avatarUrl; // Fallback to key if generation fails
-    }
-
     return createResponse(200, {
       success: true,
       data: {
@@ -117,19 +107,16 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
         email: user.email,
         username: user.username,
         displayName: user.displayName,
-        avatarUrl,
+        avatarUrl: user.avatarUrl,
         bio: user.bio,
         followersCount: user.followersCount,
         followingCount: user.followingCount,
         portfolioValue: user.portfolioValue,
         joinedDate: user.joinedDate,
-        privacySettings: user.privacySettings,
-        notificationSettings: user.notificationSettings,
-        tradingPreferences: user.tradingPreferences,
       },
     });
   } catch (error: any) {
-    logger.error('Error in getMe handler', error);
+    console.error('Error in getMe handler:', error);
     return createErrorResponse(500, 'Internal server error', error);
   }
 }

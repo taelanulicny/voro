@@ -1,15 +1,16 @@
 // Utility functions for formatting and generating mock data
 
-// Token symbol: ⚡ (lightning bolt)
-export const TOKEN_SYMBOL = '⚡';
-
 export const formatCurrency = (value: number): string => {
-  // Format as token instead of USD
-  const formatted = new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
+<<<<<<< HEAD
   return `${formatted} ${TOKEN_SYMBOL}`;
+=======
+>>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
 };
 
 export const formatPercent = (value: number): string => {

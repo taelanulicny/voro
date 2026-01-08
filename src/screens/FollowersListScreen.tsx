@@ -14,15 +14,40 @@ import { RootStackParamList, User } from '../types';
 import FollowButton from '../components/FollowButton';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
 type FollowersListRouteProp = RouteProp<RootStackParamList, 'FollowersList'>;
 
-function FollowersListScreen() {
+// Mock users data
+const generateMockUsers = (count: number): User[] => {
+  const usernames = [
+    'sarah_trader', 'mike_investor', 'crypto_king', 'jane_doe', 
+    'tech_bull', 'market_maven', 'day_trader_pro', 'warren_b',
+    'value_hunter', 'growth_seeker', 'dividend_king', 'options_master'
+  ];
+  const displayNames = [
+    'Sarah Chen', 'Mike Johnson', 'Alex Rivera', 'Jane Williams',
+    'David Park', 'Emma Martinez', 'Ryan Smith', 'Lisa Anderson',
+    'Tom Wilson', 'Maria Garcia', 'John Taylor', 'Sophie Brown'
+  ];
+
+  return Array.from({ length: count }, (_, i) => ({
+    id: `user-${i + 2}`,
+    email: `${usernames[i % usernames.length]}@example.com`,
+    username: usernames[i % usernames.length],
+    displayName: displayNames[i % displayNames.length],
+    avatarUrl: undefined,
+    bio: 'Trading confidence since 2024',
+    followersCount: Math.floor(Math.random() * 5000) + 100,
+    followingCount: Math.floor(Math.random() * 1000) + 50,
+    isFollowing: Math.random() > 0.5,
+  }));
+};
+
+export default function FollowersListScreen() {
   const navigation = useNavigation();
   const route = useRoute<FollowersListRouteProp>();
   const { userId, type, username } = route.params;
-  const { user: currentUser, token, isAuthenticated } = useAuth();
+  const { user: currentUser } = useAuth();
   const { theme } = useTheme();
   
   const [users, setUsers] = useState<User[]>([]);
@@ -30,38 +55,15 @@ function FollowersListScreen() {
 
   useEffect(() => {
     loadUsers();
-  }, [type, userId]);
+  }, [type]);
 
   const loadUsers = async () => {
     setIsLoading(true);
-    
-    if (!isBackendConfigured() || !token || !isAuthenticated) {
-      // No mock data - just show empty
-      setUsers([]);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const endpoint = type === 'followers' 
-        ? `/api/social/users/${userId}/followers`
-        : `/api/social/users/${userId}/following`;
-      
-      const response = await authenticatedRequest<User[]>(endpoint, token, {
-        method: 'GET',
-      });
-
-      if (response.success && response.data) {
-        setUsers(response.data);
-      } else {
-        setUsers([]);
-      }
-    } catch (error) {
-      console.debug('Error loading users:', error);
-      setUsers([]);
-    } finally {
-      setIsLoading(false);
-    }
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 800));
+    const count = type === 'followers' ? 12 : 8;
+    setUsers(generateMockUsers(count));
+    setIsLoading(false);
   };
 
   const renderUserItem = ({ item }: { item: User }) => {
@@ -157,8 +159,6 @@ function FollowersListScreen() {
     </SafeAreaView>
   );
 }
-
-export default React.memo(FollowersListScreen);
 
 const styles = StyleSheet.create({
   container: {

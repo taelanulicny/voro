@@ -1,33 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Image,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
-import { apiRequest, authenticatedRequest } from '../config/api';
-import { LeaderboardEntry, RootStackParamList } from '../types';
-
-type Timeframe = 'daily' | 'weekly' | 'monthly' | 'alltime';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SeasonalCompetitionScreen() {
   const { theme } = useTheme();
+<<<<<<< HEAD
   const { user, token, isAuthenticated } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -185,84 +168,22 @@ export default function SeasonalCompetitionScreen() {
     { key: 'monthly', label: 'Monthly' },
     { key: 'alltime', label: 'All Time' },
   ];
+=======
+>>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <Text style={[styles.title, { color: theme.text }]}>Leaderboard</Text>
-        {userRank && (
-          <Text style={[styles.userRankText, { color: theme.textSecondary }]}>
-            Your Rank: #{userRank}
-          </Text>
-        )}
+        <Text style={[styles.title, { color: theme.text }]}>Seasonal Competition</Text>
       </View>
 
-      {/* Timeframe Selector */}
-      <View style={[styles.timeframeContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <View style={styles.timeframeContent}>
-          {timeframes.map((tf) => (
-            <TouchableOpacity
-              key={tf.key}
-              style={[
-                styles.timeframeTab,
-                {
-                  backgroundColor: selectedTimeframe === tf.key ? theme.primary : 'transparent',
-                  borderColor: selectedTimeframe === tf.key ? theme.primary : theme.border,
-                  width: (SCREEN_WIDTH - 32 - 24) / 4, // Screen width minus padding and gaps, divided by 4
-                },
-              ]}
-              onPress={() => setSelectedTimeframe(tf.key)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.timeframeTabText,
-                  {
-                    color: selectedTimeframe === tf.key ? '#FFFFFF' : theme.textSecondary,
-                  },
-                ]}
-              >
-                {tf.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Leaderboard List */}
-      {isLoading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Loading leaderboard...
+      <ScrollView style={styles.content}>
+        <View style={styles.placeholderContainer}>
+          <Text style={[styles.placeholder, { color: theme.textSecondary }]}>
+            Coming Soon...
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={leaderboard}
-          renderItem={renderLeaderboardItem}
-          keyExtractor={(item) => item.userId}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={theme.primary}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="trophy-outline" size={64} color={theme.textSecondary} />
-              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-                No Rankings Yet
-              </Text>
-              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-                Start trading to appear on the leaderboard!
-              </Text>
-            </View>
-          }
-        />
-      )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -277,137 +198,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 4,
   },
-  userRankText: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  timeframeContainer: {
-    borderBottomWidth: 1,
-    maxHeight: 50,
-  },
-  timeframeContent: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  timeframeTab: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    minHeight: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
+  content: {
     flex: 1,
-  },
-  timeframeTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  listContent: {
     padding: 16,
   },
-  leaderboardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-  },
-  currentUserItem: {
-    borderWidth: 2,
-  },
-  rankContainer: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankNumber: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  avatarContainer: {
-    marginLeft: 12,
-    marginRight: 12,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  userInfo: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  displayName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  username: {
-    fontSize: 14,
-  },
-  statsContainer: {
-    alignItems: 'flex-end',
-  },
-  portfolioValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  profitContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profitText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  loadingContainer: {
+  placeholderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 100,
+    minHeight: 400,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
-    paddingHorizontal: 32,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
+  placeholder: {
+    fontSize: 18,
     textAlign: 'center',
   },
 });
+
+

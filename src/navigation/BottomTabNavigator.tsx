@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useCallback, useEffect } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
@@ -6,7 +6,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList, RootStackParamList } from '../types';
 import FloatingBottomNav from '../components/FloatingBottomNav';
-import ErrorBoundary from '../components/ErrorBoundary';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -19,6 +18,7 @@ import AllCategoriesScreen from '../screens/AllCategoriesScreen';
 import SeasonalCompetitionScreen from '../screens/SeasonalCompetitionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
+<<<<<<< HEAD
 // Component wrappers to properly use hooks
 function HomeScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: BottomTabNavigationProp<MainTabParamList>) => void }) {
   const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
@@ -62,6 +62,8 @@ function GroupsScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: Bot
   );
 }
 
+=======
+>>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // Context to share navigation
@@ -136,15 +138,11 @@ export default function BottomTabNavigator() {
   const [activeTab, setActiveTab] = useState<string>('Home');
   const [tabNavigation, setTabNavigation] = useState<BottomTabNavigationProp<MainTabParamList> | null>(null);
   
-  const navigate = useCallback((route: keyof MainTabParamList) => {
+  const navigate = (route: keyof MainTabParamList) => {
     if (tabNavigation) {
       tabNavigation.navigate(route);
     }
-  }, [tabNavigation]);
-
-  const handleSetTabNavigation = useCallback((nav: BottomTabNavigationProp<MainTabParamList>) => {
-    setTabNavigation(nav);
-  }, []);
+  };
   
   return (
     <TabNavigationContext.Provider value={{ navigate, setActiveTab }}>
@@ -165,15 +163,15 @@ export default function BottomTabNavigator() {
           }}
         >
           <Tab.Screen name="Home">
-            {() => <HomeScreenWrapper setTabNavigation={handleSetTabNavigation} />}
+            {() => {
+              const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+              React.useEffect(() => {
+                setTabNavigation(nav);
+              }, [nav]);
+              return <HomeScreen />;
+            }}
           </Tab.Screen>
-          <Tab.Screen name="News">
-            {() => (
-              <ErrorBoundary>
-                <NewsScreen />
-              </ErrorBoundary>
-            )}
-          </Tab.Screen>
+<<<<<<< HEAD
           <Tab.Screen name="Community">
             {() => <CommunityScreenWrapper setTabNavigation={handleSetTabNavigation} />}
           </Tab.Screen>
@@ -214,7 +212,24 @@ export default function BottomTabNavigator() {
                 <ProfileScreen />
               </ErrorBoundary>
             )}
+=======
+          <Tab.Screen name="News" component={NewsScreen} />
+          <Tab.Screen name="Feeds">
+            {() => {
+              const nav = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+              React.useEffect(() => {
+                setTabNavigation(nav);
+              }, [nav]);
+              return <FeedsScreen />;
+            }}
+>>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
           </Tab.Screen>
+          <Tab.Screen name="Groups" component={GroupsScreen} />
+          <Tab.Screen name="Portfolio" component={PortfolioScreen} />
+          <Tab.Screen name="Watchlist" component={WatchlistScreen} />
+          <Tab.Screen name="Categories" component={AllCategoriesScreen} />
+          <Tab.Screen name="SeasonalCompetition" component={SeasonalCompetitionScreen} />
+          <Tab.Screen name="Profile" component={ProfileScreen} />
         </Tab.Navigator>
         
         <FloatingNavWrapper activeTab={activeTab} />
