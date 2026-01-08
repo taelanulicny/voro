@@ -15,7 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+<<<<<<< HEAD
 import Svg, { Defs, LinearGradient, Stop, Path, G, Line, Text as SvgText, Rect, Ellipse } from 'react-native-svg';
+=======
+import { LineChart } from 'react-native-chart-kit';
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
 import { RootStackParamList, PriceDataPoint, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useNews } from '../context/NewsContext';
@@ -261,7 +265,7 @@ export default function EntityScreen() {
   // Generate entity data based on current entityId - updates when entityId changes
   const entityData = useMemo(() => generateMockEntityData(entityId, categoryId), [entityId, categoryId]);
   
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'1min' | 'coming-soon'>('1min');
+  const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | 'ALL'>('1M');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
   const [positionsModalVisible, setPositionsModalVisible] = useState(false);
@@ -310,6 +314,7 @@ export default function EntityScreen() {
   // Get entity info for feed
   const entity = getEntityById(entityId);
   
+<<<<<<< HEAD
   // categoryId is already in the correct format (no mapping needed)
   const displayCategoryId = categoryId
     .toLowerCase()
@@ -425,6 +430,8 @@ export default function EntityScreen() {
     } as never);
   };
   
+=======
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
   // Entity-specific feed posts
   const entityFeedPosts = useMemo(() => {
     const now = Date.now();
@@ -664,15 +671,90 @@ export default function EntityScreen() {
   //   return () => clearInterval(interval);
   // }, [entityId, timeRange, getEntityPrice]);
 
-  // Filter price history - for now just use all available data (1min timeframe shows all data)
+  // Filter price history based on selected time range (using live data)
   const filteredPriceHistory = useMemo(() => {
-    // Combine original history with live updates
-    return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
-      // Remove duplicates by timestamp
-      return index === self.findIndex(p => p.timestamp === point.timestamp);
-    }).sort((a, b) => a.timestamp - b.timestamp);
-  }, [priceHistory, entityData.priceHistory]);
+    const now = Date.now();
+    let cutoffTime: number;
+    
+    switch (timeRange) {
+      case '1D':
+        cutoffTime = now - 24 * 60 * 60 * 1000; // 1 day ago
+        break;
+      case '1W':
+        cutoffTime = now - 7 * 24 * 60 * 60 * 1000; // 1 week ago
+        break;
+      case '1M':
+        cutoffTime = now - 30 * 24 * 60 * 60 * 1000; // 1 month ago
+        break;
+      case 'ALL':
+      default:
+        // Combine original history with live updates
+        return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
+          // Remove duplicates by timestamp
+          return index === self.findIndex(p => p.timestamp === point.timestamp);
+        }).sort((a, b) => a.timestamp - b.timestamp);
+    }
+    
+    // Use live price history if available, otherwise fall back to original
+    const historyToUse = priceHistory.length > 0 ? priceHistory : entityData.priceHistory;
+    return historyToUse.filter(point => point.timestamp >= cutoffTime);
+  }, [timeRange, priceHistory, entityData.priceHistory]);
 
+  // Generate chart data with appropriate labels based on time range
+  const chartData = useMemo(() => {
+    let labelInterval: number;
+    let labelFormatter: (point: PriceDataPoint, index: number) => string;
+    
+    switch (timeRange) {
+      case '1D':
+        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 6));
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+        };
+        break;
+      case '1W':
+        labelInterval = 1; // Show all days
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          return days[date.getDay()];
+        };
+        break;
+      case '1M':
+        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 5));
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          return `${date.getMonth() + 1}/${date.getDate()}`;
+        };
+        break;
+      case 'ALL':
+      default:
+        labelInterval = Math.max(1, Math.floor(filteredPriceHistory.length / 6));
+        labelFormatter = (point) => {
+          const date = new Date(point.timestamp);
+          return `${date.getMonth() + 1}/${date.getDate()}`;
+        };
+    }
+    
+    const labels = filteredPriceHistory
+      .map((point, index) => index % labelInterval === 0 ? labelFormatter(point, index) : '')
+      .filter((label, index) => index % labelInterval === 0 || label !== '');
+    
+    // Ensure we always have data points
+    const priceData = filteredPriceHistory.length > 0 
+      ? filteredPriceHistory.map((point) => point.price)
+      : [currentPrice]; // Fallback to current price if no history
+    
+    return {
+      labels: labels.length > 0 ? labels : priceData.map((_, i) => i % labelInterval === 0 ? `${i}` : ''),
+      datasets: [
+        {
+          data: priceData,
+        },
+      ],
+    };
+  }, [timeRange, filteredPriceHistory, currentPrice]);
 
   // Calculate price change from base price
   const basePrice = entityData.entity.currentPrice; // Original base price
@@ -735,6 +817,7 @@ export default function EntityScreen() {
     },
   };
 
+<<<<<<< HEAD
   // Chart dimensions - full screen width
   const chartHeight = 220;
   const chartWidth = SCREEN_WIDTH;
@@ -811,50 +894,139 @@ export default function EntityScreen() {
           <View style={styles.entityPriceInfo}>
             <Text style={[styles.entityCurrentPrice, { color: theme.text }]}>
               {formatCurrency(currentPrice)}
+=======
+  const renderTabSelector = () => (
+    <View style={[styles.tabSelectorContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabSelector}
+        contentContainerStyle={styles.tabSelectorContent}
+      >
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => handleTabChange('chart')}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'chart' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'chart' ? '600' : '400',
+              }
+            ]}
+          >
+            Chart
+          </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => handleTabChange('about')}
+          >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'about' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'about' ? '600' : '400',
+              }
+            ]}
+          >
+            About
+          </Text>
+          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => handleTabChange('feed')}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'feed' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'feed' ? '600' : '400',
+              }
+            ]}
+          >
+            Feed
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => handleTabChange('news')}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              {
+                color: selectedTab === 'news' ? theme.text : theme.textSecondary,
+                fontWeight: selectedTab === 'news' ? '600' : '400',
+              }
+            ]}
+          >
+            News
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+        </View>
+  );
+
+  const renderChartContent = () => (
+    <>
+        {/* Price Section */}
+        <View style={[styles.priceSection, { backgroundColor: theme.card }]}>
+          <Text style={[styles.price, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
+          <View style={styles.changeContainer}>
+            <Text style={[styles.change, { color: getChangeColor(priceChange) }]}>
+              {isPositive ? '+' : ''}
+              {formatCurrency(priceChange)}
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
             </Text>
-            <View style={styles.entityChangeContainer}>
-              <Text style={[
-                styles.entityChangeText,
-                { color: getChangeColor(priceChange, theme) }
-              ]}>
-                {isPositive ? '+' : ''}{formatCurrency(priceChange)}
-              </Text>
-              <Text style={[
-                styles.entityChangePercent,
-                { color: getChangeColor(priceChange, theme) }
-              ]}>
-                ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
-              </Text>
-            </View>
-          </View>
-          <View style={styles.entityStatsInfo}>
-            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-              Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData.stats.volume24h)}</Text>
-            </Text>
-            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-              High: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.high24h)}</Text>
-            </Text>
-            <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-              Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.low24h)}</Text>
+            <Text style={[styles.changePercent, { color: getChangeColor(priceChange) }]}>
+              ({isPositive ? '+' : ''}
+              {priceChangePercent.toFixed(2)}%)
             </Text>
           </View>
         </View>
 
-        {/* Chart Container */}
-        <View style={[styles.entityChartWrapperFullWidth, { backgroundColor: theme.card }]}>
-          <View style={styles.entityChartContainerFull}>
-            {/* Tab Selector - positioned above chart */}
-            <View style={[styles.tabSelectorContainerAboveChart, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.tabSelector}
-                contentContainerStyle={styles.tabSelectorContent}
+        {/* Chart */}
+        <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
+          <LineChart
+            key={`entity-${entityId}-${timeRange}-${filteredPriceHistory.length}-${currentPrice.toFixed(2)}-${chartUpdateKey}`}
+            data={chartData}
+            width={SCREEN_WIDTH - 32}
+            height={220}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+            withInnerLines={timeRange !== '1D'}
+            withOuterLines={false}
+            withVerticalLabels={timeRange !== '1D'}
+            withHorizontalLabels={true}
+            withDots={timeRange === '1D' || filteredPriceHistory.length <= 7}
+            segments={timeRange === '1D' ? 6 : timeRange === '1W' ? 7 : 5}
+          />
+
+          {/* Time Range Selector */}
+          <View style={styles.timeRangeSelector}>
+            {(['1D', '1W', '1M', 'ALL'] as const).map((range) => (
+              <TouchableOpacity
+                key={range}
+                style={[
+                  styles.timeRangeButton,
+                  { backgroundColor: theme.backgroundSecondary },
+                  timeRange === range && { backgroundColor: theme.primary },
+                ]}
+                onPress={() => setTimeRange(range)}
               >
-                <TouchableOpacity
-                  style={styles.tabButton}
-                  onPress={() => handleTabChange('chart')}
+                <Text
+                  style={[
+                    styles.timeRangeText,
+                    { color: theme.textSecondary },
+                    timeRange === range && { color: '#FFFFFF' },
+                  ]}
                 >
+<<<<<<< HEAD
                   <Text
                     style={[
                       styles.tabButtonText,
@@ -1026,6 +1198,12 @@ export default function EntityScreen() {
                 More Timeframes Coming Soon
               </Text>
             </TouchableOpacity>
+=======
+                  {range}
+                </Text>
+              </TouchableOpacity>
+            ))}
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
           </View>
         </View>
 
@@ -1145,49 +1323,71 @@ export default function EntityScreen() {
           </View>
         )}
 
+        {/* Stats */}
+        <View style={[styles.statsCard, { backgroundColor: theme.card }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Statistics</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h High</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.high24h)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>24h Low</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatCurrency(entityData.stats.low24h)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Volume</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.volume24h)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Market Cap</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{formatVolume(entityData.stats.marketCap)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Holders</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>
+                {entityData.stats.holdersCount.toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Rank</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>#{entityData.stats.rank}</Text>
+            </View>
+          </View>
+        </View>
     </>
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.card }]}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
-        <View style={styles.headerLeft}>
+        <View style={styles.headerCenter}>
           <Text style={[styles.entityName, { color: theme.text }]}>{entityData.entity.name}</Text>
-          <Text style={[styles.categoryName, { color: theme.textSecondary }]}>
-            {displayCategoryId}
-          </Text>
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => {
-              navigation.navigate('Search');
-            }}
-          >
-            <Ionicons name="search" size={24} color={theme.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.watchlistButton}
-            onPress={() => {
-              if (isInWatchlist(entityId)) {
-                removeFromWatchlist(entityId);
-              } else {
-                addToWatchlist(entityId);
-              }
-            }}
-          >
-            <Ionicons
-              name={isInWatchlist(entityId) ? 'star' : 'star-outline'}
-              size={24}
-              color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
-            />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.watchlistButton}
+          onPress={() => {
+            if (isInWatchlist(entityId)) {
+              removeFromWatchlist(entityId);
+            } else {
+              addToWatchlist(entityId);
+            }
+          }}
+        >
+          <Ionicons
+            name={isInWatchlist(entityId) ? 'star' : 'star-outline'}
+            size={24}
+            color={isInWatchlist(entityId) ? theme.primary : theme.textSecondary}
+          />
+        </TouchableOpacity>
         </View>
-      </View>
+
+      {/* Tab Selector */}
+      {renderTabSelector()}
 
       {/* Price Header - Persists across all tabs */}
       <View style={[styles.entityHeader, { backgroundColor: theme.card }]}>
@@ -1594,13 +1794,21 @@ export default function EntityScreen() {
               style={[styles.segmentButton, styles.segmentButtonActive]}
           onPress={() => setTradeModalVisible(true)}
         >
+<<<<<<< HEAD
               <Text style={styles.segmentButtonTextActive}>Predict</Text>
+=======
+            <Text style={styles.tradeButtonText}>Trade {entityData.entity.name}</Text>
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
           </TouchableOpacity>
           <TouchableOpacity
               style={[styles.segmentButton, styles.segmentButtonInactive]}
             onPress={() => setShareOpinionModalVisible(true)}
           >
+<<<<<<< HEAD
               <Text style={styles.segmentButtonTextInactive}>Post</Text>
+=======
+            <Text style={[styles.shareOpinionButtonText, { color: theme.text }]}>Share Your Opinion</Text>
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
         </TouchableOpacity>
           </View>
 
@@ -1751,88 +1959,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingLeft: 8,
-    paddingRight: 16,
+    paddingHorizontal: 16,
     paddingVertical: 12,
+    borderBottomWidth: 1,
   },
   backButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
   },
-  headerLeft: {
+  backButtonText: {
+    fontSize: 28,
+  },
+  headerCenter: {
+    alignItems: 'center',
     flex: 1,
   },
   entityName: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  categoryName: {
-    fontSize: 14,
-    marginTop: 2,
-  },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchButton: {
-    padding: 4,
+    width: 40,
   },
   watchlistButton: {
     padding: 4,
   },
-  entityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+  priceSection: {
+    alignItems: 'center',
+    paddingVertical: 24,
   },
-  entityPriceInfo: {
-    alignItems: 'flex-start',
-    flex: 1,
-  },
-  entityStatsInfo: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  entityStatsLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  entityCurrentPrice: {
-    fontSize: 24,
+  price: {
+    fontSize: 48,
     fontWeight: 'bold',
-    marginBottom: 4,
   },
-  entityChangeContainer: {
+  changeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
+    marginTop: 8,
   },
-  entityChangeText: {
-    fontSize: 14,
+  change: {
+    fontSize: 18,
     fontWeight: '600',
   },
-  entityChangePercent: {
-    fontSize: 14,
-    fontWeight: '500',
+  changePercent: {
+    fontSize: 18,
+    fontWeight: '600',
   },
-  entityChartWrapperFullWidth: {
-    position: 'relative',
-    width: SCREEN_WIDTH,
+  chartContainer: {
     backgroundColor: '#FFFFFF',
+    marginTop: 1,
     paddingBottom: 16,
   },
-  entityChartContainerFull: {
-    width: SCREEN_WIDTH,
-    position: 'relative',
-    overflow: 'visible',
+  chart: {
+    marginVertical: 8,
+    borderRadius: 0,
   },
+<<<<<<< HEAD
   chartWithOverlay: {
     position: 'relative',
     height: 220,
@@ -1854,22 +2039,21 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   timeframeSelector: {
+=======
+  timeRangeSelector: {
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 12,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-    alignSelf: 'flex-start',
   },
-  timeframeButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    alignItems: 'center',
+  timeRangeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  timeframeButtonText: {
-    fontSize: 12,
+  timeRangeText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   infoCard: {
@@ -2148,7 +2332,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 0,
     paddingBottom: 0,
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   tabButton: {
     marginRight: 18,

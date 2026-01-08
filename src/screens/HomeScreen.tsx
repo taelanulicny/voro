@@ -22,7 +22,6 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
-import Svg, { Path, Line } from 'react-native-svg';
 import { RootStackParamList, MainTabParamList, Entity, PriceDataPoint } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
@@ -56,7 +55,7 @@ export default function HomeScreen() {
   // Swipeable section state
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const swipeableScrollRef = useRef<ScrollView>(null);
-  const TOTAL_PAGES = 6;
+  const TOTAL_PAGES = 5;
   
   // Categories match the treemap categories from AllCategoriesScreen
   const categories = ['For You', 'Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
@@ -127,9 +126,9 @@ export default function HomeScreen() {
     
     // Handle circular scrolling with duplicate pages
     if (pageIndex === 0) {
-      setCurrentPageIndex(5); // Jump to page 6 (0-indexed: 5)
+      setCurrentPageIndex(4);
     } else if (pageIndex === TOTAL_PAGES + 1) {
-      setCurrentPageIndex(0); // Jump to page 1 (0-indexed: 0)
+      setCurrentPageIndex(0);
     } else if (pageIndex >= 1 && pageIndex <= TOTAL_PAGES) {
       setCurrentPageIndex(pageIndex - 1);
     }
@@ -142,10 +141,10 @@ export default function HomeScreen() {
     
     if (pageIndex === 0) {
       swipeableScrollRef.current?.scrollTo({ x: PAGE_WIDTH * TOTAL_PAGES, animated: false });
-      setCurrentPageIndex(5); // Jump to page 6 (0-indexed: 5)
+      setCurrentPageIndex(4);
     } else if (pageIndex === TOTAL_PAGES + 1) {
       swipeableScrollRef.current?.scrollTo({ x: PAGE_WIDTH, animated: false });
-      setCurrentPageIndex(0); // Jump to page 1 (0-indexed: 0)
+      setCurrentPageIndex(0);
     } else if (pageIndex >= 1 && pageIndex <= TOTAL_PAGES) {
       setCurrentPageIndex(pageIndex - 1);
     }
@@ -201,15 +200,53 @@ export default function HomeScreen() {
   };
 
   const handleHoldingPress = (entityId: number, category: string) => {
-    // Category is already in the correct format (no mapping needed)
     navigation.navigate('Entity', { entityId, categoryId: category });
   };
 
 
-  // Categories are now stored directly (no mapping needed)
+  // Map entity categories to display category names
+  const getDisplayCategory = (entityId: number, category: string): string => {
+    // Distinguish between Influencers (IDs 11-20) and Music Artists (IDs 21-30) in People category
+    if (category === 'People') {
+      if (entityId >= 11 && entityId <= 20) {
+        return 'Influencers';
+      } else if (entityId >= 21 && entityId <= 30) {
+        return 'Music Artists';
+      }
+      return 'Influencers'; // Default for other People entities
+    }
+    
+    const categoryMap: Record<string, string> = {
+      'Tech': 'Startups',
+      'Politics': 'Political Figures',
+      'Events': 'Sports',
+    };
+    
+    return categoryMap[category] || category;
+  };
+
+  // Map display category to entity category
+  const getEntityCategory = (displayCategory: string): string => {
+    const categoryMap: Record<string, string> = {
+      'Influencers': 'People',
+      'Music Artists': 'People',
+      'Sports': 'Events',
+      'Political Figures': 'Politics',
+      'Startups': 'Tech',
+    };
+    return categoryMap[displayCategory] || displayCategory;
+  };
+
   // Get previous day ranks for a category (mock data)
-  const getPreviousDayRanks = (category: string): Record<number, number> => {
-    const filteredEntities = getEntitiesByCategory(category);
+  const getPreviousDayRanks = (displayCategory: string): Record<number, number> => {
+    const entityCategory = getEntityCategory(displayCategory);
+    let filteredEntities = getEntitiesByCategory(entityCategory);
+    
+    if (displayCategory === 'Music Artists') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 21 && entity.id <= 30);
+    } else if (displayCategory === 'Influencers') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 11 && entity.id <= 20);
+    }
     
     // Create mock previous day prices (slightly different to simulate ranking changes)
     const previousDayEntities = filteredEntities.map((entity) => {
@@ -236,8 +273,16 @@ export default function HomeScreen() {
   };
 
   // Get top 5 entities for a category (ranked by price)
-  const getTopEntitiesForCategory = (category: string) => {
-    const filteredEntities = getEntitiesByCategory(category);
+  const getTopEntitiesForCategory = (displayCategory: string) => {
+    const entityCategory = getEntityCategory(displayCategory);
+    let filteredEntities = getEntitiesByCategory(entityCategory);
+    
+    // Filter out influencers from Music Artists (both use 'People' category)
+    if (displayCategory === 'Music Artists') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 21 && entity.id <= 30);
+    } else if (displayCategory === 'Influencers') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 11 && entity.id <= 20);
+    }
     
     const mappedEntities = filteredEntities.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
@@ -259,7 +304,7 @@ export default function HomeScreen() {
     const sorted = [...mappedEntities].sort((a, b) => b.currentPrice - a.currentPrice);
     
     // Get previous day ranks for this category
-    const previousDayRanks = getPreviousDayRanks(category);
+    const previousDayRanks = getPreviousDayRanks(displayCategory);
     
     // Add rank and position change, return top 5
     return sorted.slice(0, 5).map((entity, index) => {
@@ -281,115 +326,6 @@ export default function HomeScreen() {
     const top5 = getTopEntitiesForCategory('Influencers');
     return top5.slice(0, 3);
   }, [entityPrices, getEntityPrice]);
-
-  // Multi Entity Chart - Three entities with different colors
-  const multiEntityData = useMemo(() => {
-    const numPoints = 50;
-    
-    // Alix Earle - ending at 200
-    const alixEarlePrices: number[] = [];
-    let alixPrice = 170 + (Math.random() - 0.5) * 20; // Random starting price around 170
-    for (let i = 0; i < numPoints; i++) {
-      const progress = i / (numPoints - 1);
-      const targetPrice = 200;
-      // Random walk towards target, with more weight on target as we progress
-      alixPrice = alixPrice * (1 - progress * 0.1) + targetPrice * (progress * 0.1) + (Math.random() - 0.5) * 8;
-      if (i === numPoints - 1) {
-        alixPrice = targetPrice; // Ensure exact ending price
-      }
-      alixEarlePrices.push(Math.max(150, Math.min(210, alixPrice)));
-    }
-    
-    // Mr Beast - ending at 188.98
-    const mrBeastPrices: number[] = [];
-    let mrBeastPrice = 160 + (Math.random() - 0.5) * 20; // Random starting price around 160
-    for (let i = 0; i < numPoints; i++) {
-      const progress = i / (numPoints - 1);
-      const targetPrice = 188.98;
-      mrBeastPrice = mrBeastPrice * (1 - progress * 0.1) + targetPrice * (progress * 0.1) + (Math.random() - 0.5) * 8;
-      if (i === numPoints - 1) {
-        mrBeastPrice = targetPrice; // Ensure exact ending price
-      }
-      mrBeastPrices.push(Math.max(140, Math.min(200, mrBeastPrice)));
-    }
-    
-    // Logan Paul - ending at 186.25
-    const loganPaulPrices: number[] = [];
-    let loganPrice = 155 + (Math.random() - 0.5) * 20; // Random starting price around 155
-    for (let i = 0; i < numPoints; i++) {
-      const progress = i / (numPoints - 1);
-      const targetPrice = 186.25;
-      loganPrice = loganPrice * (1 - progress * 0.1) + targetPrice * (progress * 0.1) + (Math.random() - 0.5) * 8;
-      if (i === numPoints - 1) {
-        loganPrice = targetPrice; // Ensure exact ending price
-      }
-      loganPaulPrices.push(Math.max(135, Math.min(195, loganPrice)));
-    }
-    
-    return {
-      alixEarle: alixEarlePrices,
-      mrBeast: mrBeastPrices,
-      loganPaul: loganPaulPrices,
-    };
-  }, []);
-
-  // Multi Entity Chart dimensions
-  const multiEntityChartHeight = 220;
-  const multiEntityChartWidth = SCREEN_WIDTH;
-  const multiEntityMargin = { top: 50, right: 0, left: 0, bottom: 0 };
-  const multiEntityInnerWidth = multiEntityChartWidth - multiEntityMargin.left - multiEntityMargin.right;
-  const multiEntityInnerHeight = multiEntityChartHeight - multiEntityMargin.top - multiEntityMargin.bottom;
-
-  // Calculate Y domain for multi entity chart - include all three datasets
-  const multiEntityYDomain = useMemo(() => {
-    const allPrices = [...multiEntityData.alixEarle, ...multiEntityData.mrBeast, ...multiEntityData.loganPaul];
-    if (allPrices.length === 0) {
-      const price = 180;
-      const padding = price * 0.1;
-      return { yMin: price - padding, yMax: price + padding, yRange: padding * 2 };
-    }
-    const fullDataMin = Math.min(...allPrices);
-    const fullDataMax = Math.max(...allPrices);
-    const dataRange = fullDataMax - fullDataMin;
-    const yMin = fullDataMin - dataRange * 0.1;
-    const yMax = fullDataMax + dataRange * 0.1;
-    const yRange = yMax - yMin;
-    return { yMin, yMax, yRange };
-  }, [multiEntityData]);
-
-  // Generate line path helper function
-  const generateMultiEntityLinePath = (prices: number[]) => {
-    if (prices.length === 0) return '';
-    
-    const totalPoints = prices.length;
-    const pointSpacing = multiEntityInnerWidth / Math.max(1, totalPoints - 1);
-    
-    const points = prices.map((price, i) => {
-      const x = multiEntityMargin.left + (i * pointSpacing);
-      const y = multiEntityMargin.top + multiEntityInnerHeight - ((price - multiEntityYDomain.yMin) / multiEntityYDomain.yRange) * multiEntityInnerHeight;
-      return { x, y };
-    });
-
-    if (points.length === 1) {
-      return `M ${points[0].x} ${points[0].y}`;
-    }
-
-    let path = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
-      const next = points[i + 1] || curr;
-      
-      const dx1 = (curr.x - prev.x) / 3;
-      const dy1 = (curr.y - prev.y) / 3;
-      const dx2 = (next.x - curr.x) / 3;
-      const dy2 = (next.y - curr.y) / 3;
-      
-      path += ` C ${prev.x + dx1} ${prev.y + dy1}, ${curr.x - dx2} ${curr.y - dy2}, ${curr.x} ${curr.y}`;
-    }
-    
-    return path;
-  };
 
   // Generate comparison chart data
   const comparisonChartData = useMemo(() => {
@@ -528,7 +464,7 @@ export default function HomeScreen() {
       name: entity.name,
       ticker: entity.ticker,
       category: entity.category,
-      displayCategory: entity.category,
+      displayCategory: getDisplayCategory(entity.id, entity.category),
       currentPrice: getEntityPrice(entity.id),
       change24h: getEntityPrice(entity.id) - entity.basePrice,
       changePercent24h: ((getEntityPrice(entity.id) - entity.basePrice) / entity.basePrice) * 100,
@@ -565,12 +501,14 @@ export default function HomeScreen() {
       const livePrice = getEntityPrice(entity.id);
       const change = livePrice - entity.basePrice;
       const changePercent = (change / entity.basePrice) * 100;
+      const displayCategory = getDisplayCategory(entity.id, entity.category);
+      
       return {
         id: entity.id,
         ticker: entity.ticker,
         name: entity.name,
         category: entity.category,
-        displayCategory: entity.category,
+        displayCategory,
         currentPrice: livePrice,
         changePercent24h: changePercent,
         change24h: change,
@@ -584,10 +522,17 @@ export default function HomeScreen() {
     
     // Calculate position changes within each entity's category
     return top5.map(entity => {
-      const previousDayRanks = getPreviousDayRanks(entity.category);
+      const previousDayRanks = getPreviousDayRanks(entity.displayCategory);
       
       // Get all entities in this category to calculate current rank
-      const categoryEntities = getEntitiesByCategory(entity.category);
+      const entityCategory = getEntityCategory(entity.displayCategory);
+      let categoryEntities = getEntitiesByCategory(entityCategory);
+      
+      if (entity.displayCategory === 'Music Artists') {
+        categoryEntities = categoryEntities.filter(e => e.id >= 21 && e.id <= 30);
+      } else if (entity.displayCategory === 'Influencers') {
+        categoryEntities = categoryEntities.filter(e => e.id >= 11 && e.id <= 20);
+      }
       
       // Calculate current rank in category (by price)
       const categoryEntitiesWithPrices = categoryEntities.map(e => ({
@@ -770,22 +715,79 @@ export default function HomeScreen() {
             style={styles.swipeableScrollView}
             contentContainerStyle={styles.swipeableScrollContent}
           >
+<<<<<<< HEAD
             {/* Duplicate of page 6 at the start for circular scrolling */}
             <View key="duplicate-6" style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
+=======
+            {/* Duplicate of page 5 at the start for circular scrolling */}
+            <View key="duplicate-5" style={styles.swipeablePage}>
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
               <View style={styles.swipeablePageContent}>
                 <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
-                  Page 6
+                  Page 5
                 </Text>
                 <Text style={[styles.swipeablePageMessage, { color: theme.text }]}>
-                  Page 6 coming soon
+                  Content coming soon
                 </Text>
               </View>
             </View>
             
-            {/* Real pages 1-6 */}
+            {/* Real pages 1-5 */}
             {Array.from({ length: TOTAL_PAGES }, (_, index) => {
-              // Page 1: Multi entity chart for top 3 influencers
-              if (index === 0) {
+              // Page 1: Comparison chart for top 3 influencers
+              if (index === 0 && comparisonChartData) {
+                // Get current prices from entities to determine Y-axis range
+                const currentPrices = comparisonChartData.entities.map(e => e.currentPrice);
+                const minCurrentPrice = Math.min(...currentPrices);
+                const maxCurrentPrice = Math.max(...currentPrices);
+                
+                // Y-axis range: $10 above highest current price, $10 below lowest current price
+                const yMin = Math.round((minCurrentPrice - 10) * 100) / 100;
+                const yMax = Math.round((maxCurrentPrice + 10) * 100) / 100;
+                
+                // Clamp historical data points (but preserve the last point which is the current price)
+                const clampedDatasets = comparisonChartData.datasets.map((dataset, datasetIndex) => {
+                  const currentPrice = comparisonChartData.entities[datasetIndex].currentPrice;
+                  return {
+                    ...dataset,
+                    data: dataset.data.map((value, dataIndex) => {
+                      // Keep the last point (current price) as-is, clamp all others
+                      const isLastPoint = dataIndex === dataset.data.length - 1;
+                      if (isLastPoint) {
+                        return currentPrice; // Ensure last point is exactly current price
+                      }
+                      return Math.max(yMin, Math.min(yMax, value)); // Clamp historical points
+                    }),
+                  };
+                });
+                
+                // Calculate the three Y-axis labels: top, middle, bottom
+                const topLabel = yMax;
+                const bottomLabel = yMin;
+                const middleLabel = Math.round(((yMax + yMin) / 2) * 100) / 100;
+                
+                const chartConfig = {
+                  backgroundColor: theme.card,
+                  backgroundGradientFrom: theme.card,
+                  backgroundGradientTo: theme.card,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
+                  labelColor: (opacity = 1) => hexToRgba(theme.textSecondary, opacity),
+                  style: {
+                    borderRadius: 0,
+                  },
+                  fillShadowGradientOpacity: 0, // Remove fill shading
+                  fillShadowGradientFromOpacity: 0,
+                  fillShadowGradientToOpacity: 0,
+                  propsForDots: {
+                    r: '4', // Dot radius
+                    strokeWidth: '2',
+                  },
+                  formatYLabel: () => '', // Hide Y-axis labels
+                  yAxisMin: yMin,
+                  yAxisMax: yMax,
+                };
+
                 return (
                   <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.comparisonChartContainer}>
@@ -804,6 +806,7 @@ export default function HomeScreen() {
                       
                       {/* Legend/Key showing entities horizontally */}
                       <View style={styles.chartLegend}>
+<<<<<<< HEAD
                         <View style={styles.legendItem}>
                           <View
                             style={[
@@ -819,69 +822,103 @@ export default function HomeScreen() {
                               style={[
                                 styles.legendPrice,
                                 { color: '#EC4899' },
-                              ]}
-                            >
-                              {formatCurrency(200)}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.legendItem}>
-                          <View
-                            style={[
-                              styles.legendColorDot,
-                              { backgroundColor: '#3B82F6' },
-                            ]}
-                          />
-                          <View style={styles.legendText}>
-                            <Text style={[styles.legendName, { color: theme.text }]}>
-                              MrBeast
-                            </Text>
-                            <Text
+=======
+                        {comparisonChartData.entities.map((entity, entityIndex) => (
+                          <View key={entity.id} style={styles.legendItem}>
+                            <View
                               style={[
-                                styles.legendPrice,
-                                { color: '#3B82F6' },
+                                styles.legendColorDot,
+                                { backgroundColor: comparisonChartData.colors[entityIndex] },
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
                               ]}
-                            >
-                              {formatCurrency(188.98)}
-                            </Text>
+                            />
+                            <View style={styles.legendText}>
+                              <Text style={[styles.legendName, { color: theme.text }]}>
+                                {entity.name}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.legendPrice,
+                                  { color: comparisonChartData.colors[entityIndex] },
+                                ]}
+                              >
+                                {formatCurrency(entity.currentPrice)}
+                              </Text>
+                            </View>
                           </View>
-                        </View>
-                        <View style={styles.legendItem}>
-                          <View
-                            style={[
-                              styles.legendColorDot,
-                              { backgroundColor: '#10B981' },
-                            ]}
-                          />
-                          <View style={styles.legendText}>
-                            <Text style={[styles.legendName, { color: theme.text }]}>
-                              Logan Paul
-                            </Text>
-                            <Text
-                              style={[
-                                styles.legendPrice,
-                                { color: '#10B981' },
-                              ]}
-                            >
-                              {formatCurrency(186.25)}
-                            </Text>
-                          </View>
-                        </View>
+                        ))}
                       </View>
                       
-                      {/* Chart - Multi Entity SVG Chart */}
-                      <View style={styles.chartWithOverlay}>
-                        <Svg width={multiEntityChartWidth} height={multiEntityChartHeight}>
-                          {/* Horizontal line at bottom edge */}
-                          <Line
-                            x1={0}
-                            y1={multiEntityMargin.top + multiEntityInnerHeight}
-                            x2={multiEntityChartWidth}
-                            y2={multiEntityMargin.top + multiEntityInnerHeight}
-                            stroke="#000000"
-                            strokeWidth="1"
-                          />
+                      {/* Chart - full width now */}
+                      <View style={styles.chartWithLabelsWrapper}>
+                        <View style={styles.chartContainerClipped}>
+                          {/* Grid lines - horizontal dotted lines from Y-axis labels to left edge */}
+                          {[
+                            { label: topLabel, index: 0 },
+                            { label: middleLabel, index: 1 },
+                            { label: bottomLabel, index: 2 },
+                          ].map(({ label, index }) => {
+                            const chartHeight = 220;
+                            const paddingTop = 20;
+                            const paddingBottom = 20;
+                            const plotHeight = chartHeight - paddingTop - paddingBottom;
+                            const chartWidth = SCREEN_WIDTH;
+                            const paddingRight = 100; // Space for Y-axis labels (for chart elements)
+                            const paddingLeft = 32;
+                            const gridLinePaddingRight = 60; // Grid lines extend closer to Y-axis labels (middle of 100 and 20)
+                            
+                            // Calculate Y position matching the label positions
+                            // yAxisLabelsRight container: top: 20, bottom: 40, justifyContent: 'space-between'
+                            // Container spans from 20px to (220 - 40) = 180px from top
+                            // Labels are spaced between these points: top (20px), middle (~100px), bottom (180px)
+                            let yPos: number;
+                            if (index === 0) {
+                              // Top label - moved down a bit from 20px
+                              yPos = 28;
+                            } else if (index === 1) {
+                              // Middle label - middle of container (100px from chart top) - DO NOT CHANGE
+                              yPos = 100;
+                            } else {
+                              // Bottom label - moved up a bit from 180px
+                              yPos = 172;
+                            }
+                            
+                            // Width spans from left padding to almost touching Y-axis labels
+                            const gridLineWidth = chartWidth - paddingLeft - gridLinePaddingRight;
+                            
+                            // Create dashed line using multiple small Views
+                            const dashLength = 4;
+                            const dashGap = 4;
+                            const numDashes = Math.floor(gridLineWidth / (dashLength + dashGap));
+                            
+                            return (
+                              <View
+                                key={`grid-${index}`}
+                                style={{
+                                  position: 'absolute',
+                                  left: paddingLeft,
+                                  top: yPos,
+                                  width: gridLineWidth,
+                                  height: 1,
+                                  flexDirection: 'row',
+                                }}
+                              >
+                                {Array.from({ length: numDashes }).map((_, dashIndex) => (
+                                  <View
+                                    key={dashIndex}
+                                    style={{
+                                      width: dashLength,
+                                      height: 1,
+                                      backgroundColor: '#9CA3AF',
+                                      marginRight: dashIndex < numDashes - 1 ? dashGap : 0,
+                                    }}
+                                  />
+                                ))}
+                              </View>
+                            );
+                          })}
                           
+<<<<<<< HEAD
                           {/* Alix Earle line - Pink color */}
                           {multiEntityData.alixEarle.length > 1 && (
                             <Path
@@ -891,79 +928,194 @@ export default function HomeScreen() {
                               fill="none"
                             />
                           )}
+=======
+                          {/* Custom lines using many points across the week */}
+                          {clampedDatasets.map((dataset, datasetIndex) => {
+                            const lastIndex = dataset.data.length - 1;
+                            const lastValue = dataset.data[lastIndex];
+                            const chartWidth = SCREEN_WIDTH;
+                            const chartHeight = 220;
+                            const paddingRight = 100;
+                            const paddingTop = 20;
+                            const paddingBottom = 20;
+                            const paddingLeft = 32; // Align with date labels
+                            const plotWidth = chartWidth - paddingLeft - paddingRight;
+                            const plotHeight = chartHeight - paddingTop - paddingBottom;
+                            
+                            // Calculate end position (where dot will be)
+                            const endX = paddingLeft + plotWidth;
+                            const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+                            const endY = paddingTop + plotHeight - (normalizedValue * plotHeight);
+                            
+                            // Check if this is Alix Earle (entity id 11) - she should start in third and jump to first
+                            const isAlixEarle = comparisonChartData.entities[datasetIndex]?.id === 11;
+                            
+                            // Start position (left side)
+                            // For Alix Earle: start at third position (bottom), others start at varied positions
+                            let startY: number;
+                            if (isAlixEarle) {
+                              // Start at third position (bottom of the three lines)
+                              startY = paddingTop + plotHeight * 0.75;
+                            } else {
+                              const startYVariations = [
+                                paddingTop + plotHeight * 0.25, // First position (top)
+                                paddingTop + plotHeight * 0.45, // Second position (middle)
+                              ];
+                              startY = startYVariations[datasetIndex] || paddingTop + plotHeight * 0.35;
+                            }
+                            
+                            // Generate many points across the week (7 days * multiple points per day)
+                            const pointsPerDay = 8;
+                            const totalPoints = 7 * pointsPerDay + 1; // +1 for the final point
+                            const points: Array<{ x: number; y: number }> = [];
+                            
+                            // Generate points from left to right, ensuring the LAST point matches endY exactly
+                            for (let i = 0; i < totalPoints; i++) {
+                              const progress = i / (totalPoints - 1);
+                              const x = paddingLeft + plotWidth * progress;
+                              
+                              // Calculate base Y position
+                              let baseY: number;
+                              if (isAlixEarle) {
+                                // Alix: starts low, jumps up in second half
+                                if (progress < 0.5) {
+                                  baseY = startY; // Stay at bottom
+                                } else {
+                                  const jumpProgress = (progress - 0.5) / 0.5; // 0 to 1
+                                  const jumpCurve = jumpProgress * jumpProgress;
+                                  baseY = startY + (endY - startY) * jumpCurve;
+                                }
+                              } else {
+                                // Normal interpolation - mostly flat with very subtle variation
+                                baseY = startY + (endY - startY) * progress;
+                              }
+                              
+                              // Add very small, less frequent variation for subtle movement
+                              // Much smaller amplitude and less frequent oscillation
+                              const dayProgress = progress * 7;
+                              const sineVariation = Math.sin(dayProgress * Math.PI * 0.5) * 3; // Reduced frequency and amplitude
+                              
+                              let y = baseY + sineVariation;
+                              
+                              // CRITICAL: Last point must be exactly endY (where dot is)
+                              if (i === totalPoints - 1) {
+                                y = endY;
+                              }
+                              
+                              points.push({ x, y });
+                            }
+                            
+                            const lineColor = comparisonChartData.colors[datasetIndex];
+                            
+                            // Render line using many small View components connecting adjacent points
+                            return (
+                              <View key={`line-${datasetIndex}`} style={{ position: 'absolute', top: 0, left: 0 }}>
+                                {points.map((point, pointIndex) => {
+                                  if (pointIndex === 0) return null;
+                                  const prevPoint = points[pointIndex - 1];
+                                  const dx = point.x - prevPoint.x;
+                                  const dy = point.y - prevPoint.y;
+                                  const length = Math.sqrt(dx * dx + dy * dy);
+                                  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                                  
+                                  return (
+                                    <View
+                                      key={`segment-${pointIndex}`}
+                                      style={{
+                                        position: 'absolute',
+                                        left: prevPoint.x,
+                                        top: prevPoint.y,
+                                        width: length,
+                                        height: 2,
+                                        backgroundColor: lineColor,
+                                        transform: [{ rotate: `${angle}deg` }],
+                                        transformOrigin: 'left center',
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </View>
+                            );
+                          })}
+                        </View>
+                        {/* Custom dots at the end of each line */}
+                        {clampedDatasets.map((dataset, datasetIndex) => {
+                          const lastIndex = dataset.data.length - 1;
+                          const lastValue = dataset.data[lastIndex];
+                          const chartWidth = SCREEN_WIDTH;
+                          const chartHeight = 220;
+                          const paddingRight = 100; // Space for Y-axis labels
+                          const paddingTop = 20;
+                          const paddingBottom = 20;
+                          const paddingLeft = 0; // Start at left edge
+                          const plotWidth = chartWidth - paddingLeft - paddingRight;
+                          const plotHeight = chartHeight - paddingTop - paddingBottom;
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
                           
-                          {/* Mr Beast line - Blue color */}
-                          {multiEntityData.mrBeast.length > 1 && (
-                            <Path
-                              d={generateMultiEntityLinePath(multiEntityData.mrBeast)}
-                              stroke="#3B82F6"
-                              strokeWidth="2"
-                              fill="none"
-                            />
-                          )}
+                          // Calculate X position of last point (rightmost edge of plot area)
+                          const lastX = paddingLeft + plotWidth - 4;
                           
-                          {/* Logan Paul line - Green color */}
-                          {multiEntityData.loganPaul.length > 1 && (
-                            <Path
-                              d={generateMultiEntityLinePath(multiEntityData.loganPaul)}
-                              stroke="#10B981"
-                              strokeWidth="2"
-                              fill="none"
+                          // Calculate Y position based on value and range
+                          const normalizedValue = (lastValue - yMin) / (yMax - yMin);
+                          const yPosition = paddingTop + plotHeight - (normalizedValue * plotHeight) - 4;
+                          
+                          const dotColor = comparisonChartData.colors[datasetIndex];
+                          
+                          return (
+                            <View
+                              key={datasetIndex}
+                              style={[
+                                styles.chartEndDot,
+                                {
+                                  left: lastX,
+                                  top: yPosition,
+                                  backgroundColor: dotColor,
+                                  borderColor: theme.card,
+                                },
+                              ]}
                             />
-                          )}
-                        </Svg>
+                          );
+                        })}
+                        
+                        {/* Custom Y-axis labels on the right side */}
+                        <View style={styles.yAxisLabelsRight}>
+                          <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                            {formatCurrency(topLabel)}
+                          </Text>
+                          <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                            {formatCurrency(middleLabel)}
+                          </Text>
+                          <Text style={[styles.yAxisLabelText, { color: theme.textSecondary }]}>
+                            {formatCurrency(bottomLabel)}
+                          </Text>
+                        </View>
                       </View>
                       
                       {/* Date labels under x-axis */}
                       <View style={styles.xAxisDateLabels}>
-                        {(() => {
-                          // Get dates for last week (ending on 12/31)
-                          const dates: string[] = [];
-                          const endDate = new Date(2024, 11, 31); // December 31, 2024
-                          for (let i = 6; i >= 0; i--) {
-                            const date = new Date(endDate);
-                            date.setDate(date.getDate() - i);
-                            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                            const day = date.getDate().toString().padStart(2, '0');
-                            dates.push(`${month}/${day}`);
-                          }
-                          return dates.map((date, index) => {
-                            const chartWidth = SCREEN_WIDTH;
-                            const plotWidth = chartWidth; // Full width
-                            // Keep 12/25 at left (index 0) and 12/31 at right (index 6)
-                            // Evenly space the 5 dates in between (indices 1-5)
-                            // We need 6 gaps total: between 12/25-12/26, 12/26-12/27, ..., 12/30-12/31
-                            let xPosition: number;
-                            if (index === 0) {
-                              // 12/25: keep at left edge
-                              xPosition = 0;
-                            } else if (index === dates.length - 1) {
-                              // 12/31: keep at right edge with offset for text width
-                              xPosition = plotWidth - 35;
-                            } else {
-                              // 12/26-12/30: evenly space between left and right positions
-                              const rightEdge = plotWidth - 35;
-                              const spacing = rightEdge / 6; // 6 gaps for 7 dates
-                              xPosition = spacing * index;
-                            }
-                            
-                            return (
-                              <Text
-                                key={date}
-                                style={[
-                                  styles.xAxisDateLabel,
-                                  { 
-                                    color: theme.textSecondary,
-                                    left: xPosition,
-                                    transform: [{ translateX: 0 }], // Override the default centering transform
-                                  },
-                                ]}
-                              >
-                                {date}
-                              </Text>
-                            );
-                          });
-                        })()}
+                        {['12/21', '12/22', '12/23', '12/24', '12/25', '12/26', '12/27'].map((date, index) => {
+                          const chartWidth = SCREEN_WIDTH;
+                          const paddingRight = 100;
+                          const leftPadding = 32; // More padding on the left
+                          const plotWidth = chartWidth - paddingRight; // Full width minus right padding (where dots are)
+                          const spacing = (plotWidth - leftPadding) / 6; // Space them out to align 12/27 with dots
+                          const xPosition = leftPadding + spacing * index;
+                          
+                          return (
+                            <Text
+                              key={date}
+                              style={[
+                                styles.xAxisDateLabel,
+                                { 
+                                  color: theme.textSecondary,
+                                  left: xPosition,
+                                },
+                              ]}
+                            >
+                              {date}
+                            </Text>
+                          );
+                        })}
                       </View>
                     </View>
                   </View>
@@ -991,7 +1143,7 @@ export default function HomeScreen() {
                           <TouchableOpacity
                             key={entity.id}
                             style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-                            onPress={() => handleHoldingPress(entity.id, entity.category)}
+                            onPress={() => handleHoldingPress(entity.id, entity.displayCategory)}
                           >
                             <View style={styles.discoverCardLeft}>
                               <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
@@ -1004,7 +1156,7 @@ export default function HomeScreen() {
                                   {entity.name}
                                 </Text>
                                 <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
-                                  {entity.category}
+                                  {entity.displayCategory}
                                 </Text>
                               </View>
                             </View>
@@ -1148,8 +1300,20 @@ export default function HomeScreen() {
                     let categoryId = 'Influencers';
                     
                     if (entity) {
-                      // Category is already in the correct format (no mapping needed)
-                      categoryId = entity.category;
+                      if (entity.category === 'People') {
+                        if (entity.id >= 11 && entity.id <= 20) {
+                          categoryId = 'Influencers';
+                        } else if (entity.id >= 21 && entity.id <= 30) {
+                          categoryId = 'Music Artists';
+                        }
+                      } else {
+                        const categoryMap: Record<string, string> = {
+                          'Politics': 'Political Figures',
+                          'Tech': 'Startups',
+                          'Events': 'Sports',
+                        };
+                        categoryId = categoryMap[entity.category] || entity.category;
+                      }
                     }
                     
                     navigation.navigate('Entity', {
@@ -1227,10 +1391,10 @@ export default function HomeScreen() {
               
               // Page 5: Discover New Additions
               if (index === 4) {
-                const handleEntityPress = (entityId: number, category: string) => {
+                const handleEntityPress = (entityId: number, displayCategory: string) => {
                   navigation.navigate('Entity', {
                     entityId,
-                    categoryId: category,
+                    categoryId: displayCategory,
                   });
                 };
 
@@ -1290,7 +1454,7 @@ export default function HomeScreen() {
                             <TouchableOpacity
                               key={item.id}
                               style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-                              onPress={() => handleEntityPress(item.id, item.category)}
+                              onPress={() => handleEntityPress(item.id, item.displayCategory)}
                             >
                               <View style={styles.discoverCardLeft}>
                                 <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
@@ -1303,7 +1467,7 @@ export default function HomeScreen() {
                                     {item.name}
                                   </Text>
                                   <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
-                                    {item.category}
+                                    {item.displayCategory}
                                   </Text>
                                 </View>
                               </View>
@@ -1325,6 +1489,7 @@ export default function HomeScreen() {
                 );
               }
               
+<<<<<<< HEAD
               // Page 6: Top 2 Biggest Trades Today
               if (index === 5) {
                 // Fake trade data
@@ -1411,6 +1576,8 @@ export default function HomeScreen() {
                 );
               }
               
+=======
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
               // Other pages: placeholder
               return (
                 <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
@@ -1426,14 +1593,19 @@ export default function HomeScreen() {
               );
             })}
             
+<<<<<<< HEAD
             {/* Duplicate of page 6 at the end for circular scrolling */}
             <View key="duplicate-6-end" style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
+=======
+            {/* Duplicate of page 1 at the end for circular scrolling */}
+            <View key="duplicate-1" style={styles.swipeablePage}>
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
               <View style={styles.swipeablePageContent}>
                 <Text style={[styles.swipeablePageLabel, { color: theme.textSecondary }]}>
-                  Page 6
+                  Page 1
                 </Text>
                 <Text style={[styles.swipeablePageMessage, { color: theme.text }]}>
-                  Page 6 coming soon
+                  Content coming soon
                 </Text>
               </View>
             </View>
@@ -1546,7 +1718,7 @@ export default function HomeScreen() {
                       <View style={styles.watchlistInfo}>
                         <Text style={[styles.watchlistName, { color: theme.text }]}>{item.entityName}</Text>
                         <Text style={[styles.watchlistCategory, { color: theme.textSecondary }]}>
-                          {item.category}
+                          {getDisplayCategory(item.entityId, item.category)}
                         </Text>
                       </View>
                     </View>
@@ -1607,7 +1779,7 @@ export default function HomeScreen() {
                       <View style={styles.watchlistInfo}>
                         <Text style={[styles.watchlistName, { color: theme.text }]}>{holding.entityName}</Text>
                         <Text style={[styles.watchlistCategory, { color: theme.textSecondary }]}>
-                          {entityCategory}
+                          {getDisplayCategory(holding.entityId, entityCategory)}
                         </Text>
                       </View>
                     </View>
@@ -1655,7 +1827,8 @@ export default function HomeScreen() {
                     key={entity.id}
                     style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
                     onPress={() => {
-                      navigation.navigate('Entity', { entityId: entity.id, categoryId: category });
+                      const entityCategory = getEntityCategory(category);
+                      navigation.navigate('Entity', { entityId: entity.id, categoryId: entityCategory });
                     }}
                   >
                     <View style={styles.rankContainer}>
@@ -2566,11 +2739,6 @@ const styles = StyleSheet.create({
     marginVertical: 0,
     marginLeft: 0,
   },
-  chartWithOverlay: {
-    position: 'relative',
-    height: 220,
-    width: SCREEN_WIDTH,
-  },
   customChartSvg: {
     position: 'absolute',
     top: 0,
@@ -2846,6 +3014,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+<<<<<<< HEAD
   topTradesContainer: {
     flex: 1,
     paddingTop: 12,
@@ -3028,4 +3197,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+=======
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
 });

@@ -29,6 +29,7 @@ import CategoryScreen from './src/screens/CategoryScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import DiscoverNewAdditionsScreen from './src/screens/DiscoverNewAdditionsScreen';
 import AccountValueScreen from './src/screens/AccountValueScreen';
+<<<<<<< HEAD
 import ChartDevelopmentScreen from './src/screens/ChartDevelopmentScreen';
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -45,6 +46,8 @@ import UserProfileScreen from './src/screens/UserProfileScreen';
 >>>>>>> parent of ec2acad (Update token symbol to ⓜ, add page 6 with top trades, update entity screen buttons and category display, add skipAuth function)
 =======
 >>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
+=======
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
 
 import { RootStackParamList } from './src/types';
 
@@ -64,14 +67,6 @@ function RootNavigator() {
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
-          <Stack.Screen 
-            name="ChartDevelopment" 
-            component={ChartDevelopmentScreen}
-            options={{
-              presentation: 'card',
-              animation: 'slide_from_right',
-            }}
-          />
         </>
       ) : (
         <>
@@ -123,6 +118,7 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           />
+<<<<<<< HEAD
           <Stack.Screen 
             name="TradeHistory" 
             component={TradeHistoryScreen}
@@ -147,6 +143,8 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           />
+=======
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
         </>
       )}
     </Stack.Navigator>

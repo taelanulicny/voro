@@ -56,8 +56,22 @@ export default function NotificationsScreen() {
   const handleEntityPress = (mentionName: string) => {
     const entity = getEntityByName(mentionName);
     if (entity) {
-      // Category is already in the correct format (no mapping needed)
-      navigation.navigate('Entity', { entityId: entity.id, categoryId: entity.category });
+      // Map category to display category
+      let categoryId = entity.category;
+      if (entity.category === 'People') {
+        if (entity.id >= 11 && entity.id <= 20) {
+          categoryId = 'Influencers';
+        } else if (entity.id >= 21 && entity.id <= 30) {
+          categoryId = 'Music Artists';
+        }
+      } else if (entity.category === 'Tech') {
+        categoryId = 'Startups';
+      } else if (entity.category === 'Politics') {
+        categoryId = 'Political Figures';
+      } else if (entity.category === 'Events') {
+        categoryId = 'Sports';
+      }
+      navigation.navigate('Entity', { entityId: entity.id, categoryId });
     }
   };
 

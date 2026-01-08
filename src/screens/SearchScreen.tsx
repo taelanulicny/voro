@@ -60,7 +60,38 @@ export default function SearchScreen() {
 
   const categories = ['All', 'Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
 
-  // Categories are now stored directly (no mapping needed)
+  // Map display categories to entity categories
+  const getEntityCategory = (displayCategory: string): string | null => {
+    const categoryMap: Record<string, string> = {
+      'Influencers': 'People',
+      'Music Artists': 'People',
+      'Sports': 'Events',
+      'Political Figures': 'Politics',
+      'Startups': 'Tech',
+    };
+    return categoryMap[displayCategory] || null;
+  };
+
+  // Get display category helper (converts entity categories to display categories)
+  const getDisplayCategory = (entityId: number, category: string): string => {
+    // Distinguish between Influencers (IDs 11-20) and Music Artists (IDs 21-30) in People category
+    if (category === 'People') {
+      if (entityId >= 11 && entityId <= 20) {
+        return 'Influencers';
+      } else if (entityId >= 21 && entityId <= 30) {
+        return 'Music Artists';
+      }
+      return 'Influencers'; // Default for other People entities
+    }
+    
+    const categoryMap: Record<string, string> = {
+      'Politics': 'Political Figures',
+      'Tech': 'Startups',
+      'Events': 'Sports',
+    };
+    
+    return categoryMap[category] || category;
+  };
 
   // Filter and sort entities
   const filteredEntities = useMemo(() => {
@@ -79,7 +110,19 @@ export default function SearchScreen() {
 
     // Apply category filter
     if (selectedCategory && selectedCategory !== 'All') {
-      filtered = filtered.filter((e) => e.category === selectedCategory);
+      const entityCategory = getEntityCategory(selectedCategory);
+      if (entityCategory) {
+        // For People category, need to distinguish between Influencers and Music Artists
+        if (entityCategory === 'People') {
+          if (selectedCategory === 'Influencers') {
+            filtered = filtered.filter((e) => e.category === 'People' && e.id >= 11 && e.id <= 20);
+          } else if (selectedCategory === 'Music Artists') {
+            filtered = filtered.filter((e) => e.category === 'People' && e.id >= 21 && e.id <= 30);
+          }
+        } else {
+          filtered = filtered.filter((e) => e.category === entityCategory);
+        }
+      }
     }
 
     // Apply sorting
@@ -108,7 +151,7 @@ export default function SearchScreen() {
   const handleSelectEntity = (entity: any) => {
     navigation.navigate('Entity', {
       entityId: entity.id,
-      categoryId: entity.category,
+      categoryId: getDisplayCategory(entity.id, entity.category),
     });
   };
 
@@ -160,7 +203,7 @@ export default function SearchScreen() {
     };
 
     const displayName = truncateText(item.name);
-    const displayCategory = truncateText(item.category);
+    const displayCategory = truncateText(getDisplayCategory(item.id, item.category));
 
     return (
     <TouchableOpacity

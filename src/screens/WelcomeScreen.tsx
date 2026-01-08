@@ -40,20 +40,12 @@ export default function WelcomeScreen() {
       </View>
 
       {/* DEV ONLY - Skip Sign In Button */}
-      <View style={styles.bottomButtonsContainer}>
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={handleSkipAuth}
-        >
-          <Text style={styles.skipButtonText}>Skip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.chartDevButton}
-          onPress={() => navigation.navigate('ChartDevelopment')}
-        >
-          <Text style={styles.chartDevButtonText}>Chart Development</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity 
+        style={styles.skipButton}
+        onPress={handleSkipAuth}
+      >
+        <Text style={styles.skipButtonText}>Skip</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -111,32 +103,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // DEV ONLY
-  bottomButtonsContainer: {
+  skipButton: {
     position: 'absolute',
     bottom: 12,
     left: 12,
-    flexDirection: 'row',
-    gap: 8,
-    zIndex: 999,
-  },
-  skipButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#EF4444',
     borderRadius: 6,
+    zIndex: 999,
   },
   skipButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  chartDevButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#3B82F6',
-    borderRadius: 6,
-  },
-  chartDevButtonText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '600',

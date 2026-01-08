@@ -8,8 +8,12 @@
 =======
     "name": "moro-mobile",
     "slug": "moro-mobile",
+<<<<<<< HEAD
     "version": "1.0.9",
 >>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
+=======
+    "version": "1.0.8",
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -37,6 +41,7 @@
       "bundleIdentifier": "com.moro.mobile",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "buildNumber": "25",
 =======
       "buildNumber": "15",
@@ -44,6 +49,9 @@
 =======
       "buildNumber": "16",
 >>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
+=======
+      "buildNumber": "15",
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

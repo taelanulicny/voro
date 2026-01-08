@@ -17,6 +17,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   DiscoverNewAdditions: undefined;
   AccountValue: undefined;
+<<<<<<< HEAD
   ChartDevelopment: undefined;
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -33,6 +34,8 @@ export type RootStackParamList = {
 >>>>>>> parent of ec2acad (Update token symbol to ⓜ, add page 6 with top trades, update entity screen buttons and category display, add skipAuth function)
 =======
 >>>>>>> parent of 2e5d44d (Merge remote backend changes with local frontend updates)
+=======
+>>>>>>> parent of 8998392 (Update entity screen buttons, category formatting, add page 6 with top trades, and various UI improvements)
 };
 
 export type MainTabParamList = {

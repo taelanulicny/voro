@@ -573,15 +573,45 @@ export default function CategoryScreen() {
     return basePosts[categoryId] || [];
   }, [categoryId]);
 
-  // Categories are now stored directly (no mapping needed)
-  const displayName = categoryId;
-  const entityCategory = categoryId;
+  // Map category IDs to display names
+  const categoryDisplayNames: Record<string, string> = {
+    'Influencers': 'Influencers',
+    'Music Artists': 'Music Artists',
+    'Sports': 'Sports',
+    'Political Figures': 'Political Figures',
+    'Startups': 'Startups',
+    // Map to actual entity categories if needed
+    'People': 'Influencers',
+    'Politics': 'Political Figures',
+    'Tech': 'Startups',
+    'Events': 'Sports',
+  };
+
+  const displayName = categoryDisplayNames[categoryId] || categoryId;
+  
+  // Get entities for this category
+  // For now, we'll use a simple mapping. Later this can be replaced with real data
+  const categoryToEntityCategory: Record<string, string> = {
+    'Influencers': 'People',
+    'Music Artists': 'People',
+    'Sports': 'Events',
+    'Political Figures': 'Politics',
+    'Startups': 'Tech',
+  };
+
+  const entityCategory = categoryToEntityCategory[categoryId] || categoryId;
   
   // Mock previous day rankings (yesterday's ranks)
   // This would normally come from a backend/database
   const previousDayRanks = useMemo(() => {
     const mockRanks: Record<number, number> = {};
-    const filteredEntities = getEntitiesByCategory(entityCategory);
+    let filteredEntities = getEntitiesByCategory(entityCategory);
+    
+    if (categoryId === 'Music Artists') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 21 && entity.id <= 30);
+    } else if (categoryId === 'Influencers') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 11 && entity.id <= 20);
+    }
     
     // Create mock previous day prices (slightly different to simulate ranking changes)
     const previousDayEntities = filteredEntities.map((entity) => {
@@ -609,7 +639,13 @@ export default function CategoryScreen() {
   const entities = useMemo(() => {
     let filteredEntities = getEntitiesByCategory(entityCategory);
     
-    // Categories are now stored directly (no filtering needed)
+    // Filter out influencers from Music Artists (both use 'People' category)
+    // Influencers: IDs 11-20, Music Artists: IDs 21-30
+    if (categoryId === 'Music Artists') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 21 && entity.id <= 30);
+    } else if (categoryId === 'Influencers') {
+      filteredEntities = filteredEntities.filter(entity => entity.id >= 11 && entity.id <= 20);
+    }
     
     const mappedEntities = filteredEntities.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
