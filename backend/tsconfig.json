@@ -13,7 +13,8 @@
     "moduleResolution": "node",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node", "aws-lambda"]
   },
   "include": ["src/**/*", "infrastructure/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"]
