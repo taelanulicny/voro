@@ -28,9 +28,7 @@ function GroupsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { 
     groups, 
-    myGroups,
     isLoadingGroups, 
-    isLoadingMyGroups,
     refreshGroups, 
     refreshUserGroups,
     createGroup, 
@@ -40,7 +38,6 @@ function GroupsScreen() {
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'my' | 'explore'>('my');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -63,8 +60,8 @@ function GroupsScreen() {
     setRefreshing(false);
   };
 
-  // Filter groups for Explore tab based on search query
-  const filteredExploreGroups = useMemo(() => {
+  // Filter groups based on search query
+  const searchFilteredGroups = useMemo(() => {
     if (!searchQuery.trim()) {
       return groups;
     }
@@ -76,57 +73,33 @@ function GroupsScreen() {
     );
   }, [groups, searchQuery]);
 
+  // Recommended groups (groups user is not a member of) - only show when no search query
+  const recommendedGroups = useMemo(() => {
+    // Only show recommended when no search query
+    if (searchQuery.trim()) {
+      return [];
+    }
+    const notMemberGroups = groups.filter(group => !group.isMember);
+    // Return top 10 recommended groups (could add more sophisticated logic later)
+    return notMemberGroups.slice(0, 10);
+  }, [groups, searchQuery]);
+
+  // Search results - all groups that match the search query (excluding user's groups)
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return [];
+    }
+    return searchFilteredGroups.filter(group => !group.isMember);
+  }, [searchFilteredGroups, searchQuery]);
+
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Groups</Text>
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => setShowCreateModal(true)}
-      >
-        <Ionicons name="add-circle" size={28} color={theme.primary} />
-      </TouchableOpacity>
+      <Text style={[styles.title, { color: theme.text }]}>Join a Group</Text>
     </View>
   );
 
-  const renderTabs = () => (
-    <View style={[styles.tabsContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <TouchableOpacity
-        style={[styles.tab, selectedTab === 'my' && styles.tabActive]}
-        onPress={() => setSelectedTab('my')}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            { color: selectedTab === 'my' ? theme.primary : theme.textSecondary },
-            selectedTab === 'my' && { fontWeight: '600' },
-          ]}
-        >
-          My Groups
-        </Text>
-        {selectedTab === 'my' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.tab, selectedTab === 'explore' && styles.tabActive]}
-        onPress={() => setSelectedTab('explore')}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            { color: selectedTab === 'explore' ? theme.primary : theme.textSecondary },
-            selectedTab === 'explore' && { fontWeight: '600' },
-          ]}
-        >
-          Explore
-        </Text>
-        {selectedTab === 'explore' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
-      </TouchableOpacity>
-    </View>
-  );
 
   const renderSearchBar = () => {
-    if (selectedTab !== 'explore') return null;
-    
     return (
       <View style={[styles.searchContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={[styles.searchBar, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
@@ -146,6 +119,41 @@ function GroupsScreen() {
             </TouchableOpacity>
           )}
         </View>
+      </View>
+    );
+  };
+
+  const renderRecommendedSlider = () => {
+    if (recommendedGroups.length === 0) return null;
+    
+    return (
+      <View style={[styles.recommendedSection, { borderBottomColor: theme.border }]}>
+        <View style={styles.recommendedHeader}>
+          <Text style={[styles.recommendedTitle, { color: theme.text }]}>Recommended for you</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.recommendedScrollContent}
+        >
+          {recommendedGroups.map((group) => (
+            <TouchableOpacity
+              key={group.id}
+              style={[styles.recommendedCard, { backgroundColor: theme.card }]}
+              onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
+            >
+              <View style={[styles.recommendedCardIcon, { backgroundColor: theme.primaryLight }]}>
+                <Ionicons name="people" size={24} color={theme.primary} />
+              </View>
+              <Text style={[styles.recommendedCardName, { color: theme.text }]} numberOfLines={1}>
+                {group.name}
+              </Text>
+              <Text style={[styles.recommendedCardMembers, { color: theme.textSecondary }]}>
+                {group.memberCount.toLocaleString()} members
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
     );
   };
@@ -178,36 +186,37 @@ function GroupsScreen() {
         {item.description}
       </Text>
 
-      {selectedTab === 'explore' && (
-        <TouchableOpacity
+      <TouchableOpacity
+        style={[
+          styles.actionButton,
+          { backgroundColor: item.isMember ? theme.backgroundTertiary : theme.primary },
+          item.isMember && { borderWidth: 1.5, borderColor: theme.border },
+        ]}
+        onPress={(e) => {
+          e.stopPropagation();
+          if (item.isMember) {
+            leaveGroup(item.id);
+          } else {
+            joinGroup(item.id);
+          }
+        }}
+      >
+        <Text
           style={[
-            styles.actionButton,
-            { backgroundColor: item.isMember ? theme.backgroundTertiary : theme.primary },
-            item.isMember && { borderWidth: 1.5, borderColor: theme.border },
+            styles.actionButtonText,
+            { color: item.isMember ? theme.textSecondary : '#FFFFFF' },
           ]}
-          onPress={(e) => {
-            e.stopPropagation();
-            item.isMember ? leaveGroup(item.id) : joinGroup(item.id);
-          }}
         >
-          <Text
-            style={[
-              styles.actionButtonText,
-              { color: item.isMember ? theme.textSecondary : '#FFFFFF' },
-            ]}
-          >
-            {item.isMember ? 'Leave' : 'Join'}
-          </Text>
-        </TouchableOpacity>
-      )}
+          {item.isMember ? 'Leave' : 'Join'}
+        </Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
   const renderEmptyState = () => {
-    const isLoading = selectedTab === 'my' ? isLoadingMyGroups : isLoadingGroups;
-    const isEmpty = selectedTab === 'my' ? myGroups.length === 0 : filteredExploreGroups.length === 0;
+    const isEmpty = searchQuery.trim() ? searchResults.length === 0 : false;
     
-    if (isLoading) {
+    if (isLoadingGroups) {
       return (
         <View style={styles.emptyState}>
           <ActivityIndicator size="large" color={theme.primary} />
@@ -216,45 +225,23 @@ function GroupsScreen() {
       );
     }
 
-    return (
-      <View style={styles.emptyState}>
-        <Ionicons name="people-outline" size={64} color={theme.textTertiary} />
-        <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-          {selectedTab === 'my' 
-            ? 'No groups yet' 
-            : searchQuery.trim() 
-              ? 'No groups found' 
-              : 'No groups available'}
-        </Text>
-        <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-          {selectedTab === 'my'
-            ? 'Join groups to connect with like-minded traders'
-            : searchQuery.trim()
-              ? 'Try a different search term'
-              : 'Be the first to create a trading group!'}
-        </Text>
-        {selectedTab === 'my' && (
-          <TouchableOpacity
-            style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-            onPress={() => setSelectedTab('explore')}
-          >
-            <Text style={styles.emptyStateButtonText}>Explore Groups</Text>
-          </TouchableOpacity>
-        )}
-        {selectedTab === 'explore' && (
-          <TouchableOpacity
-            style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-            onPress={() => setShowCreateModal(true)}
-          >
-            <Text style={styles.emptyStateButtonText}>Create Group</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
+    if (isEmpty) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="search-outline" size={64} color={theme.textTertiary} />
+          <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No groups found</Text>
+          <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+            Try a different search term
+          </Text>
+        </View>
+      );
+    }
+
+    return null;
   };
 
-  const currentGroups = selectedTab === 'my' ? myGroups : filteredExploreGroups;
-  const isLoading = selectedTab === 'my' ? isLoadingMyGroups : isLoadingGroups;
+  // Current groups to display: search results if searching, otherwise empty (recommended slider handles display)
+  const currentGroups = searchQuery.trim() ? searchResults : [];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
@@ -265,8 +252,8 @@ function GroupsScreen() {
         ListHeaderComponent={
           <>
             {renderHeader()}
-            {renderTabs()}
             {renderSearchBar()}
+            {!searchQuery.trim() && recommendedGroups.length > 0 && renderRecommendedSlider()}
           </>
         }
         ListEmptyComponent={renderEmptyState}
@@ -279,7 +266,7 @@ function GroupsScreen() {
         }
         contentContainerStyle={[
           styles.listContent,
-          currentGroups.length === 0 && styles.emptyListContent,
+          currentGroups.length === 0 && !searchQuery.trim() && styles.emptyListContent,
         ]}
         showsVerticalScrollIndicator={false}
       />
@@ -475,30 +462,6 @@ const styles = StyleSheet.create({
   },
   createButton: {
     padding: 4,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    position: 'relative',
-  },
-  tabActive: {
-    // Active tab styling handled by indicator
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -714,5 +677,54 @@ const styles = StyleSheet.create({
   },
   switchThumbActive: {
     alignSelf: 'flex-end',
+  },
+  recommendedSection: {
+    paddingTop: 16,
+    paddingBottom: 8,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+  },
+  recommendedHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  recommendedTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  recommendedScrollContent: {
+    paddingHorizontal: 16,
+    paddingRight: 16,
+    gap: 12,
+  },
+  recommendedCard: {
+    width: 160,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  recommendedCardIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  recommendedCardName: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  recommendedCardMembers: {
+    fontSize: 12,
+    textAlign: 'center',
   },
 });
