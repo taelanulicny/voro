@@ -8,6 +8,7 @@ export type RootStackParamList = {
   Category: { categoryId: string };
   Trade: { entityId: number; ticker: string; name: string };
   GroupDetail: { groupId: string };
+  RecommendedGroups: undefined;
   FollowersList: { userId: string; type: 'followers' | 'following'; username: string };
   UserProfile: { userId: string };
   NewsDetail: { articleId: string };
@@ -137,6 +138,7 @@ export interface Group {
   isMember: boolean;
   coverImage?: string;
   createdAt: string;
+  location?: string; // Location field: 'World', 'United States', or state name (e.g., 'California', 'Texas')
 }
 
 export interface GroupMessage {

@@ -615,14 +615,14 @@ export default function CommunityScreen() {
             )}
           </View>
 
-          {/* Recommended Teams Section */}
+          {/* Recommended Groups Section */}
           <View style={styles.recommendedTeamsSection}>
             <View style={styles.recommendedTeamsHeader}>
-              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>RECOMMENDED TEAMS</Text>
+              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>RECOMMENDED GROUPS</Text>
               <TouchableOpacity
                 style={styles.viewAllButton}
                 onPress={() => {
-                  // TODO: Implement view all teams functionality
+                  navigation.navigate('RecommendedGroups');
                 }}
               >
                 <Text style={[styles.viewAllText, { color: theme.text }]}>VIEW ALL</Text>
@@ -663,30 +663,6 @@ export default function CommunityScreen() {
             </ScrollView>
           </View>
 
-          {/* Getting Started Section */}
-          <View style={styles.gettingStartedSection}>
-            <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>GETTING STARTED</Text>
-            
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() => {
-                // TODO: Implement enter invite code functionality
-              }}
-            >
-              <Ionicons name="search-outline" size={20} color={theme.text} />
-              <Text style={[styles.actionButtonText, { color: theme.text }]}>Enter Invite Code</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() => {
-                // TODO: Implement create team functionality
-              }}
-            >
-              <Ionicons name="add-circle-outline" size={20} color={theme.text} />
-              <Text style={[styles.actionButtonText, { color: theme.text }]}>Create Team</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </View>
     );

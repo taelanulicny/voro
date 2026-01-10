@@ -17,12 +17,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useTheme } from '../context/ThemeContext';
-import { Group, RootStackParamList } from '../types';
+import { Group, RootStackParamList, MainTabParamList } from '../types';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RootStackParamList>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 function GroupsScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -94,7 +99,16 @@ function GroupsScreen() {
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => {
+          navigation.navigate('Main', { screen: 'Community' });
+        }}
+      >
+        <Ionicons name="arrow-back" size={24} color={theme.text} />
+      </TouchableOpacity>
       <Text style={[styles.title, { color: theme.text }]}>Join a Group</Text>
+      <View style={styles.headerRight} />
     </View>
   );
 
@@ -449,16 +463,27 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerRight: {
+    width: 40,
   },
   createButton: {
     padding: 4,
