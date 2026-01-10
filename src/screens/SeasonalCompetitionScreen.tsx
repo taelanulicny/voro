@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,10 +31,12 @@ export default function SeasonalCompetitionScreen() {
   const { user, token, isAuthenticated } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('alltime');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('daily');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userRank, setUserRank] = useState<number | null>(null);
+  const [selectedTab, setSelectedTab] = useState<'leaderboards' | 'seasons'>('leaderboards');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadLeaderboard();
@@ -179,6 +181,21 @@ export default function SeasonalCompetitionScreen() {
     );
   };
 
+  const handleTabChange = (tab: 'leaderboards' | 'seasons') => {
+    setSelectedTab(tab);
+    const scrollToX = tab === 'leaderboards' ? 0 : SCREEN_WIDTH;
+    scrollViewRef.current?.scrollTo({ x: scrollToX, animated: true });
+  };
+
+  const handleScroll = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
+    const newTab = pageIndex === 0 ? 'leaderboards' : 'seasons';
+    if (newTab !== selectedTab) {
+      setSelectedTab(newTab);
+    }
+  };
+
   const timeframes: { key: Timeframe; label: string }[] = [
     { key: 'daily', label: 'Daily' },
     { key: 'weekly', label: 'Weekly' },
@@ -186,83 +203,154 @@ export default function SeasonalCompetitionScreen() {
     { key: 'alltime', label: 'All Time' },
   ];
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+  const renderHeader = () => {
+    return (
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <Text style={[styles.title, { color: theme.text }]}>Leaderboard</Text>
-        {userRank && (
-          <Text style={[styles.userRankText, { color: theme.textSecondary }]}>
-            Your Rank: #{userRank}
-          </Text>
-        )}
-      </View>
-
-      {/* Timeframe Selector */}
-      <View style={[styles.timeframeContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <View style={styles.timeframeContent}>
-          {timeframes.map((tf) => (
-            <TouchableOpacity
-              key={tf.key}
+        <View style={[styles.segmentedControl, { backgroundColor: 'transparent' }]}>
+          <TouchableOpacity
+            style={styles.segmentButton}
+            onPress={() => handleTabChange('leaderboards')}
+          >
+            <Text
               style={[
-                styles.timeframeTab,
+                styles.segmentButtonText,
                 {
-                  backgroundColor: selectedTimeframe === tf.key ? theme.primary : 'transparent',
-                  borderColor: selectedTimeframe === tf.key ? theme.primary : theme.border,
-                  width: (SCREEN_WIDTH - 32 - 24) / 4, // Screen width minus padding and gaps, divided by 4
+                  color: selectedTab === 'leaderboards' ? theme.primary : theme.text,
+                  fontWeight: selectedTab === 'leaderboards' ? '700' : '400',
                 },
               ]}
-              onPress={() => setSelectedTimeframe(tf.key)}
-              activeOpacity={0.7}
+              numberOfLines={1}
             >
-              <Text
-                style={[
-                  styles.timeframeTabText,
-                  {
-                    color: selectedTimeframe === tf.key ? '#FFFFFF' : theme.textSecondary,
-                  },
-                ]}
-              >
-                {tf.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+              Leaderboards
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.segmentButton}
+            onPress={() => handleTabChange('seasons')}
+          >
+            <Text
+              style={[
+                styles.segmentButtonText,
+                {
+                  color: selectedTab === 'seasons' ? theme.primary : theme.text,
+                  fontWeight: selectedTab === 'seasons' ? '700' : '400',
+                },
+              ]}
+              numberOfLines={1}
+            >
+              Seasons
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
+    );
+  };
 
-      {/* Leaderboard List */}
-      {isLoading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-            Loading leaderboard...
+  const renderLeaderboardsContent = () => {
+    return (
+      <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor: theme.backgroundSecondary }}>
+        {/* Timeframe Selector */}
+        <View style={[styles.timeframeContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+          <View style={styles.timeframeContent}>
+            {timeframes.map((tf) => (
+              <TouchableOpacity
+                key={tf.key}
+                style={[
+                  styles.timeframeTab,
+                  {
+                    backgroundColor: selectedTimeframe === tf.key ? theme.primary : 'transparent',
+                    borderColor: selectedTimeframe === tf.key ? theme.primary : theme.border,
+                    width: (SCREEN_WIDTH - 32 - 24) / 4, // Screen width minus padding and gaps, divided by 4
+                  },
+                ]}
+                onPress={() => setSelectedTimeframe(tf.key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.timeframeTabText,
+                    {
+                      color: selectedTimeframe === tf.key ? '#FFFFFF' : theme.textSecondary,
+                    },
+                  ]}
+                >
+                  {tf.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Leaderboard List */}
+        {isLoading && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+              Loading leaderboard...
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={leaderboard}
+            renderItem={renderLeaderboardItem}
+            keyExtractor={(item) => item.userId}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={theme.primary}
+              />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="trophy-outline" size={64} color={theme.textSecondary} />
+                <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+                  No Rankings Yet
+                </Text>
+                <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+                  Start trading to appear on the leaderboard!
+                </Text>
+              </View>
+            }
+          />
+        )}
+      </View>
+    );
+  };
+
+  const renderSeasonsContent = () => {
+    return (
+      <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor: theme.backgroundSecondary, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={styles.seasonsComingSoon}>
+          <Ionicons name="calendar-outline" size={64} color={theme.textTertiary} />
+          <Text style={[styles.seasonsComingSoonTitle, { color: theme.text }]}>
+            Seasons Coming Soon
+          </Text>
+          <Text style={[styles.seasonsComingSoonText, { color: theme.textSecondary }]}>
+            Compete in seasonal competitions and win prizes!
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={leaderboard}
-          renderItem={renderLeaderboardItem}
-          keyExtractor={(item) => item.userId}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={theme.primary}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="trophy-outline" size={64} color={theme.textSecondary} />
-              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-                No Rankings Yet
-              </Text>
-              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-                Start trading to appear on the leaderboard!
-              </Text>
-            </View>
-          }
-        />
-      )}
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+      {renderHeader()}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        scrollEventThrottle={16}
+        style={styles.horizontalScroll}
+        contentContainerStyle={styles.horizontalScrollContent}
+      >
+        {renderLeaderboardsContent()}
+        {renderSeasonsContent()}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -272,18 +360,45 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingTop: 0,
+    paddingBottom: 0,
     borderBottomWidth: 1,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 4,
+  segmentedControl: {
+    flexDirection: 'row',
+    borderRadius: 0,
+    padding: 4,
+    alignSelf: 'center',
+    gap: 0,
+    justifyContent: 'space-between',
+    position: 'relative',
+    width: '100%',
   },
-  userRankText: {
-    fontSize: 14,
-    marginTop: 4,
+  segmentButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 0,
+    flex: 1,
+    zIndex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentButtonText: {
+    fontSize: 16,
+    fontWeight: '400',
+  },
+  segmentButtonTextActive: {
+    fontWeight: '700',
+  },
+  horizontalScroll: {
+    flex: 1,
+  },
+  horizontalScrollContent: {
+    flexDirection: 'row',
   },
   timeframeContainer: {
     borderBottomWidth: 1,
@@ -409,5 +524,22 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  seasonsComingSoon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  seasonsComingSoonTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  seasonsComingSoonText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
