@@ -37,13 +37,16 @@ function squarifyTreemap(
   const rectangles: Rectangle[] = [];
   const total = items.reduce((sum, item) => sum + item.percentage, 0);
   
-  if (total === 0) return rectangles;
-  
-  // Normalize percentages to fill the container
-  const normalizedItems = items.map(item => ({
-    ...item,
-    normalizedValue: (item.percentage / total) * (containerWidth * containerHeight)
-  }));
+  // If total is 0, give all items equal size so they still display
+  const normalizedItems = total === 0
+    ? items.map(item => ({
+        ...item,
+        normalizedValue: (containerWidth * containerHeight) / items.length
+      }))
+    : items.map(item => ({
+        ...item,
+        normalizedValue: (item.percentage / total) * (containerWidth * containerHeight)
+      }));
   
   // Sort by size (largest first) for better layout
   const sortedItems = [...normalizedItems].sort((a, b) => b.normalizedValue - a.normalizedValue);

@@ -23,16 +23,16 @@ const TREEMAP_HEIGHT = SCREEN_HEIGHT * 0.67; // 2/3 of screen height
 // Colors: green = volume up, red = volume down
 // previousPercentage is yesterday's percentage to calculate the change
 const categoryTradeVolumes = [
-  { name: 'Influencers', percentage: 32.0, previousPercentage: 28.0, categoryId: 'Influencers', color: 'green' as const },
-  { name: 'Political Figures', percentage: 15.2, previousPercentage: 14.8, categoryId: 'Political Figures', color: 'green' as const },
-  { name: 'Startups', percentage: 10.0, previousPercentage: 13.7, categoryId: 'Startups', color: 'red' as const },
-  { name: 'NFL', percentage: 8.5, previousPercentage: 8.8, categoryId: 'NFL', color: 'red' as const },
-  { name: 'NBA', percentage: 7.3, previousPercentage: 7.1, categoryId: 'NBA', color: 'green' as const },
-  { name: 'Prediction Markets', percentage: 6.2, previousPercentage: 5.9, categoryId: 'Prediction Markets', color: 'green' as const },
-  { name: 'College Basketball', percentage: 5.8, previousPercentage: 5.5, categoryId: 'College Basketball', color: 'green' as const },
-  { name: 'Hip Hop', percentage: 4.2, previousPercentage: 4.0, categoryId: 'Hip Hop', color: 'green' as const },
-  { name: 'Country Music', percentage: 3.5, previousPercentage: 3.3, categoryId: 'Country Music', color: 'green' as const },
-  { name: 'Pop Music', percentage: 2.8, previousPercentage: 2.6, categoryId: 'Pop Music', color: 'green' as const },
+  { name: 'Influencers', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Influencers', color: 'green' as const },
+  { name: 'Political Figures', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Political Figures', color: 'green' as const },
+  { name: 'Startups', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Startups', color: 'green' as const },
+  { name: 'NFL', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NFL', color: 'green' as const },
+  { name: 'NBA', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NBA', color: 'green' as const },
+  { name: 'Prediction Markets', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Prediction Markets', color: 'green' as const },
+  { name: 'College Basketball', percentage: 0.0, previousPercentage: 0.0, categoryId: 'College Basketball', color: 'green' as const },
+  { name: 'Hip Hop', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Hip Hop', color: 'green' as const },
+  { name: 'Country Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Country Music', color: 'green' as const },
+  { name: 'Pop Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Pop Music', color: 'green' as const },
 ];
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -233,8 +233,9 @@ export default function AllCategoriesScreen() {
 
   const renderCategoryItem = ({ item }: { item: typeof categoryTradeVolumes[0] }) => {
     const changePercent = item.percentage - item.previousPercentage;
-    const isPositive = changePercent > 0;
-    const changeColor = isPositive ? '#10B981' : '#EF4444';
+    // Always show green for 0% movement
+    const isPositive = changePercent >= 0;
+    const changeColor = '#10B981'; // Always green
     
     return (
       <TouchableOpacity
@@ -244,11 +245,11 @@ export default function AllCategoriesScreen() {
         <View style={styles.categoryItemLeft}>
           <View style={[
             styles.categoryIndicator,
-            { backgroundColor: item.color === 'green' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
+            { backgroundColor: 'rgba(16, 185, 129, 0.2)' } // Always green background
           ]}>
             <View style={[
               styles.categoryDot,
-              { backgroundColor: item.color === 'green' ? '#10B981' : '#EF4444' }
+              { backgroundColor: '#10B981' } // Always green dot
             ]} />
           </View>
           <Text style={[styles.categoryItemName, { color: theme.text }]}>{item.name}</Text>
@@ -260,7 +261,7 @@ export default function AllCategoriesScreen() {
           <View style={styles.changeContainer}>
             <Text style={[styles.changeText, { color: changeColor }]}>(</Text>
             <Ionicons 
-              name={isPositive ? 'arrow-up' : 'arrow-down'} 
+              name="arrow-up" 
               size={12} 
               color={changeColor} 
             />
