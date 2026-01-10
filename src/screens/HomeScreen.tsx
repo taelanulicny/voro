@@ -31,6 +31,7 @@ import { useSideMenu } from '../context/SideMenuContext';
 import { useSocial } from '../context/SocialContext';
 import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
 import { getEntityById, getAllEntities, MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
+import { BASE_PRICE } from '../utils/sentimentTrading';
 import TradeModal from '../components/TradeModal';
 import SideMenu from '../components/SideMenu';
 
@@ -100,6 +101,18 @@ export default function HomeScreen() {
   useEffect(() => {
     setPreviousPrices(entityPrices);
   }, [entityPrices]);
+
+  // Update top movers and chart tickers every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Force update by incrementing updateKey
+      // This triggers recalculation of topGainers and refreshes chart tickers
+      setUpdateKey(prev => prev + 1);
+    }, 60000); // Update every 60 seconds (1 minute)
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []); // Empty dependency array - only run on mount/unmount
   
   // Trade modal states
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
@@ -207,28 +220,25 @@ export default function HomeScreen() {
 
 
   // Categories are now stored directly (no mapping needed)
-  // Get previous day ranks for a category (mock data)
+  // Get previous day ranks for a category (returns current ranks - no movement)
   const getPreviousDayRanks = (category: string): Record<number, number> => {
     const filteredEntities = getEntitiesByCategory(category);
     
-    // Create mock previous day prices (slightly different to simulate ranking changes)
-    const previousDayEntities = filteredEntities.map((entity) => {
+    // All entities start at price 100, so use current prices for ranking
+    const entitiesWithPrices = filteredEntities.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
-      // Simulate previous day price (add some randomness for ranking changes)
-      const randomChange = (Math.random() - 0.5) * 0.1; // ±5% variation
-      const previousPrice = currentPrice * (1 + randomChange);
       return {
         id: entity.id,
-        previousPrice,
+        price: currentPrice,
       };
     });
     
-    // Sort by previous day price to get previous day ranks
-    const sortedPrevious = [...previousDayEntities].sort((a, b) => b.previousPrice - a.previousPrice);
+    // Sort by price to get ranks (same as current since all prices start at 100)
+    const sorted = [...entitiesWithPrices].sort((a, b) => b.price - a.price);
     
-    // Map entity ID to previous day rank
+    // Map entity ID to rank (will be same as current rank since all prices start at 100)
     const mockRanks: Record<number, number> = {};
-    sortedPrevious.forEach((entity, index) => {
+    sorted.forEach((entity, index) => {
       mockRanks[entity.id] = index + 1;
     });
     
@@ -241,9 +251,9 @@ export default function HomeScreen() {
     
     const mappedEntities = filteredEntities.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
-      // Calculate change from basePrice
-      const change24h = currentPrice - entity.basePrice;
-      const changePercent24h = (change24h / entity.basePrice) * 100;
+      // Calculate change from BASE_PRICE (100) - all entities start at 100
+      const change24h = currentPrice - BASE_PRICE;
+      const changePercent24h = (change24h / BASE_PRICE) * 100;
       return {
         id: entity.id,
         ticker: entity.ticker,
@@ -258,14 +268,12 @@ export default function HomeScreen() {
     // Sort by price (descending) - highest price = rank #1
     const sorted = [...mappedEntities].sort((a, b) => b.currentPrice - a.currentPrice);
     
-    // Get previous day ranks for this category
-    const previousDayRanks = getPreviousDayRanks(category);
-    
     // Add rank and position change, return top 5
+    // All entities start at price 100 with no movement, so previousRank = currentRank (positionChange = 0)
     return sorted.slice(0, 5).map((entity, index) => {
       const currentRank = index + 1;
-      const previousRank = previousDayRanks[entity.id] || currentRank;
-      const positionChange = previousRank - currentRank; // Positive = moved up, Negative = moved down
+      const previousRank = currentRank; // No movement - previous rank equals current rank
+      const positionChange = 0; // No movement - all entities start at 100
       
       return {
         ...entity,
@@ -276,11 +284,11 @@ export default function HomeScreen() {
     });
   };
 
-  // Get top 3 influencers for comparison chart
+  // Get top 3 influencers for comparison chart (updates every minute with top movers)
   const topInfluencers = useMemo(() => {
     const top5 = getTopEntitiesForCategory('Influencers');
     return top5.slice(0, 3);
-  }, [entityPrices, getEntityPrice]);
+  }, [entityPrices, getEntityPrice, updateKey]);
 
   // Multi Entity Chart - Three entities with different colors
   const multiEntityData = useMemo(() => {
@@ -399,7 +407,7 @@ export default function HomeScreen() {
       entity,
       history: generateComparisonPriceHistory(
         entity.id,
-        getEntityById(entity.id)?.basePrice || entity.currentPrice,
+        BASE_PRICE, // All entities start at BASE_PRICE (100)
         entity.currentPrice
       ),
     }));
@@ -455,7 +463,7 @@ export default function HomeScreen() {
       entities: topInfluencers,
       colors,
     };
-  }, [topInfluencers, getEntityPrice]);
+  }, [topInfluencers, getEntityPrice, updateKey]);
 
   // Handle adding a category to home screen
   const handleAddCategory = (category: string) => {
@@ -559,83 +567,17 @@ export default function HomeScreen() {
     });
   }, [getEntityPrice]); // Only recalculate if getEntityPrice changes
 
-  // Hardcoded Top Movers (top 5 by absolute percentage change)
+  // State to force updates every minute (for top movers and chart tickers)
+  const [updateKey, setUpdateKey] = useState(0);
+
+  // Dynamic Top Movers (top 5 by absolute percentage change from BASE_PRICE)
   const topGainers = useMemo(() => {
-    // Hardcoded top movers with specific entities and percentage changes
-    // Polymarket is #1 with -6%
-    const hardcodedMovers = [
-      {
-        id: 301, // Polymarket
-        ticker: 'POLYM',
-        name: 'Polymarket',
-        category: 'Prediction Markets',
-        changePercent24h: -6.00,
-      },
-      {
-        id: 11, // Alix Earle
-        ticker: 'ALIX',
-        name: 'Alix Earle',
-        category: 'Influencers',
-        changePercent24h: 5.42,
-      },
-      {
-        id: 127, // San Francisco 49ers
-        ticker: 'SF49',
-        name: 'San Francisco 49ers',
-        category: 'NFL',
-        changePercent24h: 4.87,
-      },
-      {
-        id: 41, // Perplexity
-        ticker: 'PERPL',
-        name: 'Perplexity',
-        category: 'Startups',
-        changePercent24h: -4.23,
-      },
-      {
-        id: 200, // Boston Celtics
-        ticker: 'BOSCE',
-        name: 'Boston Celtics',
-        category: 'NBA',
-        changePercent24h: 3.91,
-      },
-    ];
-
-    // Map and sort by absolute percentage change (descending) to ensure Polymarket is first
-    const moversWithData = hardcodedMovers.map(entity => {
-      const baseEntity = getEntityById(entity.id);
-      if (!baseEntity) {
-        // Fallback if entity not found
-        return {
-          id: entity.id,
-          ticker: entity.ticker,
-          name: entity.name,
-          category: entity.category,
-          displayCategory: entity.category,
-          currentPrice: 100,
-          changePercent24h: entity.changePercent24h,
-          change24h: (100 * entity.changePercent24h) / 100,
-          rank: 1,
-          previousRank: 1,
-          positionChange: 0,
-        };
-      }
-
-      // Calculate current price from base price and change percentage
-      const change24h = (baseEntity.basePrice * entity.changePercent24h) / 100;
-      const currentPrice = baseEntity.basePrice + change24h;
-
-      // Get position in category
-      const previousDayRanks = getPreviousDayRanks(entity.category);
-      const categoryEntities = getEntitiesByCategory(entity.category);
-      const categoryEntitiesWithPrices = categoryEntities.map(e => ({
-        id: e.id,
-        currentPrice: getEntityPrice(e.id),
-      }));
-      const sortedCategory = [...categoryEntitiesWithPrices].sort((a, b) => b.currentPrice - a.currentPrice);
-      const currentRank = sortedCategory.findIndex(e => e.id === entity.id) + 1;
-      const previousRank = previousDayRanks[entity.id] || currentRank;
-      const positionChange = previousRank - currentRank;
+    // Get all entities with their current prices and calculate percentage changes
+    const entitiesWithChanges = MOCK_ENTITIES.map((entity) => {
+      const currentPrice = getEntityPrice(entity.id);
+      // Calculate change from BASE_PRICE (100) - all entities start at 100
+      const change24h = currentPrice - BASE_PRICE;
+      const changePercent24h = (change24h / BASE_PRICE) * 100;
 
       return {
         id: entity.id,
@@ -644,17 +586,27 @@ export default function HomeScreen() {
         category: entity.category,
         displayCategory: entity.category,
         currentPrice,
-        changePercent24h: entity.changePercent24h,
         change24h,
-        rank: currentRank,
-        previousRank,
-        positionChange,
+        changePercent24h,
+        // Calculate rank within category
+        rank: 1, // Will be calculated if needed
+        previousRank: 1,
+        positionChange: 0,
       };
     });
 
-    // Sort by absolute percentage change (descending) to ensure Polymarket (-6%) is first
-    return moversWithData.sort((a, b) => Math.abs(b.changePercent24h) - Math.abs(a.changePercent24h));
-  }, [entityPrices, getEntityPrice]);
+    // Filter out entities with no movement (0% change) if desired, or keep all
+    // Sort by absolute percentage change (descending) - largest moves first
+    const sortedByMovement = [...entitiesWithChanges]
+      .filter(entity => Math.abs(entity.changePercent24h) > 0) // Only entities with movement
+      .sort((a, b) => Math.abs(b.changePercent24h) - Math.abs(a.changePercent24h));
+
+    // Return top 5 movers
+    return sortedByMovement.slice(0, 5).map((entity, index) => ({
+      ...entity,
+      rank: index + 1, // Rank in top movers list
+    }));
+  }, [entityPrices, getEntityPrice, updateKey]); // Include updateKey to force refresh
 
   // Mock spotlight items - can be ads, entities, users, or events
   const spotlights = useMemo(() => [
@@ -1689,9 +1641,9 @@ export default function HomeScreen() {
               </View>
               {topEntities.map((entity) => {
                 const livePrice = getEntityPrice(entity.id);
-                const basePrice = getEntityById(entity.id)?.basePrice || entity.currentPrice;
-                const liveChange = livePrice - basePrice;
-                const liveChangePercent = (liveChange / basePrice) * 100;
+                // Calculate change from BASE_PRICE (100) - all entities start at 100
+                const liveChange = livePrice - BASE_PRICE;
+                const liveChangePercent = (liveChange / BASE_PRICE) * 100;
                 
                 // Get initials from name (first 2 letters)
                 const getInitials = (name: string) => {
