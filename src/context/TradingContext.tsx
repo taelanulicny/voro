@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 import { useAuth } from './AuthContext';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { calculatePrice, getInitialPoolValues, calculateSentimentRatio } from '../utils/sentimentTrading';
 
 interface TradingContextType {
   portfolio: Portfolio;
@@ -12,12 +14,27 @@ interface TradingContextType {
     entityId: number,
     entityName: string,
     entityTicker: string,
-    type: 'buy' | 'sell',
-    quantity: number,
-    pricePerToken: number,
+    type: 'open' | 'close',
+    direction: 'positive' | 'negative',
+    tokensCommitted: number,
+    category: string
+  ) => Promise<boolean>;
+  openPosition: (
+    entityId: number,
+    entityName: string,
+    entityTicker: string,
+    direction: 'positive' | 'negative',
+    tokensCommitted: number,
+    category: string
+  ) => Promise<boolean>;
+  closePosition: (
+    entityId: number,
+    entityName: string,
+    entityTicker: string,
     category: string
   ) => Promise<boolean>;
   getHolding: (entityId: number) => Holding | undefined;
+  getPosition: (entityId: number) => { direction: 'positive' | 'negative'; tokensCommitted: number; trancheCount: number } | null;
   updatePrices: (entityId: number, newPrice: number) => void;
   resetPortfolio: () => void;
   getEntityPrice: (entityId: number) => number;
@@ -40,30 +57,29 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [todayChangePercent, setTodayChangePercent] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Global entity prices - fetched from backend or initialized with hardcoded 3-5% moves
-  const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
-    // Initialize prices with hardcoded percentage changes (3-5% moves)
-    const initialPrices: Record<number, number> = {};
-    // Predefined percentage changes for each entity (alternating between positive and negative, 3-5% range)
-    const changePercentages: Record<number, number> = {
-      10: -4.2, 11: 3.8, 12: -3.5, 13: 4.7, 14: -3.9, 15: 4.1, 16: -4.5, 17: 3.6, 18: -4.3, 19: 4.9, 20: -3.7,
-      21: 4.4, 22: -3.8, 23: 4.2, 24: -4.1, 25: 3.9, 26: -4.6, 27: 3.7, 28: -4.0, 29: 4.3, 30: -3.6,
-      31: 4.5, 32: -3.4, 33: 4.8, 34: -3.9, 35: 4.0, 36: -4.2, 37: 3.8, 38: -4.4, 39: 3.5,
-      40: 4.6, 41: -3.7, 42: 4.3, 43: -4.1, 44: 3.9, 45: -4.5, 46: 4.2, 47: -3.8, 48: 4.4, 49: -3.6,
-    };
-    
+  // Entity sentiment pools (P and N) - tracked locally for immediate price updates
+  const [entityPools, setEntityPools] = useState<Record<number, { positiveTokens: number; negativeTokens: number }>>(() => {
+    // Initialize all pools to 0 (P=0, N=0 gives price = 100)
+    const initialPools: Record<number, { positiveTokens: number; negativeTokens: number }> = {};
     MOCK_ENTITIES.forEach((entity) => {
-      // Get hardcoded percentage change (3-5% range), default to 0 if not specified
-      const changePercent = changePercentages[entity.id] || 0;
-      // Cap at ±12% maximum
-      const cappedChangePercent = Math.max(-12, Math.min(12, changePercent));
-      // Calculate price based on basePrice with the percentage change
-      let price = entity.basePrice * (1 + cappedChangePercent / 100);
-      // Ensure price stays within $80-$200 range
-      price = Math.max(80, Math.min(200, price));
-      // Round to 2 decimal places (cents)
-      price = Math.round(price * 100) / 100;
-      initialPrices[entity.id] = price;
+      initialPools[entity.id] = getInitialPoolValues();
+    });
+    return initialPools;
+  });
+
+  // User positions - track open positions with direction and tranches (each add is a separate tranche)
+  interface PositionTranche {
+    tokensCommitted: number;
+    entryRatio: number;
+  }
+  const [userPositions, setUserPositions] = useState<Record<number, { direction: 'positive' | 'negative'; tranches: PositionTranche[] }>>({});
+
+  // Global entity prices - calculated from sentiment pools
+  const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
+    // Initialize all prices to 100 (from P=0, N=0)
+    const initialPrices: Record<number, number> = {};
+    MOCK_ENTITIES.forEach((entity) => {
+      initialPrices[entity.id] = calculatePrice(0, 0); // = 100
     });
     return initialPrices;
   });
@@ -132,12 +148,15 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           entityId: t.entityId,
           entityName: t.entityName,
           entityTicker: t.entityTicker,
-          type: t.type,
-          quantity: t.quantity,
+          type: t.type === 'buy' ? 'open' : t.type === 'sell' ? 'close' : t.type, // Map old format
+          direction: t.direction,
+          tokensCommitted: t.tokensCommitted ?? t.quantity ?? 0, // Use tokensCommitted or fallback to quantity
           pricePerToken: t.pricePerToken,
           totalAmount: t.totalAmount,
           timestamp: t.timestamp,
           category: t.category,
+          profitLoss: t.profitLoss,
+          quantity: t.quantity, // Legacy field for backwards compatibility
         }));
         setTransactions(mappedTransactions);
       }
@@ -179,7 +198,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated, token, fetchPortfolio, fetchTransactions, fetchEntityPrices]);
 
-  // Poll for price updates every 5 seconds
+  // Poll for price updates every 5 seconds (only if backend is configured)
   useEffect(() => {
     if (!isAuthenticated || !token || !isBackendConfigured()) return;
 
@@ -190,6 +209,19 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
     return () => clearInterval(interval);
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
+
+  // Recalculate prices whenever pools change (for immediate UI updates)
+  useEffect(() => {
+    const newPrices: Record<number, number> = {};
+    Object.keys(entityPools).forEach((entityIdStr) => {
+      const entityId = parseInt(entityIdStr, 10);
+      const pools = entityPools[entityId];
+      if (pools) {
+        newPrices[entityId] = calculatePrice(pools.positiveTokens, pools.negativeTokens);
+      }
+    });
+    setEntityPrices(prev => ({ ...prev, ...newPrices }));
+  }, [entityPools]);
 
   // Update portfolio history
   useEffect(() => {
@@ -206,55 +238,327 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     entityId: number,
     entityName: string,
     entityTicker: string,
-    type: 'buy' | 'sell',
-    quantity: number,
-    pricePerToken: number,
+    type: 'open' | 'close',
+    direction: 'positive' | 'negative',
+    tokensCommitted: number,
     category: string
   ): Promise<boolean> => {
-    if (!token) {
-      console.error('No authentication token');
-      return false;
-    }
-
     try {
       setIsLoading(true);
-      const response = await authenticatedRequest<{
-        cashBalance: number;
-        holdings: Holding[];
-        totalValue: number;
-        todayChange: number;
-        todayChangePercent: number;
-      }>('/api/trade/execute', token, {
-        method: 'POST',
-        body: JSON.stringify({
+
+      // Get current pools for this entity
+      const currentPools = entityPools[entityId] || getInitialPoolValues();
+      const p = currentPools.positiveTokens;
+      const n = currentPools.negativeTokens;
+
+      if (type === 'open') {
+        // Check if user already has an open position for this entity
+        const existingPosition = userPositions[entityId];
+        
+        if (existingPosition) {
+          // User has existing position - check if direction matches
+          if (existingPosition.direction !== direction) {
+            Alert.alert('Direction Mismatch', `You already have a ${existingPosition.direction} position. Cannot add ${direction} tokens. Close the existing position first.`);
+            return false;
+          }
+
+          // ADD TO EXISTING POSITION
+          // Check sufficient funds
+          if (cashBalance < tokensCommitted) {
+            Alert.alert('Insufficient Funds', `You need ${tokensCommitted} tokens but only have ${cashBalance.toFixed(2)}.`);
+            return false;
+          }
+
+          // Calculate current ratio BEFORE adding new tokens (this is the entry ratio for this tranche)
+          const currentRatio = calculateSentimentRatio(p, n);
+
+          // Add tokens to appropriate pool
+          const newP = direction === 'positive' ? p + tokensCommitted : p;
+          const newN = direction === 'negative' ? n + tokensCommitted : n;
+
+          // Ensure P and N never go below 0
+          if (newP < 0 || newN < 0) {
+            Alert.alert('Invalid Pool State', 'Pools cannot go negative.');
+            return false;
+          }
+
+          // Update pools immediately
+          setEntityPools(prev => ({
+            ...prev,
+            [entityId]: { positiveTokens: newP, negativeTokens: newN }
+          }));
+
+          // Add new tranche to position (each add is a separate tranche with its own entry ratio)
+          setUserPositions(prev => ({
+            ...prev,
+            [entityId]: { 
+              direction,
+              tranches: [
+                ...existingPosition.tranches,
+                { tokensCommitted, entryRatio: currentRatio }
+              ]
+            }
+          }));
+
+          // Recalculate price immediately using new pools
+          const newPrice = calculatePrice(newP, newN);
+          setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+
+          // Update cash balance (deduct tokens committed)
+          setCashBalance(prev => Math.max(0, prev - tokensCommitted));
+
+          // Record transaction for adding to position
+          const newTransaction: UserTransaction = {
+            id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             entityId,
-          type,
-            quantity,
-          pricePerToken,
-        }),
-      });
+            entityName,
+            entityTicker,
+            type: 'open', // Still 'open' type
+            direction,
+            tokensCommitted, // Only the new tokens added
+            pricePerToken: currentRatio, // Current ratio before adding
+            totalAmount: tokensCommitted, // Cost is new tokens committed
+            timestamp: new Date().toISOString(),
+            category,
+          };
+          setTransactions(prev => [newTransaction, ...prev]);
 
-      if (response.success && response.data) {
-        // Update local state with backend response
-        setCashBalance(response.data.cashBalance);
-        setHoldings(response.data.holdings);
-        setTodayChange(response.data.todayChange);
-        setTodayChangePercent(response.data.todayChangePercent);
+          // Try to execute on backend (treat as 'add' type if backend supports it)
+          if (token && isBackendConfigured()) {
+            try {
+              const response = await authenticatedRequest<{
+                cashBalance: number;
+                holdings: Holding[];
+                totalValue: number;
+                todayChange: number;
+                todayChangePercent: number;
+              }>('/api/trade/execute', token, {
+                method: 'POST',
+                body: JSON.stringify({
+                  entityId,
+                  type: 'open', // Backend should handle adding to existing position
+                  direction,
+                  tokensCommitted,
+                }),
+              });
 
-        // Update entity prices
-        const prices: Record<number, number> = {};
-        response.data.holdings.forEach((holding) => {
-          prices[holding.entityId] = holding.currentPrice;
-        });
-        setEntityPrices((prev) => ({ ...prev, ...prices }));
+              if (response.success && response.data) {
+                setCashBalance(response.data.cashBalance);
+                setHoldings(response.data.holdings);
+                setTodayChange(response.data.todayChange);
+                setTodayChangePercent(response.data.todayChangePercent);
+                await fetchTransactions();
+              }
+            } catch (error) {
+              console.error('Error adding to position on backend:', error);
+            }
+          }
 
-        // Refresh transactions
-        await fetchTransactions();
+          return true;
+        }
+
+        // NEW POSITION
+        // Check sufficient funds
+        if (cashBalance < tokensCommitted) {
+          Alert.alert('Insufficient Funds', `You need ${tokensCommitted} tokens but only have ${cashBalance.toFixed(2)}.`);
+          return false;
+        }
+
+        // Calculate EntryRatio BEFORE adding tokens
+        const entryRatio = calculateSentimentRatio(p, n);
+
+        // Add tokens to appropriate pool
+        const newP = direction === 'positive' ? p + tokensCommitted : p;
+        const newN = direction === 'negative' ? n + tokensCommitted : n;
+
+        // Ensure P and N never go below 0
+        if (newP < 0 || newN < 0) {
+          Alert.alert('Invalid Pool State', 'Pools cannot go negative.');
+          return false;
+        }
+
+        // Update pools immediately
+        setEntityPools(prev => ({
+          ...prev,
+          [entityId]: { positiveTokens: newP, negativeTokens: newN }
+        }));
+
+        // Store position (first tranche)
+        setUserPositions(prev => ({
+          ...prev,
+          [entityId]: { 
+            direction, 
+            tranches: [{ tokensCommitted, entryRatio }]
+          }
+        }));
+
+        // Recalculate price immediately using new pools
+        const newPrice = calculatePrice(newP, newN);
+        setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+
+        // Update cash balance (deduct tokens committed)
+        setCashBalance(prev => Math.max(0, prev - tokensCommitted));
+
+        // Record transaction for new position
+        const newTransaction: UserTransaction = {
+          id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          entityId,
+          entityName,
+          entityTicker,
+          type: 'open',
+          direction,
+          tokensCommitted,
+          pricePerToken: entryRatio, // Entry ratio at time of opening
+          totalAmount: tokensCommitted, // Cost is tokens committed
+          timestamp: new Date().toISOString(),
+          category,
+        };
+        setTransactions(prev => [newTransaction, ...prev]);
+
+        // Try to execute trade on backend if available
+        if (token && isBackendConfigured()) {
+          try {
+            const response = await authenticatedRequest<{
+              cashBalance: number;
+              holdings: Holding[];
+              totalValue: number;
+              todayChange: number;
+              todayChangePercent: number;
+            }>('/api/trade/execute', token, {
+              method: 'POST',
+              body: JSON.stringify({
+                entityId,
+                type: 'open',
+                direction,
+                tokensCommitted,
+              }),
+            });
+
+            if (response.success && response.data) {
+              // Update local state with backend response
+              setCashBalance(response.data.cashBalance);
+              setHoldings(response.data.holdings);
+              setTodayChange(response.data.todayChange);
+              setTodayChangePercent(response.data.todayChangePercent);
+
+              // Refresh transactions
+              await fetchTransactions();
+            }
+          } catch (error) {
+            console.error('Error executing trade on backend:', error);
+            // Continue with local state (already updated above)
+          }
+        }
 
         return true;
-    } else {
-        console.error('Trade execution failed:', response.error);
-        return false;
+      } else {
+        // CLOSE position
+        const position = userPositions[entityId];
+        if (!position) {
+          Alert.alert('No Position', 'You do not have an open position for this entity.');
+          return false;
+        }
+
+        const positionDirection = position.direction;
+        const tranches = position.tranches;
+        
+        // Calculate total tokens committed (sum of all tranches)
+        const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
+
+        // Remove ALL user tokens from pool FIRST
+        const newP = positionDirection === 'positive' ? Math.max(0, p - totalTokensCommitted) : p;
+        const newN = positionDirection === 'negative' ? Math.max(0, n - totalTokensCommitted) : n;
+
+        // Calculate ONE ExitRatio AFTER removing all tokens
+        const exitRatio = calculateSentimentRatio(newP, newN);
+
+        // Calculate PnL per tranche and sum them
+        let totalProfitLoss = 0;
+        for (const tranche of tranches) {
+          const deltaR = exitRatio - tranche.entryRatio;
+          let tranchePnL = tranche.tokensCommitted * deltaR;
+          
+          // Direction adjustment: if negative position, flip PnL
+          if (positionDirection === 'negative') {
+            tranchePnL = -tranchePnL;
+          }
+          
+          totalProfitLoss += tranchePnL;
+        }
+
+        // Calculate total tokens returned
+        const tokensReturned = Math.max(0, totalTokensCommitted + totalProfitLoss);
+
+        // Update pools immediately
+        setEntityPools(prev => ({
+          ...prev,
+          [entityId]: { positiveTokens: newP, negativeTokens: newN }
+        }));
+
+        // Remove position (close it)
+        setUserPositions(prev => {
+          const updated = { ...prev };
+          delete updated[entityId];
+          return updated;
+        });
+
+        // Recalculate price immediately using new pools
+        const newPrice = calculatePrice(newP, newN);
+        setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+
+        // Update cash balance (add tokens returned)
+        setCashBalance(prev => prev + tokensReturned);
+
+        // Record transaction for closing position
+        const newTransaction: UserTransaction = {
+          id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          entityId,
+          entityName,
+          entityTicker,
+          type: 'close',
+          tokensCommitted: totalTokensCommitted, // Total tokens from all tranches
+          pricePerToken: exitRatio, // Exit ratio after removing all tokens
+          totalAmount: tokensReturned, // Tokens returned to user
+          timestamp: new Date().toISOString(),
+          category,
+          profitLoss: totalProfitLoss, // Total P&L (sum of all tranches)
+        };
+        setTransactions(prev => [newTransaction, ...prev]);
+
+        // Try to execute trade on backend if available
+        if (token && isBackendConfigured()) {
+          try {
+            const response = await authenticatedRequest<{
+              cashBalance: number;
+              holdings: Holding[];
+              totalValue: number;
+              todayChange: number;
+              todayChangePercent: number;
+            }>('/api/trade/execute', token, {
+              method: 'POST',
+              body: JSON.stringify({
+                entityId,
+                type: 'close',
+              }),
+            });
+
+            if (response.success && response.data) {
+              // Update local state with backend response
+              setCashBalance(response.data.cashBalance);
+              setHoldings(response.data.holdings);
+              setTodayChange(response.data.todayChange);
+              setTodayChangePercent(response.data.todayChangePercent);
+
+              // Refresh transactions
+              await fetchTransactions();
+            }
+          } catch (error) {
+            console.error('Error executing trade on backend:', error);
+            // Continue with local state (already updated above)
+          }
+        }
+
+        return true;
       }
     } catch (error) {
       console.error('Error executing trade:', error);
@@ -264,8 +568,47 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Wrapper functions for openPosition and closePosition
+  const openPosition = async (
+    entityId: number,
+    entityName: string,
+    entityTicker: string,
+    direction: 'positive' | 'negative',
+    tokensCommitted: number,
+    category: string
+  ): Promise<boolean> => {
+    return executeTrade(entityId, entityName, entityTicker, 'open', direction, tokensCommitted, category);
+  };
+
+  const closePosition = async (
+    entityId: number,
+    entityName: string,
+    entityTicker: string,
+    category: string
+  ): Promise<boolean> => {
+    const position = userPositions[entityId];
+    if (!position) {
+      Alert.alert('No Position', 'You do not have an open position for this entity.');
+      return false;
+    }
+    // For close, calculate total tokens from all tranches
+    const totalTokens = position.tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
+    return executeTrade(entityId, entityName, entityTicker, 'close', position.direction, totalTokens, category);
+  };
+
   const getHolding = (entityId: number): Holding | undefined => {
     return holdings.find(h => h.entityId === entityId);
+  };
+
+  const getPosition = (entityId: number): { direction: 'positive' | 'negative'; tokensCommitted: number; trancheCount: number } | null => {
+    const position = userPositions[entityId];
+    if (!position) return null;
+    const totalTokens = position.tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
+    return {
+      direction: position.direction,
+      tokensCommitted: totalTokens,
+      trancheCount: position.tranches.length,
+    };
   };
 
   const updatePrices = (entityId: number, newPrice: number) => {
@@ -300,64 +643,33 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     setTodayChangePercent(0);
     portfolioHistoryRef.current = [];
     setPortfolioHistory([]);
-    setEntityPrices({});
+    // Reset pools to initial state (P=0, N=0)
+    const resetPools: Record<number, { positiveTokens: number; negativeTokens: number }> = {};
+    MOCK_ENTITIES.forEach((entity) => {
+      resetPools[entity.id] = getInitialPoolValues();
+    });
+    setEntityPools(resetPools);
+    // Reset prices to 100
+    const resetPrices: Record<number, number> = {};
+    MOCK_ENTITIES.forEach((entity) => {
+      resetPrices[entity.id] = calculatePrice(0, 0); // = 100
+    });
+    setEntityPrices(resetPrices);
+    // Clear all positions
+    setUserPositions({});
   };
 
   const getEntityPrice = (entityId: number): number => {
-    if (entityPrices[entityId] !== undefined) {
-      return entityPrices[entityId];
+    // Always calculate price from current pools for real-time updates
+    const pools = entityPools[entityId] || getInitialPoolValues();
+    const calculatedPrice = calculatePrice(pools.positiveTokens, pools.negativeTokens);
+    
+    // Update price in state if it's different (for reactivity)
+    if (entityPrices[entityId] !== calculatedPrice) {
+      setEntityPrices(prev => ({ ...prev, [entityId]: calculatedPrice }));
     }
-    // Fallback: calculate price with 3-5% move from basePrice
-    const entity = MOCK_ENTITIES.find(e => e.id === entityId);
-    if (entity) {
-      let changePercent: number;
-      
-      // Prediction Markets (IDs 300-325) get specific varied change percentages
-      if (entityId >= 300 && entityId <= 325) {
-        // Specific change percentages for each prediction market entity
-        const predictionMarketChanges: Record<number, number> = {
-          300: 2.38,   // Kalshi - up
-          301: -6.00,  // Polymarket - down
-          302: 3.12,   // PredictIt - up
-          303: -2.67,  // Betfair - down
-          304: 1.89,   // Smarkets - up
-          305: -3.24,  // Augur - down
-          306: 2.56,   // Gnosis - up
-          307: -1.78,  // Omen - down
-          308: 4.23,   // Zeitgeist - up
-          309: -2.34,  // PlotX - down
-          310: 1.67,   // Reality.eth - up
-          311: -3.45,  // Stox - down
-          312: 2.89,   // Catnip Exchange - up
-          313: -1.23,  // Manifold Markets - down
-          314: 3.56,   // Metaculus - up
-          315: -2.12,  // Good Judgment Project - down
-          316: 1.34,   // Hypermind - up
-          317: -4.67,  // Numerai - down
-          318: 2.78,   // Kleros - up
-          319: -1.56,  // Forecaster - down
-          320: 3.89,   // Infer - up
-          321: -2.45,  // Crowdwise - down
-          322: 1.12,   // Insight Prediction - up
-          323: -3.78,  // Cultivat3 - down
-          324: 2.23,   // Lay3rs - up
-          325: -1.89,  // Polymarket Clone - down
-        };
-        changePercent = predictionMarketChanges[entityId] || 0;
-      } else {
-        // Use entity ID to determine a consistent change percentage (alternating pattern)
-        changePercent = (entityId % 2 === 0 ? 1 : -1) * (3 + (entityId % 3) * 0.5); // 3-5% range
-      }
-      
-      const cappedChangePercent = Math.max(-12, Math.min(12, changePercent));
-      let price = entity.basePrice * (1 + cappedChangePercent / 100);
-      price = Math.max(80, Math.min(200, price));
-      price = Math.round(price * 100) / 100;
-      // Cache it
-      setEntityPrices(prev => ({ ...prev, [entityId]: price }));
-      return price;
-    }
-    return 100; // Ultimate fallback
+    
+    return calculatedPrice;
   };
 
   const getAllEntityPrices = (): Record<number, number> => {
@@ -379,7 +691,10 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         transactions,
         isLoading,
         executeTrade,
+        openPosition,
+        closePosition,
         getHolding,
+        getPosition,
         updatePrices,
         resetPortfolio,
         getEntityPrice,

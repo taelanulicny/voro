@@ -244,12 +244,16 @@ export interface UserTransaction {
   entityId: number;
   entityName: string;
   entityTicker: string;
-  type: 'buy' | 'sell';
-  quantity: number;
-  pricePerToken: number;
-  totalAmount: number;
+  type: 'open' | 'close';
+  direction?: 'positive' | 'negative'; // Required for 'open', not present for 'close'
+  tokensCommitted: number; // Tokens committed for this transaction
+  pricePerToken: number; // Ratio/price at time of transaction
+  totalAmount: number; // Total cost (for open) or tokens returned (for close)
   timestamp: string;
   category: string;
+  profitLoss?: number; // P&L for close transactions
+  // Legacy field for backwards compatibility
+  quantity?: number;
 }
 
 // Chart Data Types

@@ -13,12 +13,27 @@ import { z } from 'zod';
 import { logger } from '../utils/logger';
 
 // Zod schema for trade execution validation
+// Updated to support sentiment-based trading:
+// - type: 'open' = open new position, 'close' = close existing position
+// - direction: 'positive' | 'negative' (only for 'open' type)
+// - tokensCommitted: number of tokens to stake (only for 'open' type)
 const ExecuteTradeSchema = z.object({
   entityId: z.number().int().positive('Entity ID must be a positive integer'),
-  type: z.enum(['buy', 'sell']),
-  quantity: z.number().positive('Quantity must be greater than 0').max(1000000, 'Quantity cannot exceed 1,000,000'),
-  pricePerToken: z.number().positive('Price per token must be greater than 0').max(10000, 'Price per token cannot exceed 10,000'),
+  type: z.enum(['open', 'close']),
+  direction: z.enum(['positive', 'negative']).optional(), // Required for 'open', not used for 'close'
+  tokensCommitted: z.number().positive('Tokens committed must be greater than 0').max(1000000, 'Tokens cannot exceed 1,000,000').optional(), // Required for 'open'
+  // Legacy fields (for backwards compatibility during migration)
+  quantity: z.number().optional(),
+  pricePerToken: z.number().optional(),
   idempotencyKey: z.string().optional(),
+}).refine((data) => {
+  // For 'open' type, direction and tokensCommitted are required
+  if (data.type === 'open') {
+    return data.direction !== undefined && data.tokensCommitted !== undefined && data.tokensCommitted > 0;
+  }
+  return true;
+}, {
+  message: "For 'open' type, both 'direction' and 'tokensCommitted' are required",
 });
 
 export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {

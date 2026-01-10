@@ -49,15 +49,31 @@ export interface Entity {
   basePrice: number;
   description: string;
   logoUrl?: string;
+  // Sentiment-based trading pools
+  positiveTokens: number; // P pool - starts at 0
+  negativeTokens: number; // N pool - starts at 0
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Portfolio {
   userId: string;
   entityId: number;
-  quantity: number;
-  averageCost: number;
-  totalCost: number;
+  // New sentiment-based position fields
+  tokensCommitted: number; // Tokens staked in this position
+  entryRatio: number; // Ratio when position was opened: (P + EPSILON) / (N + EPSILON)
+  direction: 'positive' | 'negative'; // Position direction
+  status: 'open' | 'closed'; // Position status
+  // Legacy fields (kept for backwards compatibility during migration)
+  quantity?: number;
+  averageCost?: number;
+  totalCost?: number;
+  // PnL fields (set when position is closed)
+  exitRatio?: number;
+  deltaR?: number;
+  profitLoss?: number;
+  tokensReturned?: number;
+  closedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,10 +85,15 @@ export interface Transaction {
   entityId: number;
   entityName: string;
   entityTicker: string;
-  type: 'buy' | 'sell';
-  quantity: number;
-  pricePerToken: number;
-  totalAmount: number;
+  type: 'open' | 'close'; // 'open' = open position, 'close' = close position
+  direction?: 'positive' | 'negative'; // Only present for 'open' type
+  tokensCommitted: number; // Tokens staked
+  entryRatio?: number; // Ratio when position opened (for 'open' type)
+  exitRatio?: number; // Ratio when position closed (for 'close' type)
+  deltaR?: number; // Ratio change (for 'close' type)
+  profitLoss?: number; // PnL (for 'close' type)
+  tokensReturned?: number; // Tokens returned on close (for 'close' type)
+  currentPrice: number; // Price at time of transaction
   category: string;
   idempotencyKey?: string; // Optional idempotency key to prevent duplicate trades
 }

@@ -492,29 +492,6 @@ export class MoroBackendStack extends cdk.Stack {
       },
     });
 
-    // Lambda function for price updates
-    const priceUpdateHandler = new lambda.Function(this, 'PriceUpdateHandler', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'src/handlers/priceUpdates.updatePrices',
-      code: lambda.Code.fromAsset('bundle'),
-      role: lambdaRole,
-      environment: {
-        ENTITIES_TABLE: entitiesTable.tableName,
-        PRICE_HISTORY_TABLE: priceHistoryTable.tableName,
-        DYNAMODB_TABLE_PREFIX: tablePrefix,
-        NODE_ENV: 'production', // SECURITY: Ensure production mode to prevent stack trace leakage
-      },
-      timeout: cdk.Duration.minutes(5),
-    });
-
-    // EventBridge rule to trigger price updates every 5 minutes
-    const priceUpdateRule = new events.Rule(this, 'PriceUpdateRule', {
-      schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
-      description: 'Updates entity prices every 5 minutes',
-    });
-
-    priceUpdateRule.addTarget(new targets.LambdaFunction(priceUpdateHandler));
-
     // API Gateway
     // SECURITY: No CORS for mobile-only API (mobile apps don't use CORS)
     // If you need web access later, configure specific origins

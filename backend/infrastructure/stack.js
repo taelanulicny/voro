@@ -254,26 +254,6 @@ class MoroBackendStack extends cdk.Stack {
                 DYNAMODB_TABLE_PREFIX: tablePrefix,
             },
         });
-        // Lambda function for price updates
-        const priceUpdateHandler = new lambda.Function(this, 'PriceUpdateHandler', {
-            runtime: lambda.Runtime.NODEJS_20_X,
-            handler: 'handlers.priceUpdates.updatePrices',
-            code: lambda.Code.fromAsset('dist'),
-            role: lambdaRole,
-            environment: {
-                ENTITIES_TABLE: entitiesTable.tableName,
-                PRICE_HISTORY_TABLE: priceHistoryTable.tableName,
-                AWS_REGION: this.region,
-                DYNAMODB_TABLE_PREFIX: tablePrefix,
-            },
-            timeout: cdk.Duration.minutes(5),
-        });
-        // EventBridge rule to trigger price updates every 5 minutes
-        const priceUpdateRule = new events.Rule(this, 'PriceUpdateRule', {
-            schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
-            description: 'Updates entity prices every 5 minutes',
-        });
-        priceUpdateRule.addTarget(new targets.LambdaFunction(priceUpdateHandler));
         // API Gateway
         const api = new apigateway.RestApi(this, 'MoroApi', {
             restApiName: `${tablePrefix}-api`,

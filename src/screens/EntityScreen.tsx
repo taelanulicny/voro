@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Path, G, Line, Text as SvgText, Rect, Ellipse } from 'react-native-svg';
 import { RootStackParamList, PriceDataPoint, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
+import { calculateSentimentRatio, EPSILON } from '../utils/sentimentTrading';
 import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
@@ -149,102 +150,60 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Chart config will be created dynamically based on theme
 
-// Mock data generator for entity details
+// Clean entity data generator - fresh start, no hardcoded data
 const generateMockEntityData = (entityId: number, categoryId: string) => {
   // Get entity from centralized data
   const entityData = getEntityById(entityId);
   
   // Fallback if entity not found
   if (!entityData) {
-    const basePrice = 100 + entityId * 10;
-    const change = (Math.random() - 0.5) * 10;
-    const changePercent = (change / basePrice) * 100;
-
-    const priceHistory: PriceDataPoint[] = [];
-    let price = basePrice - change;
-    const now = Date.now();
-
-    for (let i = 30; i >= 0; i--) {
-      const variance = (Math.random() - 0.5) * 5;
-      price = Math.max(price + variance, basePrice * 0.8);
-      priceHistory.push({
-        timestamp: now - i * 24 * 60 * 60 * 1000,
-        price,
-        volume: Math.floor(Math.random() * 10000000) + 1000000,
-      });
-    }
-
-    priceHistory[priceHistory.length - 1].price = basePrice;
-
     return {
       entity: {
         id: entityId,
         ticker: `ENTITY${entityId}`,
         name: `Entity ${entityId}`,
         type: 'stock' as const,
-        currentPrice: basePrice,
-        change24h: change,
-        changePercent24h: changePercent,
-        volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
+        currentPrice: 100,
+        change24h: 0,
+        changePercent24h: 0,
+        volume24h: 0,
+        marketCap: 0,
         description: `Entity ${entityId} in the ${categoryId} category.`,
       },
-      priceHistory,
+      priceHistory: [], // Empty - no graph data
       stats: {
-        high24h: basePrice + Math.abs(change) * 0.5,
-        low24h: basePrice - Math.abs(change) * 0.5,
-        volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-        marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-        holdersCount: Math.floor(Math.random() * 50000) + 1000,
-        rank: Math.floor(Math.random() * 100) + 1,
+        high24h: 100,
+        low24h: 100,
+        volume24h: 0,
+        marketCap: 0,
+        holdersCount: 0,
+        rank: 0,
       },
     };
   }
 
-  // Use centralized entity data
-  const basePrice = entityData.basePrice;
-  const change = (Math.random() - 0.5) * 10;
-  const changePercent = (change / basePrice) * 100;
-
-  // Generate 30 days of price history
-  const priceHistory: PriceDataPoint[] = [];
-  let price = basePrice - change;
-  const now = Date.now();
-
-  for (let i = 30; i >= 0; i--) {
-    const variance = (Math.random() - 0.5) * 5;
-    price = Math.max(price + variance, basePrice * 0.8);
-    priceHistory.push({
-      timestamp: now - i * 24 * 60 * 60 * 1000,
-      price,
-      volume: Math.floor(Math.random() * 10000000) + 1000000,
-    });
-  }
-
-  // Update last price to match current
-  priceHistory[priceHistory.length - 1].price = basePrice;
-
+  // Use centralized entity data - fresh start, no fake data
   return {
     entity: {
       id: entityId,
-      ticker: entityData.ticker,
-      name: entityData.name,
+      ticker: entityData?.ticker || `ENTITY${entityId}`,
+      name: entityData?.name || `Entity ${entityId}`,
       type: 'stock' as const,
-      currentPrice: basePrice,
-      change24h: change,
-      changePercent24h: changePercent,
-      volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-      marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-      description: entityData.description,
+      currentPrice: 100, // All entities start at 100
+      change24h: 0, // No change
+      changePercent24h: 0, // 0% change
+      volume24h: 0, // No fake volume
+      marketCap: 0, // No fake market cap
+      description: entityData?.description || '',
     },
-    priceHistory,
+    priceHistory: [], // Empty - no graph data plotted
     stats: {
-      high24h: basePrice + Math.abs(change) * 0.5,
-      low24h: basePrice - Math.abs(change) * 0.5,
-      volume24h: Math.floor(Math.random() * 100000000) + 10000000,
-      marketCap: Math.floor(Math.random() * 10000000000) + 1000000000,
-      holdersCount: Math.floor(Math.random() * 50000) + 1000,
-      rank: Math.floor(Math.random() * 100) + 1,
+      high24h: 100,
+      low24h: 100,
+      volume24h: 0, // No fake volume
+      marketCap: 0, // No fake market cap
+      holdersCount: 0, // No fake holders
+      rank: 0, // No fake rank
     },
   };
 };
@@ -253,7 +212,7 @@ export default function EntityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<EntityScreenRouteProp>();
   const { entityId, categoryId } = route.params;
-  const { getHolding, updatePrices, getEntityPrice } = useTrading();
+  const { getPosition, getEntityPrice } = useTrading();
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
@@ -265,7 +224,7 @@ export default function EntityScreen() {
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
   const [positionsModalVisible, setPositionsModalVisible] = useState(false);
-  const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>(entityData.priceHistory);
+  const [priceHistory, setPriceHistory] = useState<PriceDataPoint[]>([]);
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
   const [refreshing, setRefreshing] = useState(false);
@@ -274,14 +233,25 @@ export default function EntityScreen() {
   // Update price history and reset tab whenever entityId changes (ensures we always show Chart when navigating to an entity)
   useEffect(() => {
     setSelectedTab('chart');
-    setPriceHistory(entityData.priceHistory);
-    setChartUpdateKey(prev => prev + 1); // Force chart to re-render with new data
+    setPriceHistory([]); // Empty - no graph data
+    setChartUpdateKey(prev => prev + 1); // Force chart to re-render
     // Reset scroll position to chart tab
     const timer = setTimeout(() => {
       scrollViewRef.current?.scrollTo({ x: 0, animated: false });
     }, 100);
     return () => clearTimeout(timer);
-  }, [entityId, entityData.priceHistory]);
+  }, [entityId]);
+  
+  // Ensure entityData is valid
+  if (!entityData || !entityData.entity) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <View style={[styles.errorContainer, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={[styles.errorText, { color: theme.text }]}>Entity not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
 
   const handleTabChange = (tab: 'chart' | 'about' | 'feed' | 'news') => {
@@ -301,51 +271,14 @@ export default function EntityScreen() {
     }
   };
 
-  const holding = getHolding(entityId);
+  const position = getPosition(entityId);
   const entityNews = getNewsByEntity(entityId);
   
-  // Get entity info for feed
+  // Get entity info for feed - ensure it exists
   const entity = getEntityById(entityId);
   
-  // Hardcoded change percentages for Prediction Markets entities (IDs 300-325)
-  const predictionMarketChanges: Record<number, number> = {
-    300: 2.38,   // Kalshi - up
-    301: -6.00,  // Polymarket - down
-    302: 3.12,   // PredictIt - up
-    303: -2.67,  // Betfair - down
-    304: 1.89,   // Smarkets - up
-    305: -3.24,  // Augur - down
-    306: 2.56,   // Gnosis - up
-    307: -1.78,  // Omen - down
-    308: 4.23,   // Zeitgeist - up
-    309: -2.34,  // PlotX - down
-    310: 1.67,   // Reality.eth - up
-    311: -3.45,  // Stox - down
-    312: 2.89,   // Catnip Exchange - up
-    313: -1.23,  // Manifold Markets - down
-    314: 3.56,   // Metaculus - up
-    315: -2.12,  // Good Judgment Project - down
-    316: 1.34,   // Hypermind - up
-    317: -4.67,  // Numerai - down
-    318: 2.78,   // Kleros - up
-    319: -1.56,  // Forecaster - down
-    320: 3.89,   // Infer - up
-    321: -2.45,  // Crowdwise - down
-    322: 1.12,   // Insight Prediction - up
-    323: -3.78,  // Cultivat3 - down
-    324: 2.23,   // Lay3rs - up
-    325: -1.89,  // Polymarket Clone - down
-  };
-  
-  // Get live price from global price system, or calculate for Prediction Markets
-  let currentPrice: number;
-  if (entityId >= 300 && entityId <= 325 && predictionMarketChanges[entityId] !== undefined && entity) {
-    const changePercent = predictionMarketChanges[entityId];
-    const change = (entity.basePrice * changePercent) / 100;
-    currentPrice = entity.basePrice + change;
-  } else {
-    currentPrice = getEntityPrice(entityId);
-  }
+  // Get live price from global price system - all entities start at 100
+  const currentPrice = getEntityPrice(entityId) || 100;
   
   // categoryId is already in the correct format (no mapping needed)
   const displayCategoryId = categoryId
@@ -356,7 +289,7 @@ export default function EntityScreen() {
 
   // Generate mock live game data for top 5 NFL and NBA teams
   const liveGameData = useMemo(() => {
-    if ((categoryId !== 'NFL' && categoryId !== 'NBA') || !entity) return null;
+    if ((categoryId !== 'NFL' && categoryId !== 'NBA') || !entity || !entityData?.entity) return null;
     
     if (categoryId === 'NFL') {
       // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
@@ -387,8 +320,8 @@ export default function EntityScreen() {
       if (!game) return null;
       
       return {
-        teamName: entity.name,
-        teamTicker: entity.ticker,
+        teamName: entity?.name || '',
+        teamTicker: entity?.ticker || '',
         teamId: entityId,
         teamScore: game.teamScore,
         opponentName: game.opponent.name,
@@ -430,8 +363,8 @@ export default function EntityScreen() {
       if (!game) return null;
       
       return {
-        teamName: entity.name,
-        teamTicker: entity.ticker,
+        teamName: entity?.name || '',
+        teamTicker: entity?.ticker || '',
         teamId: entityId,
         teamScore: game.teamScore,
         opponentName: game.opponent.name,
@@ -462,172 +395,17 @@ export default function EntityScreen() {
     } as never);
   };
   
-  // Entity-specific feed posts
+  // Entity-specific feed posts - empty for fresh start, no hardcoded data
   const entityFeedPosts = useMemo(() => {
-    const now = Date.now();
-    const entityName = entity?.name || '';
-    
-    // Pool of realistic user names
-    const firstNames = ['Alex', 'Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Sam', 'Jamie', 'Drew', 'Quinn', 'Blake', 'Cameron', 'Avery', 'Sage', 'River', 'Phoenix', 'Skylar', 'Dakota', 'Reese', 'Hayden'];
-    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee'];
-    
-    // Generate random user for each post
-    const getRandomUser = () => {
-      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const displayName = `${firstName} ${lastName}`;
-      const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
-      return { displayName, username, userId: `user-${Math.random().toString(36).substr(2, 9)}` };
-    };
-    
-    // Generate posts that are all about this specific entity
-    // Each post starts with @(entity name) and comments about them
-    const entityMentionName = entityName?.replace(/\s+/g, '') || '';
-    const posts: Post[] = [
-      {
-        id: `entity-${entityId}-1`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} just dropped a new project and their moro score is skyrocketing 📈`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: 'positive',
-        likes: 289,
-        comments: 45,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 18).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-2`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} The trajectory looks solid. Really impressed with the recent performance and strategic moves.`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: 'positive',
-        likes: 145,
-        comments: 23,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 42).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-3`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} A potential collab would create insane value. The cross-audience potential is huge.`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: 'positive',
-        likes: 234,
-        comments: 38,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 1).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-4`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} The recent moves have been interesting. Curious to see what direction things take from here.`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: undefined,
-        likes: 98,
-        comments: 14,
-        isLiked: true,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 2).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-5`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} Engagement metrics are through the roof. The synergy with recent partnerships is perfect.`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: 'positive',
-        likes: 312,
-        comments: 52,
-        isLiked: false,
-        isBookmarked: true,
-        timestamp: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-6`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} Not feeling great about the recent direction. The numbers aren't adding up like they used to.`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: 'negative',
-        likes: 167,
-        comments: 29,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-7`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} Recent moves caused some controversy. The drama might actually help engagement though.`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: 'negative',
-        likes: 445,
-        comments: 78,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 28).toISOString(),
-      },
-      {
-        id: `entity-${entityId}-8`,
-        ...getRandomUser(),
-        content: `@${entityMentionName} The partnership deals are looking strong. Multiple big brands are showing interest.`,
-        entityId: entityId,
-        entityTicker: undefined,
-        entityName: entityName,
-        sentiment: 'positive',
-        likes: 198,
-        comments: 31,
-        isLiked: true,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
-      },
-    ];
-    
-    return posts;
-  }, [entityId, entity]);
+    // Return empty array - no fake feed posts
+    return [];
+  }, [entityId]);
 
-  // Get biggest trade in this entity for today (mock data)
+  // Get biggest trade in this entity for today - return null when no data (fresh start)
   const biggestEntityTrade = useMemo(() => {
-    // Mock data - in real app, this would come from backend
-    // Generate random trade amount between 1,000 and 22,000
-    const mockUsers = [
-      { name: 'Alex Morgan', initials: 'AM' },
-      { name: 'Jordan Smith', initials: 'JS' },
-      { name: 'Taylor Kim', initials: 'TK' },
-      { name: 'Casey Johnson', initials: 'CJ' },
-      { name: 'Morgan Davis', initials: 'MD' },
-      { name: 'Riley Brown', initials: 'RB' },
-    ];
-    
-    // Random user and amount for this entity
-    const randomUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
-    const randomAmount = Math.floor(Math.random() * 21000) + 1000; // 1,000 to 22,000
-    const isPositive = Math.random() > 0.5; // Random positive/negative
-    
-    return {
-      userName: randomUser.name,
-      userInitials: randomUser.initials,
-      entityName: entityData.entity.name,
-      category: displayCategoryId,
-      amount: randomAmount,
-      isPositive: isPositive,
-    };
-  }, [entityId, entityData.entity.name, displayCategoryId]);
+    // Return null - no hardcoded data, don't show section until real trade data exists
+    return null;
+  }, [entityId, entityData?.entity?.name, displayCategoryId]);
 
   // Get top comment/post from entity feed today
   const topFeedPost = useMemo(() => {
@@ -703,28 +481,14 @@ export default function EntityScreen() {
 
   // Filter price history - for now just use all available data (1min timeframe shows all data)
   const filteredPriceHistory = useMemo(() => {
-        // Combine original history with live updates
-        return [...entityData.priceHistory, ...priceHistory].filter((point, index, self) => {
-          // Remove duplicates by timestamp
-          return index === self.findIndex(p => p.timestamp === point.timestamp);
-        }).sort((a, b) => a.timestamp - b.timestamp);
-  }, [priceHistory, entityData.priceHistory]);
+        // No graph data - empty array (fresh start)
+        return [];
+  }, []);
 
-  // Get base price from entity data
-  const basePrice = entity?.basePrice || entityData.entity.currentPrice;
-  
-  // For Prediction Markets, use hardcoded change percentage
-  let priceChange: number;
-  let priceChangePercent: number;
-  
-  if (entityId >= 300 && entityId <= 325 && predictionMarketChanges[entityId] !== undefined) {
-    priceChangePercent = predictionMarketChanges[entityId];
-    priceChange = (basePrice * priceChangePercent) / 100;
-  } else {
-    // Calculate price change from base price
-    priceChange = currentPrice - basePrice;
-    priceChangePercent = (priceChange / basePrice) * 100;
-  }
+  // All entities start at 100 with 0% change
+  const basePrice = 100; // All entities start at 100
+  const priceChange = 0; // No change - starting at 100
+  const priceChangePercent = 0; // 0% change
   
   const isPositive = priceChange >= 0;
 
@@ -737,9 +501,9 @@ export default function EntityScreen() {
 
   const handleShare = async () => {
     try {
-      const entityName = entityData.entity.name;
+      const entityName = entityData?.entity?.name || 'Entity';
       const priceText = formatCurrency(currentPrice);
-      const changeText = `${isPositive ? '+' : ''}${formatCurrency(priceChange)} (${isPositive ? '+' : ''}${priceChangePercent.toFixed(2)}%)`;
+      const changeText = '0.00%'; // Always 0% since all start at 100
       
       // Format category name
       const categoryName = categoryId
@@ -790,61 +554,23 @@ export default function EntityScreen() {
   const innerWidth = chartWidth - margin.left - margin.right;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
-  // Convert filteredPriceHistory to chart data format
+  // Convert filteredPriceHistory to chart data format - empty, no graph data
   const chartPrices = useMemo(() => {
-    if (filteredPriceHistory.length === 0) return [currentPrice];
-    return filteredPriceHistory.map(point => point.price);
-  }, [filteredPriceHistory, currentPrice]);
+    // Return empty array - no data to plot
+    return [];
+  }, []);
 
-  // Calculate Y domain - center around starting price
+  // Calculate Y domain - center around current price (100) but no data plotted
   const yDomain = useMemo(() => {
-    if (chartPrices.length === 0) {
-      const price = currentPrice;
-      const padding = price * 0.1;
-      return { yMin: price - padding, yMax: price + padding, yRange: padding * 2 };
-    }
-    const fullDataMin = Math.min(...chartPrices);
-    const fullDataMax = Math.max(...chartPrices);
-    const startPrice = chartPrices[0];
-    const dataRange = Math.max(fullDataMax - startPrice, startPrice - fullDataMin);
-    const yMin = startPrice - dataRange * 1.1;
-    const yMax = startPrice + dataRange * 1.1;
-    const yRange = yMax - yMin;
-    return { yMin, yMax, yRange };
-  }, [chartPrices, currentPrice]);
+    const price = currentPrice || 100;
+    const padding = price * 0.1;
+    return { yMin: price - padding, yMax: price + padding, yRange: padding * 2 };
+  }, [currentPrice]);
 
-  // Generate line path
+  // Generate line path - return empty since no data to plot
   const generateLinePath = () => {
-    if (chartPrices.length === 0) return '';
-    
-    const totalPoints = chartPrices.length;
-    const pointSpacing = innerWidth / Math.max(1, totalPoints - 1);
-    
-    const points = chartPrices.map((price, i) => {
-      const x = margin.left + (i * pointSpacing);
-      const y = margin.top + innerHeight - ((price - yDomain.yMin) / yDomain.yRange) * innerHeight;
-      return { x, y };
-    });
-
-    if (points.length === 1) {
-      return `M ${points[0].x} ${points[0].y}`;
-    }
-
-    let path = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
-      const next = points[i + 1] || curr;
-      
-      const dx1 = (curr.x - prev.x) / 3;
-      const dy1 = (curr.y - prev.y) / 3;
-      const dx2 = (next.x - curr.x) / 3;
-      const dy2 = (next.y - curr.y) / 3;
-      
-      path += ` C ${prev.x + dx1} ${prev.y + dy1}, ${curr.x - dx2} ${curr.y - dy2}, ${curr.x} ${curr.y}`;
-    }
-    
-    return path;
+    // No graph data - return empty path
+    return '';
   };
 
   const renderChartContent = () => (
@@ -882,9 +608,9 @@ export default function EntityScreen() {
                   />
                 )}
                 
-                {/* Current price horizontal dotted line */}
-                {chartPrices.length > 0 && (() => {
-                  const currentPriceValue = chartPrices[chartPrices.length - 1];
+                {/* Current price horizontal dotted line - show price at 100 */}
+                {(() => {
+                  const currentPriceValue = currentPrice || 100;
                   const currentPriceY = margin.top + innerHeight - ((currentPriceValue - yDomain.yMin) / yDomain.yRange) * innerHeight;
                   return (
                     <G>
@@ -962,49 +688,51 @@ export default function EntityScreen() {
           </View>
         </View>
 
-        {/* Biggest Trade in Entity Today */}
-        <View style={[styles.infoCard, styles.biggestTradeCard, { backgroundColor: theme.card }]}>
-          <Text style={[styles.infoCardTitle, { color: theme.text }]}>Biggest Trade Today</Text>
-          <View style={styles.biggestTradeContainer}>
-            {/* Top Row: User (left) and Entity (right) */}
-            <View style={styles.biggestTradeTopRow}>
-              <View style={styles.biggestTradeLeft}>
-                <View style={[styles.userAvatar, { backgroundColor: theme.primary + '20' }]}>
-                  <Text style={[styles.userAvatarText, { color: theme.primary }]}>
-                    {biggestEntityTrade.userInitials}
+        {/* Biggest Trade in Entity Today - hidden for fresh start */}
+        {biggestEntityTrade && (
+          <View style={[styles.infoCard, styles.biggestTradeCard, { backgroundColor: theme.card }]}>
+            <Text style={[styles.infoCardTitle, { color: theme.text }]}>Biggest Trade Today</Text>
+            <View style={styles.biggestTradeContainer}>
+              {/* Top Row: User (left) and Entity (right) */}
+              <View style={styles.biggestTradeTopRow}>
+                <View style={styles.biggestTradeLeft}>
+                  <View style={[styles.userAvatar, { backgroundColor: theme.primary + '20' }]}>
+                    <Text style={[styles.userAvatarText, { color: theme.primary }]}>
+                      {biggestEntityTrade.userInitials}
+                    </Text>
+                  </View>
+                  <Text style={[styles.userName, { color: theme.text }]}>
+                    {biggestEntityTrade.userName}
                   </Text>
                 </View>
-                <Text style={[styles.userName, { color: theme.text }]}>
-                  {biggestEntityTrade.userName}
+                <View style={styles.biggestTradeRight}>
+                  <Text style={[styles.entityNameInTrade, { color: theme.text }]}>
+                    {biggestEntityTrade.entityName}
+                  </Text>
+                  <Text style={[styles.categoryInTrade, { color: theme.textSecondary }]}>
+                    {biggestEntityTrade.category}
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Divider */}
+              <View style={[styles.biggestTradeDivider, { backgroundColor: theme.borderLight }]} />
+              
+              {/* Bottom Row: Amount (left) and Positive/Negative (right) */}
+              <View style={styles.biggestTradeBottomRow}>
+                <Text style={[styles.tradeAmount, { color: theme.text }]}>
+                  {biggestEntityTrade.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {TOKEN_SYMBOL}
+                </Text>
+                <Text style={[
+                  styles.tradeSentiment,
+                  { color: biggestEntityTrade.isPositive ? '#10B981' : '#EF4444' }
+                ]}>
+                  {biggestEntityTrade.isPositive ? 'Positive' : 'Negative'}
                 </Text>
               </View>
-              <View style={styles.biggestTradeRight}>
-                <Text style={[styles.entityNameInTrade, { color: theme.text }]}>
-                  {biggestEntityTrade.entityName}
-                </Text>
-                <Text style={[styles.categoryInTrade, { color: theme.textSecondary }]}>
-                  {biggestEntityTrade.category}
-                </Text>
-              </View>
-            </View>
-            
-            {/* Divider */}
-            <View style={[styles.biggestTradeDivider, { backgroundColor: theme.borderLight }]} />
-            
-            {/* Bottom Row: Amount (left) and Positive/Negative (right) */}
-            <View style={styles.biggestTradeBottomRow}>
-              <Text style={[styles.tradeAmount, { color: theme.text }]}>
-                {biggestEntityTrade.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {TOKEN_SYMBOL}
-              </Text>
-              <Text style={[
-                styles.tradeSentiment,
-                { color: biggestEntityTrade.isPositive ? '#10B981' : '#EF4444' }
-              ]}>
-                {biggestEntityTrade.isPositive ? 'Positive' : 'Negative'}
-              </Text>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Top Comment in Entity Feed Today */}
         {topFeedPost && (
@@ -1046,32 +774,28 @@ export default function EntityScreen() {
         )}
 
         {/* Your Position (if any) */}
-        {holding && (
+        {position && (
           <View style={[styles.positionCard, { backgroundColor: theme.card }]}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Position</Text>
             <View style={styles.positionGrid}>
               <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Shares</Text>
-                <Text style={[styles.positionValue, { color: theme.text }]}>{holding.quantity}</Text>
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Direction</Text>
+                <Text style={[styles.positionValue, { color: position.direction === 'positive' ? '#10B981' : '#EF4444' }]}>
+                  {position.direction === 'positive' ? 'Positive' : 'Negative'}
+                </Text>
               </View>
               <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Avg Cost</Text>
-                <Text style={[styles.positionValue, { color: theme.text }]}>{formatCurrency(holding.averageCost)}</Text>
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
+                <Text style={[styles.positionValue, { color: theme.text }]}>{position.tokensCommitted}</Text>
               </View>
               <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Total Value</Text>
-                <Text style={[styles.positionValue, { color: theme.text }]}>{formatCurrency(holding.totalValue)}</Text>
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Current Price</Text>
+                <Text style={[styles.positionValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
               </View>
               <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>P&L</Text>
-                <Text
-                  style={[
-                    styles.positionValue,
-                    { color: getChangeColor(holding.profitLoss) },
-                  ]}
-                >
-                  {holding.profitLoss >= 0 ? '+' : ''}
-                  {formatCurrency(holding.profitLoss)}
+                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tranches</Text>
+                <Text style={[styles.positionValue, { color: theme.text }]}>
+                  {position.trancheCount || 1}
                 </Text>
               </View>
             </View>
@@ -1089,7 +813,7 @@ export default function EntityScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerLeft}>
-          <Text style={[styles.entityName, { color: theme.text }]}>{entityData.entity.name}</Text>
+          <Text style={[styles.entityName, { color: theme.text }]}>{entityData?.entity?.name || ''}</Text>
           <Text style={[styles.categoryName, { color: theme.textSecondary }]}>
             {displayCategoryId}
           </Text>
@@ -1133,25 +857,25 @@ export default function EntityScreen() {
               styles.entityChangeText,
               { color: getChangeColor(priceChange, theme) }
             ]}>
-              {isPositive ? '+' : ''}{formatCurrency(priceChange)}
+              {priceChange === 0 ? '' : isPositive ? '+' : ''}{formatCurrency(priceChange)}
             </Text>
             <Text style={[
               styles.entityChangePercent,
               { color: getChangeColor(priceChange, theme) }
             ]}>
-              ({isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
+              ({priceChangePercent === 0 ? '' : isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
             </Text>
           </View>
         </View>
         <View style={styles.entityStatsInfo}>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData.stats.volume24h)}</Text>
+            Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData?.stats?.volume24h || 0)}</Text>
           </Text>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            High: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.high24h)}</Text>
+            High: <Text style={{ color: theme.text }}>{formatCurrency(entityData?.stats?.high24h || 100)}</Text>
           </Text>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData.stats.low24h)}</Text>
+            Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData?.stats?.low24h || 100)}</Text>
           </Text>
         </View>
       </View>
@@ -1549,8 +1273,8 @@ export default function EntityScreen() {
               style={styles.iconButton}
               onPress={() => navigation.navigate('CreateAlert', {
                 entityId: entityId,
-                entityName: entityData.entity.name,
-                entityTicker: entityData.entity.ticker,
+                entityName: entityData?.entity?.name || '',
+                entityTicker: entityData?.entity?.ticker || '',
                 currentPrice: currentPrice,
                 change24h: priceChange,
                 changePercent24h: priceChangePercent,
@@ -1573,11 +1297,9 @@ export default function EntityScreen() {
         visible={tradeModalVisible}
         onClose={() => setTradeModalVisible(false)}
         entityId={entityId}
-        entityName={entityData.entity.name}
-        entityTicker={entityData.entity.ticker}
-        currentPrice={currentPrice}
+        entityName={entityData?.entity?.name || ''}
+        entityTicker={entityData?.entity?.ticker || ''}
         category={categoryId}
-        existingQuantity={holding?.quantity}
       />
 
       {/* Share Opinion Modal */}
@@ -1585,8 +1307,8 @@ export default function EntityScreen() {
         visible={shareOpinionModalVisible}
         onClose={() => setShareOpinionModalVisible(false)}
         entityId={entityId}
-        entityName={entityData.entity.name}
-        entityTicker={entityData.entity.ticker}
+        entityName={entityData?.entity?.name || ''}
+        entityTicker={entityData?.entity?.ticker || ''}
         slideFromBottom={true}
         prefillEntityTag={true}
       />
@@ -1611,7 +1333,7 @@ export default function EntityScreen() {
             {/* Header */}
             <View style={[styles.positionsModalHeader, { borderBottomColor: theme.border }]}>
               <Text style={[styles.positionsModalTitle, { color: theme.text }]}>
-                Positions - {entityData.entity.name}
+                Positions - {entityData?.entity?.name || 'Entity'}
               </Text>
               <TouchableOpacity
                 onPress={() => setPositionsModalVisible(false)}
@@ -1622,44 +1344,37 @@ export default function EntityScreen() {
             </View>
 
             {/* Content */}
-            {holding ? (
+            {position ? (
               <ScrollView style={styles.positionsModalBody} showsVerticalScrollIndicator={false}>
                 <View style={[styles.positionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                   <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Quantity</Text>
-                    <Text style={[styles.positionValue, { color: theme.text }]}>{holding.quantity}</Text>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Direction</Text>
+                    <Text style={[styles.positionValue, { color: position.direction === 'positive' ? '#10B981' : '#EF4444' }]}>
+                      {position.direction === 'positive' ? 'Positive' : 'Negative'}
+                    </Text>
                   </View>
                   <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Average Cost</Text>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
                     <Text style={[styles.positionValue, { color: theme.text }]}>
-                      {formatCurrency(holding.averageCost)}
+                      {position.tokensCommitted}
                     </Text>
                   </View>
                   <View style={styles.positionRow}>
                     <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Current Price</Text>
                     <Text style={[styles.positionValue, { color: theme.text }]}>
-                      {formatCurrency(holding.currentPrice)}
+                      {formatCurrency(currentPrice)}
                     </Text>
                   </View>
                   <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Total Value</Text>
+                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tranches</Text>
                     <Text style={[styles.positionValue, { color: theme.text }]}>
-                      {formatCurrency(holding.totalValue)}
+                      {position.trancheCount || 1}
                     </Text>
                   </View>
                   <View style={[styles.positionDivider, { backgroundColor: theme.border }]} />
-                  <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>P&L</Text>
-                    <Text style={[styles.positionValue, { color: getChangeColor(holding.profitLoss, theme) }]}>
-                      {holding.profitLoss >= 0 ? '+' : ''}{formatCurrency(holding.profitLoss)}
-                    </Text>
-                  </View>
-                  <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>P&L %</Text>
-                    <Text style={[styles.positionValue, { color: getChangeColor(holding.profitLoss, theme) }]}>
-                      {holding.profitLossPercent >= 0 ? '+' : ''}{holding.profitLossPercent.toFixed(2)}%
-                    </Text>
-                  </View>
+                  <Text style={[styles.summaryNote, { color: theme.textSecondary, marginTop: 8 }]}>
+                    P&L will be calculated when you close the position
+                  </Text>
                 </View>
               </ScrollView>
             ) : (
@@ -2302,6 +2017,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: -20,
     lineHeight: 48,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  summaryNote: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });
 

@@ -480,23 +480,28 @@ export async function getAllEntities(category?: string): Promise<Entity[]> {
 }
 
 export async function getEntityPrice(entityId: number): Promise<number | null> {
-  const result = await docClient.send(
-    new QueryCommand({
-      TableName: TABLE_NAMES.PRICE_HISTORY,
-      KeyConditionExpression: 'entityId = :entityId',
-      ExpressionAttributeValues: {
-        ':entityId': entityId,
-      },
-      ScanIndexForward: false,
-      Limit: 1,
-    })
-  );
+  // NEW: Use sentiment-based price calculation instead of price history
+  try {
+    const entityResult = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.ENTITIES,
+        Key: { entityId },
+      })
+    );
 
-  if (result.Items && result.Items.length > 0) {
-    return (result.Items[0] as PriceHistory).price;
+    if (!entityResult.Item) {
+      return null;
+    }
+
+    const entity = entityResult.Item as Entity;
+    
+    // Use new price calculation service
+    const { calculatePriceFromEntity } = await import('./priceCalculationService');
+    return calculatePriceFromEntity(entity);
+  } catch (error) {
+    logger.error('Error getting entity price', error);
+    return null;
   }
-
-  return null;
 }
 
 /**

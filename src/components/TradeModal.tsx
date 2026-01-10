@@ -24,9 +24,7 @@ interface TradeModalProps {
   entityId: number;
   entityName: string;
   entityTicker: string;
-  currentPrice: number;
   category: string;
-  existingQuantity?: number;
 }
 
 export default function TradeModal({
@@ -35,19 +33,20 @@ export default function TradeModal({
   entityId,
   entityName,
   entityTicker,
-  currentPrice,
   category,
-  existingQuantity = 0,
 }: TradeModalProps) {
-  const { portfolio, executeTrade, getHolding } = useTrading();
+  const { portfolio, openPosition, closePosition, getPosition, getEntityPrice } = useTrading();
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
-  const [quantity, setQuantity] = useState('');
+  const [activeTab, setActiveTab] = useState<'open' | 'close'>('open');
+  const [direction, setDirection] = useState<'positive' | 'negative'>('positive');
+  const [tokensCommitted, setTokensCommitted] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [slideAnim] = useState(new Animated.Value(height));
 
-  const holding = useMemo(() => getHolding(entityId), [entityId, portfolio.holdings]);
+  const existingPosition = getPosition(entityId);
+  const currentPrice = getEntityPrice(entityId);
 
+  // Reset modal state when it opens/closes
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, {
@@ -56,99 +55,118 @@ export default function TradeModal({
         tension: 65,
         friction: 11,
       }).start();
+      // If there's an existing position, default to close tab, otherwise open tab
+      const position = getPosition(entityId);
+      if (position) {
+        setActiveTab('close');
+      } else {
+        setActiveTab('open');
+        setDirection('positive');
+      }
+      setTokensCommitted('');
     } else {
       Animated.timing(slideAnim, {
         toValue: height,
         duration: 250,
         useNativeDriver: true,
       }).start();
+      // Reset when closing
+      setTokensCommitted('');
+      setActiveTab('open');
+      setDirection('positive');
     }
-  }, [visible]);
+  }, [visible, entityId]);
 
-  const quantityNum = parseFloat(quantity) || 0;
-  const totalCost = quantityNum * currentPrice;
-  const hasSufficientFunds = totalCost <= portfolio.cashBalance;
-  const hasSufficientShares = holding ? quantityNum <= holding.quantity : false;
+  const tokensCommittedNum = parseFloat(tokensCommitted) || 0;
+  const hasSufficientFunds = tokensCommittedNum <= portfolio.cashBalance;
 
-  const canBuy = activeTab === 'buy' && quantityNum > 0 && hasSufficientFunds;
-  const canSell = activeTab === 'sell' && quantityNum > 0 && hasSufficientShares;
-  const canExecute = canBuy || canSell;
+  const canOpen = activeTab === 'open' && tokensCommittedNum > 0 && hasSufficientFunds;
+  const canAdd = activeTab === 'open' && existingPosition && tokensCommittedNum > 0 && hasSufficientFunds && existingPosition.direction === direction;
+  const canClose = activeTab === 'close' && existingPosition !== null;
+  const canExecute = canOpen || canAdd || canClose;
 
-  const handleQuantityChange = (text: string) => {
+  const handleTokensChange = (text: string) => {
     // Only allow numbers and one decimal point
     const cleaned = text.replace(/[^0-9.]/g, '');
     const parts = cleaned.split('.');
     if (parts.length > 2) return;
     if (parts[1] && parts[1].length > 2) return;
-    setQuantity(cleaned);
+    setTokensCommitted(cleaned);
   };
 
   const setPercentage = (percent: number) => {
-    if (activeTab === 'buy') {
-      const maxAffordable = portfolio.cashBalance / currentPrice;
-      const qty = Math.floor((maxAffordable * percent) / 100);
-      setQuantity(qty.toString());
-    } else if (holding) {
-      const qty = Math.floor((holding.quantity * percent) / 100);
-      setQuantity(qty.toString());
+    if (activeTab === 'open') {
+      const maxAffordable = portfolio.cashBalance;
+      const tokens = Math.floor((maxAffordable * percent) / 100);
+      setTokensCommitted(tokens.toString());
+    } else if (existingPosition) {
+      const tokens = Math.floor((existingPosition.tokensCommitted * percent) / 100);
+      setTokensCommitted(tokens.toString());
     }
   };
 
-  const handleExecuteTrade = () => {
+  const handleExecuteTrade = async () => {
     if (!canExecute) return;
 
     setIsProcessing(true);
 
-    // Simulate slight delay for realistic feel
-    setTimeout(() => {
-      const success = executeTrade(
-        entityId,
-        entityName,
-        entityTicker,
-        activeTab,
-        quantityNum,
-        currentPrice,
-        category
-      );
+    try {
+      let success = false;
+      if (activeTab === 'open') {
+        success = await openPosition(
+          entityId,
+          entityName,
+          entityTicker,
+          direction,
+          tokensCommittedNum,
+          category
+        );
+      } else { // activeTab === 'close'
+        success = await closePosition(
+          entityId,
+          entityName,
+          entityTicker,
+          category
+        );
+      }
 
       setIsProcessing(false);
 
       if (success) {
-        // Show success message
+        let message = '';
+        if (activeTab === 'open') {
+          if (existingPosition) {
+            message = `Successfully added ${tokensCommittedNum} tokens to your ${direction} position on ${entityTicker}. New total: ${existingPosition.tokensCommitted + tokensCommittedNum} tokens.`;
+          } else {
+            message = `Successfully opened ${direction} position with ${tokensCommittedNum} tokens on ${entityTicker}`;
+          }
+        } else {
+          message = `Successfully closed your ${existingPosition?.direction} position on ${entityTicker}`;
+        }
+        
         Alert.alert(
           'Trade Executed',
-          `Successfully ${activeTab === 'buy' ? 'purchased' : 'sold'} ${quantityNum} shares of ${entityTicker} at ${formatCurrency(currentPrice)}`,
+          message,
           [{ text: 'OK', onPress: () => handleClose() }]
         );
       } else {
-        // Show error message
-        Alert.alert(
-          'Trade Failed',
-          activeTab === 'buy'
-            ? 'Insufficient funds to complete this purchase.'
-            : 'Insufficient shares to complete this sale.',
-          [{ text: 'OK' }]
-        );
+        // Error message shown by openPosition/closePosition functions
+        // No need to show generic error here
       }
-    }, 300);
+    } catch (error) {
+      console.error('Error executing trade:', error);
+      Alert.alert('Trade Failed', 'An error occurred while executing the trade. Please try again.');
+      setIsProcessing(false);
+    }
   };
 
   const handleClose = () => {
-    setQuantity('');
-    setActiveTab('buy');
+    setTokensCommitted('');
+    setActiveTab('open');
+    setDirection('positive');
     onClose();
   };
 
-  const expectedProceeds = useMemo(() => {
-    if (activeTab === 'sell' && holding && quantityNum > 0) {
-      const costBasis = holding.averageCost * quantityNum;
-      const proceeds = currentPrice * quantityNum;
-      const profitLoss = proceeds - costBasis;
-      const profitLossPercent = (profitLoss / costBasis) * 100;
-      return { proceeds, profitLoss, profitLossPercent };
-    }
-    return null;
-  }, [activeTab, holding, quantityNum, currentPrice]);
 
   return (
     <Modal
@@ -185,132 +203,212 @@ export default function TradeModal({
             </View>
           </View>
 
-          {/* Buy/Sell Tabs */}
-          <View style={[styles.tabs, { backgroundColor: theme.backgroundSecondary }]}>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                { backgroundColor: activeTab === 'buy' ? theme.success : 'transparent' },
-              ]}
-              onPress={() => setActiveTab('buy')}
-            >
-              <Text style={[styles.tabText, { color: activeTab === 'buy' ? '#FFFFFF' : theme.textSecondary }]}>
-                Positive
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                { backgroundColor: activeTab === 'sell' ? theme.error : 'transparent' },
-              ]}
-              onPress={() => setActiveTab('sell')}
-            >
-              <Text style={[styles.tabText, { color: activeTab === 'sell' ? '#FFFFFF' : theme.textSecondary }]}>
-                Negative
-              </Text>
-            </TouchableOpacity>
-          </View>
+            {/* Open/Close Tabs */}
+            <View style={[styles.tabs, { backgroundColor: theme.backgroundSecondary }]}>
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  { backgroundColor: activeTab === 'open' ? theme.success : 'transparent' },
+                ]}
+                onPress={() => {
+                  setActiveTab('open');
+                  if (existingPosition) {
+                    // Auto-select the direction of existing position when switching to open tab
+                    setDirection(existingPosition.direction);
+                  }
+                }}
+              >
+                <Text style={[styles.tabText, { color: activeTab === 'open' ? '#FFFFFF' : theme.textSecondary }]}>
+                  {existingPosition ? 'Add' : 'Open'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  { backgroundColor: activeTab === 'close' ? theme.error : 'transparent' },
+                  !existingPosition && { opacity: 0.5 },
+                ]}
+                onPress={() => existingPosition && setActiveTab('close')}
+                disabled={!existingPosition}
+              >
+                <Text style={[styles.tabText, { color: activeTab === 'close' ? '#FFFFFF' : theme.textSecondary }]}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+          {/* Direction Selection (only for Open when no existing position, or disabled when adding) */}
+          {activeTab === 'open' && (
+            <View style={[styles.directionTabs, { backgroundColor: theme.backgroundSecondary }]}>
+              <TouchableOpacity
+                style={[
+                  styles.directionTab,
+                  { backgroundColor: direction === 'positive' ? theme.success : 'transparent' },
+                  existingPosition && existingPosition.direction !== 'positive' && { opacity: 0.5 },
+                ]}
+                onPress={() => {
+                  if (!existingPosition || existingPosition.direction === 'positive') {
+                    setDirection('positive');
+                  }
+                }}
+                disabled={existingPosition && existingPosition.direction !== 'positive'}
+              >
+                <Text style={[styles.directionTabText, { color: direction === 'positive' ? '#FFFFFF' : theme.textSecondary }]}>
+                  Positive
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.directionTab,
+                  { backgroundColor: direction === 'negative' ? theme.error : 'transparent' },
+                  existingPosition && existingPosition.direction !== 'negative' && { opacity: 0.5 },
+                ]}
+                onPress={() => {
+                  if (!existingPosition || existingPosition.direction === 'negative') {
+                    setDirection('negative');
+                  }
+                }}
+                disabled={existingPosition && existingPosition.direction !== 'negative'}
+              >
+                <Text style={[styles.directionTabText, { color: direction === 'negative' ? '#FFFFFF' : theme.textSecondary }]}>
+                  Negative
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Current Position Info */}
-          {holding && (
+          {existingPosition && (
             <View style={[styles.positionInfo, { backgroundColor: theme.backgroundSecondary }]}>
-              <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Your Position</Text>
+              <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>
+                {activeTab === 'open' ? 'Your Current Position' : 'Your Open Position'}
+              </Text>
               <View style={styles.positionRow}>
-                <Text style={[styles.positionText, { color: theme.text }]}>Shares Owned: {holding.quantity}</Text>
                 <Text style={[styles.positionText, { color: theme.text }]}>
-                  Avg Cost: {formatCurrency(holding.averageCost)}
+                  Direction: {existingPosition.direction === 'positive' ? 'Positive' : 'Negative'}
                 </Text>
+                <Text style={[styles.positionText, { color: theme.text }]}>
+                  Tokens: {existingPosition.tokensCommitted}
+                </Text>
+              </View>
+              {activeTab === 'open' && tokensCommittedNum > 0 && (
+                <View style={[styles.positionRow, { marginTop: 8 }]}>
+                  <Text style={[styles.positionText, { color: theme.textSecondary }]}>
+                    After adding: {existingPosition.tokensCommitted + tokensCommittedNum} tokens total
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Tokens Input (only for Open) */}
+          {activeTab === 'open' && (
+            <View style={styles.inputSection}>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>
+                {existingPosition ? 'Tokens to Add' : 'Tokens to Commit'}
+              </Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                  value={tokensCommitted}
+                  onChangeText={handleTokensChange}
+                  keyboardType="decimal-pad"
+                  maxLength={10}
+                />
+                <Text style={[styles.inputSuffix, { color: theme.textSecondary }]}>tokens</Text>
+              </View>
+
+              {/* Quick Percentage Buttons */}
+              {activeTab === 'open' && (
+                <View style={styles.percentButtons}>
+                  {[25, 50, 75, 100].map((percent) => (
+                    <TouchableOpacity
+                      key={percent}
+                      style={[styles.percentButton, { backgroundColor: theme.backgroundTertiary }]}
+                      onPress={() => setPercentage(percent)}
+                    >
+                      <Text style={[styles.percentButtonText, { color: theme.text }]}>{percent}%</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Order Summary */}
+          {activeTab === 'open' && (
+            <View style={[styles.summary, { backgroundColor: theme.backgroundSecondary }]}>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Current Price</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Direction</Text>
+                <Text style={[styles.summaryValue, { color: direction === 'positive' ? '#10B981' : '#EF4444' }]}>
+                  {direction === 'positive' ? 'Positive' : 'Negative'}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Tokens to Commit</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{tokensCommittedNum || 0}</Text>
+              </View>
+              <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabelBold, { color: theme.text }]}>Total Cost</Text>
+                <Text style={[styles.summaryValueBold, { color: theme.text }]}>{formatCurrency(tokensCommittedNum)}</Text>
               </View>
             </View>
           )}
 
-          {/* Quantity Input */}
-          <View style={styles.inputSection}>
-            <Text style={[styles.inputLabel, { color: theme.text }]}>Quantity</Text>
-            <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="0"
-                placeholderTextColor={theme.textTertiary}
-                value={quantity}
-                onChangeText={handleQuantityChange}
-                keyboardType="decimal-pad"
-                maxLength={10}
-              />
-              <Text style={[styles.inputSuffix, { color: theme.textSecondary }]}>shares</Text>
-            </View>
-
-            {/* Quick Percentage Buttons */}
-            <View style={styles.percentButtons}>
-              {[25, 50, 75, 100].map((percent) => (
-                <TouchableOpacity
-                  key={percent}
-                  style={[styles.percentButton, { backgroundColor: theme.backgroundTertiary }]}
-                  onPress={() => setPercentage(percent)}
-                >
-                  <Text style={[styles.percentButtonText, { color: theme.text }]}>{percent}%</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Order Summary */}
-          <View style={[styles.summary, { backgroundColor: theme.backgroundSecondary }]}>
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Price per Share</Text>
-              <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Quantity</Text>
-              <Text style={[styles.summaryValue, { color: theme.text }]}>{quantityNum || 0}</Text>
-            </View>
-            <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabelBold, { color: theme.text }]}>
-                {activeTab === 'buy' ? 'Total Cost' : 'Total Proceeds'}
-              </Text>
-              <Text style={[styles.summaryValueBold, { color: theme.text }]}>{formatCurrency(totalCost)}</Text>
-            </View>
-
-            {/* Sell - Show expected profit/loss */}
-            {activeTab === 'sell' && expectedProceeds && quantityNum > 0 && (
-              <View style={[styles.summaryRow, { marginTop: 8 }]}>
-                <Text style={styles.summaryLabel}>Expected P&L</Text>
-                <Text
-                  style={[
-                    styles.summaryValue,
-                    {
-                      color:
-                        expectedProceeds.profitLoss >= 0 ? '#10B981' : '#EF4444',
-                      fontWeight: '600',
-                    },
-                  ]}
-                >
-                  {expectedProceeds.profitLoss >= 0 ? '+' : ''}
-                  {formatCurrency(expectedProceeds.profitLoss)} (
-                  {expectedProceeds.profitLossPercent.toFixed(2)}%)
+          {/* Close Summary */}
+          {activeTab === 'close' && existingPosition && (
+            <View style={[styles.summary, { backgroundColor: theme.backgroundSecondary }]}>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Position Direction</Text>
+                <Text style={[styles.summaryValue, { color: existingPosition.direction === 'positive' ? '#10B981' : '#EF4444' }]}>
+                  {existingPosition.direction === 'positive' ? 'Positive' : 'Negative'}
                 </Text>
               </View>
-            )}
-          </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{existingPosition.tokensCommitted}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Current Price</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
+              </View>
+              <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabelBold, { color: theme.text }]}>Will Close Position</Text>
+                <Text style={[styles.summaryValueBold, { color: theme.text }]}>All tokens</Text>
+              </View>
+              <Text style={[styles.summaryNote, { color: theme.textSecondary }]}>
+                P&L will be calculated based on ratio change since entry
+              </Text>
+            </View>
+          )}
 
-          {/* Available Balance / Shares */}
+          {/* Available Balance / Position Info */}
           <View style={[styles.balanceInfo, { backgroundColor: theme.backgroundSecondary }]}>
-            {activeTab === 'buy' ? (
+            {activeTab === 'open' ? (
               <>
                 <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Available Cash</Text>
                 <Text style={[styles.balanceValue, { color: theme.text }]}>{formatCurrency(portfolio.cashBalance)}</Text>
-                {!hasSufficientFunds && quantityNum > 0 && (
+                {!hasSufficientFunds && tokensCommittedNum > 0 && (
                   <Text style={styles.errorText}>Insufficient funds</Text>
+                )}
+                {existingPosition && existingPosition.direction !== direction && (
+                  <Text style={styles.errorText}>You have a {existingPosition.direction} position. Cannot add {direction} tokens. Close it first.</Text>
                 )}
               </>
             ) : (
               <>
-                <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Shares Available to Sell</Text>
-                <Text style={[styles.balanceValue, { color: theme.text }]}>{holding?.quantity || 0}</Text>
-                {!hasSufficientShares && quantityNum > 0 && (
-                  <Text style={styles.errorText}>Insufficient shares</Text>
-                )}
+                <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Current Position</Text>
+                <Text style={[styles.balanceValue, { color: theme.text }]}>
+                  {existingPosition ? `${existingPosition.tokensCommitted} tokens (${existingPosition.direction})` : 'None'}
+                </Text>
               </>
             )}
           </View>
@@ -327,14 +425,18 @@ export default function TradeModal({
             <TouchableOpacity
               style={[
                 styles.button,
-                { backgroundColor: activeTab === 'buy' ? theme.success : theme.error },
+                { backgroundColor: activeTab === 'open' ? theme.success : theme.error },
                 !canExecute && { opacity: 0.5 },
               ]}
               onPress={handleExecuteTrade}
               disabled={!canExecute || isProcessing}
             >
               <Text style={styles.buttonTextPrimary}>
-                {isProcessing ? 'Processing...' : 'Confirm'}
+                {isProcessing 
+                  ? 'Processing...' 
+                  : activeTab === 'open' 
+                    ? (existingPosition ? 'Add to Position' : 'Open Position')
+                    : 'Close Position'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -397,7 +499,7 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 12,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 4,
@@ -421,6 +523,25 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: '#FFFFFF',
+  },
+  directionTabs: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+  },
+  directionTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  directionTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   positionInfo: {
     marginHorizontal: 20,
@@ -527,6 +648,12 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E5E7EB',
     marginVertical: 8,
+  },
+  summaryNote: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   balanceInfo: {
     marginHorizontal: 20,

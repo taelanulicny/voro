@@ -772,28 +772,25 @@ export default function CategoryScreen() {
   const entityCategory = categoryId;
   
   // Mock previous day rankings (yesterday's ranks)
-  // This would normally come from a backend/database
+  // Reset to match current ranks (no position changes)
   const previousDayRanks = useMemo(() => {
     const mockRanks: Record<number, number> = {};
     const filteredEntities = getEntitiesByCategory(entityCategory);
     
-    // Create mock previous day prices (slightly different to simulate ranking changes)
-    const previousDayEntities = filteredEntities.map((entity) => {
+    // All entities start at price 100, so use current prices for ranking
+    const entitiesWithPrices = filteredEntities.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
-      // Simulate previous day price (add some randomness for ranking changes)
-      const randomChange = (Math.random() - 0.5) * 0.1; // ±5% variation
-      const previousPrice = currentPrice * (1 + randomChange);
       return {
         id: entity.id,
-        previousPrice,
+        price: currentPrice,
       };
     });
     
-    // Sort by previous day price to get previous day ranks
-    const sortedPrevious = [...previousDayEntities].sort((a, b) => b.previousPrice - a.previousPrice);
+    // Sort by price to get ranks (same as current since all prices are 100)
+    const sorted = [...entitiesWithPrices].sort((a, b) => b.price - a.price);
     
-    // Map entity ID to previous day rank
-    sortedPrevious.forEach((entity, index) => {
+    // Map entity ID to rank (will be same as current rank since all prices are 100)
+    sorted.forEach((entity, index) => {
       mockRanks[entity.id] = index + 1;
     });
     
@@ -805,51 +802,11 @@ export default function CategoryScreen() {
     
     // Categories are now stored directly (no filtering needed)
     
-    // Hardcoded change percentages for Prediction Markets entities (IDs 300-325)
-    const predictionMarketChanges: Record<number, number> = {
-      300: 2.38,   // Kalshi - up
-      301: -6.00,  // Polymarket - down
-      302: 3.12,   // PredictIt - up
-      303: -2.67,  // Betfair - down
-      304: 1.89,   // Smarkets - up
-      305: -3.24,  // Augur - down
-      306: 2.56,   // Gnosis - up
-      307: -1.78,  // Omen - down
-      308: 4.23,   // Zeitgeist - up
-      309: -2.34,  // PlotX - down
-      310: 1.67,   // Reality.eth - up
-      311: -3.45,  // Stox - down
-      312: 2.89,   // Catnip Exchange - up
-      313: -1.23,  // Manifold Markets - down
-      314: 3.56,   // Metaculus - up
-      315: -2.12,  // Good Judgment Project - down
-      316: 1.34,   // Hypermind - up
-      317: -4.67,  // Numerai - down
-      318: 2.78,   // Kleros - up
-      319: -1.56,  // Forecaster - down
-      320: 3.89,   // Infer - up
-      321: -2.45,  // Crowdwise - down
-      322: 1.12,   // Insight Prediction - up
-      323: -3.78,  // Cultivat3 - down
-      324: 2.23,   // Lay3rs - up
-      325: -1.89,  // Polymarket Clone - down
-    };
-    
     const mappedEntities = filteredEntities.map((entity) => {
-      // For Prediction Markets, use hardcoded change percentage
-      let changePercent24h: number;
-      let change24h: number;
-      let currentPrice: number;
-      
-      if (entity.id >= 300 && entity.id <= 325 && predictionMarketChanges[entity.id] !== undefined) {
-        changePercent24h = predictionMarketChanges[entity.id];
-        change24h = (entity.basePrice * changePercent24h) / 100;
-        currentPrice = entity.basePrice + change24h;
-      } else {
-        currentPrice = getEntityPrice(entity.id);
-        change24h = currentPrice - entity.basePrice;
-        changePercent24h = (change24h / entity.basePrice) * 100;
-      }
+      // All entities start at price 100 with 0% change
+      const currentPrice = getEntityPrice(entity.id);
+      const change24h = 0; // Reset to 0 since all start at 100
+      const changePercent24h = 0; // Reset to 0% since all start at 100
       
       return {
         id: entity.id,
@@ -1167,7 +1124,7 @@ export default function CategoryScreen() {
             {formatCurrency(item.currentPrice)}
           </Text>
           <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
-            {item.change24h >= 0 ? '+' : ''}
+            {item.changePercent24h === 0 ? '' : item.change24h >= 0 ? '+' : ''}
             {item.changePercent24h.toFixed(2)}%
           </Text>
         </View>
