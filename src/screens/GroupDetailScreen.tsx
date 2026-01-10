@@ -5,56 +5,24 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList, GroupMessage, GroupMember } from '../types';
+import { RootStackParamList, GroupMember } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useTrading } from '../context/TradingContext';
 
 type GroupDetailRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
 
 // Mock data generators
-const generateMockMessages = (groupId: string): GroupMessage[] => {
-  return [
-    {
-      id: `${groupId}-msg-1`,
-      groupId,
-      userId: '2',
-      username: 'sarah_trader',
-      displayName: 'Sarah Chen',
-      content: 'What do you all think about the latest tech earnings?',
-      timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    },
-    {
-      id: `${groupId}-msg-2`,
-      groupId,
-      userId: '3',
-      username: 'mike_investor',
-      displayName: 'Mike Johnson',
-      content: 'Looking positive! Strong fundamentals across the board.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 3).toISOString(),
-    },
-    {
-      id: `${groupId}-msg-3`,
-      groupId,
-      userId: '4',
-      username: 'crypto_king',
-      displayName: 'Alex Rivera',
-      content: 'Anyone following the AI sector? Seems like it\'s heating up 🔥',
-      timestamp: new Date(Date.now() - 1000 * 60 * 1).toISOString(),
-    },
-  ];
-};
-
-const generateMockMembers = (groupId: string): GroupMember[] => {
-  return [
+const generateMockMembers = (groupId: string, currentUserId: string | undefined, currentUserAccountValue: number): GroupMember[] => {
+  // Generate mock members with account values
+  // Current user will use their actual account value, others get random values
+  const mockMembers: GroupMember[] = [
     {
       id: `${groupId}-member-1`,
       userId: '1',
@@ -62,6 +30,7 @@ const generateMockMembers = (groupId: string): GroupMember[] => {
       displayName: 'Dev User',
       role: 'owner',
       joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
+      accountValue: currentUserId === '1' ? currentUserAccountValue : 125000 + Math.random() * 50000,
     },
     {
       id: `${groupId}-member-2`,
@@ -70,6 +39,7 @@ const generateMockMembers = (groupId: string): GroupMember[] => {
       displayName: 'Sarah Chen',
       role: 'admin',
       joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
+      accountValue: currentUserId === '2' ? currentUserAccountValue : 115000 + Math.random() * 40000,
     },
     {
       id: `${groupId}-member-3`,
@@ -78,6 +48,7 @@ const generateMockMembers = (groupId: string): GroupMember[] => {
       displayName: 'Mike Johnson',
       role: 'member',
       joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
+      accountValue: currentUserId === '3' ? currentUserAccountValue : 105000 + Math.random() * 30000,
     },
     {
       id: `${groupId}-member-4`,
@@ -86,8 +57,30 @@ const generateMockMembers = (groupId: string): GroupMember[] => {
       displayName: 'Alex Rivera',
       role: 'member',
       joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+      accountValue: currentUserId === '4' ? currentUserAccountValue : 95000 + Math.random() * 20000,
     },
   ];
+
+  // Replace any member that matches currentUserId with current user data
+  const currentUserIndex = mockMembers.findIndex(m => m.userId === currentUserId);
+  if (currentUserId && currentUserIndex !== -1) {
+    // Update existing member with current user's account value
+    mockMembers[currentUserIndex].accountValue = currentUserAccountValue;
+  } else if (currentUserId) {
+    // Add current user if not already in the list
+    mockMembers.push({
+      id: `${groupId}-member-current`,
+      userId: currentUserId,
+      username: 'you', // Will be updated with actual username when user data is available
+      displayName: 'You',
+      role: 'member',
+      joinedAt: new Date().toISOString(),
+      accountValue: currentUserAccountValue,
+    });
+  }
+
+  // Sort by account value (highest to lowest)
+  return mockMembers.sort((a, b) => (b.accountValue || 0) - (a.accountValue || 0));
 };
 
 export default function GroupDetailScreen() {
@@ -97,14 +90,12 @@ export default function GroupDetailScreen() {
   const { groups, leaveGroup } = useSocial();
   const { user } = useAuth();
   const { theme } = useTheme();
-
-  const [selectedTab, setSelectedTab] = useState<'messages' | 'members'>('messages');
-  const [messages, setMessages] = useState<GroupMessage[]>([]);
-  const [members, setMembers] = useState<GroupMember[]>([]);
-  const [messageText, setMessageText] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const { portfolio } = useTrading();
 
   const group = groups.find(g => g.id === groupId);
+  
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadGroupData();
@@ -114,27 +105,26 @@ export default function GroupDetailScreen() {
     setIsLoading(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
-    setMessages(generateMockMessages(groupId));
-    setMembers(generateMockMembers(groupId));
+    // Generate members with account values, sorted by highest to lowest
+    // Use actual user data if available
+    const sortedMembers = generateMockMembers(
+      groupId, 
+      user?.id, 
+      portfolio.totalValue || 10000 // Default to initial cash balance if portfolio not loaded
+    );
+    
+    // Update current user's display info in the sorted members list
+    if (user) {
+      const currentUserMemberIndex = sortedMembers.findIndex(m => m.userId === user.id);
+      if (currentUserMemberIndex !== -1) {
+        sortedMembers[currentUserMemberIndex].username = user.username;
+        sortedMembers[currentUserMemberIndex].displayName = user.displayName || user.username;
+        sortedMembers[currentUserMemberIndex].avatarUrl = user.avatarUrl;
+      }
+    }
+    
+    setMembers(sortedMembers);
     setIsLoading(false);
-  };
-
-  const handleSendMessage = () => {
-    if (!messageText.trim() || !user) return;
-
-    const newMessage: GroupMessage = {
-      id: `${groupId}-msg-${Date.now()}`,
-      groupId,
-      userId: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl,
-      content: messageText.trim(),
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    setMessageText('');
   };
 
   const handleLeaveGroup = async () => {
@@ -142,66 +132,68 @@ export default function GroupDetailScreen() {
     navigation.goBack();
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    const now = new Date();
-    const msgDate = new Date(timestamp);
-    const diffMs = now.getTime() - msgDate.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    
-    return msgDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(2)}M`;
+    }
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(2)}K`;
+    }
+    return `$${value.toFixed(2)}`;
   };
 
-  const renderMessage = ({ item }: { item: GroupMessage }) => {
-    const isOwnMessage = item.userId === user?.id;
-
+  const renderMember = ({ item, index }: { item: GroupMember; index: number }) => {
+    const isCurrentUser = item.userId === user?.id;
+    const rank = index + 1;
+    
     return (
-      <View style={[styles.messageItem, isOwnMessage && styles.messageItemOwn]}>
-        {!isOwnMessage && (
-          <View style={styles.messageAvatar}>
-            <Ionicons name="person-circle" size={32} color={theme.textTertiary} />
-          </View>
-        )}
-        <View style={[
-          styles.messageBubble,
-          { backgroundColor: isOwnMessage ? theme.primary : theme.card },
-        ]}>
-          {!isOwnMessage && (
-            <Text style={[styles.messageSender, { color: theme.text }]}>{item.displayName}</Text>
-          )}
-          <Text style={[styles.messageText, { color: isOwnMessage ? '#FFFFFF' : theme.text }]}>
-            {item.content}
-          </Text>
-          <Text style={[styles.messageTime, { color: isOwnMessage ? 'rgba(255,255,255,0.7)' : theme.textTertiary }]}>
-            {formatTimestamp(item.timestamp)}
+      <TouchableOpacity 
+        style={[
+          styles.memberItem, 
+          { 
+            backgroundColor: isCurrentUser ? theme.card : theme.backgroundSecondary,
+            borderBottomColor: theme.border,
+            borderLeftWidth: isCurrentUser ? 3 : 0,
+            borderLeftColor: isCurrentUser ? theme.primary : 'transparent',
+          }
+        ]}
+      >
+        <View style={styles.memberRank}>
+          <Text style={[styles.rankNumber, { color: isCurrentUser ? theme.primary : theme.textSecondary }]}>
+            #{rank}
           </Text>
         </View>
-      </View>
+        <View style={styles.memberLeft}>
+          <View style={styles.memberAvatar}>
+            <View style={[styles.avatarContainer, { backgroundColor: isCurrentUser ? theme.primaryLight : theme.backgroundTertiary }]}>
+              <Text style={[styles.avatarInitial, { color: isCurrentUser ? theme.primary : theme.text }]}>
+                {item.displayName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.memberInfo}>
+            <View style={styles.memberNameRow}>
+              <Text style={[styles.memberName, { color: isCurrentUser ? theme.primary : theme.text }]}>
+                {item.displayName}
+                {isCurrentUser && ' (You)'}
+              </Text>
+            </View>
+            <Text style={[styles.memberUsername, { color: theme.textSecondary }]}>@{item.username}</Text>
+          </View>
+        </View>
+        <View style={styles.memberRight}>
+          <Text style={[styles.accountValue, { color: theme.text }]}>
+            {item.accountValue ? formatCurrency(item.accountValue) : '$0.00'}
+          </Text>
+          {item.role !== 'member' && (
+            <View style={[styles.roleBadge, { backgroundColor: theme.primaryLight }]}>
+              <Text style={[styles.roleText, { color: theme.primary }]}>{item.role.toUpperCase()}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
-
-  const renderMember = ({ item }: { item: GroupMember }) => (
-    <TouchableOpacity style={[styles.memberItem, { backgroundColor: theme.card, borderBottomColor: theme.borderLight }]}>
-      <View style={styles.memberLeft}>
-        <View style={styles.memberAvatar}>
-          <Ionicons name="person-circle" size={40} color={theme.textTertiary} />
-        </View>
-        <View style={styles.memberInfo}>
-          <Text style={[styles.memberName, { color: theme.text }]}>{item.displayName}</Text>
-          <Text style={[styles.memberUsername, { color: theme.textSecondary }]}>@{item.username}</Text>
-        </View>
-      </View>
-      {item.role !== 'member' && (
-        <View style={[styles.roleBadge, { backgroundColor: theme.primaryLight }]}>
-          <Text style={[styles.roleText, { color: theme.primary }]}>{item.role.toUpperCase()}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
 
   if (!group) {
     return (
@@ -243,120 +235,38 @@ export default function GroupDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
-      <View style={[styles.tabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <TouchableOpacity
-          style={styles.tab}
-          onPress={() => setSelectedTab('messages')}
-        >
-          <Ionicons
-            name="chatbubbles"
-            size={20}
-            color={selectedTab === 'messages' ? theme.primary : theme.textSecondary}
-          />
-          <Text style={[
-            styles.tabText,
-            { color: selectedTab === 'messages' ? theme.primary : theme.textSecondary },
-            selectedTab === 'messages' && { fontWeight: '600' },
-          ]}>
-            Messages
-          </Text>
-          {selectedTab === 'messages' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.tab}
-          onPress={() => setSelectedTab('members')}
-        >
-          <Ionicons
-            name="people"
-            size={20}
-            color={selectedTab === 'members' ? theme.primary : theme.textSecondary}
-          />
-          <Text style={[
-            styles.tabText,
-            { color: selectedTab === 'members' ? theme.primary : theme.textSecondary },
-            selectedTab === 'members' && { fontWeight: '600' },
-          ]}>
-            Members ({members.length})
-          </Text>
-          {selectedTab === 'members' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
-        </TouchableOpacity>
-      </View>
-
       {/* Content */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
-          </View>
-        ) : (
-          <>
-            {selectedTab === 'messages' ? (
-              <>
-                <FlatList
-                  data={messages}
-                  renderItem={renderMessage}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.messagesList}
-                  showsVerticalScrollIndicator={false}
-                  inverted={false}
-                />
-                
-                {/* Message Input */}
-                <View style={[styles.inputContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
-                  <TextInput
-                    style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundSecondary }]}
-                    placeholder="Type a message..."
-                    placeholderTextColor={theme.textTertiary}
-                    value={messageText}
-                    onChangeText={setMessageText}
-                    multiline
-                    maxLength={500}
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.sendButton,
-                      { backgroundColor: messageText.trim() ? theme.primary : theme.backgroundTertiary },
-                    ]}
-                    onPress={handleSendMessage}
-                    disabled={!messageText.trim()}
-                  >
-                    <Ionicons
-                      name="send"
-                      size={20}
-                      color={messageText.trim() ? '#FFFFFF' : theme.textTertiary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <FlatList
-                data={members}
-                renderItem={renderMember}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.membersList}
-                showsVerticalScrollIndicator={false}
-                ListFooterComponent={
-                  group.isMember && (
-                    <TouchableOpacity
-                      style={[styles.leaveGroupButton, { backgroundColor: theme.card, borderColor: theme.error }]}
-                      onPress={handleLeaveGroup}
-                    >
-                      <Ionicons name="exit-outline" size={20} color={theme.error} />
-                      <Text style={[styles.leaveGroupText, { color: theme.error }]}>Leave Group</Text>
-                    </TouchableOpacity>
-                  )
-                }
-              />
-            )}
-          </>
-        )}
-      </KeyboardAvoidingView>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={members}
+          renderItem={({ item, index }) => renderMember({ item, index })}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.membersList}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={[styles.membersHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+              <Text style={[styles.membersHeaderText, { color: theme.textSecondary }]}>
+                Ranked by Account Value
+              </Text>
+            </View>
+          }
+          ListFooterComponent={
+            group.isMember && (
+              <TouchableOpacity
+                style={[styles.leaveGroupButton, { backgroundColor: theme.card, borderColor: theme.error }]}
+                onPress={handleLeaveGroup}
+              >
+                <Ionicons name="exit-outline" size={20} color={theme.error} />
+                <Text style={[styles.leaveGroupText, { color: theme.error }]}>Leave Group</Text>
+              </TouchableOpacity>
+            )
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -398,125 +308,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 6,
-    position: 'relative',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-  },
-  content: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  messagesList: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+  membersList: {
+    paddingVertical: 0,
   },
-  messageItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    alignItems: 'flex-start',
-  },
-  messageItemOwn: {
-    justifyContent: 'flex-end',
-  },
-  messageAvatar: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
-  },
-  messageBubble: {
-    maxWidth: '75%',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-  },
-  messageSender: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: '#111827',
-    marginBottom: 4,
-  },
-  messageTextOwn: {
-    color: '#FFFFFF',
-  },
-  messageTime: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  messageTimeOwn: {
-    color: '#DBEAFE',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+  membersHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
+    borderBottomWidth: 1,
+    marginBottom: 8,
   },
-  input: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#111827',
-    maxHeight: 100,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  membersList: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+  membersHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    marginBottom: 0,
+  },
+  memberRank: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  rankNumber: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   memberLeft: {
     flexDirection: 'row',
@@ -528,29 +357,49 @@ const styles = StyleSheet.create({
     height: 40,
     marginRight: 12,
   },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   memberInfo: {
     flex: 1,
+  },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   memberName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   memberUsername: {
     fontSize: 13,
-    color: '#6B7280',
+  },
+  memberRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  accountValue: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   roleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   roleText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    color: '#3B82F6',
     letterSpacing: 0.5,
   },
   leaveGroupButton: {

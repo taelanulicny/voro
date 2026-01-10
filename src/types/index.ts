@@ -162,6 +162,7 @@ export interface GroupMember {
   avatarUrl?: string;
   role: 'owner' | 'admin' | 'member';
   joinedAt: string;
+  accountValue?: number; // Portfolio total value for ranking
 }
 
 export interface Activity {
