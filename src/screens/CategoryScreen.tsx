@@ -20,6 +20,7 @@ import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { getEntitiesByCategory, getEntityById } from '../utils/mockEntities';
 import PostCard from '../components/PostCard';
+import { BASE_PRICE } from '../utils/sentimentTrading';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type CategoryRouteProp = RouteProp<RootStackParamList, 'Category'>;
@@ -144,7 +145,7 @@ export default function CategoryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CategoryRouteProp>();
   const { categoryId } = route.params;
-  const { getEntityPrice } = useTrading();
+  const { getEntityPrice, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'entities' | 'about' | 'feed' | 'news'>('entities');
@@ -797,16 +798,19 @@ export default function CategoryScreen() {
     return mockRanks;
   }, [entityCategory, categoryId, getEntityPrice]);
   
+  // Get all entity prices to track changes for reactivity
+  const allEntityPrices = getAllEntityPrices();
+  
   const entities = useMemo(() => {
     let filteredEntities = getEntitiesByCategory(entityCategory);
     
     // Categories are now stored directly (no filtering needed)
     
     const mappedEntities = filteredEntities.map((entity) => {
-      // All entities start at price 100 with 0% change
-      const currentPrice = getEntityPrice(entity.id);
-      const change24h = 0; // Reset to 0 since all start at 100
-      const changePercent24h = 0; // Reset to 0% since all start at 100
+      // Calculate price change from BASE_PRICE (100)
+      const currentPrice = allEntityPrices[entity.id] || getEntityPrice(entity.id) || BASE_PRICE;
+      const change24h = currentPrice - BASE_PRICE;
+      const changePercent24h = (change24h / BASE_PRICE) * 100;
       
       return {
         id: entity.id,
@@ -835,7 +839,7 @@ export default function CategoryScreen() {
         positionChange,
       };
     });
-  }, [entityCategory, categoryId, getEntityPrice, previousDayRanks]);
+  }, [entityCategory, categoryId, allEntityPrices, getEntityPrice, previousDayRanks]);
 
   const renderEmptyState = () => {
     return (
@@ -1123,10 +1127,16 @@ export default function CategoryScreen() {
           <Text style={[styles.entityPrice, { color: theme.text }]}>
             {formatCurrency(item.currentPrice)}
           </Text>
-          <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
-            {item.changePercent24h === 0 ? '' : item.change24h >= 0 ? '+' : ''}
-            {item.changePercent24h.toFixed(2)}%
-          </Text>
+          <View style={styles.entityChangeContainer}>
+            <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
+              {item.change24h === 0 ? '' : item.change24h >= 0 ? '+' : ''}
+              {formatCurrency(Math.abs(item.change24h))}
+            </Text>
+            <Text style={[styles.entityChangePercent, { color: getChangeColor(item.change24h) }]}>
+              {' '}({item.changePercent24h === 0 ? '' : item.changePercent24h >= 0 ? '+' : ''}
+              {item.changePercent24h.toFixed(2)}%)
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -1431,8 +1441,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 2,
   },
+  entityChangeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
   entityChange: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  entityChangePercent: {
+    fontSize: 12,
     fontWeight: '600',
   },
   emptyState: {

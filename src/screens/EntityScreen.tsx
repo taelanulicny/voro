@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Path, G, Line, Text as SvgText, Rect, Ellipse } from 'react-native-svg';
 import { RootStackParamList, PriceDataPoint, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
-import { calculateSentimentRatio, EPSILON } from '../utils/sentimentTrading';
+import { calculateSentimentRatio, EPSILON, BASE_PRICE } from '../utils/sentimentTrading';
 import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
@@ -278,7 +278,12 @@ export default function EntityScreen() {
   const entity = getEntityById(entityId);
   
   // Get live price from global price system - all entities start at 100
-  const currentPrice = getEntityPrice(entityId) || 100;
+  const currentPrice = getEntityPrice(entityId) || BASE_PRICE;
+  
+  // Calculate price change from BASE_PRICE (100)
+  const priceChange = currentPrice - BASE_PRICE;
+  const priceChangePercent = (priceChange / BASE_PRICE) * 100;
+  const isPositive = priceChange >= 0;
   
   // categoryId is already in the correct format (no mapping needed)
   const displayCategoryId = categoryId
@@ -485,12 +490,7 @@ export default function EntityScreen() {
         return [];
   }, []);
 
-  // All entities start at 100 with 0% change
-  const basePrice = 100; // All entities start at 100
-  const priceChange = 0; // No change - starting at 100
-  const priceChangePercent = 0; // 0% change
-  
-  const isPositive = priceChange >= 0;
+  // Price change is calculated above using currentPrice and BASE_PRICE
 
   const formatVolume = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
@@ -503,7 +503,7 @@ export default function EntityScreen() {
     try {
       const entityName = entityData?.entity?.name || 'Entity';
       const priceText = formatCurrency(currentPrice);
-      const changeText = '0.00%'; // Always 0% since all start at 100
+      const changeText = `${priceChangePercent >= 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%`;
       
       // Format category name
       const categoryName = categoryId
