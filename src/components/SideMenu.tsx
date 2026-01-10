@@ -9,6 +9,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { useSideMenu } from '../context/SideMenuContext';
+import { useSocial } from '../context/SocialContext';
 
 interface SideMenuProps {
   onClose?: () => void;
@@ -26,6 +27,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const { isVisible: visible, setIsVisible } = useSideMenu();
+  const { myGroups } = useSocial();
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -137,6 +139,82 @@ export default function SideMenu({ onClose }: SideMenuProps) {
               </View>
               <Text style={[styles.menuItemText, { color: theme.text }]}>Watchlist</Text>
             </TouchableOpacity>
+
+            {/* My Groups Section */}
+            <View style={[styles.groupsSection, { borderTopColor: theme.border }]}>
+              <Text style={[styles.groupsSectionTitle, { color: theme.text }]}>My Groups</Text>
+              
+              {myGroups.length === 0 ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.groupItem}
+                    onPress={() => {
+                      handleClose();
+                      navigation.navigate('Main', { screen: 'Groups' });
+                    }}
+                  >
+                    <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
+                      <Ionicons name="people-outline" size={16} color={theme.primary} />
+                    </View>
+                    <Text style={[styles.groupItemText, { color: theme.text }]}>Join a group</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.groupItem}
+                    onPress={() => {
+                      handleClose();
+                      navigation.navigate('Main', { screen: 'Groups' });
+                    }}
+                  >
+                    <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
+                      <Ionicons name="add-circle-outline" size={16} color={theme.primary} />
+                    </View>
+                    <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  {myGroups.map((group) => (
+                    <TouchableOpacity
+                      key={group.id}
+                      style={styles.groupItem}
+                      onPress={() => {
+                        handleClose();
+                        navigation.navigate('GroupDetail', { groupId: group.id });
+                      }}
+                    >
+                      <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
+                        <Ionicons name="people" size={16} color={theme.primary} />
+                      </View>
+                      <Text style={[styles.groupItemText, { color: theme.text }]}>{group.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity
+                    style={styles.groupItem}
+                    onPress={() => {
+                      handleClose();
+                      navigation.navigate('Main', { screen: 'Groups' });
+                    }}
+                  >
+                    <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
+                      <Ionicons name="people-outline" size={16} color={theme.primary} />
+                    </View>
+                    <Text style={[styles.groupItemText, { color: theme.text }]}>Join another group</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.groupItem}
+                    onPress={() => {
+                      handleClose();
+                      navigation.navigate('Main', { screen: 'Groups' });
+                    }}
+                  >
+                    <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
+                      <Ionicons name="add-circle-outline" size={16} color={theme.primary} />
+                    </View>
+                    <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </View>
 
           {/* Settings Button at Bottom */}
@@ -238,6 +316,34 @@ const styles = StyleSheet.create({
   },
   settingsButtonText: {
     fontSize: 18,
+    fontWeight: '500',
+  },
+  groupsSection: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+  },
+  groupsSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  groupItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  groupItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupItemText: {
+    fontSize: 16,
     fontWeight: '500',
   },
 });

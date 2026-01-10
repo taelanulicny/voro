@@ -14,6 +14,9 @@ interface SocialContextType {
   // Groups state
   groups: Group[];
   isLoadingGroups: boolean;
+  myGroups: Group[];
+  isLoadingMyGroups: boolean;
+  refreshUserGroups: () => Promise<void>;
 
   // Follow state
   followedUsers: Set<string>;
@@ -84,6 +87,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isLoadingMyGroups, setIsLoadingMyGroups] = useState(false);
+  
+  // Derive myGroups from groups where isMember is true
+  const myGroups = groups.filter(group => group.isMember === true);
+  
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
@@ -586,6 +594,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     setIsLoadingGroups(false);
   }, []);
 
+  const refreshUserGroups = useCallback(async () => {
+    setIsLoadingMyGroups(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // myGroups is derived from groups, so no separate fetch needed
+    setIsLoadingMyGroups(false);
+  }, []);
+
   const createGroup = useCallback(async (params: {
     name: string;
     description: string;
@@ -638,6 +653,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     postComments,
     groups,
     isLoadingGroups,
+    myGroups,
+    isLoadingMyGroups,
     followedUsers,
     followers,
     following,
@@ -652,6 +669,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     toggleFollowUser,
     isFollowingUser,
     refreshGroups,
+    refreshUserGroups,
     createGroup,
     joinGroup,
     leaveGroup,

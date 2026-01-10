@@ -14,7 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { RootStackParamList, MainTabParamList } from '../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,12 +29,15 @@ import { Post, NewsArticle } from '../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RootStackParamList>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 export default function CommunityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser } = useSocial();
+  const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser, myGroups } = useSocial();
   const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
   const { theme } = useTheme();
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -529,43 +534,85 @@ export default function CommunityScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.groupsContent}
         >
-          {/* Build Your Community Header */}
+          {/* Your Moro Community Header */}
           <View style={styles.groupsHeader}>
-            <View style={[styles.groupsTitleContainer, { backgroundColor: theme.card }]}>
-              <Text style={[styles.groupsTitle, { color: theme.text }]}>Build Your Community</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.referFriendButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={handleReferFriend}
-            >
-              <Ionicons name="share-outline" size={20} color={theme.primary} />
-              <Text style={[styles.referFriendButtonText, { color: theme.text }]}>Refer a Friend</Text>
-            </TouchableOpacity>
+            <Text style={[styles.groupsTitle, { color: theme.text }]}>Your Moro Community</Text>
           </View>
 
-          {/* Getting Started Section */}
-          <View style={styles.gettingStartedSection}>
-            <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>GETTING STARTED</Text>
+          {/* My Groups Section */}
+          <View style={styles.myGroupsSection}>
+            <Text style={[styles.myGroupsTitle, { color: theme.text }]}>My Groups</Text>
             
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() => {
-                // TODO: Implement enter invite code functionality
-              }}
-            >
-              <Ionicons name="search-outline" size={20} color={theme.text} />
-              <Text style={[styles.actionButtonText, { color: theme.text }]}>Enter Invite Code</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() => {
-                // TODO: Implement create team functionality
-              }}
-            >
-              <Ionicons name="add-circle-outline" size={20} color={theme.text} />
-              <Text style={[styles.actionButtonText, { color: theme.text }]}>Create Team</Text>
-            </TouchableOpacity>
+            {myGroups.length === 0 ? (
+              <>
+                <TouchableOpacity
+                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  onPress={() => {
+                    navigation.navigate('Main', { screen: 'Groups' });
+                  }}
+                >
+                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name="people-outline" size={20} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.groupActionText, { color: theme.text }]}>Join a group</Text>
+                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  onPress={() => {
+                    navigation.navigate('Main', { screen: 'Groups' });
+                  }}
+                >
+                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.groupActionText, { color: theme.text }]}>Create a group</Text>
+                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {myGroups.map((group) => (
+                  <TouchableOpacity
+                    key={group.id}
+                    style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                    onPress={() => {
+                      navigation.navigate('GroupDetail', { groupId: group.id });
+                    }}
+                  >
+                    <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
+                      <Ionicons name="people" size={20} color={theme.primary} />
+                    </View>
+                    <Text style={[styles.groupActionText, { color: theme.text }]}>{group.name}</Text>
+                    <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  onPress={() => {
+                    navigation.navigate('Main', { screen: 'Groups' });
+                  }}
+                >
+                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name="people-outline" size={20} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.groupActionText, { color: theme.text }]}>Join another group</Text>
+                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  onPress={() => {
+                    navigation.navigate('Main', { screen: 'Groups' });
+                  }}
+                >
+                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.groupActionText, { color: theme.text }]}>Create a group</Text>
+                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           {/* Recommended Teams Section */}
@@ -614,6 +661,31 @@ export default function CommunityScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+
+          {/* Getting Started Section */}
+          <View style={styles.gettingStartedSection}>
+            <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>GETTING STARTED</Text>
+            
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                // TODO: Implement enter invite code functionality
+              }}
+            >
+              <Ionicons name="search-outline" size={20} color={theme.text} />
+              <Text style={[styles.actionButtonText, { color: theme.text }]}>Enter Invite Code</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                // TODO: Implement create team functionality
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={theme.text} />
+              <Text style={[styles.actionButtonText, { color: theme.text }]}>Create Team</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -816,33 +888,14 @@ const styles = StyleSheet.create({
   },
   groupsHeader: {
     marginTop: 8,
-    marginBottom: 32,
-  },
-  groupsTitleContainer: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
     marginBottom: 16,
-    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   groupsTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
+    paddingHorizontal: 0,
     textAlign: 'center',
-  },
-  referFriendButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 10,
-  },
-  referFriendButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   gettingStartedSection: {
     marginTop: 8,
@@ -921,5 +974,36 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     paddingHorizontal: 12,
     paddingBottom: 12,
+  },
+  myGroupsSection: {
+    marginTop: 8,
+    paddingBottom: 16,
+  },
+  myGroupsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  groupActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 12,
+  },
+  groupActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupActionText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
