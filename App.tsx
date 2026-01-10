@@ -21,6 +21,7 @@ import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import EntityScreen from './src/screens/EntityScreen';
 import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import RecommendedGroupsScreen from './src/screens/RecommendedGroupsScreen';
+import CreateGroupScreen from './src/screens/CreateGroupScreen';
 import FollowersListScreen from './src/screens/FollowersListScreen';
 import NewsDetailScreen from './src/screens/NewsDetailScreen';
 import NewsFeedScreen from './src/screens/NewsFeedScreen';
@@ -87,6 +88,14 @@ function RootNavigator() {
           <Stack.Screen 
             name="RecommendedGroups" 
             component={RecommendedGroupsScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="CreateGroup" 
+            component={CreateGroupScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',

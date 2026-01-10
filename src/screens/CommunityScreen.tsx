@@ -560,7 +560,7 @@ export default function CommunityScreen() {
                 <TouchableOpacity
                   style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
                   onPress={() => {
-                    navigation.navigate('Main', { screen: 'Groups' });
+                    navigation.navigate('CreateGroup');
                   }}
                 >
                   <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
@@ -602,7 +602,7 @@ export default function CommunityScreen() {
                 <TouchableOpacity
                   style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
                   onPress={() => {
-                    navigation.navigate('Main', { screen: 'Groups' });
+                    navigation.navigate('CreateGroup');
                   }}
                 >
                   <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>

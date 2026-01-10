@@ -9,6 +9,7 @@ export type RootStackParamList = {
   Trade: { entityId: number; ticker: string; name: string };
   GroupDetail: { groupId: string };
   RecommendedGroups: undefined;
+  CreateGroup: undefined;
   FollowersList: { userId: string; type: 'followers' | 'following'; username: string };
   UserProfile: { userId: string };
   NewsDetail: { articleId: string };
@@ -139,6 +140,7 @@ export interface Group {
   coverImage?: string;
   createdAt: string;
   location?: string; // Location field: 'World', 'United States', or state name (e.g., 'California', 'Texas')
+  password?: string; // Password for private groups
 }
 
 export interface GroupMessage {

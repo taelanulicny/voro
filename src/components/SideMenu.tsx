@@ -162,7 +162,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();
-                      navigation.navigate('Main', { screen: 'Groups' });
+                      navigation.navigate('CreateGroup');
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
@@ -204,7 +204,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();
-                      navigation.navigate('Main', { screen: 'Groups' });
+                      navigation.navigate('CreateGroup');
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
