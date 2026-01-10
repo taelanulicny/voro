@@ -15,13 +15,14 @@ import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
+import { BASE_PRICE } from '../utils/sentimentTrading';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function DiscoverNewAdditionsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
-  const { getEntityPrice } = useTrading();
+  const { getEntityPrice, getAllEntityPrices } = useTrading();
 
   // Categories are now stored directly (no mapping needed)
 
@@ -71,18 +72,25 @@ export default function DiscoverNewAdditionsScreen() {
     ].filter(Boolean); // Remove any undefined values
     
     // Assign dates from this week to each entity (newest dates first)
-    const itemsWithDates = entities.map((entity, index) => ({
-      id: entity.id,
-      name: entity.name,
-      ticker: entity.ticker,
-      category: entity.category,
-      displayCategory: entity.category,
-      currentPrice: getEntityPrice(entity.id),
-      change24h: getEntityPrice(entity.id) - entity.basePrice,
-      changePercent24h: ((getEntityPrice(entity.id) - entity.basePrice) / entity.basePrice) * 100,
-      addedDate: weekDates[index], // Assign dates in order (newest first)
-      isCategory: false,
-    }));
+    const itemsWithDates = entities.map((entity, index) => {
+      const currentPrice = getEntityPrice(entity.id);
+      // Calculate change from BASE_PRICE (100) - all entities start at 100
+      const change24h = currentPrice - BASE_PRICE;
+      const changePercent24h = (change24h / BASE_PRICE) * 100;
+
+      return {
+        id: entity.id,
+        name: entity.name,
+        ticker: entity.ticker,
+        category: entity.category,
+        displayCategory: entity.category,
+        currentPrice,
+        change24h,
+        changePercent24h,
+        addedDate: weekDates[index], // Assign dates in order (newest first)
+        isCategory: false,
+      };
+    });
     
     // Add Startups category as 5th item
     itemsWithDates.push({
@@ -105,7 +113,7 @@ export default function DiscoverNewAdditionsScreen() {
       const dateB = new Date(b.addedDate);
       return dateB.getTime() - dateA.getTime();
     });
-  }, []); // Empty dependency array - dates and entities are static
+  }, [getEntityPrice, getAllEntityPrices]); // Update when prices change
 
   const handleEntityPress = (entityId: number, displayCategory: string) => {
     navigation.navigate('Entity', {

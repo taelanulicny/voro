@@ -501,6 +501,9 @@ export default function HomeScreen() {
     return dates;
   };
 
+  // State to force updates every minute (for top movers, chart tickers, and discover new additions)
+  const [updateKey, setUpdateKey] = useState(0);
+
   // Static entity selection for "Discover New Additions" (same as DiscoverNewAdditionsScreen)
   // Same entities are always shown, sorted by date (newest first)
   const discoverNewAdditions = useMemo(() => {
@@ -531,18 +534,25 @@ export default function HomeScreen() {
     ].filter(Boolean); // Remove any undefined values
     
     // Assign dates from this week to each entity (newest dates first)
-    const itemsWithDates = entities.map((entity, index) => ({
-      id: entity.id,
-      name: entity.name,
-      ticker: entity.ticker,
-      category: entity.category,
-      displayCategory: entity.category,
-      currentPrice: getEntityPrice(entity.id),
-      change24h: getEntityPrice(entity.id) - entity.basePrice,
-      changePercent24h: ((getEntityPrice(entity.id) - entity.basePrice) / entity.basePrice) * 100,
-      addedDate: weekDates[index], // Assign dates in order (newest first)
-      isCategory: false,
-    }));
+    const itemsWithDates = entities.map((entity, index) => {
+      const currentPrice = getEntityPrice(entity.id);
+      // Calculate change from BASE_PRICE (100) - all entities start at 100
+      const change24h = currentPrice - BASE_PRICE;
+      const changePercent24h = (change24h / BASE_PRICE) * 100;
+
+      return {
+        id: entity.id,
+        name: entity.name,
+        ticker: entity.ticker,
+        category: entity.category,
+        displayCategory: entity.category,
+        currentPrice,
+        change24h,
+        changePercent24h,
+        addedDate: weekDates[index], // Assign dates in order (newest first)
+        isCategory: false,
+      };
+    });
     
     // Add Startups category as 5th item
     itemsWithDates.push({
@@ -565,10 +575,7 @@ export default function HomeScreen() {
       const dateB = new Date(b.addedDate);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [getEntityPrice]); // Only recalculate if getEntityPrice changes
-
-  // State to force updates every minute (for top movers and chart tickers)
-  const [updateKey, setUpdateKey] = useState(0);
+  }, [getEntityPrice, updateKey]); // Include updateKey to update every minute like top movers
 
   // Dynamic Top Movers (top 5 by absolute percentage change from BASE_PRICE)
   const topGainers = useMemo(() => {
