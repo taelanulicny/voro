@@ -543,34 +543,8 @@ export default function CommunityScreen() {
           <View style={styles.myGroupsSection}>
             <Text style={[styles.myGroupsTitle, { color: theme.text }]}>My Groups</Text>
             
-            {myGroups.length === 0 ? (
-              <>
-                <TouchableOpacity
-                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-                  onPress={() => {
-                    navigation.navigate('Main', { screen: 'Groups' });
-                  }}
-                >
-                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons name="people-outline" size={20} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.groupActionText, { color: theme.text }]}>Join a group</Text>
-                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-                  onPress={() => {
-                    navigation.navigate('CreateGroup');
-                  }}
-                >
-                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.groupActionText, { color: theme.text }]}>Create a group</Text>
-                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                </TouchableOpacity>
-              </>
-            ) : (
+            {/* Groups List */}
+            {myGroups.length > 0 && (
               <>
                 {myGroups.map((group) => (
                   <TouchableOpacity
@@ -587,32 +561,45 @@ export default function CommunityScreen() {
                     <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
                   </TouchableOpacity>
                 ))}
-                <TouchableOpacity
-                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-                  onPress={() => {
-                    navigation.navigate('Main', { screen: 'Groups' });
-                  }}
-                >
-                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons name="people-outline" size={20} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.groupActionText, { color: theme.text }]}>Join another group</Text>
-                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-                  onPress={() => {
-                    navigation.navigate('CreateGroup');
-                  }}
-                >
-                  <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.groupActionText, { color: theme.text }]}>Create a group</Text>
-                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                </TouchableOpacity>
               </>
             )}
+          </View>
+
+          {/* Divider Line */}
+          {myGroups.length > 0 && (
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          )}
+
+          {/* Action Buttons Section */}
+          <View style={styles.actionButtonsSection}>
+            <Text style={[styles.actionButtonsTitle, { color: theme.text }]}>Actions</Text>
+            
+            <TouchableOpacity
+              style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                navigation.navigate('Main', { screen: 'Groups' });
+              }}
+            >
+              <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
+                <Ionicons name="people-outline" size={20} color={theme.primary} />
+              </View>
+              <Text style={[styles.groupActionText, { color: theme.text }]}>
+                {myGroups.length === 0 ? 'Join a group' : 'Join another group'}
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={() => {
+                navigation.navigate('CreateGroup');
+              }}
+            >
+              <View style={[styles.groupActionIcon, { backgroundColor: theme.primaryLight }]}>
+                <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
+              </View>
+              <Text style={[styles.groupActionText, { color: theme.text }]}>Create a group</Text>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
           </View>
 
           {/* Recommended Groups Section */}
@@ -956,6 +943,19 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   myGroupsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 16,
+  },
+  actionButtonsSection: {
+    marginTop: 8,
+    paddingBottom: 16,
+  },
+  actionButtonsTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
