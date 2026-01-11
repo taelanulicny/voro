@@ -13,42 +13,37 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { useTrading } from '../context/TradingContext';
 import Treemap from '../components/Treemap';
 import { Ionicons } from '@expo/vector-icons';
+import { MOCK_ENTITIES } from '../utils/mockEntities';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TREEMAP_HEIGHT = SCREEN_HEIGHT * 0.67; // 2/3 of screen height
 
-// Hardcoded trade volume data (will be replaced with real data later)
-// Colors: green = volume up, red = volume down, grey = no change
-// previousPercentage is yesterday's percentage to calculate the change
-// Color is calculated dynamically based on percentage vs previousPercentage
+// Color calculation helper
 const getCategoryColor = (percentage: number, previousPercentage: number): 'green' | 'red' | 'grey' => {
   if (percentage > previousPercentage) return 'green';
   if (percentage < previousPercentage) return 'red';
   return 'grey';
 };
 
-const categoryTradeVolumes = [
-  { name: 'Influencers', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Influencers' },
-  { name: 'Political Figures', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Political Figures' },
-  { name: 'Startups', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Startups' },
-  { name: 'NFL', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NFL' },
-  { name: 'NBA', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NBA' },
-  { name: 'Prediction Markets', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Prediction Markets' },
-  { name: 'College Basketball', percentage: 0.0, previousPercentage: 0.0, categoryId: 'College Basketball' },
-  { name: 'Hip Hop', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Hip Hop' },
-  { name: 'Country Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Country Music' },
-  { name: 'Pop Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Pop Music' },
-].map(item => ({
-  ...item,
-  color: getCategoryColor(item.percentage, item.previousPercentage) as 'green' | 'red' | 'grey',
-}));
+// Get all unique categories from entities
+const getAllCategories = (): string[] => {
+  const allCategories = new Set<string>();
+  MOCK_ENTITIES.forEach((entity) => {
+    if (entity.category) {
+      allCategories.add(entity.category);
+    }
+  });
+  return Array.from(allCategories).sort();
+};
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AllCategoriesScreen() {
   const { theme } = useTheme();
+  const { getCategoryVolumes, transactions } = useTrading();
   const navigation = useNavigation<NavigationProp>();
   const [viewType, setViewType] = useState<'treemap' | 'list'>('treemap');
   const [sortFilter, setSortFilter] = useState<'alphabetical' | 'volume-high-low' | 'volume-low-high' | 'trending'>('volume-high-low');
@@ -118,6 +113,33 @@ export default function AllCategoriesScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  // Get real category volumes from transactions and calculate category data
+  const categoryTradeVolumes = useMemo(() => {
+    const categoryVolumes = getCategoryVolumes();
+    const allCategories = getAllCategories();
+    // Store previous day's percentages (for now, use 0 as we don't have historical data)
+    // TODO: Store previous day's percentages in state/localStorage when backend supports it
+    const previousDayPercentages: Record<string, number> = {};
+    
+    return allCategories.map(category => {
+      const volumeData = categoryVolumes[category] || { volume: 0, percentage: 0 };
+      const previousPercentage = previousDayPercentages[category] || 0;
+      
+      return {
+        name: category,
+        percentage: volumeData.percentage,
+        previousPercentage,
+        categoryId: category,
+        color: getCategoryColor(volumeData.percentage, previousPercentage) as 'green' | 'red' | 'grey',
+      };
+    });
+  }, [getCategoryVolumes, transactions]);
+
+  // Filter out categories with 0% volume for treemap (but keep them for list view)
+  const categoriesWithVolume = useMemo(() => {
+    return categoryTradeVolumes.filter(cat => cat.percentage > 0);
+  }, [categoryTradeVolumes]);
 
   // Sort categories based on selected filter
   const sortedCategories = useMemo(() => {
@@ -324,7 +346,7 @@ export default function AllCategoriesScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.treemapWrapper}>
           <Treemap
-            data={categoryTradeVolumes}
+            data={categoriesWithVolume}
             onItemPress={handleCategoryPress}
             containerHeight={TREEMAP_HEIGHT}
             padding={8}

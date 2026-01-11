@@ -42,6 +42,7 @@ interface TradingContextType {
   getEntityVolume: (entityId: number) => number;
   getEntityHigh: (entityId: number) => number;
   getEntityLow: (entityId: number) => number;
+  getCategoryVolumes: () => Record<string, { volume: number; percentage: number }>;
   portfolioHistory: number[];
   fetchPortfolio: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
@@ -795,6 +796,31 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     return calculatePrice(pools.positiveTokens, pools.negativeTokens);
   };
 
+  const getCategoryVolumes = (): Record<string, { volume: number; percentage: number }> => {
+    // Calculate total volume per category from all transactions
+    const categoryVolumes: Record<string, number> = {};
+    let totalVolume = 0;
+
+    // Sum up tokensCommitted for each category from all transactions
+    transactions.forEach(transaction => {
+      if (transaction.category) {
+        const volume = transaction.tokensCommitted || 0;
+        categoryVolumes[transaction.category] = (categoryVolumes[transaction.category] || 0) + volume;
+        totalVolume += volume;
+      }
+    });
+
+    // Calculate percentages
+    const result: Record<string, { volume: number; percentage: number }> = {};
+    Object.keys(categoryVolumes).forEach(category => {
+      const volume = categoryVolumes[category];
+      const percentage = totalVolume > 0 ? (volume / totalVolume) * 100 : 0;
+      result[category] = { volume, percentage };
+    });
+
+    return result;
+  };
+
   const portfolio: Portfolio = {
     cashBalance,
     totalValue: holdings.reduce((sum, h) => sum + h.totalValue, 0) + cashBalance,
@@ -821,6 +847,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         getEntityVolume,
         getEntityHigh,
         getEntityLow,
+        getCategoryVolumes,
         portfolioHistory,
         fetchPortfolio,
         fetchTransactions,
