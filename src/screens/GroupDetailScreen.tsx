@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -111,6 +112,22 @@ export default function GroupDetailScreen() {
   const currentUserMember = members.find(m => m.userId === user?.id);
   const isOwner = currentUserMember?.role === 'owner';
 
+  const handleShare = async () => {
+    try {
+      // Generate invite link for the group
+      // In production, this would be a proper invite link from the backend
+      const inviteLink = `https://moro.app/groups/${groupId}/invite`;
+      const shareMessage = `Join ${group.name} on Moro! 🚀\n\n${group.description || 'Join this group to connect with others.'}\n\n${inviteLink}`;
+      
+      await Share.share({
+        message: shareMessage,
+        title: `Invite to ${group.name}`,
+      });
+    } catch (error) {
+      console.error('Error sharing group:', error);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(2)}M`;
@@ -209,8 +226,8 @@ export default function GroupDetailScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={theme.text} />
+        <TouchableOpacity style={styles.menuButton} onPress={handleShare}>
+          <Ionicons name="share-outline" size={24} color={theme.text} />
         </TouchableOpacity>
       </View>
 
