@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -94,9 +95,13 @@ export default function RecommendedGroupsScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.groupHeader}>
-        <View style={[styles.groupIcon, { backgroundColor: theme.primaryLight }]}>
-          <Ionicons name="people" size={32} color={theme.primary} />
-        </View>
+        {item.coverImage ? (
+          <Image source={{ uri: item.coverImage }} style={styles.groupIcon} />
+        ) : (
+          <View style={[styles.groupIcon, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="people" size={32} color={theme.primary} />
+          </View>
+        )}
         <View style={styles.groupInfo}>
           <View style={styles.groupTitleRow}>
             <Text style={[styles.groupName, { color: theme.text }]}>{item.name}</Text>
@@ -466,6 +471,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    overflow: 'hidden',
   },
   groupInfo: {
     flex: 1,

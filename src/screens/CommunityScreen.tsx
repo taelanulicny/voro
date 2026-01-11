@@ -10,6 +10,7 @@ import {
   ScrollView,
   Dimensions,
   Share,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -37,7 +38,7 @@ type NavigationProp = CompositeNavigationProp<
 export default function CommunityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser, myGroups } = useSocial();
+  const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser, myGroups, groups } = useSocial();
   const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
   const { theme } = useTheme();
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -527,6 +528,23 @@ export default function CommunityScreen() {
     );
   };
 
+  // Get recommended groups (groups user is not a member of)
+  const recommendedGroups = useMemo(() => {
+    return groups.filter(group => !group.isMember).slice(0, 5); // Limit to 5 for the slider
+  }, [groups]);
+
+  // Generate color based on category for visual consistency
+  const getCategoryColor = (category: string): string => {
+    const colorMap: Record<string, string> = {
+      'Technology': '#3B82F6', // blue
+      'Cryptocurrency': '#8B5CF6', // purple
+      'Trading': '#10B981', // green
+      'Investing': '#F59E0B', // amber
+      'Other': '#EF4444', // red
+    };
+    return colorMap[category] || '#6B7280'; // gray default
+  };
+
   const renderGroupsContent = () => {
     return (
       <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor: theme.backgroundSecondary }}>
@@ -622,31 +640,32 @@ export default function CommunityScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.teamsScrollContent}
             >
-              {[
-                { id: '1', name: 'UTAH', members: 6277, icon: 'flag-outline', color: '#1E40AF' },
-                { id: '2', name: 'Brown University', members: 4234, icon: 'school-outline', color: '#7C3AED' },
-                { id: '3', name: 'MEN', members: 203376, icon: 'people-outline', color: '#0EA5E9' },
-                { id: '4', name: 'FITNESS', members: 45231, icon: 'fitness-outline', color: '#10B981' },
-                { id: '5', name: 'TECH', members: 89123, icon: 'hardware-chip-outline', color: '#F59E0B' },
-              ].map((team) => (
-                <TouchableOpacity
-                  key={team.id}
-                  style={[styles.teamCard, { backgroundColor: theme.card }]}
-                  onPress={() => {
-                    // TODO: Navigate to team details
-                  }}
-                >
-                  <View style={[styles.teamCardImage, { backgroundColor: team.color + '40' }]}>
-                    <View style={[styles.teamCardIcon, { backgroundColor: team.color }]}>
-                      <Ionicons name={team.icon as any} size={24} color="#FFFFFF" />
-                    </View>
-                  </View>
-                  <Text style={[styles.teamCardName, { color: theme.text }]}>{team.name}</Text>
-                  <Text style={[styles.teamCardMembers, { color: theme.textSecondary }]}>
-                    {team.members.toLocaleString()} MEMBERS
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {recommendedGroups.map((group) => {
+                const categoryColor = getCategoryColor(group.category);
+                return (
+                  <TouchableOpacity
+                    key={group.id}
+                    style={[styles.teamCard, { backgroundColor: theme.card }]}
+                    onPress={() => {
+                      navigation.navigate('GroupDetail', { groupId: group.id });
+                    }}
+                  >
+                    {group.coverImage ? (
+                      <Image source={{ uri: group.coverImage }} style={styles.teamCardImage} />
+                    ) : (
+                      <View style={[styles.teamCardImage, { backgroundColor: categoryColor + '40' }]}>
+                        <View style={[styles.teamCardIcon, { backgroundColor: categoryColor }]}>
+                          <Ionicons name="people" size={24} color="#FFFFFF" />
+                        </View>
+                      </View>
+                    )}
+                    <Text style={[styles.teamCardName, { color: theme.text }]}>{group.name}</Text>
+                    <Text style={[styles.teamCardMembers, { color: theme.textSecondary }]}>
+                      {group.memberCount.toLocaleString()} MEMBERS
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
 
@@ -917,6 +936,8 @@ const styles = StyleSheet.create({
     height: 120,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   teamCardIcon: {
     width: 60,

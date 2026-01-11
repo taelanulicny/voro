@@ -49,7 +49,7 @@ interface SocialContextType {
 
   // Group actions
   refreshGroups: () => Promise<void>;
-  createGroup: (params: { name: string; description: string; category: string; isPrivate: boolean; location?: string; password?: string }) => Promise<{ success: boolean; group?: Group; error?: string }>;
+  createGroup: (params: { name: string; description: string; category: string; isPrivate: boolean; location?: string; password?: string; coverImage?: string }) => Promise<{ success: boolean; group?: Group; error?: string }>;
   joinGroup: (groupId: string) => Promise<{ success: boolean }>;
   leaveGroup: (groupId: string) => Promise<{ success: boolean }>;
   deleteGroup: (groupId: string) => Promise<{ success: boolean }>;
@@ -684,6 +684,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     isPrivate: boolean;
     location?: string;
     password?: string;
+    coverImage?: string;
   }) => {
     // TODO: Implement groups in backend
     const newGroup: Group = {
@@ -697,6 +698,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
       location: params.location,
       password: params.password,
+      coverImage: params.coverImage,
     };
     
     setGroups(prev => [newGroup, ...prev]);

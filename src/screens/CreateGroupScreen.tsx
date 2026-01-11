@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { RootStackParamList } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useTheme } from '../context/ThemeContext';
@@ -53,6 +55,7 @@ export default function CreateGroupScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [stateModalVisible, setStateModalVisible] = useState(false);
+  const [coverImageUri, setCoverImageUri] = useState<string | null>(null);
 
   // Calculate location string based on selections
   const location = useMemo(() => {
@@ -67,6 +70,67 @@ export default function CreateGroupScreen() {
     }
     return undefined;
   }, [selectedCountry, selectedState]);
+
+  useEffect(() => {
+    // Request camera roll permissions
+    (async () => {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          // Permission not granted, but don't show alert unless user tries to pick
+        }
+      }
+    })();
+  }, []);
+
+  const handlePickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setCoverImageUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'We need access to your camera to take a photo.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setCoverImageUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setCoverImageUri(null);
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -95,6 +159,7 @@ export default function CreateGroupScreen() {
         isPrivate,
         location,
         password: isPrivate ? password.trim() : undefined,
+        coverImage: coverImageUri || undefined,
       });
 
       if (result.success && result.group) {
@@ -293,6 +358,45 @@ export default function CreateGroupScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Group Profile Photo */}
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <Text style={[styles.label, { color: theme.text }]}>Group Profile Photo</Text>
+            <View style={styles.imageContainer}>
+              {coverImageUri ? (
+                <Image source={{ uri: coverImageUri }} style={styles.coverImage} />
+              ) : (
+                <View style={[styles.imagePlaceholder, { backgroundColor: theme.primaryLight }]}>
+                  <Ionicons name="people" size={40} color={theme.primary} />
+                </View>
+              )}
+            </View>
+            <View style={styles.imageButtons}>
+              <TouchableOpacity
+                style={[styles.imageButton, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
+                onPress={handlePickImage}
+              >
+                <Ionicons name="image-outline" size={20} color={theme.text} />
+                <Text style={[styles.imageButtonText, { color: theme.text }]}>Choose Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.imageButton, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
+                onPress={handleTakePhoto}
+              >
+                <Ionicons name="camera-outline" size={20} color={theme.text} />
+                <Text style={[styles.imageButtonText, { color: theme.text }]}>Take Photo</Text>
+              </TouchableOpacity>
+              {coverImageUri && (
+                <TouchableOpacity
+                  style={[styles.imageButton, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}
+                  onPress={handleRemoveImage}
+                >
+                  <Ionicons name="trash-outline" size={20} color={theme.error} />
+                  <Text style={[styles.imageButtonText, { color: theme.error }]}>Remove</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
           {/* Group Name */}
           <View style={[styles.section, { backgroundColor: theme.card }]}>
             <Text style={[styles.label, { color: theme.text }]}>Group Name</Text>
@@ -553,6 +657,40 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12,
     marginTop: 4,
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  coverImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+  },
+  imagePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  imageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  imageButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   createButton: {
     borderRadius: 12,
