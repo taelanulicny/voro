@@ -204,7 +204,7 @@ export default function SeasonalCompetitionScreen() {
   ];
 
   const renderHeader = () => {
-    return (
+  return (
       <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={[styles.segmentedControl, { backgroundColor: 'transparent' }]}>
           <TouchableOpacity
@@ -239,7 +239,7 @@ export default function SeasonalCompetitionScreen() {
               numberOfLines={1}
             >
               Seasons
-            </Text>
+          </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -249,72 +249,72 @@ export default function SeasonalCompetitionScreen() {
   const renderLeaderboardsContent = () => {
     return (
       <View style={{ width: SCREEN_WIDTH, flex: 1, backgroundColor: theme.backgroundSecondary }}>
-        {/* Timeframe Selector */}
-        <View style={[styles.timeframeContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-          <View style={styles.timeframeContent}>
-            {timeframes.map((tf) => (
-              <TouchableOpacity
-                key={tf.key}
+      {/* Timeframe Selector */}
+      <View style={[styles.timeframeContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={styles.timeframeContent}>
+          {timeframes.map((tf) => (
+            <TouchableOpacity
+              key={tf.key}
+              style={[
+                styles.timeframeTab,
+                {
+                  backgroundColor: selectedTimeframe === tf.key ? theme.primary : 'transparent',
+                  borderColor: selectedTimeframe === tf.key ? theme.primary : theme.border,
+                  width: (SCREEN_WIDTH - 32 - 24) / 4, // Screen width minus padding and gaps, divided by 4
+                },
+              ]}
+              onPress={() => setSelectedTimeframe(tf.key)}
+              activeOpacity={0.7}
+            >
+              <Text
                 style={[
-                  styles.timeframeTab,
+                  styles.timeframeTabText,
                   {
-                    backgroundColor: selectedTimeframe === tf.key ? theme.primary : 'transparent',
-                    borderColor: selectedTimeframe === tf.key ? theme.primary : theme.border,
-                    width: (SCREEN_WIDTH - 32 - 24) / 4, // Screen width minus padding and gaps, divided by 4
+                    color: selectedTimeframe === tf.key ? '#FFFFFF' : theme.textSecondary,
                   },
                 ]}
-                onPress={() => setSelectedTimeframe(tf.key)}
-                activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.timeframeTabText,
-                    {
-                      color: selectedTimeframe === tf.key ? '#FFFFFF' : theme.textSecondary,
-                    },
-                  ]}
-                >
-                  {tf.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                {tf.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
+      </View>
 
-        {/* Leaderboard List */}
-        {isLoading && !refreshing ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
-              Loading leaderboard...
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={leaderboard}
-            renderItem={renderLeaderboardItem}
-            keyExtractor={(item) => item.userId}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={theme.primary}
-              />
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="trophy-outline" size={64} color={theme.textSecondary} />
-                <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-                  No Rankings Yet
-                </Text>
-                <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
-                  Start trading to appear on the leaderboard!
-                </Text>
-              </View>
-            }
-          />
-        )}
+      {/* Leaderboard List */}
+      {isLoading && !refreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+            Loading leaderboard...
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={leaderboard}
+          renderItem={renderLeaderboardItem}
+          keyExtractor={(item) => item.userId}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.primary}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="trophy-outline" size={64} color={theme.textSecondary} />
+              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+                No Rankings Yet
+              </Text>
+              <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+                Start trading to appear on the leaderboard!
+              </Text>
+            </View>
+          }
+        />
+      )}
       </View>
     );
   };

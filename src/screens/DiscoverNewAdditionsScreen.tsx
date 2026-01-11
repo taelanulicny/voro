@@ -79,16 +79,16 @@ export default function DiscoverNewAdditionsScreen() {
       const changePercent24h = (change24h / BASE_PRICE) * 100;
 
       return {
-        id: entity.id,
-        name: entity.name,
-        ticker: entity.ticker,
-        category: entity.category,
-        displayCategory: entity.category,
+      id: entity.id,
+      name: entity.name,
+      ticker: entity.ticker,
+      category: entity.category,
+      displayCategory: entity.category,
         currentPrice,
         change24h,
         changePercent24h,
-        addedDate: weekDates[index], // Assign dates in order (newest first)
-        isCategory: false,
+      addedDate: weekDates[index], // Assign dates in order (newest first)
+      isCategory: false,
       };
     });
     

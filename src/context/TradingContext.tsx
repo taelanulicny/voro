@@ -418,28 +418,28 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         // Try to execute trade on backend if available
         if (token && isBackendConfigured()) {
           try {
-            const response = await authenticatedRequest<{
-              cashBalance: number;
-              holdings: Holding[];
-              totalValue: number;
-              todayChange: number;
-              todayChangePercent: number;
-            }>('/api/trade/execute', token, {
-              method: 'POST',
-              body: JSON.stringify({
-                entityId,
+      const response = await authenticatedRequest<{
+        cashBalance: number;
+        holdings: Holding[];
+        totalValue: number;
+        todayChange: number;
+        todayChangePercent: number;
+      }>('/api/trade/execute', token, {
+        method: 'POST',
+        body: JSON.stringify({
+            entityId,
                 type: 'open',
                 direction,
                 tokensCommitted,
-              }),
-            });
+        }),
+      });
 
-            if (response.success && response.data) {
-              // Update local state with backend response
-              setCashBalance(response.data.cashBalance);
-              setHoldings(response.data.holdings);
-              setTodayChange(response.data.todayChange);
-              setTodayChangePercent(response.data.todayChangePercent);
+      if (response.success && response.data) {
+        // Update local state with backend response
+        setCashBalance(response.data.cashBalance);
+        setHoldings(response.data.holdings);
+        setTodayChange(response.data.todayChange);
+        setTodayChangePercent(response.data.todayChangePercent);
 
               // Refresh transactions
               await fetchTransactions();
@@ -549,8 +549,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
               setTodayChange(response.data.todayChange);
               setTodayChangePercent(response.data.todayChangePercent);
 
-              // Refresh transactions
-              await fetchTransactions();
+        // Refresh transactions
+        await fetchTransactions();
             }
           } catch (error) {
             console.error('Error executing trade on backend:', error);

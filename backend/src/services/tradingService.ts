@@ -500,7 +500,7 @@ export async function getEntityPrice(entityId: number): Promise<number | null> {
     return calculatePriceFromEntity(entity);
   } catch (error) {
     logger.error('Error getting entity price', error);
-    return null;
+  return null;
   }
 }
 

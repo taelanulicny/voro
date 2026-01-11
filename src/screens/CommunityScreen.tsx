@@ -537,7 +537,7 @@ export default function CommunityScreen() {
           {/* Your Moro Community Header */}
           <View style={styles.groupsHeader}>
             <Text style={[styles.groupsTitle, { color: theme.text }]}>Your Moro Community</Text>
-          </View>
+            </View>
 
           {/* My Groups Section */}
           <View style={styles.myGroupsSection}>
@@ -547,10 +547,10 @@ export default function CommunityScreen() {
             {myGroups.length > 0 && (
               <>
                 {myGroups.map((group) => (
-                  <TouchableOpacity
+            <TouchableOpacity
                     key={group.id}
                     style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-                    onPress={() => {
+              onPress={() => {
                       navigation.navigate('GroupDetail', { groupId: group.id });
                     }}
                   >
@@ -559,7 +559,7 @@ export default function CommunityScreen() {
                     </View>
                     <Text style={[styles.groupActionText, { color: theme.text }]}>{group.name}</Text>
                     <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                  </TouchableOpacity>
+            </TouchableOpacity>
                 ))}
               </>
             )}

@@ -52,6 +52,7 @@ interface SocialContextType {
   createGroup: (params: { name: string; description: string; category: string; isPrivate: boolean; location?: string; password?: string }) => Promise<{ success: boolean; group?: Group; error?: string }>;
   joinGroup: (groupId: string) => Promise<{ success: boolean }>;
   leaveGroup: (groupId: string) => Promise<{ success: boolean }>;
+  deleteGroup: (groupId: string) => Promise<{ success: boolean }>;
 }
 
 const SocialContext = createContext<SocialContextType | undefined>(undefined);
@@ -658,7 +659,14 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const refreshGroups = useCallback(async () => {
     setIsLoadingGroups(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
-    setGroups(MOCK_GROUPS);
+    // Preserve user-created groups (where isMember === true) when refreshing
+    setGroups(prev => {
+      const userGroups = prev.filter(group => group.isMember === true);
+      const mockGroupsWithoutUserGroups = MOCK_GROUPS.filter(mockGroup => 
+        !userGroups.some(userGroup => userGroup.id === mockGroup.id)
+      );
+      return [...userGroups, ...mockGroupsWithoutUserGroups];
+    });
     setIsLoadingGroups(false);
   }, []);
 
@@ -719,6 +727,12 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     return { success: true };
   }, []);
 
+  const deleteGroup = useCallback(async (groupId: string) => {
+    // TODO: Implement groups in backend
+    setGroups(prev => prev.filter(group => group.id !== groupId));
+    return { success: true };
+  }, []);
+
   const value: SocialContextType = {
     activityFeed,
     isLoadingFeed,
@@ -745,6 +759,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     createGroup,
     joinGroup,
     leaveGroup,
+    deleteGroup,
   };
 
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

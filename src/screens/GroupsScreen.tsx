@@ -94,12 +94,12 @@ function GroupsScreen() {
 
     // Filter by search query (name, description)
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase();
       filtered = filtered.filter(group => 
-        group.name.toLowerCase().includes(query) ||
-        group.description.toLowerCase().includes(query) ||
+      group.name.toLowerCase().includes(query) ||
+      group.description.toLowerCase().includes(query) ||
         (group.category && group.category.toLowerCase().includes(query))
-      );
+    );
     }
 
     // Filter by location
@@ -195,7 +195,7 @@ function GroupsScreen() {
       <View style={[styles.filtersContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         {/* Location Filters */}
         <View style={styles.filterRow}>
-          <TouchableOpacity
+      <TouchableOpacity
             style={[styles.filterButton, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border, flex: 1 }]}
             onPress={() => setCountryModalVisible(true)}
           >
@@ -233,16 +233,16 @@ function GroupsScreen() {
                 },
               ]}
               onPress={() => setPrivacyFilter('all')}
-            >
-              <Text
-                style={[
+      >
+        <Text
+          style={[
                   styles.privacyButtonText,
                   { color: privacyFilter === 'all' ? '#FFFFFF' : theme.text },
-                ]}
-              >
+          ]}
+        >
                 All
-              </Text>
-            </TouchableOpacity>
+        </Text>
+      </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.privacyButton,
@@ -295,7 +295,7 @@ function GroupsScreen() {
       onRequestClose={() => setCountryModalVisible(false)}
     >
       <SafeAreaView style={styles.modalOverlay} edges={['bottom']}>
-        <TouchableOpacity
+      <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}
           onPress={() => setCountryModalVisible(false)}
@@ -328,25 +328,25 @@ function GroupsScreen() {
                   }
                   setCountryModalVisible(false);
                 }}
-              >
-                <Text
-                  style={[
+      >
+        <Text
+          style={[
                     styles.filterModalOptionText,
                     {
                       color: selectedCountry === country ? theme.primary : theme.text,
                       fontWeight: selectedCountry === country ? '600' : '400',
                     },
-                  ]}
-                >
+          ]}
+        >
                   {country}
-                </Text>
+        </Text>
                 {selectedCountry === country && (
                   <Ionicons name="checkmark" size={20} color={theme.primary} />
                 )}
-              </TouchableOpacity>
+      </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+    </View>
       </SafeAreaView>
     </Modal>
   );
@@ -503,30 +503,30 @@ function GroupsScreen() {
         {item.description}
       </Text>
 
-      <TouchableOpacity
-        style={[
-          styles.actionButton,
-          { backgroundColor: item.isMember ? theme.backgroundTertiary : theme.primary },
-          item.isMember && { borderWidth: 1.5, borderColor: theme.border },
-        ]}
-        onPress={(e) => {
-          e.stopPropagation();
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            { backgroundColor: item.isMember ? theme.backgroundTertiary : theme.primary },
+            item.isMember && { borderWidth: 1.5, borderColor: theme.border },
+          ]}
+          onPress={(e) => {
+            e.stopPropagation();
           if (item.isMember) {
             leaveGroup(item.id);
           } else {
             joinGroup(item.id);
           }
-        }}
-      >
-        <Text
-          style={[
-            styles.actionButtonText,
-            { color: item.isMember ? theme.textSecondary : '#FFFFFF' },
-          ]}
+          }}
         >
-          {item.isMember ? 'Leave' : 'Join'}
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.actionButtonText,
+              { color: item.isMember ? theme.textSecondary : '#FFFFFF' },
+            ]}
+          >
+            {item.isMember ? 'Leave' : 'Join'}
+          </Text>
+        </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -544,15 +544,15 @@ function GroupsScreen() {
     }
 
     if (isEmpty && hasFilters) {
-      return (
-        <View style={styles.emptyState}>
+    return (
+      <View style={styles.emptyState}>
           <Ionicons name="search-outline" size={64} color={theme.textTertiary} />
           <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No groups found</Text>
-          <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
+        <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
             Try adjusting your search or filters
-          </Text>
-        </View>
-      );
+        </Text>
+      </View>
+    );
     }
 
     return null;

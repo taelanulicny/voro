@@ -1128,14 +1128,14 @@ export default function CategoryScreen() {
             {formatCurrency(item.currentPrice)}
           </Text>
           <View style={styles.entityChangeContainer}>
-            <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
+          <Text style={[styles.entityChange, { color: getChangeColor(item.change24h) }]}>
               {item.change24h === 0 ? '' : item.change24h >= 0 ? '+' : ''}
               {formatCurrency(Math.abs(item.change24h))}
             </Text>
             <Text style={[styles.entityChangePercent, { color: getChangeColor(item.change24h) }]}>
               {' '}({item.changePercent24h === 0 ? '' : item.changePercent24h >= 0 ? '+' : ''}
               {item.changePercent24h.toFixed(2)}%)
-            </Text>
+          </Text>
           </View>
         </View>
       </TouchableOpacity>

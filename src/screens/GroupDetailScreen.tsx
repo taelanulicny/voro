@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -20,80 +21,33 @@ type GroupDetailRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
 
 // Mock data generators
 const generateMockMembers = (groupId: string, currentUserId: string | undefined, currentUserAccountValue: number): GroupMember[] => {
-  // Generate mock members with account values
-  // Current user will use their actual account value, others get random values
-  const mockMembers: GroupMember[] = [
-    {
-      id: `${groupId}-member-1`,
-      userId: '1',
-      username: 'devuser',
-      displayName: 'Dev User',
-      role: 'owner',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-      accountValue: currentUserId === '1' ? currentUserAccountValue : 125000 + Math.random() * 50000,
-    },
-    {
-      id: `${groupId}-member-2`,
-      userId: '2',
-      username: 'sarah_trader',
-      displayName: 'Sarah Chen',
-      role: 'admin',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
-      accountValue: currentUserId === '2' ? currentUserAccountValue : 115000 + Math.random() * 40000,
-    },
-    {
-      id: `${groupId}-member-3`,
-      userId: '3',
-      username: 'mike_investor',
-      displayName: 'Mike Johnson',
-      role: 'member',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
-      accountValue: currentUserId === '3' ? currentUserAccountValue : 105000 + Math.random() * 30000,
-    },
-    {
-      id: `${groupId}-member-4`,
-      userId: '4',
-      username: 'crypto_king',
-      displayName: 'Alex Rivera',
-      role: 'member',
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-      accountValue: currentUserId === '4' ? currentUserAccountValue : 95000 + Math.random() * 20000,
-    },
-  ];
-
-  // Replace any member that matches currentUserId with current user data
-  const currentUserIndex = mockMembers.findIndex(m => m.userId === currentUserId);
-  if (currentUserId && currentUserIndex !== -1) {
-    // Update existing member with current user's account value
-    mockMembers[currentUserIndex].accountValue = currentUserAccountValue;
-  } else if (currentUserId) {
-    // Add current user if not already in the list
-    mockMembers.push({
-      id: `${groupId}-member-current`,
-      userId: currentUserId,
-      username: 'you', // Will be updated with actual username when user data is available
-      displayName: 'You',
-      role: 'member',
-      joinedAt: new Date().toISOString(),
-      accountValue: currentUserAccountValue,
-    });
+  // Only return the current user as a member (no hard-coded examples)
+  if (!currentUserId) {
+    return [];
   }
 
-  // Sort by account value (highest to lowest)
-  return mockMembers.sort((a, b) => (b.accountValue || 0) - (a.accountValue || 0));
+  return [{
+    id: `${groupId}-member-current`,
+    userId: currentUserId,
+    username: 'you', // Will be updated with actual username when user data is available
+    displayName: 'You',
+    role: 'owner', // User is the owner of groups they create
+    joinedAt: new Date().toISOString(),
+    accountValue: currentUserAccountValue,
+  }];
 };
 
 export default function GroupDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<GroupDetailRouteProp>();
   const { groupId } = route.params;
-  const { groups, leaveGroup } = useSocial();
+  const { groups, leaveGroup, deleteGroup } = useSocial();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { portfolio } = useTrading();
 
   const group = groups.find(g => g.id === groupId);
-  
+
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -132,6 +86,31 @@ export default function GroupDetailScreen() {
     navigation.goBack();
   };
 
+  const handleDeleteGroup = async () => {
+    Alert.alert(
+      'Delete Group',
+      `Are you sure you want to delete "${group?.name}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteGroup(groupId);
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
+  // Check if current user is the owner
+  const currentUserMember = members.find(m => m.userId === user?.id);
+  const isOwner = currentUserMember?.role === 'owner';
+
   const formatCurrency = (value: number) => {
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(2)}M`;
@@ -145,7 +124,7 @@ export default function GroupDetailScreen() {
   const renderMember = ({ item, index }: { item: GroupMember; index: number }) => {
     const isCurrentUser = item.userId === user?.id;
     const rank = index + 1;
-    
+
     return (
       <TouchableOpacity 
         style={[
@@ -163,36 +142,36 @@ export default function GroupDetailScreen() {
             #{rank}
           </Text>
         </View>
-        <View style={styles.memberLeft}>
-          <View style={styles.memberAvatar}>
+      <View style={styles.memberLeft}>
+        <View style={styles.memberAvatar}>
             <View style={[styles.avatarContainer, { backgroundColor: isCurrentUser ? theme.primaryLight : theme.backgroundTertiary }]}>
               <Text style={[styles.avatarInitial, { color: isCurrentUser ? theme.primary : theme.text }]}>
                 {item.displayName.charAt(0).toUpperCase()}
               </Text>
             </View>
-          </View>
-          <View style={styles.memberInfo}>
+        </View>
+        <View style={styles.memberInfo}>
             <View style={styles.memberNameRow}>
               <Text style={[styles.memberName, { color: isCurrentUser ? theme.primary : theme.text }]}>
                 {item.displayName}
                 {isCurrentUser && ' (You)'}
               </Text>
             </View>
-            <Text style={[styles.memberUsername, { color: theme.textSecondary }]}>@{item.username}</Text>
-          </View>
+          <Text style={[styles.memberUsername, { color: theme.textSecondary }]}>@{item.username}</Text>
         </View>
+      </View>
         <View style={styles.memberRight}>
           <Text style={[styles.accountValue, { color: theme.text }]}>
             {item.accountValue ? formatCurrency(item.accountValue) : '$0.00'}
           </Text>
-          {item.role !== 'member' && (
-            <View style={[styles.roleBadge, { backgroundColor: theme.primaryLight }]}>
-              <Text style={[styles.roleText, { color: theme.primary }]}>{item.role.toUpperCase()}</Text>
-            </View>
-          )}
+      {item.role !== 'member' && (
+        <View style={[styles.roleBadge, { backgroundColor: theme.primaryLight }]}>
+          <Text style={[styles.roleText, { color: theme.primary }]}>{item.role.toUpperCase()}</Text>
         </View>
-      </TouchableOpacity>
-    );
+      )}
+        </View>
+    </TouchableOpacity>
+  );
   };
 
   if (!group) {
@@ -236,17 +215,17 @@ export default function GroupDetailScreen() {
       </View>
 
       {/* Content */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={members}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+          </View>
+            ) : (
+              <FlatList
+                data={members}
           renderItem={({ item, index }) => renderMember({ item, index })}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.membersList}
-          showsVerticalScrollIndicator={false}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.membersList}
+                showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <View style={[styles.membersHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
               <Text style={[styles.membersHeaderText, { color: theme.textSecondary }]}>
@@ -254,19 +233,29 @@ export default function GroupDetailScreen() {
               </Text>
             </View>
           }
-          ListFooterComponent={
-            group.isMember && (
-              <TouchableOpacity
-                style={[styles.leaveGroupButton, { backgroundColor: theme.card, borderColor: theme.error }]}
-                onPress={handleLeaveGroup}
-              >
-                <Ionicons name="exit-outline" size={20} color={theme.error} />
-                <Text style={[styles.leaveGroupText, { color: theme.error }]}>Leave Group</Text>
-              </TouchableOpacity>
-            )
-          }
-        />
-      )}
+                ListFooterComponent={
+                  group.isMember && (
+                    isOwner ? (
+                      <TouchableOpacity
+                        style={[styles.leaveGroupButton, { backgroundColor: theme.card, borderColor: theme.error }]}
+                        onPress={handleDeleteGroup}
+                      >
+                        <Ionicons name="trash-outline" size={20} color={theme.error} />
+                        <Text style={[styles.leaveGroupText, { color: theme.error }]}>Delete Group</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.leaveGroupButton, { backgroundColor: theme.card, borderColor: theme.error }]}
+                        onPress={handleLeaveGroup}
+                      >
+                        <Ionicons name="exit-outline" size={20} color={theme.error} />
+                        <Text style={[styles.leaveGroupText, { color: theme.error }]}>Leave Group</Text>
+                      </TouchableOpacity>
+                    )
+                  )
+                }
+              />
+            )}
     </SafeAreaView>
   );
 }

@@ -541,16 +541,16 @@ export default function HomeScreen() {
       const changePercent24h = (change24h / BASE_PRICE) * 100;
 
       return {
-        id: entity.id,
-        name: entity.name,
-        ticker: entity.ticker,
-        category: entity.category,
-        displayCategory: entity.category,
+      id: entity.id,
+      name: entity.name,
+      ticker: entity.ticker,
+      category: entity.category,
+      displayCategory: entity.category,
         currentPrice,
         change24h,
         changePercent24h,
-        addedDate: weekDates[index], // Assign dates in order (newest first)
-        isCategory: false,
+      addedDate: weekDates[index], // Assign dates in order (newest first)
+      isCategory: false,
       };
     });
     
@@ -601,13 +601,13 @@ export default function HomeScreen() {
         positionChange: 0,
       };
     });
-
+    
     // Filter out entities with no movement (0% change) if desired, or keep all
     // Sort by absolute percentage change (descending) - largest moves first
     const sortedByMovement = [...entitiesWithChanges]
       .filter(entity => Math.abs(entity.changePercent24h) > 0) // Only entities with movement
       .sort((a, b) => Math.abs(b.changePercent24h) - Math.abs(a.changePercent24h));
-
+      
     // Return top 5 movers
     return sortedByMovement.slice(0, 5).map((entity, index) => ({
       ...entity,
@@ -798,9 +798,9 @@ export default function HomeScreen() {
                     <View style={styles.comparisonChartContainer}>
                       {/* Header */}
                       <View style={styles.comparisonChartHeaderRow}>
-                        <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
-                          Influencers - Top 3
-                        </Text>
+                      <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
+                        Influencers - Top 3
+                      </Text>
                         <TouchableOpacity
                           onPress={() => navigation.navigate('Category', { categoryId: 'Influencers' })}
                           style={styles.headerArrowButton}

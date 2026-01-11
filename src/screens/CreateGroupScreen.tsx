@@ -43,7 +43,7 @@ const COUNTRY_OPTIONS = [
 export default function CreateGroupScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { theme } = useTheme();
-  const { createGroup, refreshGroups, refreshUserGroups } = useSocial();
+  const { createGroup } = useSocial();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<string>('Worldwide');
@@ -98,8 +98,7 @@ export default function CreateGroupScreen() {
       });
 
       if (result.success && result.group) {
-        // Refresh groups list
-        await Promise.all([refreshGroups(), refreshUserGroups()]);
+        // Group is already added to state by createGroup function, no need to refresh
         Alert.alert('Success', 'Group created successfully!', [
           {
             text: 'OK',

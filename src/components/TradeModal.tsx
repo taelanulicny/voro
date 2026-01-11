@@ -123,11 +123,11 @@ export default function TradeModal({
         );
       } else { // activeTab === 'close'
         success = await closePosition(
-          entityId,
-          entityName,
-          entityTicker,
-          category
-        );
+        entityId,
+        entityName,
+        entityTicker,
+        category
+      );
       }
 
       setIsProcessing(false);
@@ -157,7 +157,7 @@ export default function TradeModal({
       console.error('Error executing trade:', error);
       Alert.alert('Trade Failed', 'An error occurred while executing the trade. Please try again.');
       setIsProcessing(false);
-    }
+      }
   };
 
   const handleClose = () => {
@@ -204,12 +204,12 @@ export default function TradeModal({
           </View>
 
             {/* Open/Close Tabs */}
-            <View style={[styles.tabs, { backgroundColor: theme.backgroundSecondary }]}>
-              <TouchableOpacity
-                style={[
-                  styles.tab,
+          <View style={[styles.tabs, { backgroundColor: theme.backgroundSecondary }]}>
+            <TouchableOpacity
+              style={[
+                styles.tab,
                   { backgroundColor: activeTab === 'open' ? theme.success : 'transparent' },
-                ]}
+              ]}
                 onPress={() => {
                   setActiveTab('open');
                   if (existingPosition) {
@@ -230,7 +230,7 @@ export default function TradeModal({
                 ]}
                 onPress={() => existingPosition && setActiveTab('close')}
                 disabled={!existingPosition}
-              >
+            >
                 <Text style={[styles.tabText, { color: activeTab === 'close' ? '#FFFFFF' : theme.textSecondary }]}>
                   Close
                 </Text>
@@ -254,27 +254,27 @@ export default function TradeModal({
                 disabled={existingPosition && existingPosition.direction !== 'positive'}
               >
                 <Text style={[styles.directionTabText, { color: direction === 'positive' ? '#FFFFFF' : theme.textSecondary }]}>
-                  Positive
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
+                Positive
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
                   styles.directionTab,
                   { backgroundColor: direction === 'negative' ? theme.error : 'transparent' },
                   existingPosition && existingPosition.direction !== 'negative' && { opacity: 0.5 },
-                ]}
+              ]}
                 onPress={() => {
                   if (!existingPosition || existingPosition.direction === 'negative') {
                     setDirection('negative');
                   }
                 }}
                 disabled={existingPosition && existingPosition.direction !== 'negative'}
-              >
+            >
                 <Text style={[styles.directionTabText, { color: direction === 'negative' ? '#FFFFFF' : theme.textSecondary }]}>
-                  Negative
-                </Text>
-              </TouchableOpacity>
-            </View>
+                Negative
+              </Text>
+            </TouchableOpacity>
+          </View>
           )}
 
           {/* Current Position Info */}
@@ -303,48 +303,48 @@ export default function TradeModal({
 
           {/* Tokens Input (only for Open) */}
           {activeTab === 'open' && (
-            <View style={styles.inputSection}>
+          <View style={styles.inputSection}>
               <Text style={[styles.inputLabel, { color: theme.text }]}>
                 {existingPosition ? 'Tokens to Add' : 'Tokens to Commit'}
               </Text>
-              <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
-                <TextInput
-                  style={[styles.input, { color: theme.text }]}
-                  placeholder="0"
-                  placeholderTextColor={theme.textTertiary}
+            <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="0"
+                placeholderTextColor={theme.textTertiary}
                   value={tokensCommitted}
                   onChangeText={handleTokensChange}
-                  keyboardType="decimal-pad"
-                  maxLength={10}
-                />
+                keyboardType="decimal-pad"
+                maxLength={10}
+              />
                 <Text style={[styles.inputSuffix, { color: theme.textSecondary }]}>tokens</Text>
-              </View>
-
-              {/* Quick Percentage Buttons */}
-              {activeTab === 'open' && (
-                <View style={styles.percentButtons}>
-                  {[25, 50, 75, 100].map((percent) => (
-                    <TouchableOpacity
-                      key={percent}
-                      style={[styles.percentButton, { backgroundColor: theme.backgroundTertiary }]}
-                      onPress={() => setPercentage(percent)}
-                    >
-                      <Text style={[styles.percentButtonText, { color: theme.text }]}>{percent}%</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
             </View>
+
+            {/* Quick Percentage Buttons */}
+              {activeTab === 'open' && (
+            <View style={styles.percentButtons}>
+              {[25, 50, 75, 100].map((percent) => (
+                <TouchableOpacity
+                  key={percent}
+                  style={[styles.percentButton, { backgroundColor: theme.backgroundTertiary }]}
+                  onPress={() => setPercentage(percent)}
+                >
+                  <Text style={[styles.percentButtonText, { color: theme.text }]}>{percent}%</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+              )}
+          </View>
           )}
 
           {/* Order Summary */}
           {activeTab === 'open' && (
-            <View style={[styles.summary, { backgroundColor: theme.backgroundSecondary }]}>
-              <View style={styles.summaryRow}>
+          <View style={[styles.summary, { backgroundColor: theme.backgroundSecondary }]}>
+            <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Current Price</Text>
-                <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
-              </View>
-              <View style={styles.summaryRow}>
+              <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Direction</Text>
                 <Text style={[styles.summaryValue, { color: direction === 'positive' ? '#10B981' : '#EF4444' }]}>
                   {direction === 'positive' ? 'Positive' : 'Negative'}
@@ -353,9 +353,9 @@ export default function TradeModal({
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Tokens to Commit</Text>
                 <Text style={[styles.summaryValue, { color: theme.text }]}>{tokensCommittedNum || 0}</Text>
-              </View>
-              <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
-              <View style={styles.summaryRow}>
+            </View>
+            <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
+            <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabelBold, { color: theme.text }]}>Total Cost</Text>
                 <Text style={[styles.summaryValueBold, { color: theme.text }]}>{formatCurrency(tokensCommittedNum)}</Text>
               </View>
@@ -386,9 +386,9 @@ export default function TradeModal({
               </View>
               <Text style={[styles.summaryNote, { color: theme.textSecondary }]}>
                 P&L will be calculated based on ratio change since entry
-              </Text>
-            </View>
-          )}
+                </Text>
+              </View>
+            )}
 
           {/* Available Balance / Position Info */}
           <View style={[styles.balanceInfo, { backgroundColor: theme.backgroundSecondary }]}>

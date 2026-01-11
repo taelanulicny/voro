@@ -44,9 +44,9 @@ function squarifyTreemap(
         normalizedValue: (containerWidth * containerHeight) / items.length
       }))
     : items.map(item => ({
-        ...item,
-        normalizedValue: (item.percentage / total) * (containerWidth * containerHeight)
-      }));
+    ...item,
+    normalizedValue: (item.percentage / total) * (containerWidth * containerHeight)
+  }));
   
   // Sort by size (largest first) for better layout
   const sortedItems = [...normalizedItems].sort((a, b) => b.normalizedValue - a.normalizedValue);

@@ -903,6 +903,42 @@ export async function leaveGroup(groupId: string): Promise<ApiResponse> {
 }
 
 /**
+ * Delete a group (owner only)
+ */
+export async function deleteGroup(groupId: string): Promise<ApiResponse> {
+  try {
+    const response = await fetch(
+      buildURL(API_CONFIG.endpoints.social.deleteGroup.replace(':groupId', groupId)),
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          // Authorization header would be added here
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'Failed to delete group',
+      };
+    }
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
+}
+
+/**
  * Get posts from a group
  */
 export async function getGroupPosts(

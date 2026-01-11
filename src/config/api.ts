@@ -75,6 +75,7 @@ export const API_CONFIG = {
       createGroup: '/social/groups',
       joinGroup: '/social/groups/:groupId/join',
       leaveGroup: '/social/groups/:groupId/leave',
+      deleteGroup: '/social/groups/:groupId',
       getGroupPosts: '/social/groups/:groupId/posts',
       // Activities
       getActivities: '/social/activities',
