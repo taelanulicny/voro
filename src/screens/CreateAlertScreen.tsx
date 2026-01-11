@@ -193,12 +193,6 @@ export default function CreateAlertScreen() {
               </View>
             </View>
           </View>
-          <Switch
-            value={true}
-            onValueChange={() => {}}
-            trackColor={{ false: theme.border, true: theme.primary }}
-            thumbColor="#FFFFFF"
-          />
         </View>
 
         {/* Price Section */}
