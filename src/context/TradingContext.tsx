@@ -547,17 +547,45 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         // Calculate total tokens committed (sum of all tranches)
         const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
 
-        // Remove ALL user tokens from pool FIRST
+        // Remove ALL user tokens from pool FIRST (to restore pools to state before user's first trade)
         const newP = positionDirection === 'positive' ? Math.max(0, p - totalTokensCommitted) : p;
         const newN = positionDirection === 'negative' ? Math.max(0, n - totalTokensCommitted) : n;
 
-        // Calculate ONE ExitRatio AFTER removing all tokens
+        // Calculate exitRatio AFTER removing all tokens (as required)
+        // This exitRatio represents the pool state without the user's tokens
         const exitRatio = calculateSentimentRatio(newP, newN);
 
         // Calculate PnL per tranche and sum them
+        // CRITICAL: To ensure users get back exactly what they put in when no other trades occur,
+        // we need to simulate what each tranche's effective "exit state" would be.
+        // Since exitRatio is the pool state after removing ALL tokens (i.e., original state if no other trades),
+        // we need to account for the fact that each tranche's entryRatio was calculated with previous tranches' impact.
+        // 
+        // The solution: When calculating each tranche's P&L, we need to determine what the exitRatio
+        // would be from that tranche's perspective - i.e., the pool state just before that tranche was added.
+        // This requires working backwards from the current exitRatio.
+        
+        // Reverse simulate: Start from exitRatio (state after removing all tokens),
+        // and work backwards to determine what each tranche's "effective exit ratio" should be
+        // by re-adding previous tranches one by one
+        
+        let simulatedP = newP;
+        let simulatedN = newN;
         let totalProfitLoss = 0;
-        for (const tranche of tranches) {
-          const deltaR = exitRatio - tranche.entryRatio;
+        
+        // Process tranches in reverse order (last added = first to evaluate)
+        // As we work backwards, we're essentially asking: "If this tranche exits,
+        // what would the pool state be (which other tranches are still in)?"
+        for (let i = tranches.length - 1; i >= 0; i--) {
+          const tranche = tranches[i];
+          
+          // The effective exit ratio for this tranche is the current simulated pool state
+          // This represents what the pool looks like when evaluating this tranche's exit,
+          // accounting for all tranches added before it
+          const effectiveExitRatio = calculateSentimentRatio(simulatedP, simulatedN);
+          
+          // Calculate P&L for this tranche using its entryRatio vs effectiveExitRatio
+          const deltaR = effectiveExitRatio - tranche.entryRatio;
           let tranchePnL = tranche.tokensCommitted * deltaR;
           
           // Direction adjustment: if negative position, flip PnL
@@ -566,6 +594,14 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           }
           
           totalProfitLoss += tranchePnL;
+          
+          // Re-add this tranche's tokens to simulated pool (working backwards)
+          // This prepares the state for evaluating the next (earlier) tranche
+          if (positionDirection === 'positive') {
+            simulatedP += tranche.tokensCommitted;
+          } else {
+            simulatedN += tranche.tokensCommitted;
+          }
         }
 
         // Calculate total tokens returned
