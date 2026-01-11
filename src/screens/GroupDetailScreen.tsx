@@ -21,21 +21,89 @@ import { useTrading } from '../context/TradingContext';
 type GroupDetailRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
 
 // Mock data generators
-const generateMockMembers = (groupId: string, currentUserId: string | undefined, currentUserAccountValue: number): GroupMember[] => {
-  // Only return the current user as a member (no hard-coded examples)
-  if (!currentUserId) {
-    return [];
+const generateMockMembers = (
+  groupId: string, 
+  currentUserId: string | undefined, 
+  currentUserAccountValue: number,
+  isMember: boolean,
+  memberCount: number
+): GroupMember[] => {
+  // If user created the group (memberCount === 1 and isMember === true), only show them
+  if (isMember && memberCount === 1 && currentUserId) {
+    return [{
+      id: `${groupId}-member-current`,
+      userId: currentUserId,
+      username: 'you', // Will be updated with actual username when user data is available
+      displayName: 'You',
+      role: 'owner', // User is the owner of groups they create
+      joinedAt: new Date().toISOString(),
+      accountValue: currentUserAccountValue,
+    }];
   }
 
-  return [{
-    id: `${groupId}-member-current`,
-    userId: currentUserId,
-    username: 'you', // Will be updated with actual username when user data is available
-    displayName: 'You',
-    role: 'owner', // User is the owner of groups they create
-    joinedAt: new Date().toISOString(),
-    accountValue: currentUserAccountValue,
-  }];
+  // Generate mock members of the group (these represent existing members)
+  const mockMembers: GroupMember[] = [
+    {
+      id: `${groupId}-member-1`,
+      userId: 'mock-user-1',
+      username: 'trader_alex',
+      displayName: 'Alex Chen',
+      role: 'owner',
+      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
+      accountValue: 125000 + Math.random() * 50000,
+    },
+    {
+      id: `${groupId}-member-2`,
+      userId: 'mock-user-2',
+      username: 'crypto_sarah',
+      displayName: 'Sarah Johnson',
+      role: 'member',
+      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
+      accountValue: 115000 + Math.random() * 40000,
+    },
+    {
+      id: `${groupId}-member-3`,
+      userId: 'mock-user-3',
+      username: 'investor_mike',
+      displayName: 'Mike Rivera',
+      role: 'member',
+      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
+      accountValue: 105000 + Math.random() * 30000,
+    },
+    {
+      id: `${groupId}-member-4`,
+      userId: 'mock-user-4',
+      username: 'stock_master',
+      displayName: 'Jordan Kim',
+      role: 'member',
+      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+      accountValue: 95000 + Math.random() * 20000,
+    },
+  ];
+
+  // If user is a member (but not the only member), add them to the list
+  if (isMember && currentUserId && memberCount > 1) {
+    // Check if user is already in the list (shouldn't happen with mock data, but just in case)
+    const existingUserIndex = mockMembers.findIndex(m => m.userId === currentUserId);
+    if (existingUserIndex === -1) {
+      // Add current user to the members list as a regular member
+      mockMembers.push({
+        id: `${groupId}-member-current`,
+        userId: currentUserId,
+        username: 'you', // Will be updated with actual username when user data is available
+        displayName: 'You',
+        role: 'member', // User joined, so they're a member (not owner)
+        joinedAt: new Date().toISOString(),
+        accountValue: currentUserAccountValue,
+      });
+    } else {
+      // User already exists in list, update their account value
+      mockMembers[existingUserIndex].accountValue = currentUserAccountValue;
+    }
+  }
+
+  // Sort by account value (highest to lowest)
+  return mockMembers.sort((a, b) => (b.accountValue || 0) - (a.accountValue || 0));
 };
 
 export default function GroupDetailScreen() {
@@ -54,7 +122,7 @@ export default function GroupDetailScreen() {
 
   useEffect(() => {
     loadGroupData();
-  }, [groupId]);
+  }, [groupId, group?.isMember]);
 
   const loadGroupData = async () => {
     setIsLoading(true);
@@ -65,7 +133,9 @@ export default function GroupDetailScreen() {
     const sortedMembers = generateMockMembers(
       groupId, 
       user?.id, 
-      portfolio.totalValue || 10000 // Default to initial cash balance if portfolio not loaded
+      portfolio.totalValue || 10000, // Default to initial cash balance if portfolio not loaded
+      group?.isMember || false, // Pass whether current user is a member
+      group?.memberCount || 0 // Pass member count to determine if user created the group
     );
     
     // Update current user's display info in the sorted members list
