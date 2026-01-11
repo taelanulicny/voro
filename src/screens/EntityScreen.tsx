@@ -493,10 +493,10 @@ export default function EntityScreen() {
   // Price change is calculated above using currentPrice and BASE_PRICE
 
   const formatVolume = (value: number) => {
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
+    if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+    if (value >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
+    return value.toFixed(2);
   };
 
   const handleShare = async () => {
@@ -869,7 +869,7 @@ export default function EntityScreen() {
         </View>
         <View style={styles.entityStatsInfo}>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData?.stats?.volume24h || 0)}</Text>
+            Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData?.stats?.volume24h || 0)} {TOKEN_SYMBOL}</Text>
           </Text>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
             High: <Text style={{ color: theme.text }}>{formatCurrency(entityData?.stats?.high24h || 100)}</Text>
