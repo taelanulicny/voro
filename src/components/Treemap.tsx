@@ -8,7 +8,7 @@ interface TreemapItem {
   name: string;
   percentage: number;
   categoryId: string;
-  color?: 'green' | 'red';
+  color?: 'green' | 'red' | 'grey';
 }
 
 interface TreemapProps {
@@ -176,6 +176,8 @@ export default function Treemap({
                   ? '#10B981' 
                   : rect.item.color === 'red' 
                   ? '#EF4444' 
+                  : rect.item.color === 'grey'
+                  ? '#6B7280'
                   : theme.backgroundSecondary,
                 borderWidth: 1,
                 borderColor: theme.border,

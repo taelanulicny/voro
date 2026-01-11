@@ -212,7 +212,7 @@ export default function EntityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<EntityScreenRouteProp>();
   const { entityId, categoryId } = route.params;
-  const { getPosition, getEntityPrice } = useTrading();
+  const { getPosition, getEntityPrice, getEntityVolume, getEntityHigh, getEntityLow } = useTrading();
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
@@ -279,6 +279,13 @@ export default function EntityScreen() {
   
   // Get live price from global price system - all entities start at 100
   const currentPrice = getEntityPrice(entityId) || BASE_PRICE;
+  
+  // Get volume as sum of positiveTokens + negativeTokens (updates when pools change)
+  const volume = getEntityVolume(entityId);
+  
+  // Get high/low prices (update every second, reset at midnight)
+  const high = getEntityHigh(entityId);
+  const low = getEntityLow(entityId);
   
   // Calculate price change from BASE_PRICE (100)
   const priceChange = currentPrice - BASE_PRICE;
@@ -869,13 +876,13 @@ export default function EntityScreen() {
         </View>
         <View style={styles.entityStatsInfo}>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            Volume: <Text style={{ color: theme.text }}>{formatVolume(entityData?.stats?.volume24h || 0)} {TOKEN_SYMBOL}</Text>
+            Volume: <Text style={{ color: theme.text }}>{formatVolume(volume)} {TOKEN_SYMBOL}</Text>
           </Text>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            High: <Text style={{ color: theme.text }}>{formatCurrency(entityData?.stats?.high24h || 100)}</Text>
+            High: <Text style={{ color: theme.text }}>{formatCurrency(high)}</Text>
           </Text>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            Low: <Text style={{ color: theme.text }}>{formatCurrency(entityData?.stats?.low24h || 100)}</Text>
+            Low: <Text style={{ color: theme.text }}>{formatCurrency(low)}</Text>
           </Text>
         </View>
       </View>

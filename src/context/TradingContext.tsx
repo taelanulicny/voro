@@ -39,6 +39,9 @@ interface TradingContextType {
   resetPortfolio: () => void;
   getEntityPrice: (entityId: number) => number;
   getAllEntityPrices: () => Record<number, number>;
+  getEntityVolume: (entityId: number) => number;
+  getEntityHigh: (entityId: number) => number;
+  getEntityLow: (entityId: number) => number;
   portfolioHistory: number[];
   fetchPortfolio: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
@@ -82,6 +85,27 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       initialPrices[entity.id] = calculatePrice(0, 0); // = 100
     });
     return initialPrices;
+  });
+
+  // Track current day for resetting high/low at midnight
+  const [currentDay, setCurrentDay] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  });
+
+  // Entity high/low prices - reset daily at midnight
+  const [entityHighLow, setEntityHighLow] = useState<Record<number, { high: number; low: number; openingPrice: number }>>(() => {
+    // Initialize all high/low to current price (100)
+    const initialHighLow: Record<number, { high: number; low: number; openingPrice: number }> = {};
+    MOCK_ENTITIES.forEach((entity) => {
+      const initialPrice = calculatePrice(0, 0); // = 100
+      initialHighLow[entity.id] = {
+        high: initialPrice,
+        low: initialPrice,
+        openingPrice: initialPrice,
+      };
+    });
+    return initialHighLow;
   });
   
   // Portfolio value history for chart animation
@@ -210,15 +234,72 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
 
+  // Check for new day (midnight reset) - runs every second
+  useEffect(() => {
+    const checkNewDay = () => {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+      
+      if (today !== currentDay) {
+        // New day - reset high/low to opening prices (current prices at midnight)
+        setCurrentDay(today);
+        setEntityHighLow(prev => {
+          const updated: Record<number, { high: number; low: number; openingPrice: number }> = {};
+          Object.keys(prev).forEach((entityIdStr) => {
+            const entityId = parseInt(entityIdStr, 10);
+            const pools = entityPools[entityId] || getInitialPoolValues();
+            const openingPrice = calculatePrice(pools.positiveTokens, pools.negativeTokens);
+            updated[entityId] = {
+              high: openingPrice,
+              low: openingPrice,
+              openingPrice,
+            };
+          });
+          return updated;
+        });
+      }
+    };
+
+    // Check every second for midnight
+    const interval = setInterval(checkNewDay, 1000);
+    checkNewDay(); // Initial check
+    
+    return () => clearInterval(interval);
+  }, [currentDay, entityPools]);
+
   // Recalculate prices whenever pools change (for immediate UI updates)
+  // Also update high/low prices
   useEffect(() => {
     const newPrices: Record<number, number> = {};
-    Object.keys(entityPools).forEach((entityIdStr) => {
-      const entityId = parseInt(entityIdStr, 10);
-      const pools = entityPools[entityId];
-      if (pools) {
-        newPrices[entityId] = calculatePrice(pools.positiveTokens, pools.negativeTokens);
-      }
+    setEntityHighLow(prev => {
+      const updated = { ...prev };
+      Object.keys(entityPools).forEach((entityIdStr) => {
+        const entityId = parseInt(entityIdStr, 10);
+        const pools = entityPools[entityId];
+        if (pools) {
+          const calculatedPrice = calculatePrice(pools.positiveTokens, pools.negativeTokens);
+          newPrices[entityId] = calculatedPrice;
+          
+          // Initialize high/low if not exists
+          if (!updated[entityId]) {
+            updated[entityId] = {
+              high: calculatedPrice,
+              low: calculatedPrice,
+              openingPrice: calculatedPrice,
+            };
+          } else {
+            // Update high if current price is higher
+            if (calculatedPrice > updated[entityId].high) {
+              updated[entityId].high = calculatedPrice;
+            }
+            // Update low if current price is lower
+            if (calculatedPrice < updated[entityId].low) {
+              updated[entityId].low = calculatedPrice;
+            }
+          }
+        }
+      });
+      return updated;
     });
     setEntityPrices(prev => ({ ...prev, ...newPrices }));
   }, [entityPools]);
@@ -655,6 +736,16 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       resetPrices[entity.id] = calculatePrice(0, 0); // = 100
     });
     setEntityPrices(resetPrices);
+    // Reset high/low to 100
+    const resetHighLow: Record<number, { high: number; low: number; openingPrice: number }> = {};
+    MOCK_ENTITIES.forEach((entity) => {
+      resetHighLow[entity.id] = {
+        high: 100,
+        low: 100,
+        openingPrice: 100,
+      };
+    });
+    setEntityHighLow(resetHighLow);
     // Clear all positions
     setUserPositions({});
   };
@@ -674,6 +765,34 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
   const getAllEntityPrices = (): Record<number, number> => {
     return entityPrices;
+  };
+
+  const getEntityVolume = (entityId: number): number => {
+    // Calculate volume as sum of positiveTokens + negativeTokens
+    const pools = entityPools[entityId] || getInitialPoolValues();
+    return pools.positiveTokens + pools.negativeTokens;
+  };
+
+  const getEntityHigh = (entityId: number): number => {
+    // Return tracked high price for today
+    const highLow = entityHighLow[entityId];
+    if (highLow) {
+      return highLow.high;
+    }
+    // Fallback to current price if not tracked
+    const pools = entityPools[entityId] || getInitialPoolValues();
+    return calculatePrice(pools.positiveTokens, pools.negativeTokens);
+  };
+
+  const getEntityLow = (entityId: number): number => {
+    // Return tracked low price for today
+    const highLow = entityHighLow[entityId];
+    if (highLow) {
+      return highLow.low;
+    }
+    // Fallback to current price if not tracked
+    const pools = entityPools[entityId] || getInitialPoolValues();
+    return calculatePrice(pools.positiveTokens, pools.negativeTokens);
   };
 
   const portfolio: Portfolio = {
@@ -699,6 +818,9 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         resetPortfolio,
         getEntityPrice,
         getAllEntityPrices,
+        getEntityVolume,
+        getEntityHigh,
+        getEntityLow,
         portfolioHistory,
         fetchPortfolio,
         fetchTransactions,

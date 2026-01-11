@@ -20,20 +20,30 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TREEMAP_HEIGHT = SCREEN_HEIGHT * 0.67; // 2/3 of screen height
 
 // Hardcoded trade volume data (will be replaced with real data later)
-// Colors: green = volume up, red = volume down
+// Colors: green = volume up, red = volume down, grey = no change
 // previousPercentage is yesterday's percentage to calculate the change
+// Color is calculated dynamically based on percentage vs previousPercentage
+const getCategoryColor = (percentage: number, previousPercentage: number): 'green' | 'red' | 'grey' => {
+  if (percentage > previousPercentage) return 'green';
+  if (percentage < previousPercentage) return 'red';
+  return 'grey';
+};
+
 const categoryTradeVolumes = [
-  { name: 'Influencers', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Influencers', color: 'green' as const },
-  { name: 'Political Figures', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Political Figures', color: 'green' as const },
-  { name: 'Startups', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Startups', color: 'green' as const },
-  { name: 'NFL', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NFL', color: 'green' as const },
-  { name: 'NBA', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NBA', color: 'green' as const },
-  { name: 'Prediction Markets', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Prediction Markets', color: 'green' as const },
-  { name: 'College Basketball', percentage: 0.0, previousPercentage: 0.0, categoryId: 'College Basketball', color: 'green' as const },
-  { name: 'Hip Hop', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Hip Hop', color: 'green' as const },
-  { name: 'Country Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Country Music', color: 'green' as const },
-  { name: 'Pop Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Pop Music', color: 'green' as const },
-];
+  { name: 'Influencers', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Influencers' },
+  { name: 'Political Figures', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Political Figures' },
+  { name: 'Startups', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Startups' },
+  { name: 'NFL', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NFL' },
+  { name: 'NBA', percentage: 0.0, previousPercentage: 0.0, categoryId: 'NBA' },
+  { name: 'Prediction Markets', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Prediction Markets' },
+  { name: 'College Basketball', percentage: 0.0, previousPercentage: 0.0, categoryId: 'College Basketball' },
+  { name: 'Hip Hop', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Hip Hop' },
+  { name: 'Country Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Country Music' },
+  { name: 'Pop Music', percentage: 0.0, previousPercentage: 0.0, categoryId: 'Pop Music' },
+].map(item => ({
+  ...item,
+  color: getCategoryColor(item.percentage, item.previousPercentage) as 'green' | 'red' | 'grey',
+}));
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -233,9 +243,24 @@ export default function AllCategoriesScreen() {
 
   const renderCategoryItem = ({ item }: { item: typeof categoryTradeVolumes[0] }) => {
     const changePercent = item.percentage - item.previousPercentage;
-    // Always show green for 0% movement
-    const isPositive = changePercent >= 0;
-    const changeColor = '#10B981'; // Always green
+    // Determine color based on change: green = up, red = down, grey = no change
+    const isPositive = changePercent > 0;
+    const isNegative = changePercent < 0;
+    const isNeutral = changePercent === 0;
+    
+    // Color values
+    const greenColor = '#10B981';
+    const redColor = '#EF4444';
+    const greyColor = '#6B7280';
+    
+    const changeColor = isPositive ? greenColor : isNegative ? redColor : greyColor;
+    const indicatorBgColor = isPositive 
+      ? 'rgba(16, 185, 129, 0.2)' 
+      : isNegative 
+      ? 'rgba(239, 68, 68, 0.2)' 
+      : 'rgba(107, 114, 128, 0.2)';
+    const dotColor = isPositive ? greenColor : isNegative ? redColor : greyColor;
+    const arrowIcon = isPositive ? 'arrow-up' : isNegative ? 'arrow-down' : 'remove';
     
     return (
       <TouchableOpacity
@@ -245,11 +270,11 @@ export default function AllCategoriesScreen() {
         <View style={styles.categoryItemLeft}>
           <View style={[
             styles.categoryIndicator,
-            { backgroundColor: 'rgba(16, 185, 129, 0.2)' } // Always green background
+            { backgroundColor: indicatorBgColor }
           ]}>
             <View style={[
               styles.categoryDot,
-              { backgroundColor: '#10B981' } // Always green dot
+              { backgroundColor: dotColor }
             ]} />
           </View>
           <Text style={[styles.categoryItemName, { color: theme.text }]}>{item.name}</Text>
@@ -258,17 +283,19 @@ export default function AllCategoriesScreen() {
           <Text style={[styles.categoryItemPercentage, { color: theme.text }]}>
             {item.percentage}%
           </Text>
-          <View style={styles.changeContainer}>
-            <Text style={[styles.changeText, { color: changeColor }]}>(</Text>
-            <Ionicons 
-              name="arrow-up" 
-              size={12} 
-              color={changeColor} 
-            />
-            <Text style={[styles.changeText, { color: changeColor }]}>
-              {Math.abs(changePercent).toFixed(1)}%)
-            </Text>
-          </View>
+          {!isNeutral && (
+            <View style={styles.changeContainer}>
+              <Text style={[styles.changeText, { color: changeColor }]}>(</Text>
+              <Ionicons 
+                name={arrowIcon as any}
+                size={12} 
+                color={changeColor} 
+              />
+              <Text style={[styles.changeText, { color: changeColor }]}>
+                {Math.abs(changePercent).toFixed(1)}%)
+              </Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
