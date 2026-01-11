@@ -42,6 +42,7 @@ interface TradingContextType {
   getEntityVolume: (entityId: number) => number;
   getEntityHigh: (entityId: number) => number;
   getEntityLow: (entityId: number) => number;
+  getPositionOpenPnL: (entityId: number) => number;
   getCategoryVolumes: () => Record<string, { volume: number; percentage: number }>;
   portfolioHistory: number[];
   fetchPortfolio: () => Promise<void>;
@@ -832,6 +833,61 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     return calculatePrice(pools.positiveTokens, pools.negativeTokens);
   };
 
+  const getPositionOpenPnL = (entityId: number): number => {
+    const position = userPositions[entityId];
+    if (!position) return 0;
+
+    const pools = entityPools[entityId] || getInitialPoolValues();
+    const p = pools.positiveTokens;
+    const n = pools.negativeTokens;
+    
+    const positionDirection = position.direction;
+    const tranches = position.tranches;
+    
+    // Calculate total tokens committed (sum of all tranches)
+    const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
+
+    // Calculate what exitRatio would be AFTER removing all user tokens (same as closing)
+    const newP = positionDirection === 'positive' ? Math.max(0, p - totalTokensCommitted) : p;
+    const newN = positionDirection === 'negative' ? Math.max(0, n - totalTokensCommitted) : n;
+    const exitRatio = calculateSentimentRatio(newP, newN);
+
+    // Calculate P&L per tranche using the same logic as closing
+    // Reverse simulate: Start from exitRatio (state after removing all tokens),
+    // and work backwards to determine what each tranche's "effective exit ratio" should be
+    let simulatedP = newP;
+    let simulatedN = newN;
+    let totalProfitLoss = 0;
+    
+    // Process tranches in reverse order (last added = first to evaluate)
+    for (let i = tranches.length - 1; i >= 0; i--) {
+      const tranche = tranches[i];
+      
+      // The effective exit ratio for this tranche is the current simulated pool state
+      const effectiveExitRatio = calculateSentimentRatio(simulatedP, simulatedN);
+      
+      // Calculate P&L for this tranche
+      const deltaR = effectiveExitRatio - tranche.entryRatio;
+      let tranchePnL = tranche.tokensCommitted * deltaR;
+      
+      // Direction adjustment: if negative position, flip PnL
+      if (positionDirection === 'negative') {
+        tranchePnL = -tranchePnL;
+      }
+      
+      totalProfitLoss += tranchePnL;
+      
+      // Re-add this tranche's tokens to simulated pool (working backwards)
+      if (positionDirection === 'positive') {
+        simulatedP += tranche.tokensCommitted;
+      } else {
+        simulatedN += tranche.tokensCommitted;
+      }
+    }
+
+    return totalProfitLoss;
+  };
+
   const getCategoryVolumes = (): Record<string, { volume: number; percentage: number }> => {
     // Calculate total volume per category from all transactions
     const categoryVolumes: Record<string, number> = {};
@@ -883,6 +939,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         getEntityVolume,
         getEntityHigh,
         getEntityLow,
+        getPositionOpenPnL,
         getCategoryVolumes,
         portfolioHistory,
         fetchPortfolio,

@@ -35,7 +35,7 @@ export default function TradeModal({
   entityTicker,
   category,
 }: TradeModalProps) {
-  const { portfolio, openPosition, closePosition, getPosition, getEntityPrice } = useTrading();
+  const { portfolio, openPosition, closePosition, getPosition, getEntityPrice, getPositionOpenPnL, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'open' | 'close'>('open');
   const [direction, setDirection] = useState<'positive' | 'negative'>('positive');
@@ -45,6 +45,10 @@ export default function TradeModal({
 
   const existingPosition = getPosition(entityId);
   const currentPrice = getEntityPrice(entityId);
+  
+  // Calculate open P&L for the position (only when on close tab)
+  // This recalculates on every render, so it will update when prices change
+  const openPnL = activeTab === 'close' && existingPosition ? getPositionOpenPnL(entityId) : 0;
 
   // Reset modal state when it opens/closes
   useEffect(() => {
@@ -55,10 +59,12 @@ export default function TradeModal({
         tension: 65,
         friction: 11,
       }).start();
-      // If there's an existing position, default to close tab, otherwise open tab
+      // If there's an existing position, default to open tab (Add to position), otherwise open tab
       const position = getPosition(entityId);
       if (position) {
-        setActiveTab('close');
+        setActiveTab('open');
+        // Auto-select the direction of existing position when adding
+        setDirection(position.direction);
       } else {
         setActiveTab('open');
         setDirection('positive');
@@ -208,7 +214,7 @@ export default function TradeModal({
             <TouchableOpacity
               style={[
                 styles.tab,
-                  { backgroundColor: activeTab === 'open' ? theme.success : 'transparent' },
+                  { backgroundColor: activeTab === 'open' ? theme.backgroundTertiary : 'transparent' },
               ]}
                 onPress={() => {
                   setActiveTab('open');
@@ -218,20 +224,20 @@ export default function TradeModal({
                   }
                 }}
               >
-                <Text style={[styles.tabText, { color: activeTab === 'open' ? '#FFFFFF' : theme.textSecondary }]}>
+                <Text style={[styles.tabText, { color: activeTab === 'open' ? theme.text : theme.textSecondary }]}>
                   {existingPosition ? 'Add' : 'Open'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.tab,
-                  { backgroundColor: activeTab === 'close' ? theme.error : 'transparent' },
+                  { backgroundColor: activeTab === 'close' ? theme.backgroundTertiary : 'transparent' },
                   !existingPosition && { opacity: 0.5 },
                 ]}
                 onPress={() => existingPosition && setActiveTab('close')}
                 disabled={!existingPosition}
             >
-                <Text style={[styles.tabText, { color: activeTab === 'close' ? '#FFFFFF' : theme.textSecondary }]}>
+                <Text style={[styles.tabText, { color: activeTab === 'close' ? theme.text : theme.textSecondary }]}>
                   Close
                 </Text>
               </TouchableOpacity>
@@ -378,6 +384,12 @@ export default function TradeModal({
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Current Price</Text>
                 <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Open P&L</Text>
+                <Text style={[styles.summaryValue, { color: openPnL >= 0 ? '#10B981' : '#EF4444' }]}>
+                  {openPnL >= 0 ? '+' : ''}{formatCurrency(openPnL)}
+                </Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
               <View style={styles.summaryRow}>

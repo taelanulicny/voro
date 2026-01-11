@@ -212,7 +212,7 @@ export default function EntityScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<EntityScreenRouteProp>();
   const { entityId, categoryId } = route.params;
-  const { getPosition, getEntityPrice, getEntityVolume, getEntityHigh, getEntityLow } = useTrading();
+  const { getPosition, getEntityPrice, getEntityVolume, getEntityHigh, getEntityLow, getPositionOpenPnL, getAllEntityPrices } = useTrading();
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
@@ -230,6 +230,9 @@ export default function EntityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Get all prices to trigger re-renders when prices update (for open P&L updates)
+  const allPrices = getAllEntityPrices();
+
   // Update price history and reset tab whenever entityId changes (ensures we always show Chart when navigating to an entity)
   useEffect(() => {
     setSelectedTab('chart');
@@ -241,6 +244,12 @@ export default function EntityScreen() {
     }, 100);
     return () => clearTimeout(timer);
   }, [entityId]);
+  
+  // Force re-render when prices update (to update open P&L in real-time)
+  useEffect(() => {
+    // This effect ensures the component re-renders when prices change
+    // The openPnL calculation will use the latest pools/ratios
+  }, [allPrices, entityId]);
   
   // Ensure entityData is valid
   if (!entityData || !entityData.entity) {
@@ -774,35 +783,6 @@ export default function EntityScreen() {
                 <Ionicons name="chatbubble-outline" size={14} color={theme.textSecondary} style={{ marginLeft: 12 }} />
                 <Text style={[styles.commentEngagementText, { color: theme.textSecondary }]}>
                   {topFeedPost.comments}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Your Position (if any) */}
-        {position && (
-          <View style={[styles.positionCard, { backgroundColor: theme.card }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Position</Text>
-            <View style={styles.positionGrid}>
-              <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Direction</Text>
-                <Text style={[styles.positionValue, { color: position.direction === 'positive' ? '#10B981' : '#EF4444' }]}>
-                  {position.direction === 'positive' ? 'Positive' : 'Negative'}
-                </Text>
-              </View>
-              <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
-                <Text style={[styles.positionValue, { color: theme.text }]}>{position.tokensCommitted}</Text>
-              </View>
-              <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Current Price</Text>
-                <Text style={[styles.positionValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
-              </View>
-              <View style={styles.positionItem}>
-                <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tranches</Text>
-                <Text style={[styles.positionValue, { color: theme.text }]}>
-                  {position.trancheCount || 1}
                 </Text>
               </View>
             </View>
@@ -1351,40 +1331,40 @@ export default function EntityScreen() {
             </View>
 
             {/* Content */}
-            {position ? (
-              <ScrollView style={styles.positionsModalBody} showsVerticalScrollIndicator={false}>
-                <View style={[styles.positionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Direction</Text>
-                    <Text style={[styles.positionValue, { color: position.direction === 'positive' ? '#10B981' : '#EF4444' }]}>
-                      {position.direction === 'positive' ? 'Positive' : 'Negative'}
-                    </Text>
+            {position ? (() => {
+              const openPnL = getPositionOpenPnL(entityId);
+              return (
+                <ScrollView style={styles.positionsModalBody} showsVerticalScrollIndicator={false}>
+                  <View style={[styles.positionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Direction</Text>
+                      <Text style={[styles.positionValue, { color: position.direction === 'positive' ? '#10B981' : '#EF4444' }]}>
+                        {position.direction === 'positive' ? 'Positive' : 'Negative'}
+                      </Text>
+                    </View>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
+                      <Text style={[styles.positionValue, { color: theme.text }]}>
+                        {position.tokensCommitted}
+                      </Text>
+                    </View>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Current Price</Text>
+                      <Text style={[styles.positionValue, { color: theme.text }]}>
+                        {formatCurrency(currentPrice)}
+                      </Text>
+                    </View>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Open P&L</Text>
+                      <Text style={[styles.positionValue, { color: openPnL >= 0 ? '#10B981' : '#EF4444' }]}>
+                        {openPnL >= 0 ? '+' : ''}{formatCurrency(openPnL)}
+                      </Text>
+                    </View>
+                    <View style={[styles.positionDivider, { backgroundColor: theme.border }]} />
                   </View>
-                  <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
-                    <Text style={[styles.positionValue, { color: theme.text }]}>
-                      {position.tokensCommitted}
-                    </Text>
-                  </View>
-                  <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Current Price</Text>
-                    <Text style={[styles.positionValue, { color: theme.text }]}>
-                      {formatCurrency(currentPrice)}
-                    </Text>
-                  </View>
-                  <View style={styles.positionRow}>
-                    <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tranches</Text>
-                    <Text style={[styles.positionValue, { color: theme.text }]}>
-                      {position.trancheCount || 1}
-                    </Text>
-                  </View>
-                  <View style={[styles.positionDivider, { backgroundColor: theme.border }]} />
-                  <Text style={[styles.summaryNote, { color: theme.textSecondary, marginTop: 8 }]}>
-                    P&L will be calculated when you close the position
-                  </Text>
-                </View>
-              </ScrollView>
-            ) : (
+                </ScrollView>
+              );
+            })() : (
               <View style={styles.emptyPositionsContainer}>
                 <Text style={[styles.emptyPositionsText, { color: theme.textSecondary }]}>
                   You don't have any open positions
