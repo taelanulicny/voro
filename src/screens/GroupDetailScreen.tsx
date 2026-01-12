@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, GroupMember } from '../types';
 import { useSocial } from '../context/SocialContext';
@@ -19,6 +20,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
 
 type GroupDetailRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 // Mock data generators
 const generateMockMembers = (
@@ -107,10 +109,10 @@ const generateMockMembers = (
 };
 
 export default function GroupDetailScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const route = useRoute<GroupDetailRouteProp>();
   const { groupId } = route.params;
-  const { groups, leaveGroup, deleteGroup } = useSocial();
+  const { groups, leaveGroup, deleteGroup, joinGroup } = useSocial();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { portfolio } = useTrading();
@@ -124,18 +126,24 @@ export default function GroupDetailScreen() {
     loadGroupData();
   }, [groupId, group?.isMember]);
 
-  const loadGroupData = async () => {
+  const loadGroupData = async (overrideIsMember?: boolean, overrideMemberCount?: number) => {
     setIsLoading(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Get the latest group state (in case it was updated)
+    const currentGroup = groups.find(g => g.id === groupId);
+    const isMember = overrideIsMember !== undefined ? overrideIsMember : (currentGroup?.isMember || false);
+    const memberCount = overrideMemberCount !== undefined ? overrideMemberCount : (currentGroup?.memberCount || 0);
+    
     // Generate members with account values, sorted by highest to lowest
     // Use actual user data if available
     const sortedMembers = generateMockMembers(
       groupId, 
       user?.id, 
       portfolio.totalValue || 10000, // Default to initial cash balance if portfolio not loaded
-      group?.isMember || false, // Pass whether current user is a member
-      group?.memberCount || 0 // Pass member count to determine if user created the group
+      isMember, // Pass whether current user is a member
+      memberCount // Pass member count to determine if user created the group
     );
     
     // Update current user's display info in the sorted members list
@@ -155,6 +163,18 @@ export default function GroupDetailScreen() {
   const handleLeaveGroup = async () => {
     await leaveGroup(groupId);
     navigation.goBack();
+  };
+
+  const handleJoinGroup = async () => {
+    const result = await joinGroup(groupId);
+    if (result.success) {
+      // Get the updated member count (current + 1)
+      const updatedMemberCount = (group?.memberCount || 0) + 1;
+      // Reload with updated membership status immediately
+      await loadGroupData(true, updatedMemberCount);
+    } else {
+      Alert.alert('Error', result.error || 'Failed to join group');
+    }
   };
 
   const handleDeleteGroup = async () => {
@@ -223,6 +243,10 @@ export default function GroupDetailScreen() {
             borderLeftColor: isCurrentUser ? theme.primary : 'transparent',
           }
         ]}
+        onPress={() => {
+          navigation.navigate('UserProfile', { userId: item.userId });
+        }}
+        activeOpacity={0.7}
       >
         <View style={styles.memberRank}>
           <Text style={[styles.rankNumber, { color: isCurrentUser ? theme.primary : theme.textSecondary }]}>
@@ -314,11 +338,24 @@ export default function GroupDetailScreen() {
                 contentContainerStyle={styles.membersList}
                 showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <View style={[styles.membersHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-              <Text style={[styles.membersHeaderText, { color: theme.textSecondary }]}>
-                Ranked by Account Value
-              </Text>
-            </View>
+            <>
+              {!group.isMember && (
+                <View style={[styles.joinGroupContainer, { backgroundColor: theme.card }]}>
+                  <TouchableOpacity
+                    style={[styles.joinGroupButton, { backgroundColor: theme.primary }]}
+                    onPress={handleJoinGroup}
+                  >
+                    <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+                    <Text style={styles.joinGroupText}>Join Group</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={[styles.membersHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+                <Text style={[styles.membersHeaderText, { color: theme.textSecondary }]}>
+                  Ranked by Account Value
+                </Text>
+              </View>
+            </>
           }
                 ListFooterComponent={
                   group.isMember && (
@@ -391,6 +428,25 @@ const styles = StyleSheet.create({
   },
   membersList: {
     paddingVertical: 0,
+  },
+  joinGroupContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  joinGroupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  joinGroupText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   membersHeader: {
     paddingHorizontal: 16,

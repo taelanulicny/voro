@@ -20,6 +20,8 @@ import { RootStackParamList, UserProfile } from '../types';
 import PostCard from '../components/PostCard';
 import FollowButton from '../components/FollowButton';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { getUserGroups } from '../services/socialService';
+import { formatCurrency } from '../utils/dataGenerator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProp = {
@@ -33,10 +35,12 @@ function UserProfileScreen() {
   const route = useRoute<RouteProp>();
   const { userId } = route.params;
   const { user: currentUser, token, isAuthenticated } = useAuth();
-  const { activityFeed, isFollowingUser, checkMutualFollow } = useSocial();
+  const { activityFeed, isFollowingUser, checkMutualFollow, groups } = useSocial();
   const { theme } = useTheme();
   const [profileUser, setProfileUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [groupsCount, setGroupsCount] = useState<number>(0);
+  const [accountValueVisible, setAccountValueVisible] = useState<boolean>(true);
   const [mutualStatus, setMutualStatus] = useState<{
     isMutual: boolean;
     userFollowsOther: boolean;
@@ -50,30 +54,76 @@ function UserProfileScreen() {
 
   // Fetch user profile data
   const fetchUserProfile = useCallback(async () => {
-    if (!isBackendConfigured() || !token || !isAuthenticated || isOwnProfile) {
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
-    try {
-      const response = await authenticatedRequest<UserProfile>(
-        `/api/user/${userId}`,
-        token,
-        {
-          method: 'GET',
-        }
-      );
+    
+    // If backend is configured, fetch from API
+    if (isBackendConfigured() && token && isAuthenticated && !isOwnProfile) {
+      try {
+        const response = await authenticatedRequest<UserProfile>(
+          `/api/user/${userId}`,
+          token,
+          {
+            method: 'GET',
+          }
+        );
 
-      if (response.success && response.data) {
-        setProfileUser(response.data);
+        if (response.success && response.data) {
+          setProfileUser(response.data);
+          // Get groups count
+          const groupsResponse = await getUserGroups(userId);
+          if (groupsResponse.success && groupsResponse.data) {
+            setGroupsCount(groupsResponse.data.length);
+          }
+          // Account value visibility - default to true, but could be from user settings
+          setAccountValueVisible(true);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
       }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    } finally {
-      setIsLoading(false);
+    } else {
+      // Use mock data - find user in activity feed or create mock profile
+      const userPost = activityFeed.find(post => post.userId === userId);
+      if (userPost) {
+        const mockProfile: UserProfile = {
+          id: userId,
+          email: '',
+          username: userPost.username,
+          displayName: userPost.displayName,
+          avatarUrl: userPost.avatarUrl,
+          bio: undefined,
+          followersCount: 0,
+          followingCount: 0,
+          postsCount: activityFeed.filter(p => p.userId === userId).length,
+          portfolioValue: undefined,
+          joinedDate: new Date().toISOString(),
+        };
+        setProfileUser(mockProfile);
+      }
+      
+      // Get groups count from local groups data
+      // For mock mode, we'll need to check group members
+      // For now, try to get from API if available, otherwise use 0
+      if (isBackendConfigured() && token) {
+        try {
+          const groupsResponse = await getUserGroups(userId);
+          if (groupsResponse.success && groupsResponse.data) {
+            setGroupsCount(groupsResponse.data.length);
+          } else {
+            setGroupsCount(0);
+          }
+        } catch (error) {
+          setGroupsCount(0);
+        }
+      } else {
+        // In mock mode without backend, we can't determine membership easily
+        // Could check if user appears in any group's member list, but for now use 0
+        setGroupsCount(0);
+      }
+      setAccountValueVisible(true);
     }
-  }, [userId, token, isAuthenticated, isOwnProfile]);
+    
+    setIsLoading(false);
+  }, [userId, token, isAuthenticated, isOwnProfile, activityFeed, groups]);
 
   // Check mutual follow status
   const fetchMutualStatus = useCallback(async () => {
@@ -127,6 +177,7 @@ function UserProfileScreen() {
   const followersCount = profileUser.followersCount || 0;
   const followingCount = profileUser.followingCount || 0;
   const postsCount = userPosts.length;
+  const accountValue = profileUser.portfolioValue;
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
@@ -171,6 +222,20 @@ function UserProfileScreen() {
         </View>
       )}
 
+      {/* Account Value Module - only show if user has set it to visible and value exists */}
+      {accountValue !== undefined && accountValueVisible && (
+        <View style={[styles.accountValueContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+          <View style={styles.accountValueContent}>
+            <View style={styles.accountValueHeader}>
+              <Text style={[styles.accountValueLabel, { color: theme.textSecondary }]}>Account Value</Text>
+            </View>
+            <Text style={[styles.accountValueAmount, { color: theme.text }]}>
+              {formatCurrency(accountValue)}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Stats */}
       <View style={[styles.stats, { borderTopColor: theme.borderLight }]}>
         <View style={styles.statItem}>
@@ -205,6 +270,11 @@ function UserProfileScreen() {
           <Text style={[styles.statValue, { color: theme.text }]}>{followingCount}</Text>
           <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Following</Text>
         </TouchableOpacity>
+        <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+        <View style={styles.statItem}>
+          <Text style={[styles.statValue, { color: theme.text }]}>{groupsCount}</Text>
+          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Groups</Text>
+        </View>
       </View>
     </View>
   );
@@ -384,6 +454,30 @@ const styles = StyleSheet.create({
     width: 1,
     height: 32,
     backgroundColor: '#E5E7EB',
+  },
+  accountValueContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  accountValueContent: {
+    padding: 16,
+  },
+  accountValueHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  accountValueLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  accountValueAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
   },
   emptyState: {
     alignItems: 'center',
