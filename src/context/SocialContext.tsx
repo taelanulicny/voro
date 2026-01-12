@@ -46,6 +46,7 @@ interface SocialContextType {
   // Follow actions
   toggleFollowUser: (userId: string) => Promise<{ success: boolean }>;
   isFollowingUser: (userId: string) => boolean;
+  checkMutualFollow: (userId: string) => Promise<{ isMutual: boolean; userFollowsOther: boolean; otherFollowsUser: boolean }>;
 
   // Group actions
   refreshGroups: () => Promise<void>;
@@ -656,6 +657,54 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     [followedUsers]
   );
 
+  const checkMutualFollow = useCallback(async (userId: string) => {
+    if (!token || !isBackendConfigured()) {
+      // Mock implementation - check if we follow them and if they follow us
+      const userFollowsOther = followedUsers.has(userId);
+      // In mock mode, we can't know if they follow us, so return false
+      return {
+        isMutual: false,
+        userFollowsOther,
+        otherFollowsUser: false,
+      };
+    }
+
+    try {
+      const response = await authenticatedRequest<{
+        isMutual: boolean;
+        userFollowsOther: boolean;
+        otherFollowsUser: boolean;
+      }>(
+        `/api/social/users/${userId}/mutual-follow`,
+        token,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (response.success && response.data) {
+        return response.data;
+      }
+
+      // Fallback to mock
+      const userFollowsOther = followedUsers.has(userId);
+      return {
+        isMutual: false,
+        userFollowsOther,
+        otherFollowsUser: false,
+      };
+    } catch (error) {
+      console.error('Error checking mutual follow:', error);
+      // Fallback to mock
+      const userFollowsOther = followedUsers.has(userId);
+      return {
+        isMutual: false,
+        userFollowsOther,
+        otherFollowsUser: false,
+      };
+    }
+  }, [token, followedUsers]);
+
   const refreshGroups = useCallback(async () => {
     setIsLoadingGroups(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -756,6 +805,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     toggleLikeComment,
     toggleFollowUser,
     isFollowingUser,
+    checkMutualFollow,
     refreshGroups,
     refreshUserGroups,
     createGroup,

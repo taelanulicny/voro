@@ -11,7 +11,9 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Comment } from '../types';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Comment, RootStackParamList } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,9 +21,12 @@ interface CommentSectionProps {
   postId: string;
 }
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function CommentSection({ postId }: CommentSectionProps) {
   const { user } = useAuth();
   const { postComments, getComments, addComment, editComment, toggleLikeComment } = useSocial();
+  const navigation = useNavigation<NavigationProp>();
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,19 +113,42 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
     return (
       <View key={comment.id} style={[styles.commentItem, level > 0 && styles.replyItem]}>
-        <View style={styles.commentAvatar}>
-          <Ionicons name="person-circle" size={level > 0 ? 24 : 32} color="#9CA3AF" />
-        </View>
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate('UserProfile', { userId: comment.userId });
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.commentAvatar}>
+            <Ionicons name="person-circle" size={level > 0 ? 24 : 32} color="#9CA3AF" />
+          </View>
+        </TouchableOpacity>
         
         <View style={styles.commentContent}>
           <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>
-              {comment.displayName}
-            </Text>
-            {comment.replyTo && (
-              <Text style={styles.replyToText}>
-                {' '}→ {comment.replyTo.displayName}
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('UserProfile', { userId: comment.userId });
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.commentUsername}>
+                {comment.displayName}
               </Text>
+            </TouchableOpacity>
+            {comment.replyTo && (
+              <TouchableOpacity
+                onPress={() => {
+                  if (comment.replyTo?.userId) {
+                    navigation.navigate('UserProfile', { userId: comment.replyTo.userId });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.replyToText}>
+                  {' '}→ {comment.replyTo.displayName}
+                </Text>
+              </TouchableOpacity>
             )}
             <Text style={styles.commentTimestamp}>
               {formatTimestamp(comment.timestamp)}

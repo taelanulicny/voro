@@ -127,6 +127,13 @@ export interface Comment {
   likes: number;
   isLiked: boolean;
   timestamp: string;
+  replyTo?: {
+    userId: string;
+    username: string;
+    displayName: string;
+  };
+  replies?: Comment[];
+  isEdited?: boolean;
 }
 
 export interface Group {

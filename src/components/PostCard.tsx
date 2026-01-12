@@ -13,6 +13,8 @@ import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 import CommentSection from './CommentSection';
 import { getEntityByName } from '../utils/mockEntities';
 
@@ -27,12 +29,14 @@ interface PostCardProps {
   entityName?: string; // Entity display name for tagging
 }
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function PostCard({ post, onPress, isCategoryFeed = false, categoryId, categoryName, isEntityFeed = false, entityId, entityName }: PostCardProps) {
   const { user } = useAuth();
   const { toggleLikePost, deletePost } = useSocial();
   const { theme } = useTheme();
   const [showComments, setShowComments] = useState(false);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
   const formatTimestamp = (timestamp: string) => {
     const now = new Date();
@@ -444,16 +448,29 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
     <View style={[styles.container, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: theme.backgroundSecondary }]}>
-          <Ionicons name="person" size={24} color={theme.textTertiary} />
-        </View>
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate('UserProfile', { userId: post.userId });
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.avatar, { backgroundColor: theme.backgroundSecondary }]}>
+            <Ionicons name="person" size={24} color={theme.textTertiary} />
+          </View>
+        </TouchableOpacity>
         
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
-            <View style={styles.userInfo}>
+            <TouchableOpacity
+              style={styles.userInfo}
+              onPress={() => {
+                navigation.navigate('UserProfile', { userId: post.userId });
+              }}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.displayName, { color: theme.text }]}>{post.displayName}</Text>
               <Text style={[styles.username, { color: theme.textSecondary }]}>@{post.username}</Text>
-            </View>
+            </TouchableOpacity>
             
             {isOwnPost && (
               <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
