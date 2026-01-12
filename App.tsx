@@ -23,6 +23,7 @@ import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import RecommendedGroupsScreen from './src/screens/RecommendedGroupsScreen';
 import CreateGroupScreen from './src/screens/CreateGroupScreen';
 import FollowersListScreen from './src/screens/FollowersListScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
 import NewsDetailScreen from './src/screens/NewsDetailScreen';
 import NewsFeedScreen from './src/screens/NewsFeedScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -102,6 +103,14 @@ function RootNavigator() {
             }}
           />
           <Stack.Screen name="FollowersList" component={FollowersListScreen} />
+          <Stack.Screen 
+            name="UserProfile" 
+            component={UserProfileScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
           <Stack.Screen name="NewsFeed" component={NewsFeedScreen} />
           <Stack.Screen 
