@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WatchlistItem, PriceAlert } from '../types';
 import { MOCK_ENTITIES } from '../utils/mockEntities';
 import { useTrading } from './TradingContext';
+import { BASE_PRICE } from '../utils/sentimentTrading';
 
 interface WatchlistContextType {
   watchlist: WatchlistItem[];
@@ -102,10 +103,11 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
           const entity = MOCK_ENTITIES.find(e => e.id === item.entityId);
           if (!entity) return item;
 
-          const currentPrice = getEntityPrice(item.entityId);
-          const basePrice = entity.basePrice;
-          const change24h = currentPrice - basePrice;
-          const changePercent24h = (change24h / basePrice) * 100;
+          // Get current price, defaulting to BASE_PRICE if not available
+          const currentPrice = getEntityPrice(item.entityId) || BASE_PRICE;
+          // Calculate change from BASE_PRICE (100) - all entities start at 100
+          const change24h = currentPrice - BASE_PRICE;
+          const changePercent24h = (change24h / BASE_PRICE) * 100;
 
           return {
             ...item,
@@ -166,10 +168,11 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
     const entity = MOCK_ENTITIES.find(e => e.id === entityId);
     if (!entity) return;
 
-    const currentPrice = getEntityPrice(entityId);
-    const basePrice = entity.basePrice;
-    const change24h = currentPrice - basePrice;
-    const changePercent24h = (change24h / basePrice) * 100;
+    // Get current price, defaulting to BASE_PRICE if not available
+    const currentPrice = getEntityPrice(entityId) || BASE_PRICE;
+    // Calculate change from BASE_PRICE (100) - all entities start at 100
+    const change24h = currentPrice - BASE_PRICE;
+    const changePercent24h = (change24h / BASE_PRICE) * 100;
 
     const newItem: WatchlistItem = {
       entityId,
