@@ -44,7 +44,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { portfolio, getEntityPrice, getAllEntityPrices } = useTrading();
+  const { portfolio, getEntityPrice, getAllEntityPrices, getPosition, getPositionOpenPnL } = useTrading();
   const { theme } = useTheme();
   const { watchlist } = useWatchlist();
   const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
@@ -66,6 +66,36 @@ export default function HomeScreen() {
   // Get live entity prices
   const entityPrices = getAllEntityPrices();
   const [previousPrices, setPreviousPrices] = useState<Record<number, number>>({});
+
+  // Get all open positions
+  const openPositions = useMemo(() => {
+    const positions: Array<{
+      entityId: number;
+      entityName: string;
+      entityTicker: string;
+      category: string;
+      currentPrice: number;
+      pnl: number;
+    }> = [];
+
+    MOCK_ENTITIES.forEach((entity) => {
+      const position = getPosition(entity.id);
+      if (position) {
+        const currentPrice = getEntityPrice(entity.id) || BASE_PRICE;
+        const pnl = getPositionOpenPnL(entity.id);
+        positions.push({
+          entityId: entity.id,
+          entityName: entity.name,
+          entityTicker: entity.ticker,
+          category: entity.category,
+          currentPrice,
+          pnl,
+        });
+      }
+    });
+
+    return positions;
+  }, [entityPrices, getPosition, getEntityPrice, getPositionOpenPnL]);
   
   // Force chart update when portfolio value changes - DISABLED (keeping prices static)
   // useEffect(() => {
@@ -1586,7 +1616,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {portfolio.holdings.length === 0 ? (
+          {openPositions.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="wallet-outline" size={48} color={theme.textTertiary} />
               <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No open positions</Text>
@@ -1596,36 +1626,31 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {portfolio.holdings.slice(0, 5).map((holding) => {
-                const entity = MOCK_ENTITIES.find(e => e.id === holding.entityId);
-                const entityCategory = entity?.category || '';
+              {openPositions.slice(0, 5).map((position) => {
                 return (
                   <TouchableOpacity
-                    key={holding.entityId}
+                    key={position.entityId}
                     style={[styles.watchlistCard, { borderBottomColor: theme.borderLight }]}
-                    onPress={() => handleHoldingPress(holding.entityId, entityCategory)}
+                    onPress={() => handleHoldingPress(position.entityId, position.category)}
                   >
                     <View style={styles.watchlistLeft}>
                       <View style={[styles.watchlistIcon, { backgroundColor: theme.primaryLight }]}>
                         <Text style={[styles.watchlistIconText, { color: theme.primary }]}>
-                          {holding.entityName.substring(0, 2).toUpperCase()}
+                          {position.entityName.substring(0, 2).toUpperCase()}
                         </Text>
                       </View>
                       <View style={styles.watchlistInfo}>
-                        <Text style={[styles.watchlistName, { color: theme.text }]}>{holding.entityName}</Text>
-                        <Text style={[styles.watchlistCategory, { color: theme.textSecondary }]}>
-                          {entityCategory}
-                        </Text>
+                        <Text style={[styles.watchlistName, { color: theme.text }]}>{position.entityName}</Text>
                       </View>
                     </View>
                     
                     <View style={styles.watchlistRight}>
                       <Text style={[styles.watchlistPrice, { color: theme.text }]}>
-                        {formatCurrency(holding.totalValue)}
+                        {formatCurrency(position.currentPrice)}
                       </Text>
-                      <Text style={[styles.watchlistChange, { color: getChangeColor(holding.profitLoss) }]}>
-                        {holding.profitLoss >= 0 ? '+' : ''}
-                        {formatCurrency(holding.profitLoss)}
+                      <Text style={[styles.watchlistChange, { color: getChangeColor(position.pnl) }]}>
+                        {position.pnl >= 0 ? '+' : ''}
+                        {formatCurrency(position.pnl)}
                       </Text>
                     </View>
                   </TouchableOpacity>
