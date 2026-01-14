@@ -33,10 +33,14 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  
+  // Use placeholder if env var is missing to prevent crash
+  // The handleGoogleLogin function will check and show an error if not configured
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, // Ideally use separate iOS client ID
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    clientId: googleClientId || 'placeholder-client-id.apps.googleusercontent.com',
+    iosClientId: googleClientId || 'placeholder-client-id.apps.googleusercontent.com',
+    webClientId: googleClientId || 'placeholder-client-id.apps.googleusercontent.com',
   });
 
   React.useEffect(() => {
@@ -110,6 +114,13 @@ export default function LoginScreen() {
   };
 
   const handleGoogleLogin = () => {
+    if (!googleClientId) {
+      Alert.alert(
+        'Google Sign-In Not Configured',
+        'Google Sign-In is not set up. Please configure EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in your .env file.'
+      );
+      return;
+    }
     setIsGoogleLoading(true);
     promptAsync().catch((err) => {
       setIsGoogleLoading(false);
