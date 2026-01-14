@@ -29,6 +29,7 @@ export async function getUserPortfolio(userId: string): Promise<{
   );
 
   const cashBalance = userResult.Item?.cashBalance ?? INITIAL_CASH_BALANCE;
+  const user = userResult.Item as any;
 
   // Get all holdings for user
   const holdingsResult = await docClient.send(
@@ -43,25 +44,15 @@ export async function getUserPortfolio(userId: string): Promise<{
 
   const holdings = holdingsResult.Items || [];
 
-  // Get current prices for all entities
+  // Get current prices for all entities using sentiment-based calculation
   const entityIds = holdings.map((h: any) => h.entityId);
   const prices: Record<number, number> = {};
 
+  // Use getEntityPrice which uses sentiment-based calculation
   for (const entityId of entityIds) {
-    const priceResult = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAMES.PRICE_HISTORY,
-        KeyConditionExpression: 'entityId = :entityId',
-        ExpressionAttributeValues: {
-          ':entityId': entityId,
-        },
-        ScanIndexForward: false,
-        Limit: 1,
-      })
-    );
-
-    if (priceResult.Items && priceResult.Items.length > 0) {
-      prices[entityId] = (priceResult.Items[0] as PriceHistory).price;
+    const price = await getEntityPrice(entityId);
+    if (price !== null) {
+      prices[entityId] = price;
     }
   }
 
@@ -81,7 +72,7 @@ export async function getUserPortfolio(userId: string): Promise<{
 
   // Calculate holdings with current prices
   const holdingsWithPrices = holdings.map((holding: any) => {
-    const currentPrice = prices[holding.entityId] || holding.averageCost;
+    const currentPrice = prices[holding.entityId] || holding.averageCost || 100;
     const totalValue = holding.quantity * currentPrice;
     const profitLoss = totalValue - holding.totalCost;
     const profitLossPercent = (profitLoss / holding.totalCost) * 100;
@@ -103,9 +94,35 @@ export async function getUserPortfolio(userId: string): Promise<{
 
   const holdingsValue = holdingsWithPrices.reduce((sum, h) => sum + h.totalValue, 0);
   const totalValue = cashBalance + holdingsValue;
-  const totalProfitLoss = holdingsWithPrices.reduce((sum, h) => sum + h.profitLoss, 0);
-  const todayChange = totalProfitLoss * 0.1; // Mock: 10% of P&L as today's change
-  const todayChangePercent = totalValue > 0 ? (todayChange / totalValue) * 100 : 0;
+
+  // Calculate real todayChange based on opening portfolio value
+  const now = new Date();
+  const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const openingDate = user?.openingPortfolioDate;
+  let openingPortfolioValue = user?.openingPortfolioValue;
+
+  // If it's a new day or no opening value exists, set current value as opening
+  if (!openingDate || openingDate !== todayDate || openingPortfolioValue === undefined) {
+    openingPortfolioValue = totalValue;
+    
+    // Update user record with new opening value
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.USERS,
+        Key: { userId },
+        UpdateExpression: 'SET openingPortfolioValue = :opv, openingPortfolioDate = :opd, updatedAt = :ua',
+        ExpressionAttributeValues: {
+          ':opv': openingPortfolioValue,
+          ':opd': todayDate,
+          ':ua': now.toISOString(),
+        },
+      })
+    );
+  }
+
+  // Calculate todayChange as difference from opening value
+  const todayChange = totalValue - openingPortfolioValue;
+  const todayChangePercent = openingPortfolioValue > 0 ? (todayChange / openingPortfolioValue) * 100 : 0;
 
   return {
     cashBalance,

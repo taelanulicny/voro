@@ -11,6 +11,9 @@ export interface User {
   followingCount: number;
   portfolioValue?: number;
   cashBalance?: number;
+  // Portfolio tracking for todayChange calculation
+  openingPortfolioValue?: number; // Portfolio value at start of day
+  openingPortfolioDate?: string; // Date (YYYY-MM-DD) when opening value was set
   joinedDate: string;
   eulaAccepted?: boolean;
   eulaAcceptedAt?: string;

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
@@ -47,6 +47,8 @@ interface TradingContextType {
   portfolioHistory: number[];
   fetchPortfolio: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
+  lastPriceUpdateTime: number | null;
+  isPriceStale: boolean;
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
@@ -61,6 +63,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [todayChange, setTodayChange] = useState(0);
   const [todayChangePercent, setTodayChangePercent] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastPriceUpdateTime, setLastPriceUpdateTime] = useState<number | null>(null);
   
   // Entity sentiment pools (P and N) - tracked locally for immediate price updates
   const [entityPools, setEntityPools] = useState<Record<number, { positiveTokens: number; negativeTokens: number }>>(() => {
@@ -207,6 +210,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           prices[entity.entityId] = entity.currentPrice || entity.basePrice;
         });
         setEntityPrices(prices);
+        // Update last price update time
+        setLastPriceUpdateTime(Date.now());
       }
     } catch (error) {
       // Silently handle errors - don't crash the app
@@ -224,14 +229,15 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated, token, fetchPortfolio, fetchTransactions, fetchEntityPrices]);
 
-  // Poll for price updates every 5 seconds (only if backend is configured)
+  // Poll for price updates every 1 second (only if backend is configured)
+  // More frequent updates for real-time trading experience
   useEffect(() => {
     if (!isAuthenticated || !token || !isBackendConfigured()) return;
 
     const interval = setInterval(() => {
       fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
       fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
-    }, 5000);
+    }, 1000); // 1 second for real-time price updates
 
     return () => clearInterval(interval);
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
@@ -913,6 +919,13 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     return result;
   };
 
+  // Check if prices are stale (> 60 seconds since last update)
+  const isPriceStale = useMemo(() => {
+    if (!lastPriceUpdateTime) return false;
+    const secondsSinceUpdate = (Date.now() - lastPriceUpdateTime) / 1000;
+    return secondsSinceUpdate > 60;
+  }, [lastPriceUpdateTime]);
+
   const portfolio: Portfolio = {
     cashBalance,
     totalValue: holdings.reduce((sum, h) => sum + h.totalValue, 0) + cashBalance,
@@ -944,6 +957,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         portfolioHistory,
         fetchPortfolio,
         fetchTransactions,
+        lastPriceUpdateTime,
+        isPriceStale,
       }}
     >
       {children}
