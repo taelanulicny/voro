@@ -23,7 +23,8 @@ import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
-import { getEntityById } from '../utils/entities';
+import { getEntityById, extractEntityMentions, entityNameToMention } from '../utils/entities';
+import { useSocial } from '../context/SocialContext';
 import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
 import PostCard from '../components/PostCard';
@@ -216,6 +217,7 @@ export default function EntityScreen() {
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const { postComments } = useSocial();
   
   // Generate entity data based on current entityId - updates when entityId changes
   const entityData = useMemo(() => generateEntityData(entityId, categoryId), [entityId, categoryId]);
@@ -416,11 +418,52 @@ export default function EntityScreen() {
     } as never);
   };
   
-  // Entity-specific feed posts - empty for fresh start, no hardcoded data
+  // Entity-specific feed posts - includes comments that mention the entity
   const entityFeedPosts = useMemo(() => {
-    // Return empty array - no fake feed posts
-    return [];
-  }, [entityId]);
+    if (!entityData?.entity) return [];
+    
+    const entityMentionName = entityNameToMention(entityData.entity.name).toLowerCase();
+    const feedPosts: Post[] = [];
+    
+    // Get all comments from all posts
+    const allComments = Object.values(postComments).flat();
+    
+    // Filter comments that mention this entity and convert them to post format
+    allComments.forEach(comment => {
+      const mentionedEntities = extractEntityMentions(comment.content);
+      const mentionsThisEntity = mentionedEntities.some(e => {
+        const mentionName = entityNameToMention(e.name).toLowerCase();
+        return mentionName === entityMentionName;
+      });
+      
+      if (mentionsThisEntity) {
+        // Convert comment to post format for entity feed
+        const commentAsPost: Post = {
+          id: `comment-${comment.id}`,
+          userId: comment.userId,
+          username: comment.username,
+          displayName: comment.displayName,
+          avatarUrl: comment.avatarUrl,
+          content: comment.content,
+          entityId: entityData.entity.id,
+          entityTicker: entityData.entity.ticker,
+          entityName: entityData.entity.name,
+          sentiment: undefined,
+          likes: comment.likes,
+          comments: 0, // Comments don't have nested comments in feed
+          isLiked: comment.isLiked,
+          isBookmarked: false,
+          timestamp: comment.timestamp,
+        };
+        feedPosts.push(commentAsPost);
+      }
+    });
+    
+    // Sort by timestamp (newest first)
+    return feedPosts.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [entityId, entityData?.entity, postComments]);
 
   // Get biggest trade in this entity for today - return null when no data (fresh start)
   const biggestEntityTrade = useMemo(() => {

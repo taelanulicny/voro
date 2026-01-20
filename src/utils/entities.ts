@@ -982,3 +982,57 @@ export const getEntityByName = (name: string): EntityData | undefined => {
   );
 };
 
+
+/**
+ * Convert entity name to mention format (remove spaces)
+ */
+export const entityNameToMention = (name: string): string => {
+  return name.replace(/\s+/g, '');
+};
+
+/**
+ * Clean mention name (remove trailing apostrophes, 's', etc.)
+ */
+export const cleanMentionName = (mentionName: string): string => {
+  return mentionName.replace(/['"]+s?$/i, '').trim();
+};
+
+/**
+ * Find entity by mention format (handles both mention format and full name)
+ */
+export const getEntityByMention = (mentionName: string): EntityData | undefined => {
+  const cleanedName = cleanMentionName(mentionName);
+  
+  // First try exact match with cleaned name
+  let entity = getEntityByName(cleanedName);
+  if (entity) return entity;
+  
+  // Try all entities to find one whose mention format matches
+  return ENTITIES.find((e) => {
+    const entityMentionName = entityNameToMention(e.name);
+    return entityMentionName.toLowerCase() === cleanedName.toLowerCase();
+  });
+};
+
+/**
+ * Extract all entity mentions from text
+ * Returns array of EntityData objects that are mentioned in the text
+ */
+export const extractEntityMentions = (text: string): EntityData[] => {
+  const mentionedEntities: EntityData[] = [];
+  const mentionRegex = /@([\p{L}\p{N}.'-]+)/gu;
+  const seenEntityIds = new Set<number>();
+  
+  let match;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    const mentionName = match[1];
+    const entity = getEntityByMention(mentionName);
+    
+    if (entity && !seenEntityIds.has(entity.id)) {
+      mentionedEntities.push(entity);
+      seenEntityIds.add(entity.id);
+    }
+  }
+  
+  return mentionedEntities;
+};

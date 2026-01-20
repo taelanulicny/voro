@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import CommentSection from './CommentSection';
-import { getEntityByName } from '../utils/entities';
+import { getEntityByName, getEntityByMention, entityNameToMention, cleanMentionName } from '../utils/entities';
 
 interface PostCardProps {
   post: Post;
@@ -94,34 +94,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
     );
   };
 
-  // Helper function to convert entity name to mention format (remove spaces)
-  const entityNameToMention = (name: string): string => {
-    return name.replace(/\s+/g, '');
-  };
-
-  // Helper function to clean mention name (remove trailing apostrophes, 's', etc.)
-  const cleanMentionName = (mentionName: string): string => {
-    // Remove trailing apostrophes and possessive forms like "'s"
-    return mentionName.replace(/['"]+s?$/i, '').trim();
-  };
-
-  // Helper function to find entity by mention (try both mention format and full name)
-  const getEntityByMention = (mentionName: string) => {
-    // Clean the mention name first (e.g., "Drake's" -> "Drake")
-    const cleanedName = cleanMentionName(mentionName);
-    
-    // First try exact match with cleaned name (for single-word names like "Drake")
-    let entity = getEntityByName(cleanedName);
-    if (entity) return entity;
-    
-    // Try all entities to find one whose mention format matches
-    // This handles multi-word names like "Kanye West" -> "@KanyeWest"
-    const { ENTITIES } = require('../utils/entities');
-    return ENTITIES.find((e: any) => {
-      const entityMentionName = entityNameToMention(e.name);
-      return entityMentionName.toLowerCase() === cleanedName.toLowerCase();
-    });
-  };
+  // Use exported utility functions from entities.ts
 
   const handleEntityPress = (mentionEntityName?: string) => {
     // If a specific entity name is provided (from mention), use that
