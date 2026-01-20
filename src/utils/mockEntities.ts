@@ -396,6 +396,14 @@ export const MOCK_ENTITIES: MockEntity[] = [
     basePrice: 210.90,
     description: 'Top quarterback prospect and Heisman winner. Trade confidence in Caleb Williams\'s draft stock, NFL readiness, and future potential.',
   },
+  {
+    id: 69,
+    ticker: 'TOMBR',
+    name: 'Tom Brady',
+    category: 'NFL Players',
+    basePrice: 250.00,
+    description: 'Seven-time Super Bowl champion and greatest quarterback of all time. Trade confidence in Tom Brady\'s legacy, retirement impact, and post-career ventures.',
+  },
   // Soccer Players
   {
     id: 67,

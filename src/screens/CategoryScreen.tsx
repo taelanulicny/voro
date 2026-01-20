@@ -838,6 +838,22 @@ export default function CategoryScreen() {
           isBookmarked: true,
           timestamp: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
         },
+        {
+          id: 'nfl-9',
+          userId: 'user-18',
+          username: 'goat_debate',
+          displayName: 'GOAT Debate',
+          content: '@TomBrady is the greatest quarterback of all time. 7 Super Bowls, 5 MVPs, 20+ seasons. The GOAT debate is over.',
+          entityId: 69,
+          entityTicker: 'TOMBR',
+          entityName: 'Tom Brady',
+          sentiment: 'positive',
+          likes: 512,
+          comments: 89,
+          isLiked: true,
+          isBookmarked: true,
+          timestamp: new Date(now - 1000 * 60 * 5).toISOString(),
+        },
       ],
       'Soccer Players': [
         {
