@@ -1836,7 +1836,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
   },
   segmentButtonInactive: {
-    backgroundColor: '#10B981', // Green
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#775a96',
     borderTopRightRadius: 20,
     borderBottomRightRadius: 20,
     paddingHorizontal: 32, // Extra padding to balance with "Predict"
@@ -1849,7 +1851,7 @@ const styles = StyleSheet.create({
   segmentButtonTextInactive: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#775a96',
   },
   rightIconButtons: {
     flexDirection: 'row',

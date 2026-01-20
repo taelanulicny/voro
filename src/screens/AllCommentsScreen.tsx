@@ -292,15 +292,25 @@ export default function AllCommentsScreen() {
           style={[
             styles.postButton,
             (!commentText.trim() || isSubmitting) && styles.postButtonDisabled,
-            { backgroundColor: commentText.trim() ? theme.primary : theme.backgroundTertiary }
+            {
+              backgroundColor: theme.card,
+              borderColor: (!commentText.trim() || isSubmitting) ? theme.border : theme.primary,
+            },
           ]}
           onPress={handleSubmitComment}
           disabled={!commentText.trim() || isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={theme.primary} />
           ) : (
-            <Text style={styles.postButtonText}>Post</Text>
+            <Text
+              style={[
+                styles.postButtonText,
+                { color: (!commentText.trim() || isSubmitting) ? theme.textTertiary : theme.primary },
+              ]}
+            >
+              Post
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -436,6 +446,7 @@ const styles = StyleSheet.create({
     minWidth: 60,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   postButtonDisabled: {
     opacity: 0.5,

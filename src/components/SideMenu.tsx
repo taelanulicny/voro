@@ -113,7 +113,20 @@ export default function SideMenu({ onClose }: SideMenuProps) {
           {/* Menu Content */}
           <View style={styles.menuBody}>
             <Text style={[styles.menuTitle, { color: theme.text }]}>Menu</Text>
-            
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                handleClose();
+                navigation.navigate('Main', { screen: 'SeasonalCompetition' });
+              }}
+            >
+              <View style={[styles.menuItemIcon, { borderColor: theme.textSecondary, borderWidth: 1 }]}>
+                <Ionicons name="megaphone-outline" size={16} color={theme.text} />
+              </View>
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Cast Your Vote</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
