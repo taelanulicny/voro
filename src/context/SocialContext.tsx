@@ -631,6 +631,44 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           ],
         },
       ],
+      'people-example-tom-brady': [
+        {
+          id: 'comment-tb-1',
+          postId: 'people-example-tom-brady',
+          userId: 'user-comment-tb-1',
+          username: 'nfl_legend',
+          displayName: 'NFL Legend',
+          avatarUrl: undefined,
+          content: 'Couldn\'t agree more! 7 Super Bowls speaks for itself.',
+          likes: 8,
+          isLiked: false,
+          timestamp: new Date(Date.now() - 1000 * 60 * 20).toISOString(), // 20 minutes ago
+        },
+        {
+          id: 'comment-tb-2',
+          postId: 'people-example-tom-brady',
+          userId: 'user-comment-tb-2',
+          username: 'football_fan',
+          displayName: 'Football Fan',
+          avatarUrl: undefined,
+          content: 'The longevity alone puts him in a class of his own.',
+          likes: 4,
+          isLiked: false,
+          timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
+        },
+        {
+          id: 'comment-tb-3',
+          postId: 'people-example-tom-brady',
+          userId: 'user-comment-tb-3',
+          username: 'sports_analyst',
+          displayName: 'Sports Analyst',
+          avatarUrl: undefined,
+          content: 'No quarterback has ever dominated like Brady did. Period.',
+          likes: 12,
+          isLiked: false,
+          timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 minutes ago - most recent
+        },
+      ],
     };
 
     // Return mock comments if available, otherwise try API

@@ -201,6 +201,26 @@ export default function CategoryScreen() {
         const subcategoryPosts = basePosts[subcategory] || [];
         aggregatedPosts.push(...subcategoryPosts);
       });
+      
+      // Add example post for Tom Brady
+      const now = Date.now();
+      aggregatedPosts.push({
+        id: 'people-example-tom-brady',
+        userId: 'user-example',
+        username: 'nfl_fan',
+        displayName: 'NFL Fan',
+        content: '@TomBrady is still the goat out of all the NFL football players 🐐',
+        entityId: 69, // Tom Brady's entity ID
+        entityTicker: 'TOMBR',
+        entityName: 'Tom Brady',
+        sentiment: 'positive',
+        likes: 5,
+        comments: 3,
+        isLiked: false,
+        isBookmarked: false,
+        timestamp: new Date(now - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+      });
+      
       // Sort by timestamp (newest first)
       return aggregatedPosts.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()

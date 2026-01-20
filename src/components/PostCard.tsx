@@ -41,7 +41,14 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
   const navigation = useNavigation<NavigationProp>();
 
   // Load comments automatically
-  const comments = postComments[post.id] || [];
+  const allComments = postComments[post.id] || [];
+  
+  // Sort comments by timestamp (newest first) and get only the most recent one
+  const sortedComments = [...allComments].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  const mostRecentComment = sortedComments.length > 0 ? sortedComments[0] : null;
+  const hasMoreComments = sortedComments.length > 1;
   
   // Load comments when component mounts
   useEffect(() => {
@@ -65,52 +72,21 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
   };
 
   const renderComment = (comment: Comment) => {
-    const hasReplies = comment.replies && comment.replies.length > 0;
-    const mostRecentReply = hasReplies ? comment.replies![0] : null; // Replies are sorted newest first
-    const totalReplies = comment.replies?.length || 0;
-
     return (
-      <View key={comment.id} style={[styles.commentItem, { borderBottomColor: theme.border }]}>
-        {/* Top-level comment */}
+      <View key={comment.id} style={styles.commentItem}>
+        {/* Vertical gray line on the left */}
+        <View style={[styles.commentThreadLine, { backgroundColor: theme.border }]} />
+        {/* Comment content */}
         <View style={styles.commentContent}>
-          <Text style={[styles.commentUsername, { color: theme.text }]}>
-            {comment.displayName}
-          </Text>
-          <Text style={[styles.commentText, { color: theme.text }]}>
-            {comment.content}
+          <Text style={styles.commentText}>
+            <Text style={[styles.commentUsername, { color: theme.text }]}>
+              {comment.displayName}:
+            </Text>
+            <Text style={[styles.commentTextContent, { color: theme.text }]}>
+              {' '}{comment.content}
+            </Text>
           </Text>
         </View>
-
-        {/* Most recent reply (if exists) */}
-        {mostRecentReply && (
-          <View style={[styles.recentReplyContainer, { backgroundColor: theme.backgroundSecondary }]}>
-            <Text style={[styles.recentReplyUsername, { color: theme.text }]}>
-              {mostRecentReply.displayName}
-            </Text>
-            <Text style={[styles.recentReplyText, { color: theme.text }]}>
-              {mostRecentReply.content}
-            </Text>
-          </View>
-        )}
-
-        {/* All comments button (if has replies) */}
-        {hasReplies && (
-          <TouchableOpacity
-            style={styles.allCommentsButton}
-            onPress={() => {
-              navigation.navigate('CommentReplies', {
-                postId: post.id,
-                commentId: comment.id,
-                commentUsername: comment.displayName,
-                commentContent: comment.content,
-              });
-            }}
-          >
-            <Text style={[styles.allCommentsText, { color: theme.primary }]}>
-              All comments ({totalReplies})
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -665,17 +641,17 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         </TouchableOpacity>
       </View>
 
-      {/* Comments Section - Show top-level comments directly */}
-      {comments.length > 0 && (
-        <View style={[styles.commentsSection, { borderTopColor: theme.border }]}>
-          {comments.slice(0, 3).map(comment => renderComment(comment))}
-          {comments.length > 3 && (
+      {/* Comments Section - Show only the most recent comment */}
+      {mostRecentComment && (
+        <View style={styles.commentsSection}>
+          {renderComment(mostRecentComment)}
+          {hasMoreComments && (
             <TouchableOpacity
               style={styles.viewAllCommentsButton}
               onPress={() => setShowComments(!showComments)}
             >
-              <Text style={[styles.viewAllCommentsText, { color: theme.primary }]}>
-                View all {comments.length} comments
+              <Text style={[styles.viewAllCommentsText, { color: theme.textSecondary }]}>
+                All Comments >
               </Text>
             </TouchableOpacity>
           )}
@@ -800,26 +776,32 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   commentsSection: {
+    marginTop: 12,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
   },
   commentItem: {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  commentThreadLine: {
+    width: 2,
+    marginRight: 12,
+    minHeight: 20,
   },
   commentContent: {
-    marginBottom: 8,
-  },
-  commentUsername: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
+    flex: 1,
   },
   commentText: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  commentUsername: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  commentTextContent: {
+    fontSize: 14,
+    fontWeight: '400',
   },
   recentReplyContainer: {
     paddingHorizontal: 12,
@@ -844,12 +826,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   viewAllCommentsButton: {
-    marginTop: 8,
-    paddingVertical: 8,
+    marginTop: 4,
+    marginLeft: 14, // Align with comment content (2px line + 12px margin)
+    paddingVertical: 4,
   },
   viewAllCommentsText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
   },
 });
 
