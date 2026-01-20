@@ -31,7 +31,7 @@ export default function WelcomeScreen() {
           </View>
         </View>
         <Text style={styles.subtitle}>
-          Trade, compete, and connect with other traders
+          The first platform to quantify public opinion continuously over time.
         </Text>
 
         <TouchableOpacity
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 24,
   },
   title: {
     fontSize: 32,
