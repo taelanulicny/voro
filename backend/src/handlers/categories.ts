@@ -24,7 +24,7 @@ export async function getTrendingHandler(event: APIGatewayProxyEvent): Promise<A
 
     return createResponse(200, {
       entities,
-      timeframe: '24h',
+      timeframe: 'session',
     });
   } catch (error: any) {
     logger.error('Error in getTrendingHandler', error);
@@ -130,7 +130,7 @@ export async function getCategoryVolumesHandler(event: APIGatewayProxyEvent): Pr
     return createResponse(200, {
       success: true,
       volumes,
-      timeframe: '24h',
+      timeframe: 'session',
     });
   } catch (error: any) {
     logger.error('Error in getCategoryVolumesHandler', error);

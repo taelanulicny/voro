@@ -11,6 +11,7 @@ import {
 } from '../services/tradingService';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
+import { BASE_PRICE } from '../services/priceCalculationService';
 
 // Zod schema for trade execution validation
 // Updated to support sentiment-based trading:
@@ -186,10 +187,10 @@ export async function getAllEntitiesHandler(event: APIGatewayProxyEvent): Promis
         const price = await getEntityPrice(entity.entityId);
         return {
           ...entity,
-          currentPrice: price || entity.basePrice,
-          change24h: 0, // Would calculate from price history
-          changePercent24h: 0,
-          volume24h: 0,
+          currentPrice: price || BASE_PRICE,
+          changeSession: 0, // Would calculate from price history
+          changePercentSession: 0,
+          volumeSession: 0,
           marketCap: 0,
         };
       })

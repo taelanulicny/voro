@@ -3,6 +3,7 @@ import { createResponse, createErrorResponse } from '../middleware/auth';
 import { searchEntities, getSearchSuggestions } from '../services/searchService';
 import { getAllEntityPrices } from '../services/tradingService';
 import { logger } from '../utils/logger';
+import { BASE_PRICE } from '../services/priceCalculationService';
 
 export async function searchHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -37,17 +38,15 @@ export async function searchHandler(event: APIGatewayProxyEvent): Promise<APIGat
 
     // Enhance results with current prices and calculate changes
     const enhancedResults = results.map(result => {
-      const currentPrice = prices[result.entity.entityId] || result.entity.basePrice;
-      const change24h = currentPrice - result.entity.basePrice;
-      const changePercent24h = result.entity.basePrice > 0 
-        ? (change24h / result.entity.basePrice) * 100 
-        : 0;
+      const currentPrice = prices[result.entity.entityId] || BASE_PRICE;
+      const changeSession = currentPrice - BASE_PRICE;
+      const changePercentSession = (changeSession / BASE_PRICE) * 100;
 
       return {
         ...result.entity,
         currentPrice,
-        change24h,
-        changePercent24h,
+        changeSession,
+        changePercentSession,
         searchScore: result.score,
         matchType: result.matchType,
         matchedFields: result.matchedFields,
@@ -61,9 +60,9 @@ export async function searchHandler(event: APIGatewayProxyEvent): Promise<APIGat
     } else if (sortBy === 'price_low') {
       finalResults = enhancedResults.sort((a, b) => a.currentPrice - b.currentPrice);
     } else if (sortBy === 'change_high') {
-      finalResults = enhancedResults.sort((a, b) => b.changePercent24h - a.changePercent24h);
+      finalResults = enhancedResults.sort((a, b) => b.changePercentSession - a.changePercentSession);
     } else if (sortBy === 'change_low') {
-      finalResults = enhancedResults.sort((a, b) => a.changePercent24h - b.changePercent24h);
+      finalResults = enhancedResults.sort((a, b) => a.changePercentSession - b.changePercentSession);
     }
 
     return createResponse(200, {

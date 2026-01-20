@@ -5,6 +5,7 @@ import { TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { Portfolio, Transaction, Entity, PriceHistory } from '../models/types';
 import { logger } from '../utils/logger';
+import { BASE_PRICE } from './priceCalculationService';
 
 const INITIAL_CASH_BALANCE = 10000;
 
@@ -535,7 +536,7 @@ export async function getAllEntityPrices(): Promise<Record<number, number>> {
       const price = await getEntityPrice(entity.entityId);
       return {
         entityId: entity.entityId,
-        price: price || entity.basePrice,
+        price: price || BASE_PRICE,
       };
     });
     

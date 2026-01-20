@@ -19,7 +19,7 @@ import {
   calculatePrice,
   calculatePriceFromEntity,
   getInitialEntityValues,
-  EPSILON,
+  DEFAULT_EPSILON,
   BASE_PRICE,
 } from './priceCalculationService';
 
@@ -60,6 +60,7 @@ export async function openPosition(
     const entity = entityResult.Item as Entity;
     const p = entity.positiveTokens ?? 0;
     const n = entity.negativeTokens ?? 0;
+    const epsilon = entity.epsilon ?? DEFAULT_EPSILON;
 
     // Check if user already has an open position for this entity (max one per entity)
     // Note: We check before transaction, but also use condition in transaction for atomicity
@@ -93,8 +94,8 @@ export async function openPosition(
     }
 
     // Calculate EntryRatio BEFORE adding tokens
-    const entryRatio = calculateSentimentRatio(p, n);
-    const currentPrice = calculatePrice(p, n);
+    const entryRatio = calculateSentimentRatio(p, n, epsilon);
+    const currentPrice = calculatePrice(p, n, epsilon);
 
     // Calculate new pool values AFTER adding tokens
     const newP = direction === 'positive' ? p + tokensCommitted : p;
@@ -298,16 +299,17 @@ export async function closePosition(
     const entity = entityResult.Item as Entity;
     const p = entity.positiveTokens ?? 0;
     const n = entity.negativeTokens ?? 0;
+    const epsilon = entity.epsilon ?? DEFAULT_EPSILON;
 
     // Calculate current price before removing tokens
-    const currentPrice = calculatePrice(p, n);
+    const currentPrice = calculatePrice(p, n, epsilon);
 
     // Remove tokens from pool FIRST
     const newP = direction === 'positive' ? Math.max(0, p - tokensCommitted) : p;
     const newN = direction === 'negative' ? Math.max(0, n - tokensCommitted) : n;
 
     // Calculate ExitRatio AFTER removing tokens
-    const exitRatio = calculateSentimentRatio(newP, newN);
+    const exitRatio = calculateSentimentRatio(newP, newN, epsilon);
 
     // Calculate PnL
     const deltaR = exitRatio - entryRatio;

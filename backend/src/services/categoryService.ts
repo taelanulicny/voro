@@ -2,6 +2,8 @@ import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { ScanCommand, QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { Entity, PriceHistory, Transaction, Post } from '../models/types';
 import { getAllEntities, getEntityPrice } from './tradingService';
+import { BASE_PRICE } from './priceCalculationService';
+import { getCurrentTradingSessionStart, getPreviousTradingSessionStart } from '../utils/tradingSession';
 
 export interface CategoryVolume {
   name: string;
@@ -9,8 +11,8 @@ export interface CategoryVolume {
   percentage: number;
   previousPercentage: number;
   color: 'green' | 'red';
-  volume24h: number;
-  previousVolume24h: number;
+  volumeSession: number;
+  previousVolumeSession: number;
   entityCount: number;
 }
 
@@ -23,27 +25,27 @@ export interface EntityWithStats {
   description: string;
   logoUrl?: string;
   currentPrice: number;
-  change24h: number;
-  changePercent24h: number;
-  volume24h?: number;
+  changeSession: number;
+  changePercentSession: number;
+  volumeSession?: number;
   postCount?: number;
   commentCount?: number;
 }
 
 /**
- * Get trending entities sorted by 24h trade volume
+ * Get trending entities sorted by trading session trade volume
  */
 export async function getTrendingEntities(limit: number = 20): Promise<EntityWithStats[]> {
   try {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const sessionStart = getCurrentTradingSessionStart();
 
-    // Get all transactions from last 24h
+    // Get all transactions from current trading session
     const transactionsResult = await docClient.send(
       new ScanCommand({
         TableName: TABLE_NAMES.TRANSACTIONS,
-        FilterExpression: 'timestamp > :oneDayAgo',
+        FilterExpression: 'timestamp > :sessionStart',
         ExpressionAttributeValues: {
-          ':oneDayAgo': oneDayAgo,
+          ':sessionStart': sessionStart,
         },
       })
     );
@@ -63,23 +65,23 @@ export async function getTrendingEntities(limit: number = 20): Promise<EntityWit
     const entitiesWithStats = await Promise.all(
       entities.map(async (entity) => {
         const currentPrice = await getEntityPrice(entity.entityId);
-        const price = currentPrice || entity.basePrice;
-        const change24h = price - entity.basePrice;
-        const changePercent24h = (change24h / entity.basePrice) * 100;
+        const price = currentPrice || BASE_PRICE;
+        const changeSession = price - BASE_PRICE;
+        const changePercentSession = (changeSession / BASE_PRICE) * 100;
 
         return {
           ...entity,
           currentPrice: price,
-          change24h,
-          changePercent24h,
-          volume24h: volumeMap[entity.entityId] || 0,
+          changeSession,
+          changePercentSession,
+          volumeSession: volumeMap[entity.entityId] || 0,
         };
       })
     );
 
     // Sort by volume (descending) and limit
     return entitiesWithStats
-      .sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0))
+      .sort((a, b) => (b.volumeSession || 0) - (a.volumeSession || 0))
       .slice(0, limit);
   } catch (error: any) {
     console.error('Error getting trending entities:', error);
@@ -101,30 +103,30 @@ export async function getMovers(limit: number = 20): Promise<{
     const entitiesWithStats = await Promise.all(
       entities.map(async (entity) => {
         const currentPrice = await getEntityPrice(entity.entityId);
-        const price = currentPrice || entity.basePrice;
-        const change24h = price - entity.basePrice;
-        const changePercent24h = (change24h / entity.basePrice) * 100;
+        const price = currentPrice || BASE_PRICE;
+        const changeSession = price - BASE_PRICE;
+        const changePercentSession = (changeSession / BASE_PRICE) * 100;
 
         return {
           ...entity,
           currentPrice: price,
-          change24h,
-          changePercent24h,
+          changeSession,
+          changePercentSession,
         };
       })
     );
 
     // Sort by price change
-    const sorted = entitiesWithStats.sort((a, b) => b.changePercent24h - a.changePercent24h);
+    const sorted = entitiesWithStats.sort((a, b) => b.changePercentSession - a.changePercentSession);
 
     // Gainers (positive change)
     const gainers = sorted
-      .filter((e) => e.changePercent24h > 0)
+      .filter((e) => e.changePercentSession > 0)
       .slice(0, limit);
 
     // Losers (negative change)
     const losers = sorted
-      .filter((e) => e.changePercent24h < 0)
+      .filter((e) => e.changePercentSession < 0)
       .reverse()
       .slice(0, limit);
 
@@ -213,15 +215,15 @@ export async function getDiscoverEntities(
     const entitiesWithStats = await Promise.all(
       entities.map(async (entity) => {
         const currentPrice = await getEntityPrice(entity.entityId);
-        const price = currentPrice || entity.basePrice;
-        const change24h = price - entity.basePrice;
-        const changePercent24h = (change24h / entity.basePrice) * 100;
+        const price = currentPrice || BASE_PRICE;
+        const changeSession = price - BASE_PRICE;
+        const changePercentSession = (changeSession / BASE_PRICE) * 100;
 
         return {
           ...entity,
           currentPrice: price,
-          change24h,
-          changePercent24h,
+          changeSession,
+          changePercentSession,
         };
       })
     );
@@ -298,9 +300,9 @@ export async function getForYouEntities(
     const entitiesWithReasons: Array<EntityWithStats & { reason: string }> = await Promise.all(
       entities.map(async (entity) => {
         const currentPrice = await getEntityPrice(entity.entityId);
-        const price = currentPrice || entity.basePrice;
-        const change24h = price - entity.basePrice;
-        const changePercent24h = (change24h / entity.basePrice) * 100;
+        const price = currentPrice || BASE_PRICE;
+        const changeSession = price - BASE_PRICE;
+        const changePercentSession = (changeSession / BASE_PRICE) * 100;
 
         let reason = '';
         if (watchlistEntityIds.has(entity.entityId)) {
@@ -326,8 +328,8 @@ export async function getForYouEntities(
         return {
           ...entity,
           currentPrice: price,
-          change24h,
-          changePercent24h,
+          changeSession,
+          changePercentSession,
           reason,
         };
       })
@@ -346,7 +348,7 @@ export async function getForYouEntities(
       if (!aInPortfolio && bInPortfolio) return 1;
 
       // Then by price change (trending)
-      return b.changePercent24h - a.changePercent24h;
+      return b.changePercentSession - a.changePercentSession;
     });
 
     // Build reasons map and extract entities
@@ -375,17 +377,16 @@ export async function getForYouEntities(
  */
 export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
   try {
-    const now = Date.now();
-    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-    const twoDaysAgo = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
+    const currentSessionStart = getCurrentTradingSessionStart();
+    const previousSessionStart = getPreviousTradingSessionStart();
 
-    // Get all transactions from last 48h to compare periods
+    // Get all transactions from current and previous trading sessions
     const transactionsResult = await docClient.send(
       new ScanCommand({
         TableName: TABLE_NAMES.TRANSACTIONS,
-        FilterExpression: 'timestamp > :twoDaysAgo',
+        FilterExpression: 'timestamp > :previousSessionStart',
         ExpressionAttributeValues: {
-          ':twoDaysAgo': twoDaysAgo,
+          ':previousSessionStart': previousSessionStart,
         },
       })
     );
@@ -402,22 +403,24 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
       categoryEntityCount[entity.category] = (categoryEntityCount[entity.category] || 0) + 1;
     });
 
-    // Calculate volume per category for current and previous 24h periods
+    // Calculate volume per category for current and previous trading sessions
     const currentVolumeMap: Record<string, number> = {};
     const previousVolumeMap: Record<string, number> = {};
+
+    const currentSessionStartTime = new Date(currentSessionStart).getTime();
+    const previousSessionStartTime = new Date(previousSessionStart).getTime();
 
     transactions.forEach((tx) => {
       const category = entityCategoryMap[tx.entityId];
       if (!category) return;
 
       const txTime = new Date(tx.timestamp).getTime();
-      const oneDayAgoTime = new Date(oneDayAgo).getTime();
 
-      if (txTime >= oneDayAgoTime) {
-        // Current period (last 24h)
+      if (txTime >= currentSessionStartTime) {
+        // Current trading session
         currentVolumeMap[category] = (currentVolumeMap[category] || 0) + tx.totalAmount;
-      } else {
-        // Previous period (24-48h ago)
+      } else if (txTime >= previousSessionStartTime) {
+        // Previous trading session
         previousVolumeMap[category] = (previousVolumeMap[category] || 0) + tx.totalAmount;
       }
     });
@@ -457,8 +460,8 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
         percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal
         previousPercentage: Math.round(previousPercentage * 10) / 10,
         color,
-        volume24h: currentVolume,
-        previousVolume24h: previousVolume,
+        volumeSession: currentVolume,
+        previousVolumeSession: previousVolume,
         entityCount: categoryEntityCount[category] || 0,
       });
     });

@@ -55,6 +55,7 @@ export interface Entity {
   // Sentiment-based trading pools
   positiveTokens: number; // P pool - starts at 0
   negativeTokens: number; // N pool - starts at 0
+  epsilon: number; // Per-entity EPSILON value (determines price sensitivity/expected daily volume)
   createdAt: string;
   updatedAt: string;
 }
