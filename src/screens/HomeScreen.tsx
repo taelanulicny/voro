@@ -60,8 +60,8 @@ export default function HomeScreen() {
   const TOTAL_PAGES = 6;
   
   // Categories match the treemap categories from AllCategoriesScreen
-  const categories = ['For You', 'Influencers', 'Prediction Markets', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
-  const customizableCategories = ['Influencers', 'Prediction Markets', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const categories = ['For You', 'Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const customizableCategories = ['Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
   
   // Get live entity prices
   const entityPrices = getAllEntityPrices();
@@ -584,21 +584,6 @@ export default function HomeScreen() {
       };
     });
     
-    // Add Startups category as 5th item
-    itemsWithDates.push({
-      id: -1, // Special ID for category
-      name: 'Startups',
-      ticker: '',
-      category: 'Startups',
-      displayCategory: 'Startups',
-      currentPrice: 0,
-      change24h: 0,
-      changePercent24h: 0,
-      addedDate: weekDates[4], // 5th date (5 days ago)
-      isCategory: true,
-      volumePercentage: 10.0, // Volume percentage like in treemap
-    });
-    
     // Sort by date (newest first) - this ensures the 5 most recent are at the top
     return itemsWithDates.sort((a, b) => {
       const dateA = new Date(a.addedDate);
@@ -1069,7 +1054,7 @@ export default function HomeScreen() {
                   if (abridgeEntity) {
                     navigation.navigate('Entity', { 
                       entityId: abridgeEntity.id, 
-                      categoryId: 'Startups' 
+                      categoryId: abridgeEntity.category 
                     });
                   }
                 };
@@ -1297,64 +1282,36 @@ export default function HomeScreen() {
                       >
                         {/* Show 5 most recent items (top 5) */}
                         {discoverNewAdditions.map((item) => (
-                          item.isCategory ? (
-                            <TouchableOpacity
-                              key="startups"
-                              style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-                              onPress={() => handleCategoryPress('Startups')}
-                            >
-                              <View style={styles.discoverCardLeft}>
-                                <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
-                                  <Ionicons name="rocket-outline" size={20} color={theme.primary} />
-                                </View>
-                                <View style={styles.discoverInfo}>
-                                  <Text style={[styles.discoverName, { color: theme.text }]}>
-                                    {item.name}
-                                  </Text>
-                                  <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
-                                    New Category
-                                  </Text>
-                                </View>
-                              </View>
-                              <View style={styles.discoverCardRight}>
-                                <Text style={[styles.discoverPrice, { color: theme.text }]}>
-                                  {(item as any).volumePercentage?.toFixed(1)}%
-                                </Text>
-                                <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                              </View>
-                            </TouchableOpacity>
-                          ) : (
-                            <TouchableOpacity
-                              key={item.id}
-                              style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-                              onPress={() => handleEntityPress(item.id, item.category)}
-                            >
-                              <View style={styles.discoverCardLeft}>
-                                <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
-                                  <Text style={[styles.discoverIconText, { color: theme.primary }]}>
-                                    {item.name.substring(0, 2).toUpperCase()}
-                                  </Text>
-                                </View>
-                                <View style={styles.discoverInfo}>
-                                  <Text style={[styles.discoverName, { color: theme.text }]}>
-                                    {item.name}
-                                  </Text>
-                                  <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
-                                    {item.category}
-                                  </Text>
-                                </View>
-                              </View>
-                              <View style={styles.discoverCardRight}>
-                                <Text style={[styles.discoverPrice, { color: theme.text }]}>
-                                  {formatCurrency(item.currentPrice)}
-                                </Text>
-                                <Text style={[styles.discoverChange, { color: getChangeColor(item.change24h) }]}>
-                                  {item.change24h >= 0 ? '+' : ''}
-                                  {item.changePercent24h.toFixed(2)}%
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[styles.discoverCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                            onPress={() => handleEntityPress(item.id, item.category)}
+                          >
+                            <View style={styles.discoverCardLeft}>
+                              <View style={[styles.discoverIcon, { backgroundColor: theme.primaryLight }]}>
+                                <Text style={[styles.discoverIconText, { color: theme.primary }]}>
+                                  {item.name.substring(0, 2).toUpperCase()}
                                 </Text>
                               </View>
-                            </TouchableOpacity>
-                          )
+                              <View style={styles.discoverInfo}>
+                                <Text style={[styles.discoverName, { color: theme.text }]}>
+                                  {item.name}
+                                </Text>
+                                <Text style={[styles.discoverCategory, { color: theme.textSecondary }]}>
+                                  {item.category}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={styles.discoverCardRight}>
+                              <Text style={[styles.discoverPrice, { color: theme.text }]}>
+                                {formatCurrency(item.currentPrice)}
+                              </Text>
+                              <Text style={[styles.discoverChange, { color: getChangeColor(item.change24h) }]}>
+                                {item.change24h >= 0 ? '+' : ''}
+                                {item.changePercent24h.toFixed(2)}%
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
                         ))}
                       </ScrollView>
                     </View>

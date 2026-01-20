@@ -99,7 +99,6 @@ export default function CommunityScreen() {
     const categoryMap: Record<string, string> = {
       'Influencers': 'People',
       'Political Figures': 'Politics',
-      'Startups': 'Tech',
       'NFL': 'Events',
       'NBA': 'Events',
       'College Basketball': 'Events',
@@ -292,7 +291,7 @@ export default function CommunityScreen() {
   );
 
   const renderNewsFilterTabs = () => {
-    const categories = ['Influencers', 'Political Figures', 'Startups', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+    const categories = ['Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
     const sentiments = [
       { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
       { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },

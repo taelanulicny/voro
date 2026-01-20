@@ -50,7 +50,6 @@ export default function EntityCard({
       // Navigate to entity screen
       // Map category to categoryId format
       const categoryMap: Record<string, string> = {
-        'Tech': 'Startups',
         'Politics': 'Political Figures',
         'People': 'Influencers',
       };

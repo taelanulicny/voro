@@ -92,20 +92,6 @@ export default function DiscoverNewAdditionsScreen() {
       };
     });
     
-    // Add Startups category as 5th item
-    itemsWithDates.push({
-      id: -1, // Special ID for category
-      name: 'Startups',
-      ticker: '',
-      category: 'Startups',
-      displayCategory: 'Startups',
-      currentPrice: 0,
-      change24h: 0,
-      changePercent24h: 0,
-      addedDate: weekDates[4], // 5th date (5 days ago)
-      isCategory: true,
-      volumePercentage: 10.0, // Volume percentage like in treemap
-    });
     
     // Sort by date (newest first) - this ensures the 5 most recent are at the top
     return itemsWithDates.sort((a, b) => {
@@ -147,16 +133,16 @@ export default function DiscoverNewAdditionsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Show all items (4 entities + Startups category) */}
+        {/* Show all items */}
         {discoverNewAdditions.map((item) => (
-          <View key={item.isCategory ? 'startups' : item.id} style={styles.itemContainer}>
+          <View key={item.id} style={styles.itemContainer}>
             <Text style={[styles.dateLabel, { color: theme.textSecondary }]}>
               {item.addedDate}
             </Text>
             {item.isCategory ? (
               <TouchableOpacity
                 style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
-                onPress={() => handleCategoryPress('Startups')}
+                onPress={() => handleCategoryPress(item.category)}
               >
                 <View style={styles.cardLeft}>
                   <View style={[styles.icon, { backgroundColor: theme.primaryLight }]}>
