@@ -99,14 +99,6 @@ export default function AllCommentsScreen() {
           <View style={styles.commentActions}>
             <TouchableOpacity
               style={styles.commentActionButton}
-              onPress={() => {
-                // TODO: Navigate to reply screen or show reply input
-              }}
-            >
-              <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.commentActionButton}
               onPress={() => toggleLikeComment(postId, comment.id)}
             >
               <Ionicons
@@ -122,6 +114,14 @@ export default function AllCommentsScreen() {
                   {comment.likes}
                 </Text>
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.commentActionButton}
+              onPress={() => {
+                // TODO: Navigate to reply screen or show reply input
+              }}
+            >
+              <Ionicons name="chatbubble-outline" size={16} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -183,15 +183,6 @@ export default function AllCommentsScreen() {
               {post.content}
             </Text>
             <View style={styles.postActions}>
-              <TouchableOpacity style={styles.postActionButton}>
-                <Ionicons name="refresh" size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.postActionButton}>
-                <Ionicons name="cash-outline" size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.postActionButton}>
-                <Ionicons name="repeat-outline" size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.postActionButton}
                 onPress={() => toggleLikePost(postId)}
@@ -204,6 +195,14 @@ export default function AllCommentsScreen() {
                 {post.likes > 0 && (
                   <Text style={[styles.postActionText, { color: theme.textSecondary }]}>
                     {post.likes}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.postActionButton}>
+                <Ionicons name="chatbubble-outline" size={20} color={theme.textSecondary} />
+                {post.comments > 0 && (
+                  <Text style={[styles.postActionText, { color: theme.textSecondary }]}>
+                    {post.comments}
                   </Text>
                 )}
               </TouchableOpacity>
