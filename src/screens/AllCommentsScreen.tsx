@@ -37,7 +37,11 @@ export default function AllCommentsScreen() {
   const [showMentionAutocomplete, setShowMentionAutocomplete] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
 
-  const comments = postComments[postId] || [];
+  // Sort comments by timestamp (newest first) so new comments appear at top
+  const allComments = postComments[postId] || [];
+  const comments = [...allComments].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   useEffect(() => {
     loadComments();
@@ -256,7 +260,7 @@ export default function AllCommentsScreen() {
         <TextInput
           ref={commentInputRef}
           style={[styles.input, { backgroundColor: theme.backgroundSecondary, color: theme.text }]}
-          placeholder="Post a comment"
+          placeholder="Post a reply"
           placeholderTextColor={theme.textSecondary}
           value={commentText}
           onChangeText={(newText) => {
