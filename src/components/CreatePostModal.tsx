@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import MentionAutocomplete from './MentionAutocomplete';
 
 interface CreatePostModalProps {
   visible: boolean;
@@ -48,6 +49,9 @@ export default function CreatePostModal({
   const [content, setContent] = useState('');
   const [sentiment, setSentiment] = useState<'positive' | 'negative' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [showMentionAutocomplete, setShowMentionAutocomplete] = useState(false);
+  const textInputRef = useRef<TextInput>(null);
 
   // Pre-fill entity or category tag when modal opens
   useEffect(() => {
@@ -200,16 +204,79 @@ export default function CreatePostModal({
           </View>
 
           {/* Post Content */}
-          <TextInput
-            style={[styles.textInput, { color: theme.text }]}
-            placeholder="What's on your mind?"
-            placeholderTextColor={theme.textTertiary}
-            value={content}
-            onChangeText={setContent}
-            multiline
-            autoFocus
-            maxLength={500}
-          />
+          <View style={styles.textInputContainer}>
+            <TextInput
+              ref={textInputRef}
+              style={[styles.textInput, { color: theme.text }]}
+              placeholder="What's on your mind?"
+              placeholderTextColor={theme.textTertiary}
+              value={content}
+              onChangeText={(newText) => {
+                setContent(newText);
+                // Check if @ was just typed
+                const lastChar = newText[newText.length - 1];
+                if (lastChar === '@') {
+                  setShowMentionAutocomplete(true);
+                }
+              }}
+              onSelectionChange={(event) => {
+                const { start } = event.nativeEvent.selection;
+                setCursorPosition(start);
+                // Check if cursor is after @
+                if (start > 0 && content[start - 1] === '@') {
+                  setShowMentionAutocomplete(true);
+                } else if (start > 0) {
+                  // Check if we're still in a mention
+                  let i = start - 1;
+                  while (i >= 0 && content[i] !== '@' && content[i] !== ' ') {
+                    i--;
+                  }
+                  if (i >= 0 && content[i] === '@') {
+                    setShowMentionAutocomplete(true);
+                  } else {
+                    setShowMentionAutocomplete(false);
+                  }
+                } else {
+                  setShowMentionAutocomplete(false);
+                }
+              }}
+              multiline
+              autoFocus
+              maxLength={500}
+            />
+            {showMentionAutocomplete && (
+              <MentionAutocomplete
+                text={content}
+                cursorPosition={cursorPosition}
+                onSelect={(mention) => {
+                  // Find the @ position before cursor
+                  let startIndex = cursorPosition - 1;
+                  while (startIndex >= 0 && content[startIndex] !== '@' && content[startIndex] !== ' ') {
+                    startIndex--;
+                  }
+                  
+                  if (startIndex >= 0 && content[startIndex] === '@') {
+                    // Replace the mention text with the selected mention
+                    const beforeMention = content.substring(0, startIndex);
+                    const afterMention = content.substring(cursorPosition);
+                    const newContent = beforeMention + mention + ' ' + afterMention;
+                    setContent(newContent);
+                    setShowMentionAutocomplete(false);
+                    
+                    // Set cursor position after the inserted mention
+                    setTimeout(() => {
+                      const newCursorPos = startIndex + mention.length + 1;
+                      textInputRef.current?.setNativeProps({
+                        selection: { start: newCursorPos, end: newCursorPos },
+                      });
+                      setCursorPosition(newCursorPos);
+                    }, 0);
+                  }
+                }}
+                onClose={() => setShowMentionAutocomplete(false)}
+              />
+            )}
+          </View>
 
           <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/500</Text>
 
@@ -373,11 +440,14 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 14,
   },
+  textInputContainer: {
+    position: 'relative',
+    marginBottom: 8,
+  },
   textInput: {
     fontSize: 16,
     minHeight: 120,
     textAlignVertical: 'top',
-    marginBottom: 8,
   },
   characterCount: {
     fontSize: 12,

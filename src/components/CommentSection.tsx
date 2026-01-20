@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Comment, RootStackParamList } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import MentionAutocomplete from './MentionAutocomplete';
 
 interface CommentSectionProps {
   postId: string;
@@ -27,6 +29,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   const { user } = useAuth();
   const { postComments, getComments, addComment, editComment, toggleLikeComment } = useSocial();
   const navigation = useNavigation<NavigationProp>();
+  const { theme } = useTheme();
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +37,9 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   const [editingComment, setEditingComment] = useState<{ commentId: string; content: string } | null>(null);
   const [editText, setEditText] = useState('');
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  const [commentCursorPosition, setCommentCursorPosition] = useState(0);
+  const [showMentionAutocomplete, setShowMentionAutocomplete] = useState(false);
+  const commentInputRef = useRef<TextInput>(null);
 
   const comments = postComments[postId] || [];
 
@@ -277,15 +283,78 @@ export default function CommentSection({ postId }: CommentSectionProps) {
           <Ionicons name="person-circle" size={32} color="#9CA3AF" />
         </View>
         
-        <TextInput
-          style={styles.input}
-          placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : "Add a comment..."}
-          placeholderTextColor="#9CA3AF"
-          value={commentText}
-          onChangeText={setCommentText}
-          multiline
-          maxLength={300}
-        />
+        <View style={styles.inputWrapper}>
+          <TextInput
+            ref={commentInputRef}
+            style={styles.input}
+            placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : "Add a comment..."}
+            placeholderTextColor="#9CA3AF"
+            value={commentText}
+            onChangeText={(newText) => {
+              setCommentText(newText);
+              // Check if @ was just typed
+              const lastChar = newText[newText.length - 1];
+              if (lastChar === '@') {
+                setShowMentionAutocomplete(true);
+              }
+            }}
+            onSelectionChange={(event) => {
+              const { start } = event.nativeEvent.selection;
+              setCommentCursorPosition(start);
+              // Check if cursor is after @
+              if (start > 0 && commentText[start - 1] === '@') {
+                setShowMentionAutocomplete(true);
+              } else if (start > 0) {
+                // Check if we're still in a mention
+                let i = start - 1;
+                while (i >= 0 && commentText[i] !== '@' && commentText[i] !== ' ') {
+                  i--;
+                }
+                if (i >= 0 && commentText[i] === '@') {
+                  setShowMentionAutocomplete(true);
+                } else {
+                  setShowMentionAutocomplete(false);
+                }
+              } else {
+                setShowMentionAutocomplete(false);
+              }
+            }}
+            multiline
+            maxLength={300}
+          />
+          {showMentionAutocomplete && (
+            <MentionAutocomplete
+              text={commentText}
+              cursorPosition={commentCursorPosition}
+              onSelect={(mention) => {
+                // Find the @ position before cursor
+                let startIndex = commentCursorPosition - 1;
+                while (startIndex >= 0 && commentText[startIndex] !== '@' && commentText[startIndex] !== ' ') {
+                  startIndex--;
+                }
+                
+                if (startIndex >= 0 && commentText[startIndex] === '@') {
+                  // Replace the mention text with the selected mention
+                  const beforeMention = commentText.substring(0, startIndex);
+                  const afterMention = commentText.substring(commentCursorPosition);
+                  const newText = beforeMention + mention + ' ' + afterMention;
+                  setCommentText(newText);
+                  setShowMentionAutocomplete(false);
+                  
+                  // Set cursor position after the inserted mention
+                  setTimeout(() => {
+                    const newCursorPos = startIndex + mention.length + 1;
+                    commentInputRef.current?.setNativeProps({
+                      selection: { start: newCursorPos, end: newCursorPos },
+                    });
+                    setCommentCursorPosition(newCursorPos);
+                  }, 0);
+                }
+              }}
+              onClose={() => setShowMentionAutocomplete(false)}
+            />
+          )}
+        </View>
         
         <TouchableOpacity
           style={[
@@ -501,6 +570,10 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+  },
+  inputWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   input: {
     flex: 1,
