@@ -609,7 +609,7 @@ export default function CategoryScreen() {
                 {game.teamScore}
               </Text>
               <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
-                {game.teamTicker.substring(0, 3)}
+                {game.teamName.substring(0, 3).toUpperCase()}
               </Text>
             </View>
             
@@ -620,7 +620,7 @@ export default function CategoryScreen() {
                 {game.opponentScore}
               </Text>
               <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
-                {game.opponentTicker.substring(0, 3)}
+                {game.opponentName.substring(0, 3).toUpperCase()}
               </Text>
             </View>
           </View>
