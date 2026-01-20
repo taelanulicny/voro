@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -21,11 +22,14 @@ import MentionAutocomplete from './MentionAutocomplete';
 
 interface CommentSectionProps {
   postId: string;
+  autoFocus?: boolean; // Auto-focus the input when component mounts/becomes visible
+  focusTrigger?: number; // Counter that triggers focus when it changes
+  showOnlyMostRecent?: boolean; // If true, only show the most recent comment instead of all comments
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function CommentSection({ postId }: CommentSectionProps) {
+export default function CommentSection({ postId, autoFocus = false, focusTrigger = 0, showOnlyMostRecent = false }: CommentSectionProps) {
   const { user } = useAuth();
   const { postComments, getComments, addComment, editComment, toggleLikeComment } = useSocial();
   const navigation = useNavigation<NavigationProp>();
@@ -46,6 +50,18 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   useEffect(() => {
     loadComments();
   }, [postId]);
+
+  // Auto-focus input when autoFocus prop is true or focusTrigger changes
+  useEffect(() => {
+    if (autoFocus && commentInputRef.current) {
+      // Small delay to ensure the component is fully rendered
+      setTimeout(() => {
+        commentInputRef.current?.focus();
+        // Clear any existing reply target when focusing from comment button
+        setReplyingTo(null);
+      }, 100);
+    }
+  }, [autoFocus, focusTrigger]);
 
   const loadComments = async () => {
     setIsLoading(true);
@@ -239,6 +255,31 @@ export default function CommentSection({ postId }: CommentSectionProps) {
     );
   };
 
+  // Get most recent comment if showOnlyMostRecent is true
+  const sortedComments = [...comments].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  const mostRecentComment = sortedComments.length > 0 ? sortedComments[0] : null;
+
+  // Simple render function for most recent comment (matches PostCard style)
+  const renderMostRecentComment = (comment: Comment) => {
+    return (
+      <View key={comment.id} style={styles.simpleCommentItem}>
+        <View style={[styles.simpleCommentThreadLine, { backgroundColor: theme.border }]} />
+        <View style={styles.simpleCommentContent}>
+          <Text style={styles.simpleCommentText}>
+            <Text style={[styles.simpleCommentUsername, { color: theme.text }]}>
+              {comment.displayName}:
+            </Text>
+            <Text style={[styles.simpleCommentTextContent, { color: theme.text }]}>
+              {' '}{comment.content}
+            </Text>
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -249,20 +290,22 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
   return (
     <View style={styles.container}>
-      {/* Comments List */}
-      {comments.length > 0 ? (
-        <FlatList
-          data={comments}
-          renderItem={({ item }) => renderComment(item)}
-          keyExtractor={(item) => item.id}
-          style={styles.commentsList}
-          scrollEnabled={false}
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="chatbubbles-outline" size={32} color="#D1D5DB" />
-          <Text style={styles.emptyStateText}>No comments yet</Text>
-        </View>
+      {/* Comments List - Only show if not in showOnlyMostRecent mode */}
+      {!showOnlyMostRecent && (
+        comments.length > 0 ? (
+          <FlatList
+            data={comments}
+            renderItem={({ item }) => renderComment(item)}
+            keyExtractor={(item) => item.id}
+            style={styles.commentsList}
+            scrollEnabled={false}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Ionicons name="chatbubbles-outline" size={32} color="#D1D5DB" />
+            <Text style={styles.emptyStateText}>No comments yet</Text>
+          </View>
+        )
       )}
 
       {/* Reply indicator */}
@@ -314,7 +357,10 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       )}
 
       {/* Add Comment Input */}
-      <View style={styles.inputContainer}>
+      <Pressable
+        style={styles.inputContainer}
+        onPress={(e) => e.stopPropagation()}
+      >
         <View style={styles.inputAvatar}>
           <Ionicons name="person-circle" size={32} color="#9CA3AF" />
         </View>
@@ -323,7 +369,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
           <TextInput
             ref={commentInputRef}
             style={styles.input}
-            placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : "Add a comment..."}
+            placeholder={replyingTo ? `Reply to ${replyingTo.username}...` : "Post a reply..."}
             placeholderTextColor="#9CA3AF"
             value={commentText}
             onChangeText={(newText) => {
@@ -378,7 +424,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
             />
           )}
         </TouchableOpacity>
-      </View>
+      </Pressable>
 
       {/* Edit Comment Modal */}
       <Modal
@@ -435,8 +481,6 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 12,
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
     paddingHorizontal: 16,
   },
   loadingContainer: {
@@ -572,9 +616,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 12,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
     gap: 12,
     position: 'relative',
   },
@@ -670,5 +711,30 @@ const styles = StyleSheet.create({
   },
   modalButtonTextDisabled: {
     color: '#9CA3AF',
+  },
+  // Simple comment styles (matches PostCard style)
+  simpleCommentItem: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  simpleCommentThreadLine: {
+    width: 2,
+    marginRight: 12,
+    minHeight: 20,
+  },
+  simpleCommentContent: {
+    flex: 1,
+  },
+  simpleCommentText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  simpleCommentUsername: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  simpleCommentTextContent: {
+    fontSize: 14,
+    fontWeight: '400',
   },
 });

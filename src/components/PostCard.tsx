@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   Share,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Post } from '../types';
@@ -38,6 +39,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
   const { toggleLikePost, deletePost, postComments, getComments } = useSocial();
   const { theme } = useTheme();
   const [showComments, setShowComments] = useState(false);
+  const [focusCommentInput, setFocusCommentInput] = useState(0); // Counter to trigger focus
   const navigation = useNavigation<NavigationProp>();
 
   // Load comments automatically
@@ -127,7 +129,13 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
   };
 
   const handleComment = () => {
-    setShowComments(!showComments);
+    // Toggle comment box; when opening, trigger focus
+    setShowComments(prev => {
+      if (!prev) {
+        setFocusCommentInput(counter => counter + 1);
+      }
+      return !prev;
+    });
   };
 
   const handleDelete = () => {
@@ -662,7 +670,16 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
 
       {/* Full Comment Section (when expanded) */}
       {showComments && (
-        <CommentSection postId={post.id} />
+        <View style={styles.commentSectionBackdrop}>
+          <View style={styles.commentSectionContent}>
+            <CommentSection 
+              postId={post.id} 
+              autoFocus={true} 
+              focusTrigger={focusCommentInput}
+              showOnlyMostRecent={true}
+            />
+          </View>
+        </View>
       )}
     </View>
   );
@@ -835,6 +852,13 @@ const styles = StyleSheet.create({
   viewAllCommentsText: {
     fontSize: 14,
     fontWeight: '400',
+  },
+  commentSectionBackdrop: {
+    width: '100%',
+    minHeight: 100,
+  },
+  commentSectionContent: {
+    width: '100%',
   },
 });
 
