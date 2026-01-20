@@ -310,9 +310,9 @@ export default function EntityScreen() {
 
   // Generate mock live game data for top 5 NFL and NBA teams
   const liveGameData = useMemo(() => {
-    if ((categoryId !== 'NFL' && categoryId !== 'NBA') || !entity || !entityData?.entity) return null;
+    if ((categoryId !== 'NFL Teams' && categoryId !== 'NBA Teams') || !entity || !entityData?.entity) return null;
     
-    if (categoryId === 'NFL') {
+    if (categoryId === 'NFL Teams') {
       // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
       const top5TeamIds = [100, 114, 116, 127, 101];
       
@@ -353,9 +353,9 @@ export default function EntityScreen() {
         time: game.time,
         status: game.status,
         isAway: game.isAway,
-        sportCategory: 'NFL',
+        sportCategory: 'NFL Teams',
       };
-    } else if (categoryId === 'NBA') {
+    } else if (categoryId === 'NBA Teams') {
       // Top 5 NBA teams by basePrice: Celtics (200), Bucks (201), Nuggets (202), Suns (203), Lakers (204)
       const top5TeamIds = [200, 201, 202, 203, 204];
       
@@ -396,7 +396,7 @@ export default function EntityScreen() {
         time: game.time,
         status: game.status,
         isAway: game.isAway,
-        sportCategory: 'NBA',
+        sportCategory: 'NBA Teams',
       };
     }
     
@@ -977,10 +977,10 @@ export default function EntityScreen() {
         {/* Feed Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
           <FlatList
-            data={categoryId === 'NFL' ? [] : entityFeedPosts}
+            data={categoryId === 'NFL Teams' ? [] : entityFeedPosts}
             ListHeaderComponent={liveGameData ? (() => {
               const sportCategory = liveGameData.sportCategory || categoryId;
-              const isNBA = sportCategory === 'NBA';
+              const isNBA = sportCategory === 'NBA Teams';
               const iconColor = isNBA ? '#C8102E' : '#1E40AF';
               
               return (
@@ -1097,7 +1097,7 @@ export default function EntityScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
                 <Text style={[styles.emptyStateText, { color: theme.text }]}>
-                  {categoryId === 'NFL' ? 'Feeds are coming soon' : 'No posts yet for this entity'}
+                  {categoryId === 'NFL Teams' ? 'Feeds are coming soon' : 'No posts yet for this entity'}
                 </Text>
           </View>
         )}
@@ -1110,7 +1110,7 @@ export default function EntityScreen() {
             data={entityNews}
             ListHeaderComponent={liveGameData ? (() => {
               const sportCategory = liveGameData.sportCategory || categoryId;
-              const isNBA = sportCategory === 'NBA';
+              const isNBA = sportCategory === 'NBA Teams';
               const iconColor = isNBA ? '#C8102E' : '#1E40AF';
               
               return (

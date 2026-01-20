@@ -985,8 +985,8 @@ export default function CategoryScreen() {
           timestamp: new Date(now - 1000 * 60 * 60 * 1).toISOString(),
         },
       ],
-      'NFL': [],
-      'NBA': [],
+      'NFL Teams': [],
+      'NBA Teams': [],
       'College Basketball': [],
       'Hip Hop': [],
       'Country Music': [],
@@ -1089,7 +1089,7 @@ export default function CategoryScreen() {
     const awayTeamId = game.isAway ? game.teamId : game.opponentId;
     const homeTeamId = game.isAway ? game.opponentId : game.teamId;
     const sportCategory = game.sportCategory || categoryId;
-    const isNBA = sportCategory === 'NBA';
+    const isNBA = sportCategory === 'NBA Teams';
     const iconColor = isNBA ? '#C8102E' : '#1E40AF'; // Red for NBA, Blue for NFL
     
     return (
@@ -1239,7 +1239,7 @@ export default function CategoryScreen() {
 
   // Generate all live game data for top 5 teams (NFL or NBA)
   const allLiveGames = useMemo(() => {
-    if (categoryId === 'NFL') {
+    if (categoryId === 'NFL Teams') {
       // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
       const top5Teams = [
         { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
@@ -1270,9 +1270,9 @@ export default function CategoryScreen() {
         time: game.time,
         status: game.status,
         isAway: game.isAway,
-        sportCategory: 'NFL',
+        sportCategory: 'NFL Teams',
       }));
-    } else if (categoryId === 'NBA') {
+    } else if (categoryId === 'NBA Teams') {
       // Top 5 NBA teams by basePrice: Celtics (200), Bucks (201), Nuggets (202), Suns (203), Lakers (204)
       const top5Teams = [
         { id: 200, name: 'Boston Celtics', ticker: 'BOSCE' },
@@ -1305,7 +1305,7 @@ export default function CategoryScreen() {
         time: game.time,
         status: game.status,
         isAway: game.isAway,
-        sportCategory: 'NBA',
+        sportCategory: 'NBA Teams',
       }));
     }
     
@@ -1513,7 +1513,7 @@ export default function CategoryScreen() {
         {/* News Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {(categoryId === 'NFL' || categoryId === 'NBA') && allLiveGames.length > 0 && (
+            {(categoryId === 'NFL Teams' || categoryId === 'NBA Teams') && allLiveGames.length > 0 && (
               <View>
                 {/* Swipeable Games Section */}
                 <View style={styles.gamesSwipeableContainer}>
