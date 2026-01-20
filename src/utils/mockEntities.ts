@@ -396,6 +396,23 @@ export const MOCK_ENTITIES: MockEntity[] = [
     basePrice: 210.90,
     description: 'Top quarterback prospect and Heisman winner. Trade confidence in Caleb Williams\'s draft stock, NFL readiness, and future potential.',
   },
+  // Soccer Players
+  {
+    id: 67,
+    ticker: 'LIOME',
+    name: 'Lionel Messi',
+    category: 'Soccer Players',
+    basePrice: 260.00,
+    description: 'World Cup champion and football legend. Trade confidence in Lionel Messi\'s performance, team success, and legacy in soccer.',
+  },
+  {
+    id: 68,
+    ticker: 'CRIRO',
+    name: 'Cristiano Ronaldo',
+    category: 'Soccer Players',
+    basePrice: 258.50,
+    description: 'Global football icon and goal-scoring machine. Track confidence in Cristiano Ronaldo\'s goals, team impact, and career milestones.',
+  },
   // NFL Teams
   {
     id: 100,
