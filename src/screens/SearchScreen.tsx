@@ -120,7 +120,7 @@ export default function SearchScreen() {
       style={[
         styles.sortChip,
         {
-          backgroundColor: sortBy === option ? theme.primaryLight : theme.backgroundSecondary,
+          backgroundColor: sortBy === option ? theme.primary : theme.backgroundSecondary,
           borderColor: sortBy === option ? theme.primary : theme.border,
           width: 120,
         },
@@ -130,13 +130,13 @@ export default function SearchScreen() {
       <Ionicons
         name={icon as any}
         size={14}
-        color={sortBy === option ? theme.primary : theme.textSecondary}
+        color={sortBy === option ? '#FFFFFF' : theme.textSecondary}
       />
       <Text
         style={[
           styles.sortChipText,
           {
-            color: sortBy === option ? theme.primary : theme.textSecondary,
+            color: sortBy === option ? '#FFFFFF' : theme.textSecondary,
             fontWeight: '600',
           },
         ]}
