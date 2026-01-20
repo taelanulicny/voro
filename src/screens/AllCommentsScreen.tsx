@@ -84,7 +84,7 @@ export default function AllCommentsScreen() {
 
   const renderComment = ({ item: comment }: { item: Comment }) => {
     return (
-      <View style={[styles.commentItem, { borderBottomColor: theme.border }]}>
+      <View style={[styles.commentItem, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={styles.commentAvatar}>
           <Ionicons name="person-circle" size={32} color="#9CA3AF" />
         </View>
@@ -135,16 +135,16 @@ export default function AllCommentsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
         <ActivityIndicator size="large" color={theme.primary} style={styles.loadingIndicator} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
@@ -159,9 +159,10 @@ export default function AllCommentsScreen() {
         data={comments}
         keyExtractor={(item) => item.id}
         renderItem={renderComment}
+        style={{ backgroundColor: theme.backgroundSecondary }}
         contentContainerStyle={styles.commentsListContent}
         ListHeaderComponent={() => (
-          <View style={[styles.postSection, { borderBottomColor: theme.border }]}>
+          <View style={[styles.postSection, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
             <View style={styles.postHeader}>
               <View style={styles.postAvatar}>
                 <Ionicons name="person-circle" size={40} color="#9CA3AF" />
