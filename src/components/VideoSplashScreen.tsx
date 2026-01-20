@@ -1,6 +1,6 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
 interface VideoSplashScreenProps {
   onFinish: () => void;
@@ -13,40 +13,36 @@ export default function VideoSplashScreen({
   videoSource, 
   skippable = true 
 }: VideoSplashScreenProps) {
-  const videoRef = useRef<Video>(null);
-  const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
+  const player = useVideoPlayer(videoSource, (player) => {
+    player.loop = false;
+    player.play();
+  });
 
   useEffect(() => {
-    // Play video when component mounts
-    videoRef.current?.playAsync();
-  }, []);
-
-  const handlePlaybackStatusUpdate = (playbackStatus: AVPlaybackStatus) => {
-    setStatus(playbackStatus);
-    
-    // Check if video finished playing
-    if (playbackStatus.isLoaded && playbackStatus.didJustFinish) {
+    // Check when video finishes
+    const subscription = player.addListener('playToEnd', () => {
       onFinish();
-    }
-  };
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [player, onFinish]);
 
   const handleSkip = () => {
     if (skippable) {
-      videoRef.current?.pauseAsync();
+      player.pause();
       onFinish();
     }
   };
 
   return (
     <View style={styles.container}>
-      <Video
-        ref={videoRef}
-        source={videoSource}
+      <VideoView
+        player={player}
         style={styles.video}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping={false}
-        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+        contentFit="cover"
+        nativeControls={false}
       />
       {skippable && (
         <TouchableOpacity 
