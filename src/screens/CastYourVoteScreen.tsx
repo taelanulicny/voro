@@ -92,9 +92,15 @@ export default function CastYourVoteScreen() {
   };
 
   const maxVotes = Math.max(...voteData.map((e) => e.votes));
-  const chartWidth = SCREEN_WIDTH - CHART_PADDING * 2;
-  const totalSlots = 9; // 9 slots with positions 1-9 (left to right: 8, 6, 4, 2, 1, 3, 5, 7, 9)
-  const barSpacing = chartWidth / (totalSlots + 1); // Even spacing for 9 slots
+  // Calculate chart width accounting for container margin (16) and padding (16) on each side
+  const containerMargin = 16;
+  const containerPadding = 16;
+  const chartWidth = SCREEN_WIDTH - (containerMargin * 2) - (containerPadding * 2);
+  const totalSlots = 9; // 9 slots with positions 1-9
+  const minPosition = 1;
+  const maxPosition = 9;
+  const centerPosition = 5; // Center of positions 1-9
+  const barSpacing = chartWidth / (maxPosition - minPosition + 2); // Spacing between positions
   const baseBarWidth = barSpacing * 0.6;
 
   // Sort by vote count (descending) - tallest first
@@ -139,13 +145,14 @@ export default function CastYourVoteScreen() {
           
           {/* Chart */}
           <View style={[styles.chart, { height: CHART_HEIGHT, width: chartWidth }]}>
-            {/* Bars - ordered by vote count (tallest at position 1, then alternating left/right) */}
-            {sortedByVotes.map((entity, index) => {
-              const slotPosition = getXAxisPositionByOrder(index); // Rank 1 → position 1, Rank 2 → position 2, etc.
+            {/* Bars - starting with just position 5 (rank 1) centered */}
+            {sortedByVotes.slice(0, 1).map((entity, index) => {
+              const slotPosition = getXAxisPositionByOrder(index); // Rank 1 → position 5
               const maxBarHeight = CHART_HEIGHT - 60; // Reserve space for text at bottom
               // Use actual vote count for height (no two bars same height)
               const barHeight = (entity.votes / maxVotes) * maxBarHeight;
-              const xPos = (slotPosition * barSpacing) - (baseBarWidth / 2);
+              // Center position 5 at chart center - use chartWidth directly
+              const xPos = (chartWidth / 2) - (baseBarWidth / 2);
               
               return (
                 <View
@@ -183,10 +190,10 @@ export default function CastYourVoteScreen() {
             Cast Your Vote for Next Entity
           </Text>
           <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-            Select from the top 10 or write your own
+            Select from the top 9 or write your own
           </Text>
 
-          {/* Top 10 Entity Buttons */}
+          {/* Top 9 Entity Buttons */}
           <View style={styles.entityButtonsContainer}>
             {sortedByVotes.map((entity, index) => (
               <TouchableOpacity
