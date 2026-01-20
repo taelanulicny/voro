@@ -18,7 +18,7 @@ import { RootStackParamList, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { getEntitiesByCategory, getEntityById } from '../utils/entities';
+import { getEntitiesByCategory, getEntityById, extractEntityMentions } from '../utils/entities';
 import { extractCategoryMentions } from '../utils/categories';
 import { getAllCategoryFeedPosts } from '../utils/categoryFeedPosts';
 import { useSocial } from '../context/SocialContext';
@@ -1031,10 +1031,93 @@ export default function CategoryScreen() {
         'College Basketball Teams',
       ];
       const aggregatedPosts: Post[] = [];
+      const seenPostIds = new Set<string>();
+      
+      // Get all entities that belong to Teams subcategories
+      const allTeamsEntities = new Set<string>();
       teamsSubcategories.forEach(subcategory => {
-        const subcategoryPosts = basePosts[subcategory] || [];
-        aggregatedPosts.push(...subcategoryPosts);
+        const subcategoryEntities = getEntitiesByCategory(subcategory);
+        subcategoryEntities.forEach(entity => {
+          allTeamsEntities.add(entity.name);
+        });
       });
+      
+      // Get posts from getAllCategoryFeedPosts (centralized source with all Teams posts)
+      const allCategoryFeedPosts = getAllCategoryFeedPosts();
+      
+      // Get posts from each subcategory
+      teamsSubcategories.forEach(subcategory => {
+        // First check local basePosts
+        const localSubcategoryPosts = basePosts[subcategory] || [];
+        localSubcategoryPosts.forEach(post => {
+          if (!seenPostIds.has(post.id)) {
+            aggregatedPosts.push(post);
+            seenPostIds.add(post.id);
+          }
+        });
+        
+        // Then check getAllCategoryFeedPosts for posts in this subcategory
+        allCategoryFeedPosts.forEach(post => {
+          // Check if post mentions this subcategory
+          const mentionedCategories = extractCategoryMentions(post.content);
+          const mentionsThisSubcategory = mentionedCategories.some(cat => cat === subcategory);
+          
+          // Or check if post's entity belongs to this subcategory
+          const entityBelongsToSubcategory = post.entityName && 
+            getEntitiesByCategory(subcategory).some(e => e.name === post.entityName);
+          
+          if ((mentionsThisSubcategory || entityBelongsToSubcategory) && !seenPostIds.has(post.id)) {
+            aggregatedPosts.push(post);
+            seenPostIds.add(post.id);
+          }
+        });
+      });
+      
+      // Include posts that mention @Teams
+      allCategoryFeedPosts.forEach(post => {
+        const mentionedCategories = extractCategoryMentions(post.content);
+        const mentionsTeams = mentionedCategories.some(cat => cat === 'Teams');
+        
+        if (mentionsTeams && !seenPostIds.has(post.id)) {
+          aggregatedPosts.push(post);
+          seenPostIds.add(post.id);
+        }
+      });
+      
+      // Also include posts from activityFeed that tag Teams entities directly (even without subcategory mention)
+      activityFeed.forEach(post => {
+        // Check if post's entity belongs to any Teams subcategory
+        const entityBelongsToTeams = post.entityName && allTeamsEntities.has(post.entityName);
+        
+        // Or check if post mentions a Teams entity in content
+        const mentionedEntities = extractEntityMentions(post.content);
+        const mentionsTeamsEntity = mentionedEntities.some(entity => 
+          allTeamsEntities.has(entity.name)
+        );
+        
+        if ((entityBelongsToTeams || mentionsTeamsEntity) && !seenPostIds.has(post.id)) {
+          aggregatedPosts.push(post);
+          seenPostIds.add(post.id);
+        }
+      });
+      
+      // Also check getAllCategoryFeedPosts for posts that tag Teams entities directly
+      allCategoryFeedPosts.forEach(post => {
+        // Check if post's entity belongs to any Teams subcategory
+        const entityBelongsToTeams = post.entityName && allTeamsEntities.has(post.entityName);
+        
+        // Or check if post mentions a Teams entity in content
+        const mentionedEntities = extractEntityMentions(post.content);
+        const mentionsTeamsEntity = mentionedEntities.some(entity => 
+          allTeamsEntities.has(entity.name)
+        );
+        
+        if ((entityBelongsToTeams || mentionsTeamsEntity) && !seenPostIds.has(post.id)) {
+          aggregatedPosts.push(post);
+          seenPostIds.add(post.id);
+        }
+      });
+      
       // Sort by timestamp (newest first)
       return aggregatedPosts.sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()

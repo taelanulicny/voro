@@ -1071,7 +1071,7 @@ export default function EntityScreen() {
         {/* Feed Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
           <FlatList
-            data={categoryId === 'NFL Teams' ? [] : entityFeedPosts}
+            data={entityFeedPosts}
             ListHeaderComponent={liveGameData ? (() => {
               const sportCategory = liveGameData.sportCategory || categoryId;
               const isNBA = sportCategory === 'NBA Teams';
