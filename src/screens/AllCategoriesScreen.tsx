@@ -236,27 +236,6 @@ export default function AllCategoriesScreen() {
           style={[
             styles.sortFilterTab,
             {
-              backgroundColor: sortFilter === 'alphabetical' ? theme.primaryLight : theme.backgroundSecondary,
-              borderColor: sortFilter === 'alphabetical' ? theme.primary : theme.border,
-            },
-          ]}
-          onPress={() => setSortFilter('alphabetical')}
-        >
-          <Text
-            style={[
-              styles.sortFilterTabText,
-              { color: sortFilter === 'alphabetical' ? theme.primary : theme.textSecondary },
-              sortFilter === 'alphabetical' && { fontWeight: '600' },
-            ]}
-          >
-            Alphabetical
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.sortFilterTab,
-            {
               backgroundColor: sortFilter === 'volume-high-low' ? theme.primaryLight : theme.backgroundSecondary,
               borderColor: sortFilter === 'volume-high-low' ? theme.primary : theme.border,
             },
@@ -313,6 +292,27 @@ export default function AllCategoriesScreen() {
             ]}
           >
             Trending
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.sortFilterTab,
+            {
+              backgroundColor: sortFilter === 'alphabetical' ? theme.primaryLight : theme.backgroundSecondary,
+              borderColor: sortFilter === 'alphabetical' ? theme.primary : theme.border,
+            },
+          ]}
+          onPress={() => setSortFilter('alphabetical')}
+        >
+          <Text
+            style={[
+              styles.sortFilterTabText,
+              { color: sortFilter === 'alphabetical' ? theme.primary : theme.textSecondary },
+              sortFilter === 'alphabetical' && { fontWeight: '600' },
+            ]}
+          >
+            Alphabetical
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -494,7 +494,7 @@ export default function AllCategoriesScreen() {
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
           {renderFilterButtons()}
           <FlatList
-            data={sortedCategories}
+            data={[]}
             renderItem={renderCategoryItem}
             keyExtractor={(item) => item.categoryId}
             contentContainerStyle={styles.listContent}
