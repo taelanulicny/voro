@@ -977,9 +977,9 @@ export default function HomeScreen() {
                       {/* Date labels under x-axis */}
                       <View style={styles.xAxisDateLabels}>
                         {(() => {
-                          // Get dates for last week (ending on 12/31)
+                          // Get dates for recent week (ending on 1/20)
                           const dates: string[] = [];
-                          const endDate = new Date(2024, 11, 31); // December 31, 2024
+                          const endDate = new Date(2025, 0, 20); // January 20, 2025
                           for (let i = 6; i >= 0; i--) {
                             const date = new Date(endDate);
                             date.setDate(date.getDate() - i);
@@ -990,18 +990,18 @@ export default function HomeScreen() {
                           return dates.map((date, index) => {
                             const chartWidth = SCREEN_WIDTH;
                             const plotWidth = chartWidth; // Full width
-                            // Keep 12/25 at left (index 0) and 12/31 at right (index 6)
+                            // Keep 1/14 at left (index 0) and 1/20 at right (index 6)
                             // Evenly space the 5 dates in between (indices 1-5)
-                            // We need 6 gaps total: between 12/25-12/26, 12/26-12/27, ..., 12/30-12/31
+                            // We need 6 gaps total: between 1/14-1/15, 1/15-1/16, ..., 1/19-1/20
                             let xPosition: number;
                             if (index === 0) {
-                              // 12/25: keep at left edge
+                              // 1/14: keep at left edge
                               xPosition = 0;
                             } else if (index === dates.length - 1) {
-                              // 12/31: keep at right edge with offset for text width
+                              // 1/20: keep at right edge with offset for text width
                               xPosition = plotWidth - 35;
                             } else {
-                              // 12/26-12/30: evenly space between left and right positions
+                              // 1/15-1/19: evenly space between left and right positions
                               const rightEdge = plotWidth - 35;
                               const spacing = rightEdge / 6; // 6 gaps for 7 dates
                               xPosition = spacing * index;
@@ -2520,7 +2520,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 4,
+    paddingTop: 12,
     paddingBottom: 12,
     gap: 8,
     // backgroundColor will be set dynamically using theme
@@ -2635,6 +2635,7 @@ const styles = StyleSheet.create({
     height: 24,
     marginTop: 2,
     paddingLeft: 0,
+    paddingBottom: 16,
   },
   xAxisDateLabel: {
     position: 'absolute',
