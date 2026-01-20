@@ -12,6 +12,7 @@ import {
   Share,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -845,6 +846,30 @@ export default function CategoryScreen() {
           >
             <Ionicons name="search" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={async () => {
+              try {
+                // Get current added categories from AsyncStorage
+                const stored = await AsyncStorage.getItem('addedCategories');
+                const currentCategories = stored ? JSON.parse(stored) : [];
+                
+                // Add category if not already added
+                if (!currentCategories.includes(categoryId)) {
+                  const updated = [...currentCategories, categoryId];
+                  await AsyncStorage.setItem('addedCategories', JSON.stringify(updated));
+                  Alert.alert('Added', `Top 5 entities from ${categoryId} have been added to your home screen.`);
+                } else {
+                  Alert.alert('Already Added', `${categoryId} is already on your home screen.`);
+                }
+              } catch (error) {
+                console.error('Error adding category:', error);
+                Alert.alert('Error', 'Failed to add category. Please try again.');
+              }
+            }}
+          >
+            <Ionicons name="add" size={24} color={theme.textSecondary} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1189,6 +1214,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   searchButton: {
+    padding: 4,
+    marginRight: 8,
+  },
+  addButton: {
     padding: 4,
   },
   listContent: {

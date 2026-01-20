@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
   Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
@@ -53,6 +53,40 @@ export default function HomeScreen() {
   const [referralModalVisible, setReferralModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('For You');
   const [addedCategories, setAddedCategories] = useState<string[]>([]);
+
+  // Load added categories from AsyncStorage on mount and when focused
+  useEffect(() => {
+    const loadAddedCategories = async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const stored = await AsyncStorage.getItem('addedCategories');
+        if (stored) {
+          setAddedCategories(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error('Error loading added categories:', error);
+      }
+    };
+    loadAddedCategories();
+  }, []);
+
+  // Reload when screen is focused (in case category was added from CategoryScreen)
+  useFocusEffect(
+    useCallback(() => {
+      const loadAddedCategories = async () => {
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          const stored = await AsyncStorage.getItem('addedCategories');
+          if (stored) {
+            setAddedCategories(JSON.parse(stored));
+          }
+        } catch (error) {
+          console.error('Error loading added categories:', error);
+        }
+      };
+      loadAddedCategories();
+    }, [])
+  );
   
   // Swipeable section state
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -540,9 +574,29 @@ export default function HomeScreen() {
     }
   };
 
+  // Listen for category to add from navigation params (when navigating from CategoryScreen)
+  useFocusEffect(
+    React.useCallback(() => {
+      const params = navigation.getState()?.routes?.find(r => r.name === 'Main')?.params as any;
+      if (params?.addCategory) {
+        handleAddCategory(params.addCategory);
+        // Clear the param after handling
+        navigation.setParams({ addCategory: undefined } as any);
+      }
+    }, [navigation, addedCategories])
+  );
+
   // Handle removing a category from home screen
-  const handleRemoveCategory = (category: string) => {
-    setAddedCategories(addedCategories.filter(c => c !== category));
+  const handleRemoveCategory = async (category: string) => {
+    const updated = addedCategories.filter(c => c !== category);
+    setAddedCategories(updated);
+    // Persist to AsyncStorage
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.setItem('addedCategories', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving added categories:', error);
+    }
   };
 
   // Get top 3 most liked posts of the day (only posts with entityId)
