@@ -791,8 +791,11 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     const calculatedPrice = calculatePrice(pools.positiveTokens, pools.negativeTokens);
     
     // Update price in state if it's different (for reactivity)
+    // Defer state update to avoid updating during render
     if (entityPrices[entityId] !== calculatedPrice) {
-      setEntityPrices(prev => ({ ...prev, [entityId]: calculatedPrice }));
+      queueMicrotask(() => {
+        setEntityPrices(prev => ({ ...prev, [entityId]: calculatedPrice }));
+      });
     }
     
     return calculatedPrice;

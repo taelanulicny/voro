@@ -102,6 +102,48 @@ export const ENTITIES: EntityData[] = [
     basePrice: 100,
     description: 'Controversial internet personality and former kickboxer. Track confidence in Andrew Tate\'s influence and media presence.',
   },
+  {
+    id: 268,
+    name: 'Joe Rogan',
+    category: 'Influencers',
+    basePrice: 100,
+    description: 'Podcast host, comedian, and UFC commentator. Trade confidence in Joe Rogan\'s podcast success, audience reach, and media influence.',
+  },
+  {
+    id: 269,
+    name: 'iShowSpeed',
+    category: 'Influencers',
+    basePrice: 100,
+    description: 'YouTube streamer and content creator. Track confidence in iShowSpeed\'s streaming success, viral content, and audience growth.',
+  },
+  {
+    id: 270,
+    name: 'David Dobrik',
+    category: 'Influencers',
+    basePrice: 100,
+    description: 'YouTube creator and vlogger. Trade confidence in David Dobrik\'s content creation, brand partnerships, and audience engagement.',
+  },
+  {
+    id: 271,
+    name: 'KSI',
+    category: 'Influencers',
+    basePrice: 100,
+    description: 'YouTube creator, rapper, and boxer. Track confidence in KSI\'s content success, boxing career, and business ventures.',
+  },
+  {
+    id: 272,
+    name: 'Theo Von',
+    category: 'Influencers',
+    basePrice: 100,
+    description: 'Comedian and podcast host. Trade confidence in Theo Von\'s podcast success, comedy career, and audience growth.',
+  },
+  {
+    id: 273,
+    name: 'Livvy Dunne',
+    category: 'Influencers',
+    basePrice: 100,
+    description: 'Gymnast and social media influencer. Track confidence in Livvy Dunne\'s athletic career, brand partnerships, and social media influence.',
+  },
   // Music Artists
   {
     id: 21,
