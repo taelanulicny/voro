@@ -18,7 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CHART_HEIGHT = 300;
+const CHART_HEIGHT = 220; // Reduced height
 const CHART_PADDING = 20;
 
 interface VoteEntity {
@@ -101,7 +101,7 @@ export default function CastYourVoteScreen() {
   const maxPosition = 9;
   const centerPosition = 5; // Center of positions 1-9
   const barSpacing = chartWidth / (maxPosition - minPosition + 2); // Spacing between positions
-  const baseBarWidth = barSpacing * 0.6;
+  const baseBarWidth = barSpacing * 0.85; // Increased from 0.6 to 0.85 for thicker bars
 
   // Sort by vote count (descending) - tallest first
   // Rank 1 = most votes (position 1), Rank 2 = 2nd most (position 2), etc.
@@ -148,7 +148,7 @@ export default function CastYourVoteScreen() {
             {/* Bars - all 9 positions with rank 1 at position 5 (center) */}
             {sortedByVotes.map((entity, index) => {
               const slotPosition = getXAxisPositionByOrder(index); // Rank 1 → position 5, Rank 2 → position 4, Rank 3 → position 6
-              const maxBarHeight = CHART_HEIGHT - 60; // Reserve space for text at bottom
+              const maxBarHeight = CHART_HEIGHT - 40; // Reserve space for rank label at bottom
               // Use actual vote count for height (no two bars same height)
               const barHeight = (entity.votes / maxVotes) * maxBarHeight;
               // Center position 5 at chart center, then space other positions relative to it
@@ -158,14 +158,14 @@ export default function CastYourVoteScreen() {
               return (
                 <View
                   key={entity.name}
-                  style={[
-                    styles.barContainer,
-                    {
-                      left: xPos,
-                      width: baseBarWidth,
-                      height: CHART_HEIGHT,
-                    },
-                  ]}
+                    style={[
+                      styles.barContainer,
+                      {
+                        left: xPos,
+                        width: baseBarWidth,
+                        height: CHART_HEIGHT,
+                      },
+                    ]}
                 >
                   {/* Bar - extends upward from x-axis */}
                   <View
@@ -179,6 +179,11 @@ export default function CastYourVoteScreen() {
                       },
                     ]}
                   />
+                  
+                  {/* Rank label inside the bar at the bottom */}
+                  <Text style={styles.rankLabel}>
+                    #{index + 1}
+                  </Text>
                 </View>
               );
             })}
@@ -359,6 +364,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+  },
+  rankLabel: {
+    position: 'absolute',
+    bottom: 5,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    width: '100%',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   entityNameContainer: {
     position: 'absolute',
