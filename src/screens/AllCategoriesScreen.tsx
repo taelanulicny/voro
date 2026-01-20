@@ -133,6 +133,24 @@ export default function AllCategoriesScreen() {
     'College Basketball Teams',
   ];
 
+  // All categories from home page slider (excluding 'For You' as it's not a real category)
+  const allCategoriesList = [
+    'People',
+    'Teams',
+    'Actors',
+    'NBA Players',
+    'NFL Players',
+    'Soccer Players',
+    'Influencers',
+    'Political Figures',
+    'NFL Teams',
+    'NBA Teams',
+    'College Basketball Teams',
+    'Hip Hop',
+    'Country Music',
+    'Pop Music',
+  ];
+
   // Get real category volumes from transactions and calculate category data
   const categoryTradeVolumes = useMemo(() => {
     const categoryVolumes = getCategoryVolumes();
@@ -319,61 +337,21 @@ export default function AllCategoriesScreen() {
     </View>
   );
 
-  const renderCategoryItem = ({ item }: { item: typeof categoryTradeVolumes[0] }) => {
-    const changePercent = item.percentage - item.previousPercentage;
-    // Determine color based on change: green = up, red = down, grey = no change
-    const isPositive = changePercent > 0;
-    const isNegative = changePercent < 0;
-    const isNeutral = changePercent === 0;
-    
-    // Color values
-    const greenColor = '#10B981';
-    const redColor = '#EF4444';
-    const greyColor = '#6B7280';
-    
-    const changeColor = isPositive ? greenColor : isNegative ? redColor : greyColor;
-    const indicatorBgColor = isPositive 
-      ? 'rgba(16, 185, 129, 0.2)' 
-      : isNegative 
-      ? 'rgba(239, 68, 68, 0.2)' 
-      : 'rgba(107, 114, 128, 0.2)';
-    const dotColor = isPositive ? greenColor : isNegative ? redColor : greyColor;
-    const arrowIcon = isPositive ? 'arrow-up' : isNegative ? 'arrow-down' : 'remove';
-    
+  const renderCategoryItem = ({ item }: { item: string }) => {
     return (
       <TouchableOpacity
         style={[styles.categoryItem, { backgroundColor: theme.card, borderBottomColor: theme.border }]}
-        onPress={() => handleCategoryPress(item.categoryId)}
+        onPress={() => handleCategoryPress(item)}
       >
         <View style={styles.categoryItemLeft}>
-          <View style={[
-            styles.categoryIndicator,
-            { backgroundColor: indicatorBgColor }
-          ]}>
-            <View style={[
-              styles.categoryDot,
-              { backgroundColor: dotColor }
-            ]} />
-          </View>
-          <Text style={[styles.categoryItemName, { color: theme.text }]}>{item.name}</Text>
+          <Text style={[styles.categoryItemName, { color: theme.text }]}>{item}</Text>
         </View>
         <View style={styles.categoryItemRight}>
-          <Text style={[styles.categoryItemPercentage, { color: theme.text }]}>
-            {item.percentage}%
-          </Text>
-          {!isNeutral && (
-            <View style={styles.changeContainer}>
-              <Text style={[styles.changeText, { color: changeColor }]}>(</Text>
-              <Ionicons 
-                name={arrowIcon as any}
-                size={12} 
-                color={changeColor} 
-              />
-              <Text style={[styles.changeText, { color: changeColor }]}>
-                {Math.abs(changePercent).toFixed(1)}%)
-              </Text>
-            </View>
-          )}
+          <Ionicons 
+            name="chevron-forward" 
+            size={20} 
+            color={theme.textSecondary} 
+          />
         </View>
       </TouchableOpacity>
     );
@@ -492,13 +470,13 @@ export default function AllCategoriesScreen() {
 
         {/* List View */}
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
-          {renderFilterButtons()}
           <FlatList
-            data={[]}
+            data={allCategoriesList}
             renderItem={renderCategoryItem}
-            keyExtractor={(item) => item.categoryId}
+            keyExtractor={(item) => item}
             contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
           />
         </View>
       </ScrollView>
@@ -599,6 +577,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 8,
+    paddingBottom: 120,
   },
   categoryItem: {
     flexDirection: 'row',
