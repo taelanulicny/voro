@@ -18,7 +18,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Donald Trump',
     category: 'Political Figures',
-    basePrice: 142.55,
+    basePrice: 100,
     description: 'Former president and political figure. Trade confidence in political influence and electoral prospects.',
   },
   // Influencers
@@ -27,7 +27,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Alix Earle',
     category: 'Influencers',
-    basePrice: 200.47,
+    basePrice: 100,
     description: 'TikTok influencer and content creator. Track confidence in Alix Earle\'s influence, brand partnerships, and audience growth.',
   },
   {
@@ -35,7 +35,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'MrBeast',
     category: 'Influencers',
-    basePrice: 195.83,
+    basePrice: 100,
     description: 'YouTube creator and philanthropist. Trade confidence in MrBeast\'s channel growth, business ventures, and social impact initiatives.',
   },
   {
@@ -43,7 +43,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Kai Cenat',
     category: 'Influencers',
-    basePrice: 185.29,
+    basePrice: 100,
     description: 'Twitch streamer and content creator. Trade confidence in Kai Cenat\'s streaming success, audience engagement, and career trajectory.',
   },
   {
@@ -51,7 +51,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Charli D\'Amelio',
     category: 'Influencers',
-    basePrice: 182.56,
+    basePrice: 100,
     description: 'TikTok star and social media influencer. Trade confidence in Charli D\'Amelio\'s influence, brand deals, and career growth.',
   },
   {
@@ -59,7 +59,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Logan Paul',
     category: 'Influencers',
-    basePrice: 178.91,
+    basePrice: 100,
     description: 'YouTube creator, boxer, and entrepreneur. Track confidence in Logan Paul\'s ventures, fight career, and business success.',
   },
   {
@@ -67,7 +67,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Jake Paul',
     category: 'Influencers',
-    basePrice: 175.34,
+    basePrice: 100,
     description: 'YouTube creator, boxer, and entrepreneur. Track confidence in Jake Paul\'s boxing career, business ventures, and public profile.',
   },
   {
@@ -75,7 +75,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Alex Cooper',
     category: 'Influencers',
-    basePrice: 172.68,
+    basePrice: 100,
     description: 'Podcast host and media personality. Trade confidence in Alex Cooper\'s podcast success, brand expansion, and media influence.',
   },
   {
@@ -83,7 +83,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Emma Chamberlain',
     category: 'Influencers',
-    basePrice: 162.42,
+    basePrice: 100,
     description: 'YouTube creator and fashion influencer. Trade confidence in Emma Chamberlain\'s brand partnerships, content creation, and influence.',
   },
   {
@@ -91,7 +91,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Adin Ross',
     category: 'Influencers',
-    basePrice: 145.76,
+    basePrice: 100,
     description: 'Twitch streamer and content creator. Track confidence in Adin Ross\'s streaming career, collaborations, and audience growth.',
   },
   {
@@ -99,7 +99,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Andrew Tate',
     category: 'Influencers',
-    basePrice: 128.13,
+    basePrice: 100,
     description: 'Controversial internet personality and former kickboxer. Track confidence in Andrew Tate\'s influence and media presence.',
   },
   // Music Artists
@@ -108,7 +108,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Taylor Swift',
     category: 'Music Artists',
-    basePrice: 198.64,
+    basePrice: 100,
     description: 'Award-winning singer-songwriter and global pop icon. Track confidence in Taylor Swift\'s album releases, tours, and cultural influence.',
   },
   {
@@ -116,7 +116,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Drake',
     category: 'Music Artists',
-    basePrice: 192.37,
+    basePrice: 100,
     description: 'Grammy-winning rapper and record producer. Trade confidence in Drake\'s chart dominance, album releases, and business ventures.',
   },
   {
@@ -124,7 +124,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Kanye West',
     category: 'Music Artists',
-    basePrice: 186.52,
+    basePrice: 100,
     description: 'Influential rapper, producer, and fashion designer. Track confidence in Kanye West\'s music releases and brand partnerships.',
   },
   {
@@ -132,7 +132,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Bad Bunny',
     category: 'Music Artists',
-    basePrice: 181.79,
+    basePrice: 100,
     description: 'Global reggaeton and Latin trap artist. Trade confidence in Bad Bunny\'s chart success, tours, and cultural impact.',
   },
   {
@@ -140,7 +140,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Travis Scott',
     category: 'Music Artists',
-    basePrice: 177.23,
+    basePrice: 100,
     description: 'Hip-hop artist and record producer. Track confidence in Travis Scott\'s album releases, collaborations, and live performances.',
   },
   {
@@ -148,7 +148,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Olivia Rodrigo',
     category: 'Music Artists',
-    basePrice: 173.86,
+    basePrice: 100,
     description: 'Rising pop star and songwriter. Trade confidence in Olivia Rodrigo\'s album success, chart performance, and growing fanbase.',
   },
   {
@@ -156,7 +156,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Playboi Carti',
     category: 'Music Artists',
-    basePrice: 169.41,
+    basePrice: 100,
     description: 'Rapper and songwriter known for experimental sound. Track confidence in Playboi Carti\'s releases and influence on hip-hop culture.',
   },
   {
@@ -164,7 +164,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Ice Spice',
     category: 'Music Artists',
-    basePrice: 165.98,
+    basePrice: 100,
     description: 'Rising rapper and viral sensation. Trade confidence in Ice Spice\'s chart success, collaborations, and career growth.',
   },
   {
@@ -172,7 +172,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'The Weeknd',
     category: 'Music Artists',
-    basePrice: 162.54,
+    basePrice: 100,
     description: 'Grammy-winning singer, songwriter, and producer. Track confidence in The Weeknd\'s album releases, tours, and artistic evolution.',
   },
   {
@@ -180,7 +180,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Doja Cat',
     category: 'Music Artists',
-    basePrice: 159.27,
+    basePrice: 100,
     description: 'Singer, rapper, and songwriter. Trade confidence in Doja Cat\'s chart-topping hits, album releases, and social media presence.',
   },
   // Political Figures
@@ -189,7 +189,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Joe Biden',
     category: 'Political Figures',
-    basePrice: 141.23,
+    basePrice: 100,
     description: 'Current president of the United States. Track confidence in Joe Biden\'s policy decisions, approval ratings, and political influence.',
   },
   {
@@ -197,7 +197,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Kamala Harris',
     category: 'Political Figures',
-    basePrice: 138.67,
+    basePrice: 100,
     description: 'Vice President of the United States. Trade confidence in Kamala Harris\'s political standing, policy impact, and future prospects.',
   },
   {
@@ -205,7 +205,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Ron DeSantis',
     category: 'Political Figures',
-    basePrice: 135.89,
+    basePrice: 100,
     description: 'Governor of Florida and political figure. Track confidence in Ron DeSantis\'s political influence, policy decisions, and electoral prospects.',
   },
   {
@@ -213,7 +213,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Alexandria Ocasio-Cortez',
     category: 'Political Figures',
-    basePrice: 133.42,
+    basePrice: 100,
     description: 'U.S. Representative and progressive political figure. Trade confidence in Alexandria Ocasio-Cortez\'s policy advocacy and political influence.',
   },
   {
@@ -221,7 +221,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Vivek Ramaswamy',
     category: 'Political Figures',
-    basePrice: 130.76,
+    basePrice: 100,
     description: 'Entrepreneur and political figure. Track confidence in Vivek Ramaswamy\'s political influence, policy positions, and public profile.',
   },
   {
@@ -229,7 +229,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Nikki Haley',
     category: 'Political Figures',
-    basePrice: 128.54,
+    basePrice: 100,
     description: 'Former U.N. Ambassador and political figure. Trade confidence in Nikki Haley\'s political standing, policy influence, and electoral prospects.',
   },
   {
@@ -237,7 +237,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Gavin Newsom',
     category: 'Political Figures',
-    basePrice: 126.18,
+    basePrice: 100,
     description: 'Governor of California and political figure. Track confidence in Gavin Newsom\'s policy decisions, political influence, and future prospects.',
   },
   {
@@ -245,7 +245,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Tucker Carlson',
     category: 'Political Figures',
-    basePrice: 123.91,
+    basePrice: 100,
     description: 'Media personality and political commentator. Trade confidence in Tucker Carlson\'s influence, media presence, and political impact.',
   },
   {
@@ -253,7 +253,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Bernie Sanders',
     category: 'Political Figures',
-    basePrice: 121.45,
+    basePrice: 100,
     description: 'U.S. Senator and progressive political figure. Track confidence in Bernie Sanders\'s policy advocacy, political influence, and public support.',
   },
   // Actors
@@ -262,7 +262,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Zendaya',
     category: 'Actors',
-    basePrice: 195.50,
+    basePrice: 100,
     description: 'Award-winning actress and singer. Trade confidence in Zendaya\'s acting career, box office success, and industry influence.',
   },
   {
@@ -270,7 +270,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Timothée Chalamet',
     category: 'Actors',
-    basePrice: 188.75,
+    basePrice: 100,
     description: 'Acclaimed actor known for dramatic roles. Track confidence in Timothée Chalamet\'s film projects, awards recognition, and career trajectory.',
   },
   {
@@ -278,7 +278,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Sydney Sweeney',
     category: 'Actors',
-    basePrice: 182.30,
+    basePrice: 100,
     description: 'Rising actress and producer. Trade confidence in Sydney Sweeney\'s acting roles, production ventures, and industry presence.',
   },
   {
@@ -286,7 +286,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Tom Holland',
     category: 'Actors',
-    basePrice: 190.25,
+    basePrice: 100,
     description: 'Actor best known for Spider-Man franchise. Track confidence in Tom Holland\'s film projects, box office performance, and career growth.',
   },
   {
@@ -294,7 +294,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Pedro Pascal',
     category: 'Actors',
-    basePrice: 185.90,
+    basePrice: 100,
     description: 'Versatile actor in film and television. Trade confidence in Pedro Pascal\'s roles, show success, and entertainment industry impact.',
   },
   // NBA Players
@@ -303,7 +303,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'LeBron James',
     category: 'NBA Players',
-    basePrice: 250.00,
+    basePrice: 100,
     description: 'NBA superstar and all-time great. Trade confidence in LeBron James\'s performance, team success, and legacy in basketball.',
   },
   {
@@ -311,7 +311,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Stephen Curry',
     category: 'NBA Players',
-    basePrice: 245.50,
+    basePrice: 100,
     description: 'Three-point shooting legend and Warriors icon. Track confidence in Stephen Curry\'s shooting, team performance, and career milestones.',
   },
   {
@@ -319,7 +319,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Victor Wembanyama',
     category: 'NBA Players',
-    basePrice: 220.75,
+    basePrice: 100,
     description: 'Rising star and generational talent. Trade confidence in Victor Wembanyama\'s development, rookie performance, and future potential.',
   },
   {
@@ -327,7 +327,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Nikola Jokic',
     category: 'NBA Players',
-    basePrice: 240.25,
+    basePrice: 100,
     description: 'Reigning MVP and elite center. Track confidence in Nikola Jokic\'s playmaking, team success, and championship aspirations.',
   },
   {
@@ -335,7 +335,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Luka Dončić',
     category: 'NBA Players',
-    basePrice: 235.90,
+    basePrice: 100,
     description: 'Dynamic guard and triple-double machine. Trade confidence in Luka Dončić\'s scoring, assists, and Mavericks success.',
   },
   {
@@ -343,7 +343,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Anthony Edwards',
     category: 'NBA Players',
-    basePrice: 215.30,
+    basePrice: 100,
     description: 'Explosive guard and rising star. Track confidence in Anthony Edwards\'s scoring ability, team leadership, and playoff performance.',
   },
   {
@@ -351,7 +351,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Shai Gilgeous-Alexander',
     category: 'NBA Players',
-    basePrice: 230.60,
+    basePrice: 100,
     description: 'Elite guard and Thunder leader. Trade confidence in Shai Gilgeous-Alexander\'s scoring, team building, and All-Star status.',
   },
   // NFL Players
@@ -360,7 +360,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Patrick Mahomes',
     category: 'NFL Players',
-    basePrice: 255.00,
+    basePrice: 100,
     description: 'Super Bowl champion quarterback and Chiefs leader. Trade confidence in Patrick Mahomes\'s performance, team success, and MVP potential.',
   },
   {
@@ -368,7 +368,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Drake Maye',
     category: 'NFL Players',
-    basePrice: 200.50,
+    basePrice: 100,
     description: 'Rising quarterback prospect. Track confidence in Drake Maye\'s development, draft position, and NFL career trajectory.',
   },
   {
@@ -376,7 +376,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Joe Burrow',
     category: 'NFL Players',
-    basePrice: 245.75,
+    basePrice: 100,
     description: 'Elite quarterback and Bengals leader. Trade confidence in Joe Burrow\'s passing, playoff performance, and championship aspirations.',
   },
   {
@@ -384,7 +384,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Travis Kelce',
     category: 'NFL Players',
-    basePrice: 235.25,
+    basePrice: 100,
     description: 'All-Pro tight end and Chiefs star. Track confidence in Travis Kelce\'s receiving, team chemistry, and Super Bowl success.',
   },
   {
@@ -392,7 +392,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Caleb Williams',
     category: 'NFL Players',
-    basePrice: 210.90,
+    basePrice: 100,
     description: 'Top quarterback prospect and Heisman winner. Trade confidence in Caleb Williams\'s draft stock, NFL readiness, and future potential.',
   },
   {
@@ -400,7 +400,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Tom Brady',
     category: 'NFL Players',
-    basePrice: 250.00,
+    basePrice: 100,
     description: 'Seven-time Super Bowl champion and greatest quarterback of all time. Trade confidence in Tom Brady\'s legacy, retirement impact, and post-career ventures.',
   },
   // Soccer Players
@@ -409,7 +409,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Lionel Messi',
     category: 'Soccer Players',
-    basePrice: 260.00,
+    basePrice: 100,
     description: 'World Cup champion and football legend. Trade confidence in Lionel Messi\'s performance, team success, and legacy in soccer.',
   },
   {
@@ -417,7 +417,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Cristiano Ronaldo',
     category: 'Soccer Players',
-    basePrice: 258.50,
+    basePrice: 100,
     description: 'Global football icon and goal-scoring machine. Track confidence in Cristiano Ronaldo\'s goals, team impact, and career milestones.',
   },
   // NFL Teams
@@ -426,7 +426,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Kansas City Chiefs',
     category: 'NFL Teams',
-    basePrice: 185.42,
+    basePrice: 100,
     description: 'NFL team based in Kansas City. Track confidence in the Chiefs\' performance, playoff prospects, and fan engagement.',
   },
   {
@@ -434,7 +434,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Buffalo Bills',
     category: 'NFL Teams',
-    basePrice: 178.93,
+    basePrice: 100,
     description: 'NFL team based in Buffalo. Trade confidence in the Bills\' season performance, playoff chances, and team success.',
   },
   {
@@ -442,7 +442,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Baltimore Ravens',
     category: 'NFL Teams',
-    basePrice: 176.58,
+    basePrice: 100,
     description: 'NFL team based in Baltimore. Track confidence in the Ravens\' performance, roster strength, and championship potential.',
   },
   {
@@ -450,7 +450,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Cincinnati Bengals',
     category: 'NFL Teams',
-    basePrice: 174.21,
+    basePrice: 100,
     description: 'NFL team based in Cincinnati. Trade confidence in the Bengals\' season outlook, player performance, and playoff aspirations.',
   },
   {
@@ -458,7 +458,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Cleveland Browns',
     category: 'NFL Teams',
-    basePrice: 165.87,
+    basePrice: 100,
     description: 'NFL team based in Cleveland. Track confidence in the Browns\' performance, roster decisions, and season success.',
   },
   {
@@ -466,7 +466,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Pittsburgh Steelers',
     category: 'NFL Teams',
-    basePrice: 172.45,
+    basePrice: 100,
     description: 'NFL team based in Pittsburgh. Trade confidence in the Steelers\' tradition, team performance, and playoff chances.',
   },
   {
@@ -474,7 +474,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Houston Texans',
     category: 'NFL Teams',
-    basePrice: 158.32,
+    basePrice: 100,
     description: 'NFL team based in Houston. Track confidence in the Texans\' rebuilding process, draft picks, and future success.',
   },
   {
@@ -482,7 +482,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Indianapolis Colts',
     category: 'NFL Teams',
-    basePrice: 163.79,
+    basePrice: 100,
     description: 'NFL team based in Indianapolis. Trade confidence in the Colts\' performance, quarterback situation, and season outlook.',
   },
   {
@@ -490,7 +490,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Jacksonville Jaguars',
     category: 'NFL Teams',
-    basePrice: 161.24,
+    basePrice: 100,
     description: 'NFL team based in Jacksonville. Track confidence in the Jaguars\' development, young talent, and competitive progress.',
   },
   {
@@ -498,7 +498,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Tennessee Titans',
     category: 'NFL Teams',
-    basePrice: 159.68,
+    basePrice: 100,
     description: 'NFL team based in Tennessee. Trade confidence in the Titans\' performance, coaching decisions, and playoff potential.',
   },
   {
@@ -506,7 +506,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Denver Broncos',
     category: 'NFL Teams',
-    basePrice: 162.15,
+    basePrice: 100,
     description: 'NFL team based in Denver. Track confidence in the Broncos\' roster moves, quarterback play, and season performance.',
   },
   {
@@ -514,7 +514,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Los Angeles Chargers',
     category: 'NFL Teams',
-    basePrice: 170.56,
+    basePrice: 100,
     description: 'NFL team based in Los Angeles. Trade confidence in the Chargers\' talent, playoff chances, and championship aspirations.',
   },
   {
@@ -522,7 +522,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Los Angeles Rams',
     category: 'NFL Teams',
-    basePrice: 168.92,
+    basePrice: 100,
     description: 'NFL team based in Los Angeles. Track confidence in the Rams\' roster construction, coaching, and competitive success.',
   },
   {
@@ -530,7 +530,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Las Vegas Raiders',
     category: 'NFL Teams',
-    basePrice: 164.38,
+    basePrice: 100,
     description: 'NFL team based in Las Vegas. Trade confidence in the Raiders\' performance, team culture, and playoff prospects.',
   },
   {
@@ -538,7 +538,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Dallas Cowboys',
     category: 'NFL Teams',
-    basePrice: 182.67,
+    basePrice: 100,
     description: 'NFL team based in Dallas. Track confidence in the Cowboys\' performance, playoff success, and championship potential.',
   },
   {
@@ -546,7 +546,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'New York Giants',
     category: 'NFL Teams',
-    basePrice: 157.43,
+    basePrice: 100,
     description: 'NFL team based in New York. Trade confidence in the Giants\' rebuilding efforts, draft strategy, and future success.',
   },
   {
@@ -554,7 +554,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Philadelphia Eagles',
     category: 'NFL Teams',
-    basePrice: 180.34,
+    basePrice: 100,
     description: 'NFL team based in Philadelphia. Track confidence in the Eagles\' performance, roster depth, and Super Bowl chances.',
   },
   {
@@ -562,7 +562,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Washington Commanders',
     category: 'NFL Teams',
-    basePrice: 155.89,
+    basePrice: 100,
     description: 'NFL team based in Washington. Trade confidence in the Commanders\' rebuild, new ownership, and team development.',
   },
   {
@@ -570,7 +570,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Chicago Bears',
     category: 'NFL Teams',
-    basePrice: 160.12,
+    basePrice: 100,
     description: 'NFL team based in Chicago. Track confidence in the Bears\' quarterback development, roster building, and competitive progress.',
   },
   {
@@ -578,7 +578,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Detroit Lions',
     category: 'NFL Teams',
-    basePrice: 173.56,
+    basePrice: 100,
     description: 'NFL team based in Detroit. Trade confidence in the Lions\' resurgence, coaching success, and playoff performance.',
   },
   {
@@ -586,7 +586,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Green Bay Packers',
     category: 'NFL Teams',
-    basePrice: 177.89,
+    basePrice: 100,
     description: 'NFL team based in Green Bay. Track confidence in the Packers\' quarterback transition, team performance, and playoff chances.',
   },
   {
@@ -594,7 +594,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Minnesota Vikings',
     category: 'NFL Teams',
-    basePrice: 166.78,
+    basePrice: 100,
     description: 'NFL team based in Minnesota. Trade confidence in the Vikings\' performance, roster decisions, and competitive success.',
   },
   {
@@ -602,7 +602,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Atlanta Falcons',
     category: 'NFL Teams',
-    basePrice: 158.91,
+    basePrice: 100,
     description: 'NFL team based in Atlanta. Track confidence in the Falcons\' rebuild, quarterback situation, and future prospects.',
   },
   {
@@ -610,7 +610,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Carolina Panthers',
     category: 'NFL Teams',
-    basePrice: 152.34,
+    basePrice: 100,
     description: 'NFL team based in Carolina. Trade confidence in the Panthers\' rebuilding process, draft picks, and team development.',
   },
   {
@@ -618,7 +618,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'New Orleans Saints',
     category: 'NFL Teams',
-    basePrice: 167.45,
+    basePrice: 100,
     description: 'NFL team based in New Orleans. Track confidence in the Saints\' performance, roster management, and playoff aspirations.',
   },
   {
@@ -626,7 +626,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Tampa Bay Buccaneers',
     category: 'NFL Teams',
-    basePrice: 171.23,
+    basePrice: 100,
     description: 'NFL team based in Tampa Bay. Trade confidence in the Buccaneers\' performance, quarterback situation, and competitive success.',
   },
   {
@@ -634,7 +634,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Arizona Cardinals',
     category: 'NFL Teams',
-    basePrice: 154.67,
+    basePrice: 100,
     description: 'NFL team based in Arizona. Track confidence in the Cardinals\' rebuild, draft strategy, and future development.',
   },
   {
@@ -642,7 +642,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'San Francisco 49ers',
     category: 'NFL Teams',
-    basePrice: 179.56,
+    basePrice: 100,
     description: 'NFL team based in San Francisco. Trade confidence in the 49ers\' roster talent, coaching, and Super Bowl potential.',
   },
   {
@@ -650,7 +650,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Seattle Seahawks',
     category: 'NFL Teams',
-    basePrice: 169.78,
+    basePrice: 100,
     description: 'NFL team based in Seattle. Track confidence in the Seahawks\' performance, quarterback play, and playoff chances.',
   },
   {
@@ -658,7 +658,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'New England Patriots',
     category: 'NFL Teams',
-    basePrice: 163.12,
+    basePrice: 100,
     description: 'NFL team based in New England. Trade confidence in the Patriots\' rebuild, coaching decisions, and future success.',
   },
   {
@@ -666,7 +666,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'New York Jets',
     category: 'NFL Teams',
-    basePrice: 165.89,
+    basePrice: 100,
     description: 'NFL team based in New York. Track confidence in the Jets\' quarterback situation, roster talent, and competitive progress.',
   },
   {
@@ -674,7 +674,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Miami Dolphins',
     category: 'NFL Teams',
-    basePrice: 175.34,
+    basePrice: 100,
     description: 'NFL team based in Miami. Trade confidence in the Dolphins\' offensive performance, playoff chances, and team success.',
   },
   // NBA Teams
@@ -683,7 +683,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Boston Celtics',
     category: 'NBA Teams',
-    basePrice: 195.42,
+    basePrice: 100,
     description: 'NBA team based in Boston. Track confidence in the Celtics\' performance, playoff prospects, and championship potential.',
   },
   {
@@ -691,7 +691,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Milwaukee Bucks',
     category: 'NBA Teams',
-    basePrice: 192.67,
+    basePrice: 100,
     description: 'NBA team based in Milwaukee. Trade confidence in the Bucks\' roster talent, star players, and title chances.',
   },
   {
@@ -699,7 +699,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Denver Nuggets',
     category: 'NBA Teams',
-    basePrice: 190.34,
+    basePrice: 100,
     description: 'NBA team based in Denver. Track confidence in the Nuggets\' championship core, coaching, and competitive success.',
   },
   {
@@ -707,7 +707,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Phoenix Suns',
     category: 'NBA Teams',
-    basePrice: 188.56,
+    basePrice: 100,
     description: 'NBA team based in Phoenix. Trade confidence in the Suns\' star power, roster depth, and playoff performance.',
   },
   {
@@ -715,7 +715,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Los Angeles Lakers',
     category: 'NBA Teams',
-    basePrice: 186.93,
+    basePrice: 100,
     description: 'NBA team based in Los Angeles. Track confidence in the Lakers\' legacy, star players, and championship aspirations.',
   },
   {
@@ -723,7 +723,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Golden State Warriors',
     category: 'NBA Teams',
-    basePrice: 184.78,
+    basePrice: 100,
     description: 'NBA team based in San Francisco. Trade confidence in the Warriors\' dynasty, shooting, and title contention.',
   },
   {
@@ -731,7 +731,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Philadelphia 76ers',
     category: 'NBA Teams',
-    basePrice: 182.15,
+    basePrice: 100,
     description: 'NBA team based in Philadelphia. Track confidence in the 76ers\' star talent, team chemistry, and playoff success.',
   },
   {
@@ -739,7 +739,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Miami Heat',
     category: 'NBA Teams',
-    basePrice: 180.42,
+    basePrice: 100,
     description: 'NBA team based in Miami. Trade confidence in the Heat\'s culture, coaching, and playoff resilience.',
   },
   {
@@ -747,7 +747,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Dallas Mavericks',
     category: 'NBA Teams',
-    basePrice: 178.89,
+    basePrice: 100,
     description: 'NBA team based in Dallas. Track confidence in the Mavericks\' star duo, offensive firepower, and playoff potential.',
   },
   {
@@ -755,7 +755,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Cleveland Cavaliers',
     category: 'NBA Teams',
-    basePrice: 176.34,
+    basePrice: 100,
     description: 'NBA team based in Cleveland. Trade confidence in the Cavaliers\' young core, development, and competitive progress.',
   },
   {
@@ -763,7 +763,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'New York Knicks',
     category: 'NBA Teams',
-    basePrice: 174.67,
+    basePrice: 100,
     description: 'NBA team based in New York. Track confidence in the Knicks\' rebuild, roster moves, and playoff chances.',
   },
   {
@@ -771,7 +771,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Los Angeles Clippers',
     category: 'NBA Teams',
-    basePrice: 172.56,
+    basePrice: 100,
     description: 'NBA team based in Los Angeles. Trade confidence in the Clippers\' star talent, depth, and championship window.',
   },
   {
@@ -779,7 +779,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Oklahoma City Thunder',
     category: 'NBA Teams',
-    basePrice: 170.23,
+    basePrice: 100,
     description: 'NBA team based in Oklahoma City. Track confidence in the Thunder\'s young stars, rebuild, and future potential.',
   },
   {
@@ -787,7 +787,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Minnesota Timberwolves',
     category: 'NBA Teams',
-    basePrice: 168.45,
+    basePrice: 100,
     description: 'NBA team based in Minnesota. Trade confidence in the Timberwolves\' roster construction and playoff performance.',
   },
   {
@@ -795,7 +795,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Sacramento Kings',
     category: 'NBA Teams',
-    basePrice: 166.78,
+    basePrice: 100,
     description: 'NBA team based in Sacramento. Track confidence in the Kings\' offensive system, young talent, and competitive growth.',
   },
   {
@@ -803,7 +803,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'New Orleans Pelicans',
     category: 'NBA Teams',
-    basePrice: 164.92,
+    basePrice: 100,
     description: 'NBA team based in New Orleans. Trade confidence in the Pelicans\' young stars, depth, and playoff aspirations.',
   },
   {
@@ -811,7 +811,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Atlanta Hawks',
     category: 'NBA Teams',
-    basePrice: 162.34,
+    basePrice: 100,
     description: 'NBA team based in Atlanta. Track confidence in the Hawks\' backcourt, roster moves, and playoff contention.',
   },
   {
@@ -819,7 +819,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Chicago Bulls',
     category: 'NBA Teams',
-    basePrice: 160.67,
+    basePrice: 100,
     description: 'NBA team based in Chicago. Trade confidence in the Bulls\' roster, coaching, and competitive direction.',
   },
   {
@@ -827,7 +827,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Toronto Raptors',
     category: 'NBA Teams',
-    basePrice: 158.45,
+    basePrice: 100,
     description: 'NBA team based in Toronto. Track confidence in the Raptors\' rebuild, young talent, and future development.',
   },
   {
@@ -835,7 +835,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Indiana Pacers',
     category: 'NBA Teams',
-    basePrice: 156.78,
+    basePrice: 100,
     description: 'NBA team based in Indiana. Trade confidence in the Pacers\' fast-paced offense, young core, and growth.',
   },
   {
@@ -843,7 +843,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Orlando Magic',
     category: 'NBA Teams',
-    basePrice: 154.56,
+    basePrice: 100,
     description: 'NBA team based in Orlando. Track confidence in the Magic\'s young talent, defensive identity, and rebuild progress.',
   },
   {
@@ -851,7 +851,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Washington Wizards',
     category: 'NBA Teams',
-    basePrice: 152.34,
+    basePrice: 100,
     description: 'NBA team based in Washington. Trade confidence in the Wizards\' rebuild, draft strategy, and future direction.',
   },
   {
@@ -859,7 +859,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Charlotte Hornets',
     category: 'NBA Teams',
-    basePrice: 150.67,
+    basePrice: 100,
     description: 'NBA team based in Charlotte. Track confidence in the Hornets\' young stars, development, and competitive progress.',
   },
   {
@@ -867,7 +867,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Detroit Pistons',
     category: 'NBA Teams',
-    basePrice: 148.45,
+    basePrice: 100,
     description: 'NBA team based in Detroit. Trade confidence in the Pistons\' rebuild, young core, and future potential.',
   },
   {
@@ -875,7 +875,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Brooklyn Nets',
     category: 'NBA Teams',
-    basePrice: 146.78,
+    basePrice: 100,
     description: 'NBA team based in Brooklyn. Track confidence in the Nets\' rebuild, roster moves, and competitive direction.',
   },
   {
@@ -883,7 +883,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Utah Jazz',
     category: 'NBA Teams',
-    basePrice: 144.56,
+    basePrice: 100,
     description: 'NBA team based in Utah. Trade confidence in the Jazz\'s rebuild, young talent, and development strategy.',
   },
   {
@@ -891,7 +891,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Portland Trail Blazers',
     category: 'NBA Teams',
-    basePrice: 142.34,
+    basePrice: 100,
     description: 'NBA team based in Portland. Track confidence in the Trail Blazers\' rebuild, draft picks, and future direction.',
   },
   {
@@ -899,7 +899,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Houston Rockets',
     category: 'NBA Teams',
-    basePrice: 140.67,
+    basePrice: 100,
     description: 'NBA team based in Houston. Trade confidence in the Rockets\' young core, development, and rebuild progress.',
   },
   {
@@ -907,7 +907,7 @@ export const ENTITIES: EntityData[] = [
 
     name: 'Memphis Grizzlies',
     category: 'NBA Teams',
-    basePrice: 138.45,
+    basePrice: 100,
     description: 'NBA team based in Memphis. Track confidence in the Grizzlies\' young stars, culture, and competitive potential.',
   },
   {
@@ -915,8 +915,79 @@ export const ENTITIES: EntityData[] = [
 
     name: 'San Antonio Spurs',
     category: 'NBA Teams',
-    basePrice: 136.78,
+    basePrice: 100,
     description: 'NBA team based in San Antonio. Trade confidence in the Spurs\' rebuild, young talent, and future development.',
+  },
+  // Country Music
+  {
+    id: 230,
+    name: 'Morgan Wallen',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country music singer and songwriter. Track confidence in Morgan Wallen\'s chart success, album releases, and fanbase growth.',
+  },
+  {
+    id: 231,
+    name: 'Zach Bryan',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country and Americana singer-songwriter. Trade confidence in Zach Bryan\'s authentic sound, album releases, and rising popularity.',
+  },
+  {
+    id: 232,
+    name: 'Luke Combs',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country music singer and songwriter. Track confidence in Luke Combs\' hit songs, tours, and continued chart dominance.',
+  },
+  {
+    id: 233,
+    name: 'Chris Stapleton',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country music singer-songwriter and guitarist. Trade confidence in Chris Stapleton\'s Grammy-winning music and live performances.',
+  },
+  {
+    id: 234,
+    name: 'Kane Brown',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country music singer and songwriter. Track confidence in Kane Brown\'s crossover success, collaborations, and fan engagement.',
+  },
+  {
+    id: 235,
+    name: 'Lainey Wilson',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country music singer and songwriter. Trade confidence in Lainey Wilson\'s rising career, award recognition, and hit singles.',
+  },
+  {
+    id: 236,
+    name: 'Tyler Childers',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country and Americana singer-songwriter. Track confidence in Tyler Childers\' authentic storytelling, album releases, and dedicated fanbase.',
+  },
+  {
+    id: 237,
+    name: 'Noah Kahan',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Singer-songwriter blending folk and country. Trade confidence in Noah Kahan\'s viral success, album releases, and growing popularity.',
+  },
+  {
+    id: 238,
+    name: 'Luke Bryan',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country music singer and songwriter. Track confidence in Luke Bryan\'s hit songs, tours, and continued presence in country music.',
+  },
+  {
+    id: 239,
+    name: 'Thomas Rhett',
+    category: 'Country Music',
+    basePrice: 100,
+    description: 'Country music singer and songwriter. Trade confidence in Thomas Rhett\'s chart-topping hits, album releases, and fanbase loyalty.',
   },
 ];
 
