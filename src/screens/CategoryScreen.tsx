@@ -8,6 +8,9 @@ import {
   RefreshControl,
   ScrollView,
   Dimensions,
+  Modal,
+  Share,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -23,6 +26,7 @@ import { extractCategoryMentions } from '../utils/categories';
 import { getAllCategoryFeedPosts } from '../utils/categoryFeedPosts';
 import { useSocial } from '../context/SocialContext';
 import PostCard from '../components/PostCard';
+import CreatePostModal from '../components/CreatePostModal';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -148,7 +152,7 @@ export default function CategoryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CategoryRouteProp>();
   const { categoryId } = route.params;
-  const { getEntityPrice, getAllEntityPrices } = useTrading();
+  const { getEntityPrice, getAllEntityPrices, getPosition, getPositionOpenPnL } = useTrading();
   const { theme } = useTheme();
   const { activityFeed } = useSocial();
   const [refreshing, setRefreshing] = useState(false);
@@ -156,6 +160,8 @@ export default function CategoryScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentGamePageIndex, setCurrentGamePageIndex] = useState(0);
   const gamesScrollRef = useRef<ScrollView>(null);
+  const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
+  const [positionsModalVisible, setPositionsModalVisible] = useState(false);
 
   // Category-specific feed posts
   const categoryFeedPosts = useMemo(() => {
@@ -1168,6 +1174,19 @@ export default function CategoryScreen() {
   const displayName = categoryId;
   const entityCategory = categoryId;
   
+  const handleShare = async () => {
+    try {
+      const shareMessage = `${displayName}\n\nCheck out this category on Moro!`;
+      
+      await Share.share({
+        message: shareMessage,
+        title: `${displayName} - Moro`,
+      });
+    } catch (error) {
+      // User cancelled or error occurred
+    }
+  };
+  
   // Mock previous day rankings (yesterday's ranks)
   // Reset to match current ranks (no position changes)
   const previousDayRanks = useMemo(() => {
@@ -1236,6 +1255,34 @@ export default function CategoryScreen() {
       };
     });
   }, [entityCategory, categoryId, allEntityPrices, getEntityPrice, previousDayRanks]);
+
+  // Get all positions for entities in this category
+  const categoryPositions = useMemo(() => {
+    const positions: Array<{
+      entityId: number;
+      entityName: string;
+      position: { direction: 'positive' | 'negative'; tokensCommitted: number; trancheCount: number };
+      openPnL: number;
+      currentPrice: number;
+    }> = [];
+    
+    entities.forEach(entity => {
+      const position = getPosition(entity.id);
+      if (position) {
+        const openPnL = getPositionOpenPnL(entity.id);
+        const currentPrice = getEntityPrice(entity.id) || BASE_PRICE;
+        positions.push({
+          entityId: entity.id,
+          entityName: entity.name,
+          position,
+          openPnL,
+          currentPrice,
+        });
+      }
+    });
+    
+    return positions;
+  }, [entities, getPosition, getPositionOpenPnL, getEntityPrice]);
 
   const renderEmptyState = () => {
     return (
@@ -1734,6 +1781,134 @@ export default function CategoryScreen() {
           </ScrollView>
         </View>
       </ScrollView>
+
+      {/* Fixed Bottom Buttons - Only show on Feed tab */}
+      {selectedTab === 'feed' && (
+        <View style={[styles.bottomBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+          <View style={styles.bottomButtonsContainer}>
+            {/* Left Side: Post Button */}
+            <TouchableOpacity
+              style={styles.postButton}
+              onPress={() => setShareOpinionModalVisible(true)}
+            >
+              <Text style={styles.postButtonText}>Post</Text>
+            </TouchableOpacity>
+
+            {/* Right Side: Icon Buttons */}
+            <View style={styles.rightIconButtons}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => setPositionsModalVisible(true)}
+              >
+                <Ionicons name="briefcase-outline" size={24} color={theme.text} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => {
+                  Alert.alert(
+                    'Category Alerts',
+                    'Category-level alerts are coming soon. For now, you can set alerts for individual entities within this category.',
+                    [{ text: 'OK' }]
+                  );
+                }}
+              >
+                <Ionicons name="notifications-outline" size={24} color={theme.text} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleShare}
+              >
+                <Ionicons name="share-outline" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Share Opinion Modal */}
+      <CreatePostModal
+        visible={shareOpinionModalVisible}
+        onClose={() => setShareOpinionModalVisible(false)}
+        categoryId={categoryId}
+        categoryName={displayName}
+        slideFromBottom={true}
+        prefillCategoryTag={true}
+      />
+
+      {/* Positions Modal */}
+      <Modal
+        visible={positionsModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setPositionsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalOverlay} edges={['bottom']}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setPositionsModalVisible(false)}
+          />
+          <View style={[styles.positionsModalContent, { backgroundColor: theme.backgroundSecondary }]}>
+            {/* Handle bar */}
+            <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+            
+            {/* Header */}
+            <View style={[styles.positionsModalHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.positionsModalTitle, { color: theme.text }]}>
+                Positions - {displayName}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setPositionsModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            {categoryPositions.length > 0 ? (
+              <ScrollView style={styles.positionsModalBody} showsVerticalScrollIndicator={false}>
+                {categoryPositions.map(({ entityId, entityName, position, openPnL, currentPrice }) => (
+                  <View key={entityId} style={[styles.positionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.positionEntityName, { color: theme.text }]}>{entityName}</Text>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Direction</Text>
+                      <Text style={[styles.positionValue, { color: position.direction === 'positive' ? '#10B981' : '#EF4444' }]}>
+                        {position.direction === 'positive' ? 'Positive' : 'Negative'}
+                      </Text>
+                    </View>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
+                      <Text style={[styles.positionValue, { color: theme.text }]}>
+                        {position.tokensCommitted}
+                      </Text>
+                    </View>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Current Price</Text>
+                      <Text style={[styles.positionValue, { color: theme.text }]}>
+                        {formatCurrency(currentPrice)}
+                      </Text>
+                    </View>
+                    <View style={styles.positionRow}>
+                      <Text style={[styles.positionLabel, { color: theme.textSecondary }]}>Open P&L</Text>
+                      <Text style={[styles.positionValue, { color: openPnL >= 0 ? '#10B981' : '#EF4444' }]}>
+                        {openPnL >= 0 ? '+' : ''}{formatCurrency(openPnL)}
+                      </Text>
+                    </View>
+                    <View style={[styles.positionDivider, { backgroundColor: theme.border }]} />
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyPositionsContainer}>
+                <Text style={[styles.emptyPositionsText, { color: theme.textSecondary }]}>
+                  You don't have any open positions in this category
+                </Text>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -2037,6 +2212,134 @@ const styles = StyleSheet.create({
   },
   pageIndicatorDot: {
     borderRadius: 4,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bottomButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  postButton: {
+    backgroundColor: '#10B981', // Green
+    paddingVertical: 10,
+    paddingHorizontal: 32,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  postButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  rightIconButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  positionsModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  positionsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  positionsModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  positionsModalBody: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  positionCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  positionEntityName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  positionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  positionLabel: {
+    fontSize: 14,
+  },
+  positionValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  positionDivider: {
+    height: 1,
+    marginTop: 8,
+  },
+  emptyPositionsContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyPositionsText: {
+    fontSize: 16,
   },
 });
 
