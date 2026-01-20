@@ -7,7 +7,6 @@ import {
   ScrollView,
   TextInput,
   Dimensions,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -42,12 +41,13 @@ const FAKE_VOTE_DATA: VoteEntity[] = [
   { name: 'Sam Altman', votes: 1000, rank: 10 },
 ];
 
-// X-axis positions: 1 in center (position 5), 2 left (3), 3 right (7), 4 left of 2 (1), etc.
-// This creates the alternating pattern from center outward
-const getXAxisPosition = (rank: number): number => {
+// X-axis positions: tallest in center (position 5), second left (3), third right (7), etc.
+// This creates the alternating pattern from center outward based on vote count order
+const getXAxisPositionByOrder = (order: number): number => {
   // Center is at 5, then alternate left/right: [5, 3, 7, 1, 9, 0, 10, 2, 8, 4]
-  const positions = [5, 3, 7, 1, 9, 0, 10, 2, 8, 4]; // Positions 1-10 mapped to indices 0-9
-  return positions[rank - 1] || 5;
+  // order 0 = tallest (center), order 1 = second (left), order 2 = third (right), etc.
+  const positions = [5, 3, 7, 1, 9, 0, 10, 2, 8, 4];
+  return positions[order] || 5;
 };
 
 // Format votes: 1K, 1.1K, etc. after 999
@@ -68,33 +68,7 @@ export default function CastYourVoteScreen() {
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
   const [customEntityName, setCustomEntityName] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
-  const [voteData, setVoteData] = useState<VoteEntity[]>(FAKE_VOTE_DATA);
-  const [barAnimations] = useState(
-    FAKE_VOTE_DATA.map(() => new Animated.Value(0))
-  );
-
-  // Animate bars on mount
-  useEffect(() => {
-    Animated.parallel(
-      barAnimations.map((anim) =>
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        })
-      )
-    ).start();
-  }, []);
-
-  // Simulate updates every second (fake data will update)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // In real implementation, this would fetch from backend
-      // For now, just use the same fake data
-      setVoteData([...FAKE_VOTE_DATA]);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [voteData] = useState<VoteEntity[]>(FAKE_VOTE_DATA);
 
   const handleCastVote = () => {
     if (selectedEntity) {
@@ -117,8 +91,8 @@ export default function CastYourVoteScreen() {
   const barSpacing = chartWidth / (totalSlots + 1); // Even spacing for 10 slots
   const baseBarWidth = barSpacing * 0.6;
 
-  // Sort by rank to ensure correct order
-  const sortedData = [...voteData].sort((a, b) => a.rank - b.rank);
+  // Sort by vote count (descending) - tallest first
+  const sortedByVotes = [...voteData].sort((a, b) => b.votes - a.votes);
 
   const handleEntitySelect = (entityName: string) => {
     setSelectedEntity(entityName);
@@ -158,10 +132,10 @@ export default function CastYourVoteScreen() {
           
           {/* Chart */}
           <View style={[styles.chart, { height: CHART_HEIGHT, width: chartWidth }]}>
-            {/* Bars */}
-            {sortedData.map((entity, index) => {
-              const slotPosition = getXAxisPosition(entity.rank); // 0-10 position
-              const barHeight = (entity.votes / maxVotes) * (CHART_HEIGHT - 100); // Reserve space for labels
+            {/* Bars - ordered by vote count (tallest in center) */}
+            {sortedByVotes.map((entity, index) => {
+              const slotPosition = getXAxisPositionByOrder(index); // 0 = center, 1 = left, 2 = right, etc.
+              const barHeight = (entity.votes / maxVotes) * (CHART_HEIGHT - 60); // Reserve space for text at bottom
               const xPos = (slotPosition * barSpacing) - (baseBarWidth / 2);
               
               return (
@@ -176,63 +150,44 @@ export default function CastYourVoteScreen() {
                     },
                   ]}
                 >
-                  {/* Bar */}
-                  <Animated.View
+                  {/* Bar - extends upward from x-axis */}
+                  <View
                     style={[
                       styles.bar,
                       {
-                        backgroundColor: entity.rank === 1 ? '#775a96' : theme.primary,
+                        backgroundColor: index === 0 ? '#775a96' : theme.primary, // Tallest bar is purple
                         height: barHeight,
                         width: baseBarWidth,
-                        bottom: 80, // Space for labels
-                        transform: [
-                          {
-                            scaleY: barAnimations[index],
-                          },
-                        ],
+                        bottom: 25, // Start at x-axis level
+                        zIndex: 0, // Bar is behind the text
+                      },
+                    ]}
+                  />
+                  
+                  {/* Entity name and votes at the bottom (x-axis level) */}
+                  <View
+                    style={[
+                      styles.entityNameContainer,
+                      {
+                        bottom: 25, // Position at x-axis level, on top of bar base
+                        zIndex: 1, // Text appears on top of bar
                       },
                     ]}
                   >
-                    {/* Entity name inside bar (rotated vertically, starting from bottom) */}
-                    <View
+                    <Text
                       style={[
-                        styles.barTextContainer,
+                        styles.entityNameText,
                         {
-                          width: baseBarWidth,
-                          height: barHeight,
-                          justifyContent: 'flex-start',
-                          alignItems: 'center',
-                          paddingTop: 4,
+                          color: theme.text,
                         },
                       ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.7}
                     >
-                      <Text
-                        style={[
-                          styles.barText,
-                          {
-                            color: '#FFFFFF',
-                            fontSize: 10,
-                            fontWeight: '600',
-                            transform: [{ rotate: '-90deg' }],
-                            textAlign: 'left',
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {entity.name}
-                      </Text>
-                    </View>
-                  </Animated.View>
-                  
-                  {/* X-axis label (rank number) */}
-                  <Text style={[styles.rankLabel, { color: theme.textSecondary }]}>
-                    {entity.rank}
-                  </Text>
-                  
-                  {/* Vote count label */}
-                  <Text style={[styles.voteCountLabel, { color: theme.text }]}>
-                    {formatVotes(entity.votes)}
-                  </Text>
+                      {entity.name} {formatVotes(entity.votes)}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
@@ -250,7 +205,7 @@ export default function CastYourVoteScreen() {
 
           {/* Top 10 Entity Buttons */}
           <View style={styles.entityButtonsContainer}>
-            {sortedData.map((entity) => (
+            {sortedByVotes.map((entity) => (
               <TouchableOpacity
                 key={entity.name}
                 style={[
@@ -402,8 +357,6 @@ const styles = StyleSheet.create({
   },
   chart: {
     position: 'relative',
-    borderBottomWidth: 2,
-    borderBottomColor: '#E5E7EB',
   },
   barContainer: {
     position: 'absolute',
@@ -412,35 +365,22 @@ const styles = StyleSheet.create({
   },
   bar: {
     borderRadius: 4,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    overflow: 'visible',
-    position: 'relative',
-  },
-  barTextContainer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
   },
-  barText: {
+  entityNameContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1, // Text appears on top of bar
+  },
+  entityNameText: {
     fontSize: 10,
     fontWeight: '600',
-    whiteSpace: 'nowrap',
-  },
-  rankLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 8,
-    position: 'absolute',
-    bottom: 40,
-  },
-  voteCountLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 4,
-    position: 'absolute',
-    bottom: 20,
+    textAlign: 'center',
   },
   voteSection: {
     margin: 16,
