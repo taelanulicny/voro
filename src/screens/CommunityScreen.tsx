@@ -97,6 +97,7 @@ export default function CommunityScreen() {
   // Map display categories to NewsContext category names
   const mapCategoryToNewsCategory = (displayCategory: string): string => {
     const categoryMap: Record<string, string> = {
+      'Actors': 'People',
       'Influencers': 'People',
       'Political Figures': 'Politics',
       'NFL': 'Events',
@@ -291,7 +292,7 @@ export default function CommunityScreen() {
   );
 
   const renderNewsFilterTabs = () => {
-    const categories = ['Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+    const categories = ['Actors', 'Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
     const sentiments = [
       { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
       { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },

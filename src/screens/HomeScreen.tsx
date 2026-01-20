@@ -60,8 +60,8 @@ export default function HomeScreen() {
   const TOTAL_PAGES = 6;
   
   // Categories match the treemap categories from AllCategoriesScreen
-  const categories = ['For You', 'Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
-  const customizableCategories = ['Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const categories = ['For You', 'Actors', 'Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const customizableCategories = ['Actors', 'Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
   
   // Get live entity prices
   const entityPrices = getAllEntityPrices();

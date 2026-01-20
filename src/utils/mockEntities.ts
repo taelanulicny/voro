@@ -257,6 +257,47 @@ export const MOCK_ENTITIES: MockEntity[] = [
     basePrice: 121.45,
     description: 'U.S. Senator and progressive political figure. Track confidence in Bernie Sanders\'s policy advocacy, political influence, and public support.',
   },
+  // Actors
+  {
+    id: 50,
+    ticker: 'ZENDA',
+    name: 'Zendaya',
+    category: 'Actors',
+    basePrice: 195.50,
+    description: 'Award-winning actress and singer. Trade confidence in Zendaya\'s acting career, box office success, and industry influence.',
+  },
+  {
+    id: 51,
+    ticker: 'TIMCH',
+    name: 'Timothée Chalamet',
+    category: 'Actors',
+    basePrice: 188.75,
+    description: 'Acclaimed actor known for dramatic roles. Track confidence in Timothée Chalamet\'s film projects, awards recognition, and career trajectory.',
+  },
+  {
+    id: 52,
+    ticker: 'SYDSW',
+    name: 'Sydney Sweeney',
+    category: 'Actors',
+    basePrice: 182.30,
+    description: 'Rising actress and producer. Trade confidence in Sydney Sweeney\'s acting roles, production ventures, and industry presence.',
+  },
+  {
+    id: 53,
+    ticker: 'TOMHO',
+    name: 'Tom Holland',
+    category: 'Actors',
+    basePrice: 190.25,
+    description: 'Actor best known for Spider-Man franchise. Track confidence in Tom Holland\'s film projects, box office performance, and career growth.',
+  },
+  {
+    id: 54,
+    ticker: 'PEDPA',
+    name: 'Pedro Pascal',
+    category: 'Actors',
+    basePrice: 185.90,
+    description: 'Versatile actor in film and television. Trade confidence in Pedro Pascal\'s roles, show success, and entertainment industry impact.',
+  },
   // NFL Teams
   {
     id: 100,
