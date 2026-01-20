@@ -122,7 +122,7 @@ export default function AllCategoriesScreen() {
     'Soccer Players',
     'Influencers',
     'Political Figures',
-    'Hip Hop',
+    'Rap Music',
     'Country Music',
     'Pop Music',
   ];
@@ -146,7 +146,7 @@ export default function AllCategoriesScreen() {
     'NFL Teams',
     'NBA Teams',
     'College Basketball Teams',
-    'Hip Hop',
+    'Rap Music',
     'Country Music',
     'Pop Music',
   ];

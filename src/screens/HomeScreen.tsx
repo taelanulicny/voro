@@ -60,8 +60,8 @@ export default function HomeScreen() {
   const TOTAL_PAGES = 6;
   
   // Categories match the treemap categories from AllCategoriesScreen
-  const categories = ['For You', 'People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Hip Hop', 'Country Music', 'Pop Music'];
-  const customizableCategories = ['People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const categories = ['For You', 'People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
+  const customizableCategories = ['People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
 
   // Get icon name for each category
   const getCategoryIcon = (category: string): string => {
@@ -77,7 +77,7 @@ export default function HomeScreen() {
       'NFL Teams': 'grid-outline', // Field/court icon
       'NBA Teams': 'grid-outline', // Court icon
       'College Basketball Teams': 'grid-outline', // Court icon
-      'Hip Hop': 'musical-notes-outline',
+      'Rap Music': 'musical-notes-outline',
       'Country Music': 'musical-notes-outline',
       'Pop Music': 'musical-notes-outline',
     };

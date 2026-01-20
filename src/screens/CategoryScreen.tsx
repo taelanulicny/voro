@@ -177,7 +177,7 @@ export default function CategoryScreen() {
       'NBA Teams': [],
       'College Basketball Teams': [],
       'Teams': [],
-      'Hip Hop': [],
+      'Rap Music': [],
       'Country Music': [],
       'Pop Music': [],
       'People': [],
@@ -192,7 +192,7 @@ export default function CategoryScreen() {
         'Soccer Players',
         'Influencers',
         'Political Figures',
-        'Hip Hop',
+        'Rap Music',
         'Country Music',
         'Pop Music',
       ];

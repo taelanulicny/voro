@@ -15,7 +15,7 @@ export const ALL_CATEGORIES = [
   'NFL Teams',
   'NBA Teams',
   'College Basketball Teams',
-  'Hip Hop',
+  'Rap Music',
   'Country Music',
   'Pop Music',
 ] as const;
