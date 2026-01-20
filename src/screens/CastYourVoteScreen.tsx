@@ -145,14 +145,15 @@ export default function CastYourVoteScreen() {
           
           {/* Chart */}
           <View style={[styles.chart, { height: CHART_HEIGHT, width: chartWidth }]}>
-            {/* Bars - starting with just position 5 (rank 1) centered */}
-            {sortedByVotes.slice(0, 1).map((entity, index) => {
-              const slotPosition = getXAxisPositionByOrder(index); // Rank 1 → position 5
+            {/* Bars - all 9 positions with rank 1 at position 5 (center) */}
+            {sortedByVotes.map((entity, index) => {
+              const slotPosition = getXAxisPositionByOrder(index); // Rank 1 → position 5, Rank 2 → position 4, Rank 3 → position 6
               const maxBarHeight = CHART_HEIGHT - 60; // Reserve space for text at bottom
               // Use actual vote count for height (no two bars same height)
               const barHeight = (entity.votes / maxVotes) * maxBarHeight;
-              // Center position 5 at chart center - use chartWidth directly
-              const xPos = (chartWidth / 2) - (baseBarWidth / 2);
+              // Center position 5 at chart center, then space other positions relative to it
+              const chartCenter = chartWidth / 2;
+              const xPos = chartCenter + ((slotPosition - centerPosition) * barSpacing) - (baseBarWidth / 2);
               
               return (
                 <View
