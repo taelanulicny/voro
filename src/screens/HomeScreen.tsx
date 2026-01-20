@@ -852,10 +852,10 @@ export default function HomeScreen() {
                       {/* Header */}
                       <View style={styles.comparisonChartHeaderRow}>
                       <Text style={[styles.comparisonChartHeader, { color: theme.text }]}>
-                        Influencers - Top 3
+                        People on Moro - Top 3
                       </Text>
                         <TouchableOpacity
-                          onPress={() => navigation.navigate('Category', { categoryId: 'Influencers' })}
+                          onPress={() => navigation.navigate('Category', { categoryId: 'People' })}
                           style={styles.headerArrowButton}
                         >
                           <Ionicons name="chevron-forward" size={20} color={theme.text} />
@@ -873,7 +873,7 @@ export default function HomeScreen() {
                           />
                           <View style={styles.legendText}>
                             <Text style={[styles.legendName, { color: theme.text }]}>
-                              Alix Earle
+                              Timothée{'\n'}Chalamet
                             </Text>
                             <Text
                               style={[
@@ -894,7 +894,7 @@ export default function HomeScreen() {
                           />
                           <View style={styles.legendText}>
                             <Text style={[styles.legendName, { color: theme.text }]}>
-                              MrBeast
+                              Tom{'\n'}Brady
                             </Text>
                             <Text
                               style={[
@@ -915,7 +915,7 @@ export default function HomeScreen() {
                           />
                           <View style={styles.legendText}>
                             <Text style={[styles.legendName, { color: theme.text }]}>
-                              Logan Paul
+                              Donald{'\n'}Trump
                             </Text>
                             <Text
                               style={[
