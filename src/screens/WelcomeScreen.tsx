@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   primaryButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#775a96',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 8,
@@ -102,10 +102,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: '100%',
     borderWidth: 2,
-    borderColor: '#2563eb',
+    borderColor: '#775a96',
   },
   secondaryButtonText: {
-    color: '#2563eb',
+    color: '#775a96',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   chartDevButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#775a96',
     borderRadius: 6,
   },
   chartDevButtonText: {

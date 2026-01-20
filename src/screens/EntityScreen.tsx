@@ -1831,7 +1831,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   segmentButtonActive: {
-    backgroundColor: '#3B82F6', // Blue
+    backgroundColor: '#775a96', // Blue
     borderTopLeftRadius: 20,
     borderBottomLeftRadius: 20,
   },

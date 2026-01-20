@@ -380,16 +380,16 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#3B82F6',
+    color: '#775a96',
     fontWeight: '600',
   },
   primaryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#775a96',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: '#775a96',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     fontSize: 14,
-    color: '#3B82F6',
+    color: '#775a96',
     fontWeight: '600',
   },
 });

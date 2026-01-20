@@ -46,11 +46,11 @@ export const lightTheme: Theme = {
   success: '#10B981',
   error: '#EF4444',
   warning: '#F59E0B',
-  info: '#3B82F6',
+  info: '#775a96',
   
-  primary: '#3B82F6',
-  primaryLight: '#EFF6FF',
-  primaryDark: '#1E40AF',
+  primary: '#775a96',
+  primaryLight: '#E6DFF0',
+  primaryDark: '#5f4978',
 };
 
 export const darkTheme: Theme = {
@@ -69,11 +69,11 @@ export const darkTheme: Theme = {
   success: '#10B981',
   error: '#EF4444',
   warning: '#F59E0B',
-  info: '#3B82F6',
+  info: '#775a96',
   
-  primary: '#5AC8FA',
-  primaryLight: '#1C3A47',
-  primaryDark: '#5AC8FA',
+  primary: '#775a96',
+  primaryLight: '#9778bd',
+  primaryDark: '#5f4978',
 };
 
 type ThemeMode = 'light' | 'dark' | 'auto';

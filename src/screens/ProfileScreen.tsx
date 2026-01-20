@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#775a96',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emptyStateButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#775a96',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,

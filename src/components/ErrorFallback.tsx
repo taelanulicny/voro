@@ -15,7 +15,7 @@ const fallbackTheme: Partial<Theme> = {
   text: '#111827',
   textSecondary: '#6B7280',
   error: '#EF4444',
-  primary: '#3B82F6',
+  primary: '#775a96',
   backgroundSecondary: '#FEF2F2',
 };
 

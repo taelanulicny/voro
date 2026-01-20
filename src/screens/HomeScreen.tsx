@@ -472,7 +472,7 @@ export default function HomeScreen() {
       return data;
     });
 
-    const colors = ['#1F2937', '#3B82F6', '#10B981'];
+    const colors = ['#1F2937', '#775a96', '#10B981'];
 
     return {
       labels: labels.slice(0, 7),
@@ -851,7 +851,7 @@ export default function HomeScreen() {
                           <View
                             style={[
                               styles.legendColorDot,
-                              { backgroundColor: '#3B82F6' },
+                              { backgroundColor: '#775a96' },
                             ]}
                           />
                           <View style={styles.legendText}>
@@ -861,7 +861,7 @@ export default function HomeScreen() {
                             <Text
                               style={[
                                 styles.legendPrice,
-                                { color: '#3B82F6' },
+                                { color: '#775a96' },
                               ]}
                             >
                               {formatCurrency(188.98)}
@@ -918,7 +918,7 @@ export default function HomeScreen() {
                           {multiEntityData.mrBeast.length > 1 && (
                             <Path
                               d={generateMultiEntityLinePath(multiEntityData.mrBeast)}
-                              stroke="#3B82F6"
+                              stroke="#775a96"
                               strokeWidth="2"
                               fill="none"
                             />
@@ -1960,7 +1960,7 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#775a96',
   },
   emptyState: {
     alignItems: 'center',
@@ -2003,7 +2003,7 @@ const styles = StyleSheet.create({
   holdingIconText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: '#775a96',
   },
   holdingInfo: {
     flex: 1,
@@ -2161,7 +2161,7 @@ const styles = StyleSheet.create({
   watchlistIconText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: '#775a96',
   },
   watchlistInfo: {
     flex: 1,
@@ -2264,7 +2264,7 @@ const styles = StyleSheet.create({
   selectionIconText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: '#775a96',
   },
   selectionInfo: {
     flex: 1,

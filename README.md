@@ -330,7 +330,7 @@ moro/
 | **Primary** | `#8B1538` | Brand color, accents |
 | **Success** | `#10B981` | Buy, profits, positive |
 | **Error** | `#EF4444` | Sell, losses, negative |
-| **Blue** | `#3B82F6` | Links, actions |
+| **Blue** | `#775a96` | Links, actions |
 | **Gray** | `#6B7280` | Secondary text |
 
 ### Typography

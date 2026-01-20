@@ -81,7 +81,7 @@ export default function NewsDetailScreen() {
     switch (article.impactLevel) {
       case 'critical': return '#DC2626';
       case 'high': return '#F59E0B';
-      case 'medium': return '#3B82F6';
+      case 'medium': return '#775a96';
       case 'low': return '#6B7280';
     }
   };
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#775a96',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,

@@ -40,7 +40,7 @@ export default function ConfirmationModal({
       case 'warning':
         return { icon: '!', color: '#F59E0B', bgColor: '#FEF3C7' };
       default:
-        return { icon: 'i', color: '#3B82F6', bgColor: '#DBEAFE' };
+        return { icon: 'i', color: '#775a96', bgColor: '#E6DFF0' };
     }
   };
 

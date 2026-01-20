@@ -177,7 +177,7 @@ src/screens/HomeScreen.tsx      (Completely rewritten, 300 lines)
 ```typescript
 Success:  #10B981 (Green)
 Error:    #EF4444 (Red)
-Primary:  #3B82F6 (Blue)
+Primary:  #775a96 (Blue)
 Warning:  #F59E0B (Orange)
 ```
 

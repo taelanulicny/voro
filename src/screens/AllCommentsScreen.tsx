@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#775a96',
     marginRight: 8,
   },
   followButtonText: {

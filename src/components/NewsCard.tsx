@@ -64,7 +64,7 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
     switch (article.impactLevel) {
       case 'critical': return '#DC2626';
       case 'high': return '#F59E0B';
-      case 'medium': return '#3B82F6';
+      case 'medium': return '#775a96';
       case 'low': return '#6B7280';
     }
   };

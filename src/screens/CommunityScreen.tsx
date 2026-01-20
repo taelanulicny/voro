@@ -541,7 +541,7 @@ export default function CommunityScreen() {
   // Generate color based on category for visual consistency
   const getCategoryColor = (category: string): string => {
     const colorMap: Record<string, string> = {
-      'Technology': '#3B82F6', // blue
+      'Technology': '#775a96', // blue
       'Cryptocurrency': '#8B5CF6', // purple
       'Trading': '#10B981', // green
       'Investing': '#F59E0B', // amber

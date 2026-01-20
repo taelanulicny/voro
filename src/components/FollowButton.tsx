@@ -114,7 +114,7 @@ export default function FollowButton({
         {isLoading ? (
           <ActivityIndicator
             size="small"
-            color={isFollowing ? '#3B82F6' : '#FFFFFF'}
+            color={isFollowing ? '#775a96' : '#FFFFFF'}
           />
         ) : (
           <Text style={textStyle}>
@@ -158,8 +158,8 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   buttonFollow: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#775a96',
+    borderColor: '#775a96',
   },
   buttonFollowing: {
     backgroundColor: '#FFFFFF',

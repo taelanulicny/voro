@@ -283,7 +283,7 @@ export default function CommentSection({ postId, autoFocus = false, focusTrigger
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color="#3B82F6" />
+        <ActivityIndicator size="small" color="#775a96" />
       </View>
     );
   }
@@ -415,12 +415,12 @@ export default function CommentSection({ postId, autoFocus = false, focusTrigger
           disabled={!commentText.trim() || isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#3B82F6" />
+            <ActivityIndicator size="small" color="#775a96" />
           ) : (
             <Ionicons
               name="send"
               size={20}
-              color={commentText.trim() ? '#3B82F6' : '#D1D5DB'}
+              color={commentText.trim() ? '#775a96' : '#D1D5DB'}
             />
           )}
         </TouchableOpacity>
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   modalButtonSave: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#775a96',
   },
   modalButtonDisabled: {
     opacity: 0.5,

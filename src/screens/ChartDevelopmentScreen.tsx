@@ -119,8 +119,8 @@ const ContentPerformanceChart = ({ theme }: { theme: any }) => {
       <Svg width={chartWidth} height={chartHeight}>
         <Defs>
           <LinearGradient id="articlesGradient" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
-            <Stop offset="95%" stopColor="#3B82F6" stopOpacity={0.05} />
+            <Stop offset="5%" stopColor="#775a96" stopOpacity={0.3} />
+            <Stop offset="95%" stopColor="#775a96" stopOpacity={0.05} />
           </LinearGradient>
           <LinearGradient id="viewsGradient" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
@@ -149,7 +149,7 @@ const ContentPerformanceChart = ({ theme }: { theme: any }) => {
         <Path
           d={generateArticlesPath()}
           fill="none"
-          stroke="#3B82F6"
+          stroke="#775a96"
           strokeWidth={2}
         />
         
@@ -173,7 +173,7 @@ const ContentPerformanceChart = ({ theme }: { theme: any }) => {
                 y={y - 3}
                 width={6}
                 height={6}
-                fill="#3B82F6"
+                fill="#775a96"
                 rx={3}
               />
             </G>
@@ -247,7 +247,7 @@ const ContentPerformanceChart = ({ theme }: { theme: any }) => {
 // Chart Components from Energy Dashboard
 const ConsumptionBreakdownChart = ({ theme }: { theme: any }) => {
   const data = [
-    { name: 'Manufacturing', value: 35, color: '#3B82F6' },
+    { name: 'Manufacturing', value: 35, color: '#775a96' },
     { name: 'Office', value: 25, color: '#10B981' },
     { name: 'Warehouse', value: 20, color: '#F59E0B' },
     { name: 'Other', value: 20, color: '#EF4444' },
@@ -515,7 +515,7 @@ const LoadDurationCurveChart = ({ theme }: { theme: any }) => {
 
 const PowerDistributionPieChart = ({ theme }: { theme: any }) => {
   const data = [
-    { name: 'Phase 1', value: 35, color: '#3B82F6' },
+    { name: 'Phase 1', value: 35, color: '#775a96' },
     { name: 'Phase 2', value: 33, color: '#10B981' },
     { name: 'Phase 3', value: 32, color: '#F59E0B' },
   ];
@@ -622,7 +622,7 @@ const HourlyPowerBreakdownChart = ({ theme }: { theme: any }) => {
     datasets: [
       {
         data: breakdownData.map(d => d.base),
-        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        color: (opacity = 1) => `rgba(119, 90, 150, ${opacity})`,
       },
       {
         data: breakdownData.map(d => d.peak),
@@ -640,7 +640,7 @@ const HourlyPowerBreakdownChart = ({ theme }: { theme: any }) => {
     backgroundGradientFrom: theme.card,
     backgroundGradientTo: theme.card,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+    color: (opacity = 1) => `rgba(119, 90, 150, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(154, 154, 154, ${opacity})`,
     style: { borderRadius: 0 },
   };
@@ -672,7 +672,7 @@ const HourlyPowerBreakdownChart = ({ theme }: { theme: any }) => {
       </View>
       <View style={styles.chartLegend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#775a96' }]} />
           <Text style={[styles.legendText, { color: theme.textSecondary }]}>Base Load</Text>
         </View>
         <View style={styles.legendItem}>
@@ -2009,7 +2009,7 @@ export default function ChartDevelopmentScreen() {
               <View
                 style={[
                   styles.legendColorDot,
-                  { backgroundColor: '#3B82F6' },
+                  { backgroundColor: '#775a96' },
                 ]}
               />
               <View style={styles.legendText}>
@@ -2019,7 +2019,7 @@ export default function ChartDevelopmentScreen() {
                 <Text
                   style={[
                     styles.legendPrice,
-                    { color: '#3B82F6' },
+                    { color: '#775a96' },
                   ]}
                 >
                   {formatCurrency(188.98)}
@@ -2078,7 +2078,7 @@ export default function ChartDevelopmentScreen() {
                   {multiEntityData.mrBeast.length > 1 && (
                     <Path
                       d={generateLinePath(multiEntityData.mrBeast)}
-                      stroke="#3B82F6"
+                      stroke="#775a96"
                       strokeWidth="2"
                       fill="none"
                     />
