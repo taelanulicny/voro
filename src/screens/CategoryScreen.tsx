@@ -991,6 +991,7 @@ export default function CategoryScreen() {
       'Hip Hop': [],
       'Country Music': [],
       'Pop Music': [],
+      'People': [], // People category aggregates posts from all subcategories
     };
 
     return basePosts[categoryId] || [];
@@ -1004,6 +1005,7 @@ export default function CategoryScreen() {
   // Reset to match current ranks (no position changes)
   const previousDayRanks = useMemo(() => {
     const mockRanks: Record<number, number> = {};
+    // For People category, aggregate from all subcategories
     const filteredEntities = getEntitiesByCategory(entityCategory);
     
     // All entities start at price 100, so use current prices for ranking
@@ -1030,9 +1032,8 @@ export default function CategoryScreen() {
   const allEntityPrices = getAllEntityPrices();
   
   const entities = useMemo(() => {
+    // For People category, aggregate from all subcategories
     let filteredEntities = getEntitiesByCategory(entityCategory);
-    
-    // Categories are now stored directly (no filtering needed)
     
     const mappedEntities = filteredEntities.map((entity) => {
       // Calculate price change from BASE_PRICE (100)
@@ -1047,7 +1048,7 @@ export default function CategoryScreen() {
         currentPrice,
         change24h,
         changePercent24h,
-        category: entity.category,
+        category: entity.category, // Keep the actual subcategory for trading
       };
     });
     
@@ -1349,6 +1350,11 @@ export default function CategoryScreen() {
           </View>
           <View style={styles.entityInfo}>
             <Text style={[styles.entityName, { color: theme.text }]}>{item.name}</Text>
+            {categoryId === 'People' && (
+              <Text style={[styles.entitySubcategory, { color: theme.textSecondary }]}>
+                {item.category}
+              </Text>
+            )}
           </View>
         </View>
         <View style={styles.entityRight}>
@@ -1660,6 +1666,11 @@ const styles = StyleSheet.create({
   entityName: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  entitySubcategory: {
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 2,
   },
   entityRight: {
     alignItems: 'flex-end',

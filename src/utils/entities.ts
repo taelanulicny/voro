@@ -946,6 +946,21 @@ export const getAllEntities = (): EntityData[] => {
  * Get entities by category
  */
 export const getEntitiesByCategory = (category: string): EntityData[] => {
+  // People category aggregates entities from multiple subcategories
+  if (category === 'People') {
+    const peopleSubcategories = [
+      'Actors',
+      'NBA Players',
+      'NFL Players',
+      'Soccer Players',
+      'Influencers',
+      'Political Figures',
+      'Hip Hop',
+      'Country Music',
+      'Pop Music',
+    ];
+    return ENTITIES.filter(entity => peopleSubcategories.includes(entity.category));
+  }
   return ENTITIES.filter(entity => entity.category === category);
 };
 

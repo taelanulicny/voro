@@ -60,8 +60,8 @@ export default function HomeScreen() {
   const TOTAL_PAGES = 6;
   
   // Categories match the treemap categories from AllCategoriesScreen
-  const categories = ['For You', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
-  const customizableCategories = ['Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const categories = ['For You', 'People', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const customizableCategories = ['People', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
   
   // Get live entity prices
   const entityPrices = getAllEntityPrices();
@@ -1644,7 +1644,8 @@ export default function HomeScreen() {
                     key={entity.id}
                     style={[styles.miniCard, { backgroundColor: theme.backgroundSecondary }]}
                     onPress={() => {
-                      navigation.navigate('Entity', { entityId: entity.id, categoryId: category });
+                      // Use entity's actual category (subcategory) for navigation, not the People category
+                      navigation.navigate('Entity', { entityId: entity.id, categoryId: entity.category });
                     }}
                   >
                     <View style={styles.rankContainer}>
@@ -1673,7 +1674,9 @@ export default function HomeScreen() {
                       </View>
                       <View style={styles.miniNameContainer}>
                         <Text style={[styles.miniName, { color: theme.text }]}>{entity.name}</Text>
-                        <Text style={[styles.miniCategory, { color: theme.textSecondary }]}>{category}</Text>
+                        <Text style={[styles.miniCategory, { color: theme.textSecondary }]}>
+                          {category === 'People' ? entity.category : category}
+                        </Text>
                       </View>
                     </View>
                     <View style={styles.miniCardRight}>
