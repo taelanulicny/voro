@@ -197,28 +197,66 @@ export default function CategoryScreen() {
         'Pop Music',
       ];
       const aggregatedPosts: Post[] = [];
+      const seenPostIds = new Set<string>();
+      
+      // Get all entities that belong to People subcategories
+      const allPeopleEntities = new Set<string>();
       peopleSubcategories.forEach(subcategory => {
-        const subcategoryPosts = basePosts[subcategory] || [];
-        aggregatedPosts.push(...subcategoryPosts);
+        const subcategoryEntities = getEntitiesByCategory(subcategory);
+        subcategoryEntities.forEach(entity => {
+          allPeopleEntities.add(entity.name);
+        });
       });
       
-      // Add example post for Tom Brady
-      const now = Date.now();
-      aggregatedPosts.push({
-        id: 'people-example-tom-brady',
-        userId: 'user-example',
-        username: 'nfl_fan',
-        displayName: 'NFL Fan',
-        content: '@TomBrady is still the goat out of all the NFL football players 🐐',
-        entityId: 69, // Tom Brady's entity ID
-        entityTicker: 'TOMBR',
-        entityName: 'Tom Brady',
-        sentiment: 'positive',
-        likes: 5,
-        comments: 3,
-        isLiked: false,
-        isBookmarked: false,
-        timestamp: new Date(now - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+      // Get posts from each subcategory
+      peopleSubcategories.forEach(subcategory => {
+        const subcategoryPosts = basePosts[subcategory] || [];
+        subcategoryPosts.forEach(post => {
+          if (!seenPostIds.has(post.id)) {
+            aggregatedPosts.push(post);
+            seenPostIds.add(post.id);
+          }
+        });
+      });
+      
+      // Include posts from activityFeed that tag People entities directly (even without subcategory mention)
+      activityFeed.forEach(post => {
+        // Check if post's entity belongs to any People subcategory
+        const entityBelongsToPeople = post.entityName && allPeopleEntities.has(post.entityName);
+        
+        // Or check if post mentions a People entity in content
+        const mentionedEntities = extractEntityMentions(post.content);
+        const mentionsPeopleEntity = mentionedEntities.some(entity => 
+          allPeopleEntities.has(entity.name)
+        );
+        
+        if ((entityBelongsToPeople || mentionsPeopleEntity) && !seenPostIds.has(post.id)) {
+          aggregatedPosts.push(post);
+          seenPostIds.add(post.id);
+        }
+      });
+      
+      // Include posts that mention @People
+      const allCategoryFeedPosts = getAllCategoryFeedPosts();
+      allCategoryFeedPosts.forEach(post => {
+        const mentionedCategories = extractCategoryMentions(post.content);
+        const mentionsPeople = mentionedCategories.some(cat => cat === 'People');
+        
+        if (mentionsPeople && !seenPostIds.has(post.id)) {
+          aggregatedPosts.push(post);
+          seenPostIds.add(post.id);
+        }
+      });
+      
+      // Also check activityFeed for posts that mention @People
+      activityFeed.forEach(post => {
+        const mentionedCategories = extractCategoryMentions(post.content);
+        const mentionsPeople = mentionedCategories.some(cat => cat === 'People');
+        
+        if (mentionsPeople && !seenPostIds.has(post.id)) {
+          aggregatedPosts.push(post);
+          seenPostIds.add(post.id);
+        }
       });
       
       // Sort by timestamp (newest first)
