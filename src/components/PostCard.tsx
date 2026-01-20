@@ -146,11 +146,12 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
   // Parse content to find @mentions and make them clickable
   const renderContentWithMentions = () => {
     if (isEntityFeed) {
-      // Entity feed: Start with @EntityName prefix (no spaces) - e.g., @KanyeWest not @Kanye West
-      // Only add prefix if content doesn't already start with the entity mention
+      // Entity feed: Only add @EntityName prefix if content doesn't start with ANY mention
+      // If post came from a higher category (e.g., People feed), it will already have mentions
+      // and we should show the original content without adding the entity prefix
       const entityMentionFormatted = entityName ? `@${entityNameToMention(entityName)}` : '';
-      const contentStartsWithMention = entityMentionFormatted && post.content.trim().startsWith(`@${entityNameToMention(entityName)}`);
-      const fullContent = contentStartsWithMention ? post.content : (entityMentionFormatted ? `@${entityNameToMention(entityName)} ${post.content}` : post.content);
+      const contentStartsWithAnyMention = post.content.trim().startsWith('@');
+      const fullContent = contentStartsWithAnyMention ? post.content : (entityMentionFormatted ? `@${entityNameToMention(entityName)} ${post.content}` : post.content);
       
       // Use regex to find all @mentions - now matches single word format (no spaces)
       const parts: React.ReactNode[] = [];
