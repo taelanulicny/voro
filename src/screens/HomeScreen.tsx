@@ -62,6 +62,45 @@ export default function HomeScreen() {
   // Categories match the treemap categories from AllCategoriesScreen
   const categories = ['For You', 'People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Hip Hop', 'Country Music', 'Pop Music'];
   const customizableCategories = ['People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Hip Hop', 'Country Music', 'Pop Music'];
+
+  // Get icon name for each category
+  const getCategoryIcon = (category: string): string => {
+    const iconMap: Record<string, string> = {
+      'People': 'people-outline',
+      'Teams': 'grid-outline', // Generic teams icon
+      'Actors': 'film-outline',
+      'NBA Players': 'basketball-outline',
+      'NFL Players': 'american-football-outline',
+      'Soccer Players': 'football-outline',
+      'Influencers': 'megaphone-outline',
+      'Political Figures': 'flag-outline',
+      'NFL Teams': 'grid-outline', // Field/court icon
+      'NBA Teams': 'grid-outline', // Court icon
+      'College Basketball Teams': 'grid-outline', // Court icon
+      'Hip Hop': 'musical-notes-outline',
+      'Country Music': 'musical-notes-outline',
+      'Pop Music': 'musical-notes-outline',
+    };
+    return iconMap[category] || 'ellipse-outline';
+  };
+
+  // Simple White House outline icon
+  const WhiteHouseIcon = ({ size = 28, color = '#775a96' }: { size?: number; color?: string }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 9.5 12 4l9 5.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5 10.5v9h14v-9" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9 19.5v-5h6v5" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <Line x1="3" y1="10.5" x2="21" y2="10.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+    </Svg>
+  );
+
+  // Render category icon, with custom White House for Political Figures
+  const renderCategoryIcon = (category: string, color: string) => {
+    if (category === 'Political Figures') {
+      return <WhiteHouseIcon color={color} size={28} />;
+    }
+    return <Ionicons name={getCategoryIcon(category) as any} size={28} color={color} />;
+  };
   
   // Get live entity prices
   const entityPrices = getAllEntityPrices();
@@ -1712,9 +1751,7 @@ export default function HomeScreen() {
                   disabled={isAdded}
                 >
                   <View style={[styles.widgetIcon, { borderColor: isAdded ? theme.textTertiary : theme.primary, opacity: isAdded ? 0.5 : 1 }]}>
-                    <Text style={[styles.widgetIconText, { color: isAdded ? theme.textTertiary : theme.primary }]}>
-                      {category.substring(0, 2).toUpperCase()}
-                    </Text>
+                    {renderCategoryIcon(category, isAdded ? theme.textTertiary : theme.primary)}
                   </View>
                   <Text style={[styles.widgetLabel, { color: isAdded ? theme.textTertiary : theme.text }]}>
                     {isAdded ? '✓ Added' : `+ ${category}`}
