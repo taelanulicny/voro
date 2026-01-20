@@ -301,7 +301,7 @@ export default function CastYourVoteScreen() {
 
           {/* Voting Info */}
           <Text style={[styles.votingInfo, { color: theme.textTertiary }]}>
-            You can vote once per day. Voting closes 2am EST Sunday and reopens 8am EST Monday.
+            The top three entities at the end of each calendar week will be taken out of the voting pool and put onto the app.
           </Text>
         </View>
       </ScrollView>
