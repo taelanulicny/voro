@@ -118,7 +118,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
               style={styles.menuItem}
               onPress={() => {
                 handleClose();
-                navigation.navigate('Main', { screen: 'SeasonalCompetition' });
+                navigation.navigate('CastYourVote');
               }}
             >
               <View style={[styles.menuItemIcon, { borderColor: theme.textSecondary, borderWidth: 1 }]}>
@@ -167,7 +167,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                      <Ionicons name="people-outline" size={16} color={theme.primary} />
+                  <Ionicons name="people-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Join a group</Text>
                   </TouchableOpacity>
@@ -179,7 +179,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                      <Ionicons name="add-circle-outline" size={16} color={theme.primary} />
+                  <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
                   </TouchableOpacity>
@@ -196,7 +196,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                       }}
                     >
                       <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                        <Ionicons name="people" size={16} color={theme.primary} />
+                    <Ionicons name="people" size={16} color="#FFFFFF" />
                       </View>
                       <Text style={[styles.groupItemText, { color: theme.text }]}>{group.name}</Text>
                     </TouchableOpacity>
@@ -209,7 +209,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                      <Ionicons name="people-outline" size={16} color={theme.primary} />
+                  <Ionicons name="people-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Join another group</Text>
                   </TouchableOpacity>
@@ -221,7 +221,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                      <Ionicons name="add-circle-outline" size={16} color={theme.primary} />
+                  <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
                   </TouchableOpacity>

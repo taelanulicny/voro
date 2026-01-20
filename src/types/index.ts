@@ -24,6 +24,7 @@ export type RootStackParamList = {
   CreateAlert: { entityId: number; entityName: string; entityTicker: string; currentPrice: number; change24h: number; changePercent24h: number };
   CommentReplies: { postId: string; commentId: string; commentUsername: string; commentContent: string };
   AllComments: { postId: string; post: Post };
+  CastYourVote: undefined;
 };
 
 export type MainTabParamList = {

@@ -37,6 +37,7 @@ import TradeHistoryScreen from './src/screens/TradeHistoryScreen';
 import CreateAlertScreen from './src/screens/CreateAlertScreen';
 import CommentRepliesScreen from './src/screens/CommentRepliesScreen';
 import AllCommentsScreen from './src/screens/AllCommentsScreen';
+import CastYourVoteScreen from './src/screens/CastYourVoteScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -174,6 +175,14 @@ function RootNavigator() {
           <Stack.Screen
             name="AllComments"
             component={AllCommentsScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="CastYourVote"
+            component={CastYourVoteScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
