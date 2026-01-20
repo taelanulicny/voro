@@ -156,35 +156,49 @@ export default function AllCategoriesScreen() {
   }, [getCategoryVolumes, transactions]);
 
   // Calculate total volumes for People and Teams categories
+  // TEMPORARY: Using hardcoded example data for visualization
   const hierarchicalTreemapData = useMemo(() => {
-    const peopleSubcategoryData = categoryTradeVolumes.filter(cat => 
-      peopleSubcategories.includes(cat.categoryId)
-    );
-    const teamsSubcategoryData = categoryTradeVolumes.filter(cat => 
-      teamsSubcategories.includes(cat.categoryId)
-    );
+    // Example data: People = 65% of total, Teams = 35% of total
+    const peoplePercentage = 65;
+    const teamsPercentage = 35;
 
-    // Calculate total percentages for People and Teams
-    const peopleTotal = peopleSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
-    const teamsTotal = teamsSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
-    const grandTotal = peopleTotal + teamsTotal;
+    // Example People subcategories (percentages relative to People total)
+    const peopleSubcategoryData = [
+      { name: 'Actors', percentage: 15, categoryId: 'Actors', color: 'green' as const },
+      { name: 'NBA Players', percentage: 20, categoryId: 'NBA Players', color: 'green' as const },
+      { name: 'NFL Players', percentage: 12, categoryId: 'NFL Players', color: 'red' as const },
+      { name: 'Soccer Players', percentage: 8, categoryId: 'Soccer Players', color: 'green' as const },
+      { name: 'Influencers', percentage: 18, categoryId: 'Influencers', color: 'green' as const },
+      { name: 'Political Figures', percentage: 10, categoryId: 'Political Figures', color: 'grey' as const },
+      { name: 'Hip Hop', percentage: 7, categoryId: 'Hip Hop', color: 'green' as const },
+      { name: 'Country Music', percentage: 5, categoryId: 'Country Music', color: 'red' as const },
+      { name: 'Pop Music', percentage: 5, categoryId: 'Pop Music', color: 'green' as const },
+    ];
 
-    // Calculate percentages relative to grand total (for height allocation)
-    // If both are 0, give equal heights. Otherwise, use proportional heights
-    const peoplePercentage = grandTotal > 0 ? (peopleTotal / grandTotal) * 100 : 50;
-    const teamsPercentage = grandTotal > 0 ? (teamsTotal / grandTotal) * 100 : 50;
+    // Example Teams subcategories (percentages relative to Teams total)
+    const teamsSubcategoryData = [
+      { name: 'NFL Teams', percentage: 18, categoryId: 'NFL Teams', color: 'green' as const },
+      { name: 'NBA Teams', percentage: 12, categoryId: 'NBA Teams', color: 'green' as const },
+      { name: 'College Basketball Teams', percentage: 5, categoryId: 'College Basketball Teams', color: 'red' as const },
+    ];
+
+    // Calculate sum of subcategory percentages for each section
+    const peopleSubcategorySum = peopleSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
+    const teamsSubcategorySum = teamsSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
 
     return {
       people: {
         totalPercentage: peoplePercentage,
-        subcategories: peopleSubcategoryData.filter(cat => cat.percentage > 0),
+        subcategorySum: peopleSubcategorySum,
+        subcategories: peopleSubcategoryData,
       },
       teams: {
         totalPercentage: teamsPercentage,
-        subcategories: teamsSubcategoryData.filter(cat => cat.percentage > 0),
+        subcategorySum: teamsSubcategorySum,
+        subcategories: teamsSubcategoryData,
       },
     };
-  }, [categoryTradeVolumes]);
+  }, []);
 
   // Filter out categories with 0% volume for treemap (but keep them for list view)
   const categoriesWithVolume = useMemo(() => {
@@ -393,7 +407,11 @@ export default function AllCategoriesScreen() {
       >
         {/* Treemap View */}
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.treemapScrollContent}
+      >
         <View style={styles.treemapWrapper}>
           <View style={[styles.hierarchicalTreemap, { height: TREEMAP_HEIGHT }]}>
             {/* People Section */}
@@ -408,9 +426,16 @@ export default function AllCategoriesScreen() {
                 }
               ]}
             >
-              <View style={[styles.categoryLabelContainer, { borderRightColor: theme.border }]}>
+              <TouchableOpacity 
+                style={[styles.categoryLabelContainer, { borderRightColor: theme.border }]}
+                onPress={() => handleCategoryPress('People')}
+                activeOpacity={0.7}
+              >
                 <Text style={[styles.categoryLabel, { color: theme.text }]}>People</Text>
-              </View>
+                <Text style={[styles.categoryPercentage, { color: theme.textSecondary }]}>
+                  {hierarchicalTreemapData.people.totalPercentage.toFixed(1)}%
+                </Text>
+              </TouchableOpacity>
               <View style={styles.categoryTreemapContainer}>
                 {hierarchicalTreemapData.people.subcategories.length > 0 ? (
                   <Treemap
@@ -440,10 +465,17 @@ export default function AllCategoriesScreen() {
                 }
               ]}
             >
-              <View style={[styles.categoryLabelContainer, { borderRightColor: theme.border }]}>
+              <TouchableOpacity 
+                style={[styles.categoryLabelContainer, { borderRightColor: theme.border }]}
+                onPress={() => handleCategoryPress('Teams')}
+                activeOpacity={0.7}
+              >
                 <Text style={[styles.categoryLabel, { color: theme.text }]}>Teams</Text>
-              </View>
-              <View style={styles.categoryTreemapContainer}>
+                <Text style={[styles.categoryPercentage, { color: theme.textSecondary }]}>
+                  {hierarchicalTreemapData.teams.totalPercentage.toFixed(1)}%
+                </Text>
+              </TouchableOpacity>
+              <View style={[styles.categoryTreemapContainer, { paddingBottom: 8 }]}>
                 {hierarchicalTreemapData.teams.subcategories.length > 0 ? (
                   <Treemap
                     data={hierarchicalTreemapData.teams.subcategories}
@@ -528,8 +560,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  treemapScrollContent: {
+    paddingBottom: 20,
+  },
   treemapWrapper: {
-    // Padding is handled by Treemap component
+    paddingBottom: 16,
   },
   hierarchicalTreemap: {
     width: '100%',
@@ -545,11 +580,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     borderRightWidth: 1,
+    flexDirection: 'column',
   },
   categoryLabel: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
-    transform: [{ rotate: '-90deg' }],
+    textAlign: 'center',
+  },
+  categoryPercentage: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+    textAlign: 'center',
   },
   categoryTreemapContainer: {
     flex: 1,

@@ -143,9 +143,9 @@ export default function Treemap({
   const maxPercentage = Math.max(...percentages);
   const minPercentage = Math.min(...percentages);
   
-  // Font size range: largest category gets 28px, smallest gets 14px
-  const maxFontSize = 28;
-  const minFontSize = 14;
+  // Font size range: largest category gets 20px, smallest gets 11px
+  const maxFontSize = 20;
+  const minFontSize = 11;
   
   // Function to calculate font size based on percentage
   const getFontSize = (percentage: number): number => {
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   percentage: {
-    fontSize: 10,
+    fontSize: 9,
     textAlign: 'center',
   },
 });
