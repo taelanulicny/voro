@@ -177,6 +177,39 @@ export default function CommentRepliesScreen() {
         }
       />
 
+      {/* Mention Autocomplete - positioned above input */}
+      {showMentionAutocomplete && (
+        <View style={styles.autocompleteWrapper}>
+          <MentionAutocomplete
+            text={commentText}
+            cursorPosition={commentCursorPosition}
+            onSelect={(mention) => {
+              let startIndex = commentCursorPosition - 1;
+              while (startIndex >= 0 && commentText[startIndex] !== '@' && commentText[startIndex] !== ' ') {
+                startIndex--;
+              }
+              
+              if (startIndex >= 0 && commentText[startIndex] === '@') {
+                const beforeMention = commentText.substring(0, startIndex);
+                const afterMention = commentText.substring(commentCursorPosition);
+                const newText = beforeMention + mention + ' ' + afterMention;
+                setCommentText(newText);
+                setShowMentionAutocomplete(false);
+                
+                setTimeout(() => {
+                  const newCursorPos = startIndex + mention.length + 1;
+                  commentInputRef.current?.setNativeProps({
+                    selection: { start: newCursorPos, end: newCursorPos },
+                  });
+                  setCommentCursorPosition(newCursorPos);
+                }, 0);
+              }
+            }}
+            onClose={() => setShowMentionAutocomplete(false)}
+          />
+        </View>
+      )}
+
       {/* Reply Input */}
       <View style={[styles.inputContainer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
         <View style={styles.inputWrapper}>
@@ -215,35 +248,6 @@ export default function CommentRepliesScreen() {
             multiline
             maxLength={300}
           />
-          {showMentionAutocomplete && (
-            <MentionAutocomplete
-              text={commentText}
-              cursorPosition={commentCursorPosition}
-              onSelect={(mention) => {
-                let startIndex = commentCursorPosition - 1;
-                while (startIndex >= 0 && commentText[startIndex] !== '@' && commentText[startIndex] !== ' ') {
-                  startIndex--;
-                }
-                
-                if (startIndex >= 0 && commentText[startIndex] === '@') {
-                  const beforeMention = commentText.substring(0, startIndex);
-                  const afterMention = commentText.substring(commentCursorPosition);
-                  const newText = beforeMention + mention + ' ' + afterMention;
-                  setCommentText(newText);
-                  setShowMentionAutocomplete(false);
-                  
-                  setTimeout(() => {
-                    const newCursorPos = startIndex + mention.length + 1;
-                    commentInputRef.current?.setNativeProps({
-                      selection: { start: newCursorPos, end: newCursorPos },
-                    });
-                    setCommentCursorPosition(newCursorPos);
-                  }, 0);
-                }
-              }}
-              onClose={() => setShowMentionAutocomplete(false)}
-            />
-          )}
         </View>
         
         <TouchableOpacity
@@ -355,6 +359,13 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
   },
+  autocompleteWrapper: {
+    position: 'absolute',
+    bottom: 60, // Position above the input container
+    left: 16,
+    right: 16,
+    zIndex: 1000,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -362,6 +373,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     gap: 12,
+    position: 'relative',
   },
   inputWrapper: {
     flex: 1,

@@ -277,6 +277,42 @@ export default function CommentSection({ postId }: CommentSectionProps) {
         </View>
       )}
 
+      {/* Mention Autocomplete - positioned above input */}
+      {showMentionAutocomplete && (
+        <View style={styles.autocompleteWrapper}>
+          <MentionAutocomplete
+            text={commentText}
+            cursorPosition={commentCursorPosition}
+            onSelect={(mention) => {
+              // Find the @ position before cursor
+              let startIndex = commentCursorPosition - 1;
+              while (startIndex >= 0 && commentText[startIndex] !== '@' && commentText[startIndex] !== ' ') {
+                startIndex--;
+              }
+              
+              if (startIndex >= 0 && commentText[startIndex] === '@') {
+                // Replace the mention text with the selected mention
+                const beforeMention = commentText.substring(0, startIndex);
+                const afterMention = commentText.substring(commentCursorPosition);
+                const newText = beforeMention + mention + ' ' + afterMention;
+                setCommentText(newText);
+                setShowMentionAutocomplete(false);
+                
+                // Set cursor position after the inserted mention
+                setTimeout(() => {
+                  const newCursorPos = startIndex + mention.length + 1;
+                  commentInputRef.current?.setNativeProps({
+                    selection: { start: newCursorPos, end: newCursorPos },
+                  });
+                  setCommentCursorPosition(newCursorPos);
+                }, 0);
+              }
+            }}
+            onClose={() => setShowMentionAutocomplete(false)}
+          />
+        </View>
+      )}
+
       {/* Add Comment Input */}
       <View style={styles.inputContainer}>
         <View style={styles.inputAvatar}>
@@ -322,38 +358,6 @@ export default function CommentSection({ postId }: CommentSectionProps) {
             multiline
             maxLength={300}
           />
-          {showMentionAutocomplete && (
-            <MentionAutocomplete
-              text={commentText}
-              cursorPosition={commentCursorPosition}
-              onSelect={(mention) => {
-                // Find the @ position before cursor
-                let startIndex = commentCursorPosition - 1;
-                while (startIndex >= 0 && commentText[startIndex] !== '@' && commentText[startIndex] !== ' ') {
-                  startIndex--;
-                }
-                
-                if (startIndex >= 0 && commentText[startIndex] === '@') {
-                  // Replace the mention text with the selected mention
-                  const beforeMention = commentText.substring(0, startIndex);
-                  const afterMention = commentText.substring(commentCursorPosition);
-                  const newText = beforeMention + mention + ' ' + afterMention;
-                  setCommentText(newText);
-                  setShowMentionAutocomplete(false);
-                  
-                  // Set cursor position after the inserted mention
-                  setTimeout(() => {
-                    const newCursorPos = startIndex + mention.length + 1;
-                    commentInputRef.current?.setNativeProps({
-                      selection: { start: newCursorPos, end: newCursorPos },
-                    });
-                    setCommentCursorPosition(newCursorPos);
-                  }, 0);
-                }
-              }}
-              onClose={() => setShowMentionAutocomplete(false)}
-            />
-          )}
         </View>
         
         <TouchableOpacity
@@ -557,6 +561,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontStyle: 'italic',
   },
+  autocompleteWrapper: {
+    position: 'absolute',
+    bottom: 60, // Position above the input container
+    left: 16,
+    right: 16,
+    zIndex: 1000,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -565,6 +576,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
     gap: 12,
+    position: 'relative',
   },
   inputAvatar: {
     width: 32,

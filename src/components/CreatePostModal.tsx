@@ -188,63 +188,10 @@ export default function CreatePostModal({
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          style={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* User Info */}
-          <View style={styles.userInfo}>
-            <View style={styles.avatar}>
-              <Ionicons name="person-circle" size={40} color={theme.textTertiary} />
-            </View>
-            <View style={styles.userDetails}>
-              <Text style={[styles.displayName, { color: theme.text }]}>{user?.displayName}</Text>
-              <Text style={[styles.username, { color: theme.textSecondary }]}>@{user?.username}</Text>
-            </View>
-          </View>
-
-          {/* Post Content */}
-          <View style={styles.textInputContainer}>
-            <TextInput
-              ref={textInputRef}
-              style={[styles.textInput, { color: theme.text }]}
-              placeholder="What's on your mind?"
-              placeholderTextColor={theme.textTertiary}
-              value={content}
-              onChangeText={(newText) => {
-                setContent(newText);
-                // Check if @ was just typed
-                const lastChar = newText[newText.length - 1];
-                if (lastChar === '@') {
-                  setShowMentionAutocomplete(true);
-                }
-              }}
-              onSelectionChange={(event) => {
-                const { start } = event.nativeEvent.selection;
-                setCursorPosition(start);
-                // Check if cursor is after @
-                if (start > 0 && content[start - 1] === '@') {
-                  setShowMentionAutocomplete(true);
-                } else if (start > 0) {
-                  // Check if we're still in a mention
-                  let i = start - 1;
-                  while (i >= 0 && content[i] !== '@' && content[i] !== ' ') {
-                    i--;
-                  }
-                  if (i >= 0 && content[i] === '@') {
-                    setShowMentionAutocomplete(true);
-                  } else {
-                    setShowMentionAutocomplete(false);
-                  }
-                } else {
-                  setShowMentionAutocomplete(false);
-                }
-              }}
-              multiline
-              autoFocus
-              maxLength={500}
-            />
-            {showMentionAutocomplete && (
+        <View style={styles.contentWrapper}>
+          {/* Mention Autocomplete - positioned above input, outside ScrollView */}
+          {showMentionAutocomplete && (
+            <View style={styles.autocompleteWrapper}>
               <MentionAutocomplete
                 text={content}
                 cursorPosition={cursorPosition}
@@ -275,92 +222,151 @@ export default function CreatePostModal({
                 }}
                 onClose={() => setShowMentionAutocomplete(false)}
               />
-            )}
-          </View>
-
-          <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/500</Text>
-
-          {/* Sentiment Selector */}
-          <View style={styles.sentimentSection}>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>Sentiment (Optional)</Text>
-            <View style={styles.sentimentButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.sentimentButton,
-                  { 
-                    backgroundColor: sentiment === 'positive' ? '#10B981' : theme.backgroundSecondary,
-                    borderColor: sentiment === 'positive' ? '#10B981' : theme.border,
-                  },
-                ]}
-                onPress={() => setSentiment('positive')}
-              >
-                <Ionicons
-                  name="trending-up"
-                  size={20}
-                  color={sentiment === 'positive' ? '#FFFFFF' : '#10B981'}
-                />
-                <Text
-                  style={[
-                    styles.sentimentButtonText,
-                    { color: sentiment === 'positive' ? '#FFFFFF' : theme.text },
-                  ]}
-                >
-                  Positive
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.sentimentButton,
-                  { 
-                    backgroundColor: sentiment === 'neutral' ? '#6B7280' : theme.backgroundSecondary,
-                    borderColor: sentiment === 'neutral' ? '#6B7280' : theme.border,
-                  },
-                ]}
-                onPress={() => setSentiment('neutral')}
-              >
-                <Ionicons
-                  name="remove"
-                  size={20}
-                  color={sentiment === 'neutral' ? '#FFFFFF' : theme.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.sentimentButtonText,
-                    { color: sentiment === 'neutral' ? '#FFFFFF' : theme.text },
-                  ]}
-                >
-                  Neutral
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.sentimentButton,
-                  { 
-                    backgroundColor: sentiment === 'negative' ? '#EF4444' : theme.backgroundSecondary,
-                    borderColor: sentiment === 'negative' ? '#EF4444' : theme.border,
-                  },
-                ]}
-                onPress={() => setSentiment('negative')}
-              >
-                <Ionicons
-                  name="trending-down"
-                  size={20}
-                  color={sentiment === 'negative' ? '#FFFFFF' : '#EF4444'}
-                />
-                <Text
-                  style={[
-                    styles.sentimentButtonText,
-                    { color: sentiment === 'negative' ? '#FFFFFF' : theme.text },
-                  ]}
-                >
-                  Negative
-                </Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
+          )}
+
+          <ScrollView
+            style={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* User Info */}
+            <View style={styles.userInfo}>
+              <View style={styles.avatar}>
+                <Ionicons name="person-circle" size={40} color={theme.textTertiary} />
+              </View>
+              <View style={styles.userDetails}>
+                <Text style={[styles.displayName, { color: theme.text }]}>{user?.displayName}</Text>
+                <Text style={[styles.username, { color: theme.textSecondary }]}>@{user?.username}</Text>
+              </View>
+            </View>
+
+            {/* Post Content */}
+            <View style={styles.textInputContainer}>
+              <TextInput
+                ref={textInputRef}
+                style={[styles.textInput, { color: theme.text }]}
+                placeholder="What's on your mind?"
+                placeholderTextColor={theme.textTertiary}
+                value={content}
+                onChangeText={(newText) => {
+                  setContent(newText);
+                  // Check if @ was just typed
+                  const lastChar = newText[newText.length - 1];
+                  if (lastChar === '@') {
+                    setShowMentionAutocomplete(true);
+                  }
+                }}
+                onSelectionChange={(event) => {
+                  const { start } = event.nativeEvent.selection;
+                  setCursorPosition(start);
+                  // Check if cursor is after @
+                  if (start > 0 && content[start - 1] === '@') {
+                    setShowMentionAutocomplete(true);
+                  } else if (start > 0) {
+                    // Check if we're still in a mention
+                    let i = start - 1;
+                    while (i >= 0 && content[i] !== '@' && content[i] !== ' ') {
+                      i--;
+                    }
+                    if (i >= 0 && content[i] === '@') {
+                      setShowMentionAutocomplete(true);
+                    } else {
+                      setShowMentionAutocomplete(false);
+                    }
+                  } else {
+                    setShowMentionAutocomplete(false);
+                  }
+                }}
+                multiline
+                autoFocus
+                maxLength={500}
+              />
+            </View>
+
+            <Text style={[styles.characterCount, { color: theme.textTertiary }]}>{content.length}/500</Text>
+
+            {/* Sentiment Selector */}
+            <View style={styles.sentimentSection}>
+              <Text style={[styles.sectionLabel, { color: theme.text }]}>Sentiment (Optional)</Text>
+              <View style={styles.sentimentButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.sentimentButton,
+                    { 
+                      backgroundColor: sentiment === 'positive' ? '#10B981' : theme.backgroundSecondary,
+                      borderColor: sentiment === 'positive' ? '#10B981' : theme.border,
+                    },
+                  ]}
+                  onPress={() => setSentiment('positive')}
+                >
+                  <Ionicons
+                    name="trending-up"
+                    size={20}
+                    color={sentiment === 'positive' ? '#FFFFFF' : '#10B981'}
+                  />
+                  <Text
+                    style={[
+                      styles.sentimentButtonText,
+                      { color: sentiment === 'positive' ? '#FFFFFF' : theme.text },
+                    ]}
+                  >
+                    Positive
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sentimentButton,
+                    { 
+                      backgroundColor: sentiment === 'neutral' ? '#6B7280' : theme.backgroundSecondary,
+                      borderColor: sentiment === 'neutral' ? '#6B7280' : theme.border,
+                    },
+                  ]}
+                  onPress={() => setSentiment('neutral')}
+                >
+                  <Ionicons
+                    name="remove"
+                    size={20}
+                    color={sentiment === 'neutral' ? '#FFFFFF' : theme.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.sentimentButtonText,
+                      { color: sentiment === 'neutral' ? '#FFFFFF' : theme.text },
+                    ]}
+                  >
+                    Neutral
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sentimentButton,
+                    { 
+                      backgroundColor: sentiment === 'negative' ? '#EF4444' : theme.backgroundSecondary,
+                      borderColor: sentiment === 'negative' ? '#EF4444' : theme.border,
+                    },
+                  ]}
+                  onPress={() => setSentiment('negative')}
+                >
+                  <Ionicons
+                    name="trending-down"
+                    size={20}
+                    color={sentiment === 'negative' ? '#FFFFFF' : '#EF4444'}
+                  />
+                  <Text
+                    style={[
+                      styles.sentimentButtonText,
+                      { color: sentiment === 'negative' ? '#FFFFFF' : theme.text },
+                    ]}
+                  >
+                    Negative
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -414,6 +420,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
+  },
+  contentWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  autocompleteWrapper: {
+    position: 'absolute',
+    top: 80, // Position below header, above the text input
+    left: 16,
+    right: 16,
+    zIndex: 1000,
   },
   content: {
     flex: 1,
