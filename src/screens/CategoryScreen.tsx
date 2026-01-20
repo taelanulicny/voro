@@ -1470,7 +1470,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   postButton: {
-    backgroundColor: '#10B981', // Green
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#775a96',
     paddingVertical: 10,
     paddingHorizontal: 32,
     borderRadius: 20,
@@ -1481,7 +1483,7 @@ const styles = StyleSheet.create({
   postButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#775a96',
   },
   rightIconButtons: {
     flexDirection: 'row',
