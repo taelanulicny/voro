@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,7 +19,17 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Welcome to Moro</Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Welcome to </Text>
+          <View style={styles.moroContainer}>
+            <Text style={styles.moroText}>Moro</Text>
+            <Image 
+              source={require('../../assets/moro-logo.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
         <Text style={styles.subtitle}>
           Trade, compete, and connect with other traders
         </Text>
@@ -69,11 +79,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 10,
     color: '#1f2937',
+  },
+  moroContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  moroText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    lineHeight: 32,
+  },
+  logo: {
+    position: 'absolute',
+    top: -21, // Adjust to center vertically on text
+    left: -65, // Adjust to align with text start
+    width: 220,
+    height: 70,
+    zIndex: 1,
   },
   subtitle: {
     fontSize: 16,
