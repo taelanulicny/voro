@@ -20,7 +20,7 @@ export default function NewsFeedScreen() {
   const [selectedTab, setSelectedTab] = useState<'feed' | 'news'>('news');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   
-  const categories = ['All', 'Actors', 'NBA Players', 'Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+  const categories = ['All', 'Actors', 'NBA Players', 'NFL Players', 'Influencers', 'Political Figures', 'NFL', 'NBA', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>

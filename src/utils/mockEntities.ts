@@ -355,6 +355,47 @@ export const MOCK_ENTITIES: MockEntity[] = [
     basePrice: 230.60,
     description: 'Elite guard and Thunder leader. Trade confidence in Shai Gilgeous-Alexander\'s scoring, team building, and All-Star status.',
   },
+  // NFL Players
+  {
+    id: 62,
+    ticker: 'PATMA',
+    name: 'Patrick Mahomes',
+    category: 'NFL Players',
+    basePrice: 255.00,
+    description: 'Super Bowl champion quarterback and Chiefs leader. Trade confidence in Patrick Mahomes\'s performance, team success, and MVP potential.',
+  },
+  {
+    id: 63,
+    ticker: 'DRAMA',
+    name: 'Drake Maye',
+    category: 'NFL Players',
+    basePrice: 200.50,
+    description: 'Rising quarterback prospect. Track confidence in Drake Maye\'s development, draft position, and NFL career trajectory.',
+  },
+  {
+    id: 64,
+    ticker: 'JOEBU',
+    name: 'Joe Burrow',
+    category: 'NFL Players',
+    basePrice: 245.75,
+    description: 'Elite quarterback and Bengals leader. Trade confidence in Joe Burrow\'s passing, playoff performance, and championship aspirations.',
+  },
+  {
+    id: 65,
+    ticker: 'TRAKE',
+    name: 'Travis Kelce',
+    category: 'NFL Players',
+    basePrice: 235.25,
+    description: 'All-Pro tight end and Chiefs star. Track confidence in Travis Kelce\'s receiving, team chemistry, and Super Bowl success.',
+  },
+  {
+    id: 66,
+    ticker: 'CALWI',
+    name: 'Caleb Williams',
+    category: 'NFL Players',
+    basePrice: 210.90,
+    description: 'Top quarterback prospect and Heisman winner. Trade confidence in Caleb Williams\'s draft stock, NFL readiness, and future potential.',
+  },
   // NFL Teams
   {
     id: 100,
