@@ -68,7 +68,7 @@ export default function NotificationsPanel({ visible, onClose }: NotificationsPa
   const renderMessageWithMentions = (message: string) => {
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
-    const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
+    const mentionRegex = /@([\p{L}\p{N}.'-]+)/gu;
     let match;
 
     while ((match = mentionRegex.exec(message)) !== null) {

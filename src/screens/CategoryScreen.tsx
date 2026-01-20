@@ -995,6 +995,48 @@ export default function CategoryScreen() {
       'People': [], // People category aggregates posts from all subcategories
     };
 
+    // For People category, aggregate posts from all People subcategories
+    if (categoryId === 'People') {
+      const peopleSubcategories = [
+        'Actors',
+        'NBA Players',
+        'NFL Players',
+        'Soccer Players',
+        'Influencers',
+        'Political Figures',
+        'Hip Hop',
+        'Country Music',
+        'Pop Music',
+      ];
+      const aggregatedPosts: Post[] = [];
+      peopleSubcategories.forEach(subcategory => {
+        const subcategoryPosts = basePosts[subcategory] || [];
+        aggregatedPosts.push(...subcategoryPosts);
+      });
+      // Sort by timestamp (newest first)
+      return aggregatedPosts.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    }
+
+    // For Teams category, aggregate posts from all Teams subcategories
+    if (categoryId === 'Teams') {
+      const teamsSubcategories = [
+        'NFL Teams',
+        'NBA Teams',
+        'College Basketball Teams',
+      ];
+      const aggregatedPosts: Post[] = [];
+      teamsSubcategories.forEach(subcategory => {
+        const subcategoryPosts = basePosts[subcategory] || [];
+        aggregatedPosts.push(...subcategoryPosts);
+      });
+      // Sort by timestamp (newest first)
+      return aggregatedPosts.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    }
+
     return basePosts[categoryId] || [];
   }, [categoryId]);
 

@@ -183,7 +183,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
       let lastIndex = 0;
       // Match @ followed by word characters (letters, numbers, dots, hyphens) but NO spaces
       // Stop at: punctuation, spaces, or end of string
-      const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
+      const mentionRegex = /@([\p{L}\p{N}.'-]+)/gu;
       let match;
       
       while ((match = mentionRegex.exec(fullContent)) !== null) {
@@ -203,9 +203,9 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
           }
         }
         
-        // Check if mention has possessive "'s" at the end
-        const possessiveMatch = mention.match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
-        const entityMention = possessiveMatch ? possessiveMatch[1] : mention; // "@Drake" or "@Drake"
+        // Check if mention has possessive "'s" at the end (support Unicode characters)
+        const possessiveMatch = mention.match(/^(@[\p{L}\p{N}.'-]+)('s|')$/ui);
+        const entityMention = possessiveMatch ? possessiveMatch[1] : mention; // "@TimothéeChalamet" or "@Drake"
         const possessiveText = possessiveMatch ? possessiveMatch[2] : ''; // "'s" or ""
         
         // Clean mention name for comparison and lookup (remove possessive)
@@ -282,7 +282,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
       // Parse all @mentions in the full content (entity mentions use no-space format)
       const parts: React.ReactNode[] = [];
       let lastIndex = 0;
-      const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
+      const mentionRegex = /@([\p{L}\p{N}.'-]+)/gu;
       let match;
       
       while ((match = mentionRegex.exec(fullContent)) !== null) {
@@ -302,9 +302,9 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
           }
         }
         
-        // Check if mention has possessive "'s" at the end
-        const possessiveMatch = mention.match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
-        const entityMention = possessiveMatch ? possessiveMatch[1] : mention; // "@Drake" or "@Drake"
+        // Check if mention has possessive "'s" at the end (support Unicode characters)
+        const possessiveMatch = mention.match(/^(@[\p{L}\p{N}.'-]+)('s|')$/ui);
+        const entityMention = possessiveMatch ? possessiveMatch[1] : mention; // "@TimothéeChalamet" or "@Drake"
         const possessiveText = possessiveMatch ? possessiveMatch[2] : ''; // "'s" or ""
         
         // Clean mention name for comparison (remove possessive)
@@ -373,7 +373,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
     // Regular feed - parse @mentions but no category/entity prefix
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
-    const mentionRegex = /@([a-zA-Z0-9.'-]+)/g;
+    const mentionRegex = /@([\p{L}\p{N}.'-]+)/gu;
     let match;
     
     while ((match = mentionRegex.exec(post.content)) !== null) {
@@ -381,8 +381,8 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
       const mentionName = match[1]; // e.g., "TaylorSwift"
       const startIndex = match.index;
       
-      // Check if mention has possessive "'s" at the end
-      const possessiveMatch = mention.match(/^(@[a-zA-Z0-9.'-]+)('s|')$/i);
+      // Check if mention has possessive "'s" at the end (support Unicode characters)
+      const possessiveMatch = mention.match(/^(@[\p{L}\p{N}.'-]+)('s|')$/ui);
       const entityMention = possessiveMatch ? possessiveMatch[1] : mention;
       const possessiveText = possessiveMatch ? possessiveMatch[2] : '';
       
