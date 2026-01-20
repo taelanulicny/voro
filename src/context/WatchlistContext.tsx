@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WatchlistItem, PriceAlert } from '../types';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { ENTITIES } from '../utils/entities';
 import { useTrading } from './TradingContext';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 
@@ -100,7 +100,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
     const updatePrices = () => {
       setWatchlist(prev =>
         prev.map(item => {
-          const entity = MOCK_ENTITIES.find(e => e.id === item.entityId);
+          const entity = ENTITIES.find(e => e.id === item.entityId);
           if (!entity) return item;
 
           // Get current price, defaulting to BASE_PRICE if not available
@@ -165,7 +165,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
   }, [getEntityPrice]);
 
   const addToWatchlist = useCallback((entityId: number) => {
-    const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+    const entity = ENTITIES.find(e => e.id === entityId);
     if (!entity) return;
 
     // Get current price, defaulting to BASE_PRICE if not available
@@ -205,7 +205,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }) => {
   }, [watchlist]);
 
   const addPriceAlert = useCallback((entityId: number, alertType: 'above' | 'below', targetPrice: number) => {
-    const entity = MOCK_ENTITIES.find(e => e.id === entityId);
+    const entity = ENTITIES.find(e => e.id === entityId);
     if (!entity) return;
 
     const currentPrice = getEntityPrice(entityId);

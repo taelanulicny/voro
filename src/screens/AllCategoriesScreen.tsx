@@ -16,7 +16,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
 import Treemap from '../components/Treemap';
 import { Ionicons } from '@expo/vector-icons';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { ENTITIES } from '../utils/entities';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TREEMAP_HEIGHT = SCREEN_HEIGHT * 0.67; // 2/3 of screen height
@@ -31,7 +31,7 @@ const getCategoryColor = (percentage: number, previousPercentage: number): 'gree
 // Get all unique categories from entities
 const getAllCategories = (): string[] => {
   const allCategories = new Set<string>();
-  MOCK_ENTITIES.forEach((entity) => {
+  ENTITIES.forEach((entity) => {
     if (entity.category) {
       allCategories.add(entity.category);
     }

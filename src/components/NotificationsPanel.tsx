@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import { getEntityByName } from '../utils/mockEntities';
+import { getEntityByName } from '../utils/entities';
 
 interface NotificationsPanelProps {
   visible: boolean;

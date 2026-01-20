@@ -14,7 +14,7 @@ import { RootStackParamList } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
+import { ENTITIES, getEntitiesByCategory } from '../utils/entities';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -49,15 +49,15 @@ export default function DiscoverNewAdditionsScreen() {
     
     // Fixed entity IDs (not random - these stay the same)
     // Get 1 entity from Influencers (IDs 11-20) - using a fixed index
-    const influencers = MOCK_ENTITIES.filter(e => e.id >= 11 && e.id <= 20);
+    const influencers = ENTITIES.filter(e => e.id >= 11 && e.id <= 20);
     const fixedInfluencer = influencers[0]; // Always use first one
     
     // Get 1 entity from Music Artists (IDs 21-30) - using a fixed index
-    const musicArtists = MOCK_ENTITIES.filter(e => e.id >= 21 && e.id <= 30);
+    const musicArtists = ENTITIES.filter(e => e.id >= 21 && e.id <= 30);
     const fixedMusicArtist = musicArtists[0]; // Always use first one
     
     // Get 1 entity from Political Figures (IDs 31-39) - using a fixed index
-    const politicalFigures = MOCK_ENTITIES.filter(e => e.category === 'Political Figures' && e.id >= 31 && e.id <= 39);
+    const politicalFigures = ENTITIES.filter(e => e.category === 'Political Figures' && e.id >= 31 && e.id <= 39);
     const fixedPolitical = politicalFigures[0]; // Always use first one
     
     // Get 1 more entity from any of these categories - using a fixed index

@@ -23,7 +23,7 @@ import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
-import { getEntityById } from '../utils/mockEntities';
+import { getEntityById } from '../utils/entities';
 import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
 import PostCard from '../components/PostCard';
@@ -151,7 +151,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // Chart config will be created dynamically based on theme
 
 // Clean entity data generator - fresh start, no hardcoded data
-const generateMockEntityData = (entityId: number, categoryId: string) => {
+const generateEntityData = (entityId: number, categoryId: string) => {
   // Get entity from centralized data
   const entityData = getEntityById(entityId);
   
@@ -218,7 +218,7 @@ export default function EntityScreen() {
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   
   // Generate entity data based on current entityId - updates when entityId changes
-  const entityData = useMemo(() => generateMockEntityData(entityId, categoryId), [entityId, categoryId]);
+  const entityData = useMemo(() => generateEntityData(entityId, categoryId), [entityId, categoryId]);
   
   const [selectedTimeframe, setSelectedTimeframe] = useState<'1min' | 'coming-soon'>('1min');
   const [tradeModalVisible, setTradeModalVisible] = useState(false);

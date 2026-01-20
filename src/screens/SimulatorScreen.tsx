@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, Holding, UserTransaction } from '../types';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import TradeModal from '../components/TradeModal';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { ENTITIES } from '../utils/entities';
 import { useScreenshotProtection } from '../utils/security';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;

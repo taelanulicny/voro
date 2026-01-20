@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { NewsArticle, NewsFilter } from '../types';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { ENTITIES } from '../utils/entities';
 
 interface NewsContextType {
   news: NewsArticle[];

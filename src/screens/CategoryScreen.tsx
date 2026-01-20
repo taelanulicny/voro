@@ -18,7 +18,7 @@ import { RootStackParamList, Post } from '../types';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { getEntitiesByCategory, getEntityById } from '../utils/mockEntities';
+import { getEntitiesByCategory, getEntityById } from '../utils/entities';
 import PostCard from '../components/PostCard';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 

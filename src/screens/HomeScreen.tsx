@@ -30,7 +30,7 @@ import { useWatchlist } from '../context/WatchlistContext';
 import { useSideMenu } from '../context/SideMenuContext';
 import { useSocial } from '../context/SocialContext';
 import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
-import { getEntityById, getAllEntities, MOCK_ENTITIES, getEntitiesByCategory } from '../utils/mockEntities';
+import { getEntityById, getAllEntities, ENTITIES, getEntitiesByCategory } from '../utils/entities';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 import TradeModal from '../components/TradeModal';
 import SideMenu from '../components/SideMenu';
@@ -78,7 +78,7 @@ export default function HomeScreen() {
       pnl: number;
     }> = [];
 
-    MOCK_ENTITIES.forEach((entity) => {
+    ENTITIES.forEach((entity) => {
       const position = getPosition(entity.id);
       if (position) {
         const currentPrice = getEntityPrice(entity.id) || BASE_PRICE;
@@ -104,7 +104,7 @@ export default function HomeScreen() {
   
   // Update entities with live prices
   const entities = useMemo(() => {
-    return MOCK_ENTITIES.map((entity) => {
+    return ENTITIES.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
       const previousPrice = previousPrices[entity.id] || entity.basePrice;
       // Calculate change from basePrice
@@ -541,15 +541,15 @@ export default function HomeScreen() {
     
     // Fixed entity IDs (not random - these stay the same)
     // Get 1 entity from Influencers (IDs 11-20) - using a fixed index
-    const influencers = MOCK_ENTITIES.filter(e => e.id >= 11 && e.id <= 20);
+    const influencers = ENTITIES.filter(e => e.id >= 11 && e.id <= 20);
     const fixedInfluencer = influencers[0]; // Always use first one
     
     // Get 1 entity from Music Artists (IDs 21-30) - using a fixed index
-    const musicArtists = MOCK_ENTITIES.filter(e => e.id >= 21 && e.id <= 30);
+    const musicArtists = ENTITIES.filter(e => e.id >= 21 && e.id <= 30);
     const fixedMusicArtist = musicArtists[0]; // Always use first one
     
     // Get 1 entity from Political Figures (IDs 31-39) - using a fixed index
-    const politicalFigures = MOCK_ENTITIES.filter(e => e.category === 'Politics' && e.id >= 31 && e.id <= 39);
+    const politicalFigures = ENTITIES.filter(e => e.category === 'Politics' && e.id >= 31 && e.id <= 39);
     const fixedPolitical = politicalFigures[0]; // Always use first one
     
     // Get 1 more entity from any of these categories - using a fixed index
@@ -595,7 +595,7 @@ export default function HomeScreen() {
   // Dynamic Top Movers (top 5 by absolute percentage change from BASE_PRICE)
   const topGainers = useMemo(() => {
     // Get all entities with their current prices and calculate percentage changes
-    const entitiesWithChanges = MOCK_ENTITIES.map((entity) => {
+    const entitiesWithChanges = ENTITIES.map((entity) => {
       const currentPrice = getEntityPrice(entity.id);
       // Calculate change from BASE_PRICE (100) - all entities start at 100
       const change24h = currentPrice - BASE_PRICE;

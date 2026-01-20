@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import CommentSection from './CommentSection';
-import { getEntityByName } from '../utils/mockEntities';
+import { getEntityByName } from '../utils/entities';
 
 interface PostCardProps {
   post: Post;
@@ -116,8 +116,8 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
     
     // Try all entities to find one whose mention format matches
     // This handles multi-word names like "Kanye West" -> "@KanyeWest"
-    const { MOCK_ENTITIES } = require('../utils/mockEntities');
-    return MOCK_ENTITIES.find((e: any) => {
+    const { ENTITIES } = require('../utils/entities');
+    return ENTITIES.find((e: any) => {
       const entityMentionName = entityNameToMention(e.name);
       return entityMentionName.toLowerCase() === cleanedName.toLowerCase();
     });

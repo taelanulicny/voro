@@ -16,7 +16,7 @@ import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList, UserTransaction } from '../types';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { getEntityById } from '../utils/mockEntities';
+import { getEntityById } from '../utils/entities';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

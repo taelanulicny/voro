@@ -17,7 +17,7 @@ import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { ENTITIES } from '../utils/entities';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -38,7 +38,7 @@ export default function SearchScreen() {
   
   // Generate entity list with live prices
   const entities = useMemo(() => {
-    return MOCK_ENTITIES.map((entity) => {
+    return ENTITIES.map((entity) => {
       // Get current price, defaulting to BASE_PRICE if not available
       const currentPrice = getEntityPrice(entity.id) || BASE_PRICE;
       // Calculate change from BASE_PRICE (100) - all entities start at 100

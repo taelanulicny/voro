@@ -1,9 +1,9 @@
 /**
- * Centralized Mock Entity Data
+ * Centralized Entity Data
  * This ensures consistent entity information across all screens
  */
 
-export interface MockEntity {
+export interface EntityData {
   id: number;
   ticker: string;
   name: string;
@@ -13,7 +13,7 @@ export interface MockEntity {
 }
 
 // Single source of truth for all entities
-export const MOCK_ENTITIES: MockEntity[] = [
+export const ENTITIES: EntityData[] = [
   {
     id: 10,
     ticker: 'TRUMP',
@@ -924,36 +924,36 @@ export const MOCK_ENTITIES: MockEntity[] = [
 /**
  * Get entity by ID
  */
-export const getEntityById = (id: number): MockEntity | undefined => {
-  return MOCK_ENTITIES.find(entity => entity.id === id);
+export const getEntityById = (id: number): EntityData | undefined => {
+  return ENTITIES.find(entity => entity.id === id);
 };
 
 /**
  * Get entity by ticker
  */
-export const getEntityByTicker = (ticker: string): MockEntity | undefined => {
-  return MOCK_ENTITIES.find(entity => entity.ticker === ticker);
+export const getEntityByTicker = (ticker: string): EntityData | undefined => {
+  return ENTITIES.find(entity => entity.ticker === ticker);
 };
 
 /**
  * Get all entities
  */
-export const getAllEntities = (): MockEntity[] => {
-  return MOCK_ENTITIES;
+export const getAllEntities = (): EntityData[] => {
+  return ENTITIES;
 };
 
 /**
  * Get entities by category
  */
-export const getEntitiesByCategory = (category: string): MockEntity[] => {
-  return MOCK_ENTITIES.filter(entity => entity.category === category);
+export const getEntitiesByCategory = (category: string): EntityData[] => {
+  return ENTITIES.filter(entity => entity.category === category);
 };
 
 /**
  * Get entity by name (case-insensitive)
  */
-export const getEntityByName = (name: string): MockEntity | undefined => {
-  return MOCK_ENTITIES.find(entity => 
+export const getEntityByName = (name: string): EntityData | undefined => {
+  return ENTITIES.find(entity => 
     entity.name.toLowerCase() === name.toLowerCase()
   );
 };

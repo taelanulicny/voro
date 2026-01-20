@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 import { useAuth } from './AuthContext';
-import { MOCK_ENTITIES } from '../utils/mockEntities';
+import { ENTITIES } from '../utils/entities';
 import { calculatePrice, getInitialPoolValues, calculateSentimentRatio } from '../utils/sentimentTrading';
 
 interface TradingContextType {
@@ -69,7 +69,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [entityPools, setEntityPools] = useState<Record<number, { positiveTokens: number; negativeTokens: number }>>(() => {
     // Initialize all pools to 0 (P=0, N=0 gives price = 100)
     const initialPools: Record<number, { positiveTokens: number; negativeTokens: number }> = {};
-    MOCK_ENTITIES.forEach((entity) => {
+    ENTITIES.forEach((entity) => {
       initialPools[entity.id] = getInitialPoolValues();
     });
     return initialPools;
@@ -86,7 +86,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
     // Initialize all prices to 100 (from P=0, N=0)
     const initialPrices: Record<number, number> = {};
-    MOCK_ENTITIES.forEach((entity) => {
+    ENTITIES.forEach((entity) => {
       initialPrices[entity.id] = calculatePrice(0, 0); // = 100
     });
     return initialPrices;
@@ -102,7 +102,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [entityHighLow, setEntityHighLow] = useState<Record<number, { high: number; low: number; openingPrice: number }>>(() => {
     // Initialize all high/low to current price (100)
     const initialHighLow: Record<number, { high: number; low: number; openingPrice: number }> = {};
-    MOCK_ENTITIES.forEach((entity) => {
+    ENTITIES.forEach((entity) => {
       const initialPrice = calculatePrice(0, 0); // = 100
       initialHighLow[entity.id] = {
         high: initialPrice,
@@ -770,19 +770,19 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     setPortfolioHistory([]);
     // Reset pools to initial state (P=0, N=0)
     const resetPools: Record<number, { positiveTokens: number; negativeTokens: number }> = {};
-    MOCK_ENTITIES.forEach((entity) => {
+    ENTITIES.forEach((entity) => {
       resetPools[entity.id] = getInitialPoolValues();
     });
     setEntityPools(resetPools);
     // Reset prices to 100
     const resetPrices: Record<number, number> = {};
-    MOCK_ENTITIES.forEach((entity) => {
+    ENTITIES.forEach((entity) => {
       resetPrices[entity.id] = calculatePrice(0, 0); // = 100
     });
     setEntityPrices(resetPrices);
     // Reset high/low to 100
     const resetHighLow: Record<number, { high: number; low: number; openingPrice: number }> = {};
-    MOCK_ENTITIES.forEach((entity) => {
+    ENTITIES.forEach((entity) => {
       resetHighLow[entity.id] = {
         high: 100,
         low: 100,

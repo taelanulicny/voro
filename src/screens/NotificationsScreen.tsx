@@ -13,7 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../types';
-import { getEntityByName } from '../utils/mockEntities';
+import { getEntityByName } from '../utils/entities';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
