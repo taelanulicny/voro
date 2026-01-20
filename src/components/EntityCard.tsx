@@ -103,10 +103,7 @@ export default function EntityCard({
 
           {/* Info */}
           <View style={styles.compactInfo}>
-            <Text style={[styles.compactTicker, { color: theme.text }]} numberOfLines={1}>
-              {entity.ticker}
-            </Text>
-            <Text style={[styles.compactName, { color: theme.textSecondary }]} numberOfLines={1}>
+            <Text style={[styles.compactName, { color: theme.text }]} numberOfLines={2}>
               {entity.name}
             </Text>
           </View>
@@ -163,8 +160,8 @@ export default function EntityCard({
             {/* Entity Info */}
             <View style={styles.fullEntityInfo}>
               <View style={styles.fullEntityHeader}>
-                <Text style={[styles.fullTicker, { color: theme.text }]} numberOfLines={1}>
-                  {entity.ticker}
+                <Text style={[styles.fullName, { color: theme.text }]} numberOfLines={2}>
+                  {entity.name}
                 </Text>
                 <View style={[styles.fullCategoryBadge, { backgroundColor: theme.backgroundSecondary }]}>
                   <Text style={[styles.fullCategoryText, { color: theme.textSecondary }]}>
@@ -172,9 +169,6 @@ export default function EntityCard({
                   </Text>
                 </View>
               </View>
-              <Text style={[styles.fullName, { color: theme.textSecondary }]} numberOfLines={2}>
-                {entity.name}
-              </Text>
             </View>
           </View>
 

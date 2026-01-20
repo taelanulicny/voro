@@ -23,7 +23,6 @@ interface TradeModalProps {
   onClose: () => void;
   entityId: number;
   entityName: string;
-  entityTicker: string;
   category: string;
 }
 
@@ -32,7 +31,6 @@ export default function TradeModal({
   onClose,
   entityId,
   entityName,
-  entityTicker,
   category,
 }: TradeModalProps) {
   const { portfolio, openPosition, closePosition, getPosition, getEntityPrice, getPositionOpenPnL, getAllEntityPrices } = useTrading();
@@ -122,7 +120,6 @@ export default function TradeModal({
         success = await openPosition(
           entityId,
           entityName,
-          entityTicker,
           direction,
           tokensCommittedNum,
           category
@@ -131,7 +128,6 @@ export default function TradeModal({
         success = await closePosition(
         entityId,
         entityName,
-        entityTicker,
         category
       );
       }
@@ -142,12 +138,12 @@ export default function TradeModal({
         let message = '';
         if (activeTab === 'open') {
           if (existingPosition) {
-            message = `Successfully added ${tokensCommittedNum} tokens to your ${direction} position on ${entityTicker}. New total: ${existingPosition.tokensCommitted + tokensCommittedNum} tokens.`;
+            message = `Successfully added ${tokensCommittedNum} tokens to your ${direction} position on ${entityName}. New total: ${existingPosition.tokensCommitted + tokensCommittedNum} tokens.`;
           } else {
-            message = `Successfully opened ${direction} position with ${tokensCommittedNum} tokens on ${entityTicker}`;
+            message = `Successfully opened ${direction} position with ${tokensCommittedNum} tokens on ${entityName}`;
           }
         } else {
-          message = `Successfully closed your ${existingPosition?.direction} position on ${entityTicker}`;
+          message = `Successfully closed your ${existingPosition?.direction} position on ${entityName}`;
         }
         
         Alert.alert(

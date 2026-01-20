@@ -37,7 +37,7 @@ export async function createNewsArticle(article: {
   publishedAt: string;
   category: 'Tech' | 'Politics' | 'Events' | 'People' | 'General';
   entityId?: number;
-  entityTicker?: string;
+  entityName?: string;
   entityName?: string;
   tags?: string[];
   isBreaking?: boolean;

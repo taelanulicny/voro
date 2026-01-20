@@ -5,7 +5,6 @@
 
 export interface EntityData {
   id: number;
-  ticker: string;
   name: string;
   category: string;
   basePrice: number;
@@ -16,7 +15,7 @@ export interface EntityData {
 export const ENTITIES: EntityData[] = [
   {
     id: 10,
-    ticker: 'TRUMP',
+
     name: 'Donald Trump',
     category: 'Political Figures',
     basePrice: 142.55,
@@ -25,7 +24,7 @@ export const ENTITIES: EntityData[] = [
   // Influencers
   {
     id: 11,
-    ticker: 'ALIX',
+
     name: 'Alix Earle',
     category: 'Influencers',
     basePrice: 200.47,
@@ -33,7 +32,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 12,
-    ticker: 'MRBST',
+
     name: 'MrBeast',
     category: 'Influencers',
     basePrice: 195.83,
@@ -41,7 +40,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 14,
-    ticker: 'KACEN',
+
     name: 'Kai Cenat',
     category: 'Influencers',
     basePrice: 185.29,
@@ -49,7 +48,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 20,
-    ticker: 'CDAME',
+
     name: 'Charli D\'Amelio',
     category: 'Influencers',
     basePrice: 182.56,
@@ -57,7 +56,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 15,
-    ticker: 'LPAUL',
+
     name: 'Logan Paul',
     category: 'Influencers',
     basePrice: 178.91,
@@ -65,7 +64,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 19,
-    ticker: 'JPAUL',
+
     name: 'Jake Paul',
     category: 'Influencers',
     basePrice: 175.34,
@@ -73,7 +72,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 18,
-    ticker: 'ACOOP',
+
     name: 'Alex Cooper',
     category: 'Influencers',
     basePrice: 172.68,
@@ -81,7 +80,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 16,
-    ticker: 'ECHAM',
+
     name: 'Emma Chamberlain',
     category: 'Influencers',
     basePrice: 162.42,
@@ -89,7 +88,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 17,
-    ticker: 'AROSS',
+
     name: 'Adin Ross',
     category: 'Influencers',
     basePrice: 145.76,
@@ -97,7 +96,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 13,
-    ticker: 'ATATE',
+
     name: 'Andrew Tate',
     category: 'Influencers',
     basePrice: 128.13,
@@ -106,7 +105,7 @@ export const ENTITIES: EntityData[] = [
   // Music Artists
   {
     id: 21,
-    ticker: 'TSWFT',
+
     name: 'Taylor Swift',
     category: 'Music Artists',
     basePrice: 198.64,
@@ -114,7 +113,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 22,
-    ticker: 'DRAKE',
+
     name: 'Drake',
     category: 'Music Artists',
     basePrice: 192.37,
@@ -122,7 +121,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 23,
-    ticker: 'KANYE',
+
     name: 'Kanye West',
     category: 'Music Artists',
     basePrice: 186.52,
@@ -130,7 +129,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 24,
-    ticker: 'BUNNY',
+
     name: 'Bad Bunny',
     category: 'Music Artists',
     basePrice: 181.79,
@@ -138,7 +137,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 25,
-    ticker: 'TSOTT',
+
     name: 'Travis Scott',
     category: 'Music Artists',
     basePrice: 177.23,
@@ -146,7 +145,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 26,
-    ticker: 'RODRI',
+
     name: 'Olivia Rodrigo',
     category: 'Music Artists',
     basePrice: 173.86,
@@ -154,7 +153,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 27,
-    ticker: 'CARTI',
+
     name: 'Playboi Carti',
     category: 'Music Artists',
     basePrice: 169.41,
@@ -162,7 +161,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 28,
-    ticker: 'ISPCE',
+
     name: 'Ice Spice',
     category: 'Music Artists',
     basePrice: 165.98,
@@ -170,7 +169,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 29,
-    ticker: 'WKEND',
+
     name: 'The Weeknd',
     category: 'Music Artists',
     basePrice: 162.54,
@@ -178,7 +177,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 30,
-    ticker: 'DOJAC',
+
     name: 'Doja Cat',
     category: 'Music Artists',
     basePrice: 159.27,
@@ -187,7 +186,7 @@ export const ENTITIES: EntityData[] = [
   // Political Figures
   {
     id: 31,
-    ticker: 'JBIDN',
+
     name: 'Joe Biden',
     category: 'Political Figures',
     basePrice: 141.23,
@@ -195,7 +194,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 32,
-    ticker: 'KHARR',
+
     name: 'Kamala Harris',
     category: 'Political Figures',
     basePrice: 138.67,
@@ -203,7 +202,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 33,
-    ticker: 'RDESA',
+
     name: 'Ron DeSantis',
     category: 'Political Figures',
     basePrice: 135.89,
@@ -211,7 +210,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 34,
-    ticker: 'AOC',
+
     name: 'Alexandria Ocasio-Cortez',
     category: 'Political Figures',
     basePrice: 133.42,
@@ -219,7 +218,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 35,
-    ticker: 'VRAMA',
+
     name: 'Vivek Ramaswamy',
     category: 'Political Figures',
     basePrice: 130.76,
@@ -227,7 +226,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 36,
-    ticker: 'NHALE',
+
     name: 'Nikki Haley',
     category: 'Political Figures',
     basePrice: 128.54,
@@ -235,7 +234,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 37,
-    ticker: 'GNEWS',
+
     name: 'Gavin Newsom',
     category: 'Political Figures',
     basePrice: 126.18,
@@ -243,7 +242,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 38,
-    ticker: 'TCARS',
+
     name: 'Tucker Carlson',
     category: 'Political Figures',
     basePrice: 123.91,
@@ -251,7 +250,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 39,
-    ticker: 'BSAND',
+
     name: 'Bernie Sanders',
     category: 'Political Figures',
     basePrice: 121.45,
@@ -260,7 +259,7 @@ export const ENTITIES: EntityData[] = [
   // Actors
   {
     id: 50,
-    ticker: 'ZENDA',
+
     name: 'Zendaya',
     category: 'Actors',
     basePrice: 195.50,
@@ -268,7 +267,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 51,
-    ticker: 'TIMCH',
+
     name: 'Timothée Chalamet',
     category: 'Actors',
     basePrice: 188.75,
@@ -276,7 +275,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 52,
-    ticker: 'SYDSW',
+
     name: 'Sydney Sweeney',
     category: 'Actors',
     basePrice: 182.30,
@@ -284,7 +283,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 53,
-    ticker: 'TOMHO',
+
     name: 'Tom Holland',
     category: 'Actors',
     basePrice: 190.25,
@@ -292,7 +291,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 54,
-    ticker: 'PEDPA',
+
     name: 'Pedro Pascal',
     category: 'Actors',
     basePrice: 185.90,
@@ -301,7 +300,7 @@ export const ENTITIES: EntityData[] = [
   // NBA Players
   {
     id: 55,
-    ticker: 'LEBRJ',
+
     name: 'LeBron James',
     category: 'NBA Players',
     basePrice: 250.00,
@@ -309,7 +308,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 56,
-    ticker: 'STCUR',
+
     name: 'Stephen Curry',
     category: 'NBA Players',
     basePrice: 245.50,
@@ -317,7 +316,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 57,
-    ticker: 'VICWE',
+
     name: 'Victor Wembanyama',
     category: 'NBA Players',
     basePrice: 220.75,
@@ -325,7 +324,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 58,
-    ticker: 'NIKJO',
+
     name: 'Nikola Jokic',
     category: 'NBA Players',
     basePrice: 240.25,
@@ -333,7 +332,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 59,
-    ticker: 'LUKDO',
+
     name: 'Luka Dončić',
     category: 'NBA Players',
     basePrice: 235.90,
@@ -341,7 +340,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 60,
-    ticker: 'ANTED',
+
     name: 'Anthony Edwards',
     category: 'NBA Players',
     basePrice: 215.30,
@@ -349,7 +348,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 61,
-    ticker: 'SHGIL',
+
     name: 'Shai Gilgeous-Alexander',
     category: 'NBA Players',
     basePrice: 230.60,
@@ -358,7 +357,7 @@ export const ENTITIES: EntityData[] = [
   // NFL Players
   {
     id: 62,
-    ticker: 'PATMA',
+
     name: 'Patrick Mahomes',
     category: 'NFL Players',
     basePrice: 255.00,
@@ -366,7 +365,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 63,
-    ticker: 'DRAMA',
+
     name: 'Drake Maye',
     category: 'NFL Players',
     basePrice: 200.50,
@@ -374,7 +373,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 64,
-    ticker: 'JOEBU',
+
     name: 'Joe Burrow',
     category: 'NFL Players',
     basePrice: 245.75,
@@ -382,7 +381,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 65,
-    ticker: 'TRAKE',
+
     name: 'Travis Kelce',
     category: 'NFL Players',
     basePrice: 235.25,
@@ -390,7 +389,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 66,
-    ticker: 'CALWI',
+
     name: 'Caleb Williams',
     category: 'NFL Players',
     basePrice: 210.90,
@@ -398,7 +397,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 69,
-    ticker: 'TOMBR',
+
     name: 'Tom Brady',
     category: 'NFL Players',
     basePrice: 250.00,
@@ -407,7 +406,7 @@ export const ENTITIES: EntityData[] = [
   // Soccer Players
   {
     id: 67,
-    ticker: 'LIOME',
+
     name: 'Lionel Messi',
     category: 'Soccer Players',
     basePrice: 260.00,
@@ -415,7 +414,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 68,
-    ticker: 'CRIRO',
+
     name: 'Cristiano Ronaldo',
     category: 'Soccer Players',
     basePrice: 258.50,
@@ -424,7 +423,7 @@ export const ENTITIES: EntityData[] = [
   // NFL Teams
   {
     id: 100,
-    ticker: 'KCCHI',
+
     name: 'Kansas City Chiefs',
     category: 'NFL Teams',
     basePrice: 185.42,
@@ -432,7 +431,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 101,
-    ticker: 'BUFBI',
+
     name: 'Buffalo Bills',
     category: 'NFL Teams',
     basePrice: 178.93,
@@ -440,7 +439,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 102,
-    ticker: 'BALRA',
+
     name: 'Baltimore Ravens',
     category: 'NFL Teams',
     basePrice: 176.58,
@@ -448,7 +447,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 103,
-    ticker: 'CINBE',
+
     name: 'Cincinnati Bengals',
     category: 'NFL Teams',
     basePrice: 174.21,
@@ -456,7 +455,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 104,
-    ticker: 'CLEBR',
+
     name: 'Cleveland Browns',
     category: 'NFL Teams',
     basePrice: 165.87,
@@ -464,7 +463,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 105,
-    ticker: 'PITST',
+
     name: 'Pittsburgh Steelers',
     category: 'NFL Teams',
     basePrice: 172.45,
@@ -472,7 +471,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 106,
-    ticker: 'HOUTE',
+
     name: 'Houston Texans',
     category: 'NFL Teams',
     basePrice: 158.32,
@@ -480,7 +479,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 107,
-    ticker: 'INDCO',
+
     name: 'Indianapolis Colts',
     category: 'NFL Teams',
     basePrice: 163.79,
@@ -488,7 +487,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 108,
-    ticker: 'JAXJA',
+
     name: 'Jacksonville Jaguars',
     category: 'NFL Teams',
     basePrice: 161.24,
@@ -496,7 +495,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 109,
-    ticker: 'TENTI',
+
     name: 'Tennessee Titans',
     category: 'NFL Teams',
     basePrice: 159.68,
@@ -504,7 +503,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 110,
-    ticker: 'DENBR',
+
     name: 'Denver Broncos',
     category: 'NFL Teams',
     basePrice: 162.15,
@@ -512,7 +511,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 111,
-    ticker: 'LACCH',
+
     name: 'Los Angeles Chargers',
     category: 'NFL Teams',
     basePrice: 170.56,
@@ -520,7 +519,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 112,
-    ticker: 'LARAM',
+
     name: 'Los Angeles Rams',
     category: 'NFL Teams',
     basePrice: 168.92,
@@ -528,7 +527,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 113,
-    ticker: 'OAKRA',
+
     name: 'Las Vegas Raiders',
     category: 'NFL Teams',
     basePrice: 164.38,
@@ -536,7 +535,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 114,
-    ticker: 'DALCO',
+
     name: 'Dallas Cowboys',
     category: 'NFL Teams',
     basePrice: 182.67,
@@ -544,7 +543,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 115,
-    ticker: 'NYGIA',
+
     name: 'New York Giants',
     category: 'NFL Teams',
     basePrice: 157.43,
@@ -552,7 +551,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 116,
-    ticker: 'PHIEA',
+
     name: 'Philadelphia Eagles',
     category: 'NFL Teams',
     basePrice: 180.34,
@@ -560,7 +559,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 117,
-    ticker: 'WASCO',
+
     name: 'Washington Commanders',
     category: 'NFL Teams',
     basePrice: 155.89,
@@ -568,7 +567,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 118,
-    ticker: 'CHIBE',
+
     name: 'Chicago Bears',
     category: 'NFL Teams',
     basePrice: 160.12,
@@ -576,7 +575,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 119,
-    ticker: 'DETLI',
+
     name: 'Detroit Lions',
     category: 'NFL Teams',
     basePrice: 173.56,
@@ -584,7 +583,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 120,
-    ticker: 'GBPA',
+
     name: 'Green Bay Packers',
     category: 'NFL Teams',
     basePrice: 177.89,
@@ -592,7 +591,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 121,
-    ticker: 'MINVI',
+
     name: 'Minnesota Vikings',
     category: 'NFL Teams',
     basePrice: 166.78,
@@ -600,7 +599,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 122,
-    ticker: 'ATLFA',
+
     name: 'Atlanta Falcons',
     category: 'NFL Teams',
     basePrice: 158.91,
@@ -608,7 +607,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 123,
-    ticker: 'CARPA',
+
     name: 'Carolina Panthers',
     category: 'NFL Teams',
     basePrice: 152.34,
@@ -616,7 +615,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 124,
-    ticker: 'NOSAI',
+
     name: 'New Orleans Saints',
     category: 'NFL Teams',
     basePrice: 167.45,
@@ -624,7 +623,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 125,
-    ticker: 'TABUC',
+
     name: 'Tampa Bay Buccaneers',
     category: 'NFL Teams',
     basePrice: 171.23,
@@ -632,7 +631,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 126,
-    ticker: 'ARICA',
+
     name: 'Arizona Cardinals',
     category: 'NFL Teams',
     basePrice: 154.67,
@@ -640,7 +639,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 127,
-    ticker: 'SF49',
+
     name: 'San Francisco 49ers',
     category: 'NFL Teams',
     basePrice: 179.56,
@@ -648,7 +647,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 128,
-    ticker: 'SEAHA',
+
     name: 'Seattle Seahawks',
     category: 'NFL Teams',
     basePrice: 169.78,
@@ -656,7 +655,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 129,
-    ticker: 'NEAT',
+
     name: 'New England Patriots',
     category: 'NFL Teams',
     basePrice: 163.12,
@@ -664,7 +663,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 130,
-    ticker: 'NYJE',
+
     name: 'New York Jets',
     category: 'NFL Teams',
     basePrice: 165.89,
@@ -672,7 +671,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 131,
-    ticker: 'MIAOL',
+
     name: 'Miami Dolphins',
     category: 'NFL Teams',
     basePrice: 175.34,
@@ -681,7 +680,7 @@ export const ENTITIES: EntityData[] = [
   // NBA Teams
   {
     id: 200,
-    ticker: 'BOSCE',
+
     name: 'Boston Celtics',
     category: 'NBA Teams',
     basePrice: 195.42,
@@ -689,7 +688,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 201,
-    ticker: 'MILBU',
+
     name: 'Milwaukee Bucks',
     category: 'NBA Teams',
     basePrice: 192.67,
@@ -697,7 +696,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 202,
-    ticker: 'DENNU',
+
     name: 'Denver Nuggets',
     category: 'NBA Teams',
     basePrice: 190.34,
@@ -705,7 +704,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 203,
-    ticker: 'PHOEN',
+
     name: 'Phoenix Suns',
     category: 'NBA Teams',
     basePrice: 188.56,
@@ -713,7 +712,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 204,
-    ticker: 'LALAK',
+
     name: 'Los Angeles Lakers',
     category: 'NBA Teams',
     basePrice: 186.93,
@@ -721,7 +720,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 205,
-    ticker: 'GSWAR',
+
     name: 'Golden State Warriors',
     category: 'NBA Teams',
     basePrice: 184.78,
@@ -729,7 +728,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 206,
-    ticker: 'PHI76',
+
     name: 'Philadelphia 76ers',
     category: 'NBA Teams',
     basePrice: 182.15,
@@ -737,7 +736,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 207,
-    ticker: 'MIAHE',
+
     name: 'Miami Heat',
     category: 'NBA Teams',
     basePrice: 180.42,
@@ -745,7 +744,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 208,
-    ticker: 'DALMA',
+
     name: 'Dallas Mavericks',
     category: 'NBA Teams',
     basePrice: 178.89,
@@ -753,7 +752,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 209,
-    ticker: 'CLELA',
+
     name: 'Cleveland Cavaliers',
     category: 'NBA Teams',
     basePrice: 176.34,
@@ -761,7 +760,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 210,
-    ticker: 'NYNKE',
+
     name: 'New York Knicks',
     category: 'NBA Teams',
     basePrice: 174.67,
@@ -769,7 +768,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 211,
-    ticker: 'LACLI',
+
     name: 'Los Angeles Clippers',
     category: 'NBA Teams',
     basePrice: 172.56,
@@ -777,7 +776,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 212,
-    ticker: 'OKCTH',
+
     name: 'Oklahoma City Thunder',
     category: 'NBA Teams',
     basePrice: 170.23,
@@ -785,7 +784,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 213,
-    ticker: 'MINWO',
+
     name: 'Minnesota Timberwolves',
     category: 'NBA Teams',
     basePrice: 168.45,
@@ -793,7 +792,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 214,
-    ticker: 'SACKI',
+
     name: 'Sacramento Kings',
     category: 'NBA Teams',
     basePrice: 166.78,
@@ -801,7 +800,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 215,
-    ticker: 'NOPEL',
+
     name: 'New Orleans Pelicans',
     category: 'NBA Teams',
     basePrice: 164.92,
@@ -809,7 +808,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 216,
-    ticker: 'ATLHA',
+
     name: 'Atlanta Hawks',
     category: 'NBA Teams',
     basePrice: 162.34,
@@ -817,7 +816,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 217,
-    ticker: 'CHIBU',
+
     name: 'Chicago Bulls',
     category: 'NBA Teams',
     basePrice: 160.67,
@@ -825,7 +824,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 218,
-    ticker: 'TORRA',
+
     name: 'Toronto Raptors',
     category: 'NBA Teams',
     basePrice: 158.45,
@@ -833,7 +832,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 219,
-    ticker: 'INDIA',
+
     name: 'Indiana Pacers',
     category: 'NBA Teams',
     basePrice: 156.78,
@@ -841,7 +840,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 220,
-    ticker: 'ORLMA',
+
     name: 'Orlando Magic',
     category: 'NBA Teams',
     basePrice: 154.56,
@@ -849,7 +848,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 221,
-    ticker: 'WASWI',
+
     name: 'Washington Wizards',
     category: 'NBA Teams',
     basePrice: 152.34,
@@ -857,7 +856,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 222,
-    ticker: 'CHAHO',
+
     name: 'Charlotte Hornets',
     category: 'NBA Teams',
     basePrice: 150.67,
@@ -865,7 +864,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 223,
-    ticker: 'DETPI',
+
     name: 'Detroit Pistons',
     category: 'NBA Teams',
     basePrice: 148.45,
@@ -873,7 +872,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 224,
-    ticker: 'BROKE',
+
     name: 'Brooklyn Nets',
     category: 'NBA Teams',
     basePrice: 146.78,
@@ -881,7 +880,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 225,
-    ticker: 'UTAJA',
+
     name: 'Utah Jazz',
     category: 'NBA Teams',
     basePrice: 144.56,
@@ -889,7 +888,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 226,
-    ticker: 'PORTR',
+
     name: 'Portland Trail Blazers',
     category: 'NBA Teams',
     basePrice: 142.34,
@@ -897,7 +896,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 227,
-    ticker: 'HOURO',
+
     name: 'Houston Rockets',
     category: 'NBA Teams',
     basePrice: 140.67,
@@ -905,7 +904,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 228,
-    ticker: 'MEMGR',
+
     name: 'Memphis Grizzlies',
     category: 'NBA Teams',
     basePrice: 138.45,
@@ -913,7 +912,7 @@ export const ENTITIES: EntityData[] = [
   },
   {
     id: 229,
-    ticker: 'SANSP',
+
     name: 'San Antonio Spurs',
     category: 'NBA Teams',
     basePrice: 136.78,
@@ -926,13 +925,6 @@ export const ENTITIES: EntityData[] = [
  */
 export const getEntityById = (id: number): EntityData | undefined => {
   return ENTITIES.find(entity => entity.id === id);
-};
-
-/**
- * Get entity by ticker
- */
-export const getEntityByTicker = (ticker: string): EntityData | undefined => {
-  return ENTITIES.find(entity => entity.ticker === ticker);
 };
 
 /**
@@ -981,7 +973,6 @@ export const getEntityByName = (name: string): EntityData | undefined => {
     entity.name.toLowerCase() === name.toLowerCase()
   );
 };
-
 
 /**
  * Convert entity name to mention format (remove spaces)

@@ -13,7 +13,6 @@ interface TradingContextType {
   executeTrade: (
     entityId: number,
     entityName: string,
-    entityTicker: string,
     type: 'open' | 'close',
     direction: 'positive' | 'negative',
     tokensCommitted: number,
@@ -22,7 +21,6 @@ interface TradingContextType {
   openPosition: (
     entityId: number,
     entityName: string,
-    entityTicker: string,
     direction: 'positive' | 'negative',
     tokensCommitted: number,
     category: string
@@ -30,7 +28,6 @@ interface TradingContextType {
   closePosition: (
     entityId: number,
     entityName: string,
-    entityTicker: string,
     category: string
   ) => Promise<boolean>;
   getHolding: (entityId: number) => Holding | undefined;
@@ -176,7 +173,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           id: t.transactionId || t.id,
           entityId: t.entityId,
           entityName: t.entityName,
-          entityTicker: t.entityTicker,
+          entityName: t.entityName,
           type: t.type === 'buy' ? 'open' : t.type === 'sell' ? 'close' : t.type, // Map old format
           direction: t.direction,
           tokensCommitted: t.tokensCommitted ?? t.quantity ?? 0, // Use tokensCommitted or fallback to quantity
@@ -326,7 +323,6 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const executeTrade = async (
     entityId: number,
     entityName: string,
-    entityTicker: string,
     type: 'open' | 'close',
     direction: 'positive' | 'negative',
     tokensCommitted: number,
@@ -400,8 +396,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           const newTransaction: UserTransaction = {
             id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             entityId,
-            entityName,
-            entityTicker,
+          entityName,
             type: 'open', // Still 'open' type
             direction,
             tokensCommitted, // Only the new tokens added
@@ -493,7 +488,6 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           entityId,
           entityName,
-          entityTicker,
           type: 'open',
           direction,
           tokensCommitted,
@@ -639,7 +633,6 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           entityId,
           entityName,
-          entityTicker,
           type: 'close',
           tokensCommitted: totalTokensCommitted, // Total tokens from all tranches
           pricePerToken: exitRatio, // Exit ratio after removing all tokens
@@ -697,18 +690,16 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const openPosition = async (
     entityId: number,
     entityName: string,
-    entityTicker: string,
     direction: 'positive' | 'negative',
     tokensCommitted: number,
     category: string
   ): Promise<boolean> => {
-    return executeTrade(entityId, entityName, entityTicker, 'open', direction, tokensCommitted, category);
+    return executeTrade(entityId, entityName, 'open', direction, tokensCommitted, category);
   };
 
   const closePosition = async (
     entityId: number,
     entityName: string,
-    entityTicker: string,
     category: string
   ): Promise<boolean> => {
     const position = userPositions[entityId];
@@ -718,7 +709,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
     // For close, calculate total tokens from all tranches
     const totalTokens = position.tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
-    return executeTrade(entityId, entityName, entityTicker, 'close', position.direction, totalTokens, category);
+    return executeTrade(entityId, entityName, 'close', position.direction, totalTokens, category);
   };
 
   const getHolding = (entityId: number): Holding | undefined => {

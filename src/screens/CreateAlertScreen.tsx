@@ -41,7 +41,7 @@ export default function CreateAlertScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CreateAlertScreenRouteProp>();
   const { theme } = useTheme();
-  const { entityId, entityName, entityTicker, currentPrice, change24h, changePercent24h } = route.params;
+  const { entityId, entityName, currentPrice, change24h, changePercent24h } = route.params;
 
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [showAddAlertModal, setShowAddAlertModal] = useState(false);
@@ -179,10 +179,10 @@ export default function CreateAlertScreen() {
         <View style={[styles.stockInfoSection, { backgroundColor: theme.card }]}>
           <View style={styles.stockInfoLeft}>
             <View style={[styles.stockIcon, { backgroundColor: isPositive ? '#10B981' : '#EF4444' }]}>
-              <Text style={styles.stockIconText}>{entityTicker.charAt(0)}</Text>
+              <Text style={styles.stockIconText}>{entityName.charAt(0)}</Text>
             </View>
             <View style={styles.stockInfoText}>
-              <Text style={[styles.stockTicker, { color: theme.text }]}>{entityTicker}</Text>
+              <Text style={[styles.stockTicker, { color: theme.text }]}>{entityName}</Text>
               <View style={styles.stockPriceRow}>
                 <Text style={[styles.stockPrice, { color: theme.text }]}>
                   {formatCurrency(currentPrice)}

@@ -117,14 +117,14 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
       </Text>
 
       {/* Entity Tag */}
-      {showEntity && article.entityTicker && (
+      {showEntity && article.entityName && (
         <TouchableOpacity
           style={[styles.entityTag, { backgroundColor: theme.primaryLight }]}
           onPress={handleEntityPress}
         >
           <Ionicons name="pricetag" size={14} color={theme.primary} />
           <Text style={[styles.entityTagText, { color: theme.primary }]}>
-            ${article.entityTicker}
+            ${article.entityName}
           </Text>
           {article.entityName && (
             <Text style={[styles.entityName, { color: theme.textSecondary }]}> · {article.entityName}</Text>

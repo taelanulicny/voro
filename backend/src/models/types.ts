@@ -46,7 +46,6 @@ export interface User {
 
 export interface Entity {
   entityId: number;
-  ticker: string;
   name: string;
   category: string;
   basePrice: number;
@@ -88,7 +87,6 @@ export interface Transaction {
   timestamp: string;
   entityId: number;
   entityName: string;
-  entityTicker: string;
   type: 'open' | 'close'; // 'open' = open position, 'close' = close position
   direction?: 'positive' | 'negative'; // Only present for 'open' type
   tokensCommitted: number; // Tokens staked
@@ -110,7 +108,6 @@ export interface Post {
   avatarUrl?: string;
   content: string;
   entityId?: number;
-  entityTicker?: string;
   entityName?: string;
   sentiment?: 'positive' | 'negative' | 'neutral';
   images?: string[];
@@ -184,7 +181,6 @@ export interface NewsArticle {
   publishedAt: string;
   category: 'Tech' | 'Politics' | 'Events' | 'People' | 'General';
   entityId?: number;
-  entityTicker?: string;
   entityName?: string;
   sentiment: 'positive' | 'negative' | 'neutral';
   sentimentScore: number;
@@ -264,7 +260,6 @@ export interface Notification {
   commentId?: string;
   // For entity/trade notifications
   entityId?: number;
-  entityTicker?: string;
   entityName?: string;
   // For group notifications
   groupId?: string;

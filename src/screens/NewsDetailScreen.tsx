@@ -164,15 +164,12 @@ export default function NewsDetailScreen() {
         <Text style={[styles.title, { color: theme.text }]}>{article.title}</Text>
 
         {/* Entity Tag */}
-        {article.entityTicker && (
+        {article.entityName && (
           <TouchableOpacity style={[styles.entityTag, { backgroundColor: theme.primaryLight }]} onPress={handleEntityPress}>
             <Ionicons name="pricetag" size={16} color={theme.primary} />
             <Text style={[styles.entityTagText, { color: theme.primary }]}>
-              ${article.entityTicker}
+              {article.entityName}
             </Text>
-            {article.entityName && (
-              <Text style={[styles.entityName, { color: theme.textSecondary }]}> · {article.entityName}</Text>
-            )}
           </TouchableOpacity>
         )}
 

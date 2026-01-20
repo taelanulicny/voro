@@ -27,7 +27,6 @@ interface SocialContextType {
   createPost: (params: {
     content: string;
     entityId?: number;
-    entityTicker?: string;
     entityName?: string;
     sentiment?: 'positive' | 'negative' | 'neutral';
   }) => Promise<{ success: boolean; error?: string; post?: Post }>;
@@ -176,7 +175,6 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       avatarUrl: undefined,
       content: '@TomBrady is still the goat out of all the NFL football players 🐐',
       entityId: 69, // Tom Brady's entity ID
-      entityTicker: 'TOMBR',
       entityName: 'Tom Brady',
       sentiment: 'positive',
       likes: 5,
@@ -220,7 +218,6 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           avatarUrl: p.avatarUrl,
           content: p.content,
           entityId: p.entityId,
-          entityTicker: p.entityTicker,
           entityName: p.entityName,
           sentiment: p.sentiment,
           likes: p.likes || 0,
@@ -253,7 +250,6 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const createPost = useCallback(async (params: {
     content: string;
     entityId?: number;
-    entityTicker?: string;
     entityName?: string;
     sentiment?: 'positive' | 'negative' | 'neutral';
   }) => {
@@ -280,7 +276,6 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           avatarUrl: response.data.avatarUrl,
           content: response.data.content,
           entityId: response.data.entityId,
-          entityTicker: response.data.entityTicker,
           entityName: response.data.entityName,
           sentiment: response.data.sentiment,
           likes: response.data.likes || 0,

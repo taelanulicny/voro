@@ -138,7 +138,8 @@ export async function sendBreakingNewsNotification(
   title: string,
   summary: string,
   articleId: string,
-  entityTicker?: string
+  entityId?: number,
+  entityName?: string
 ): Promise<void> {
   await scheduleLocalNotification({
     type: 'breaking_news',
@@ -146,7 +147,8 @@ export async function sendBreakingNewsNotification(
     body: summary,
     data: {
       articleId,
-      entityTicker,
+      entityId,
+      entityName,
       screen: 'News',
     },
   });
@@ -156,7 +158,7 @@ export async function sendBreakingNewsNotification(
  * Send price alert notification
  */
 export async function sendPriceAlertNotification(
-  entityTicker: string,
+  entityId: number,
   entityName: string,
   currentPrice: number,
   changePercent: number
@@ -166,10 +168,11 @@ export async function sendPriceAlertNotification(
   
   await scheduleLocalNotification({
     type: 'price_alert',
-    title: `${direction} ${entityTicker} Alert`,
+    title: `${direction} ${entityName} Alert`,
     body: `${entityName} is ${action} ${Math.abs(changePercent).toFixed(2)}% to ${formatCurrency(currentPrice)}`,
     data: {
-      entityTicker,
+      entityId,
+      entityName,
       screen: 'Entity',
     },
   });
@@ -179,16 +182,17 @@ export async function sendPriceAlertNotification(
  * Send entity update notification (major news event)
  */
 export async function sendEntityUpdateNotification(
-  entityTicker: string,
+  entityId: number,
   entityName: string,
   updateMessage: string
 ): Promise<void> {
   await scheduleLocalNotification({
     type: 'entity_update',
-    title: `${entityTicker} Update`,
+    title: `${entityName} Update`,
     body: updateMessage,
     data: {
-      entityTicker,
+      entityId,
+      entityName,
       screen: 'Entity',
     },
   });
@@ -245,11 +249,11 @@ export function handleNotificationNavigation(
     
     case 'price_alert':
     case 'entity_update':
-      if (data.entityTicker && data.screen) {
+      if (data.entityId && data.screen) {
         // Navigate to entity detail
-        // You'll need to map ticker to entityId
         navigation.navigate(data.screen, {
-          ticker: data.entityTicker,
+          entityId: data.entityId,
+          categoryId: 'Unknown', // Will need to get category from entityId
         });
       }
       break;

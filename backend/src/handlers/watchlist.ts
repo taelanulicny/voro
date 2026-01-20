@@ -108,7 +108,6 @@ export async function getWatchlist(event: APIGatewayProxyEvent): Promise<APIGate
         const entity = entityResult.Item;
         return {
           entityId: item.entityId,
-          entityTicker: entity?.ticker,
           entityName: entity?.name,
           category: entity?.category,
           addedAt: item.addedAt,

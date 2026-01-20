@@ -465,7 +465,7 @@ export default function CategoryScreen() {
       
       return {
         id: entity.id,
-        ticker: entity.ticker,
+        name: entity.name,
         name: entity.name,
         currentPrice,
         change24h,
@@ -693,11 +693,11 @@ export default function CategoryScreen() {
     if (categoryId === 'NFL Teams') {
       // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
       const top5Teams = [
-        { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
-        { id: 114, name: 'Dallas Cowboys', ticker: 'DALCO' },
-        { id: 116, name: 'Philadelphia Eagles', ticker: 'PHIEA' },
-        { id: 127, name: 'San Francisco 49ers', ticker: 'SF49' },
-        { id: 101, name: 'Buffalo Bills', ticker: 'BUFBI' },
+        { id: 100, name: 'Kansas City Chiefs' },
+        { id: 114, name: 'Dallas Cowboys' },
+        { id: 116, name: 'Philadelphia Eagles' },
+        { id: 127, name: 'San Francisco 49ers' },
+        { id: 101, name: 'Buffalo Bills' },
       ];
       
       // Create matchups for each top 5 team
@@ -710,11 +710,11 @@ export default function CategoryScreen() {
       // Return all games
       return matchups.map(game => ({
         teamName: game.team.name,
-        teamTicker: game.team.ticker,
+        teamName: game.team.name,
         teamId: game.team.id,
         teamScore: game.teamScore,
         opponentName: game.opponent.name,
-        opponentTicker: game.opponent.ticker,
+        opponentName: game.opponent.name,
         opponentId: game.opponent.id,
         opponentScore: game.opponentScore,
         quarter: game.quarter,
@@ -726,11 +726,11 @@ export default function CategoryScreen() {
     } else if (categoryId === 'NBA Teams') {
       // Top 5 NBA teams by basePrice: Celtics (200), Bucks (201), Nuggets (202), Suns (203), Lakers (204)
       const top5Teams = [
-        { id: 200, name: 'Boston Celtics', ticker: 'BOSCE' },
-        { id: 201, name: 'Milwaukee Bucks', ticker: 'MILBU' },
-        { id: 202, name: 'Denver Nuggets', ticker: 'DENNU' },
-        { id: 203, name: 'Phoenix Suns', ticker: 'PHOEN' },
-        { id: 204, name: 'Los Angeles Lakers', ticker: 'LALAK' },
+        { id: 200, name: 'Boston Celtics' },
+        { id: 201, name: 'Milwaukee Bucks' },
+        { id: 202, name: 'Denver Nuggets' },
+        { id: 203, name: 'Phoenix Suns' },
+        { id: 204, name: 'Los Angeles Lakers' },
       ];
       
       // Create matchups with realistic NBA scores (typically 90-130 range)
@@ -745,11 +745,11 @@ export default function CategoryScreen() {
       // Return all games
       return matchups.map(game => ({
         teamName: game.team.name,
-        teamTicker: game.team.ticker,
+        teamName: game.team.name,
         teamId: game.team.id,
         teamScore: game.teamScore,
         opponentName: game.opponent.name,
-        opponentTicker: game.opponent.ticker,
+        opponentName: game.opponent.name,
         opponentId: game.opponent.id,
         opponentScore: game.opponentScore,
         quarter: game.quarter,

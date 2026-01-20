@@ -22,7 +22,7 @@ export interface GeminiAnalysisResult {
   isBreaking: boolean;
   assignedEntities: Array<{
     entityId: number;
-    ticker: string;
+    name: string;
     name: string;
     confidence: number;   // 0-1, how confident the assignment is
   }>;
@@ -35,39 +35,39 @@ export interface GeminiAnalysisResult {
  */
 export const AVAILABLE_ENTITIES = [
   // Politics
-  { entityId: 10, ticker: 'TRUMP', name: 'Donald Trump', category: 'Politics' },
-  { entityId: 31, ticker: 'JBIDN', name: 'Joe Biden', category: 'Politics' },
-  { entityId: 32, ticker: 'KHARR', name: 'Kamala Harris', category: 'Politics' },
+  { entityId: 10, name: 'Donald Trump', category: 'Politics' },
+  { entityId: 31, name: 'Joe Biden', category: 'Politics' },
+  { entityId: 32, name: 'Kamala Harris', category: 'Politics' },
   
   // People/Influencers
-  { entityId: 11, ticker: 'ALIX', name: 'Alix Earle', category: 'People' },
-  { entityId: 12, ticker: 'MRBST', name: 'MrBeast', category: 'People' },
-  { entityId: 14, ticker: 'KACEN', name: 'Kai Cenat', category: 'People' },
-  { entityId: 15, ticker: 'LPAUL', name: 'Logan Paul', category: 'People' },
-  { entityId: 19, ticker: 'JPAUL', name: 'Jake Paul', category: 'People' },
-  { entityId: 20, ticker: 'CDAME', name: 'Charli D\'Amelio', category: 'People' },
+  { entityId: 11, name: 'Alix Earle', category: 'People' },
+  { entityId: 12, name: 'MrBeast', category: 'People' },
+  { entityId: 14, name: 'Kai Cenat', category: 'People' },
+  { entityId: 15, name: 'Logan Paul', category: 'People' },
+  { entityId: 19, name: 'Jake Paul', category: 'People' },
+  { entityId: 20, name: 'Charli D\'Amelio', category: 'People' },
   
   // Music Artists
-  { entityId: 21, ticker: 'TSWFT', name: 'Taylor Swift', category: 'People' },
-  { entityId: 22, ticker: 'DRAKE', name: 'Drake', category: 'People' },
-  { entityId: 23, ticker: 'KANYE', name: 'Kanye West', category: 'People' },
-  { entityId: 24, ticker: 'BUNNY', name: 'Bad Bunny', category: 'People' },
-  { entityId: 25, ticker: 'TSOTT', name: 'Travis Scott', category: 'People' },
-  { entityId: 26, ticker: 'RODRI', name: 'Olivia Rodrigo', category: 'People' },
-  { entityId: 27, ticker: 'CARTI', name: 'Playboi Carti', category: 'People' },
-  { entityId: 28, ticker: 'ISPCE', name: 'Ice Spice', category: 'People' },
-  { entityId: 29, ticker: 'WKEND', name: 'The Weeknd', category: 'People' },
-  { entityId: 30, ticker: 'DOJAC', name: 'Doja Cat', category: 'People' },
+  { entityId: 21, name: 'Taylor Swift', category: 'People' },
+  { entityId: 22, name: 'Drake', category: 'People' },
+  { entityId: 23, name: 'Kanye West', category: 'People' },
+  { entityId: 24, name: 'Bad Bunny', category: 'People' },
+  { entityId: 25, name: 'Travis Scott', category: 'People' },
+  { entityId: 26, name: 'Olivia Rodrigo', category: 'People' },
+  { entityId: 27, name: 'Playboi Carti', category: 'People' },
+  { entityId: 28, name: 'Ice Spice', category: 'People' },
+  { entityId: 29, name: 'The Weeknd', category: 'People' },
+  { entityId: 30, name: 'Doja Cat', category: 'People' },
   
   // Tech Startups
-  { entityId: 40, ticker: 'CLUEL', name: 'Cluely', category: 'Tech' },
-  { entityId: 41, ticker: 'PERPL', name: 'Perplexity', category: 'Tech' },
-  { entityId: 42, ticker: 'ABRID', name: 'Abridge', category: 'Tech' },
-  { entityId: 43, ticker: 'REPLI', name: 'Replit', category: 'Tech' },
-  { entityId: 44, ticker: 'MERCU', name: 'Mercury', category: 'Tech' },
-  { entityId: 45, ticker: 'CHRAC', name: 'Character.AI', category: 'Tech' },
-  { entityId: 46, ticker: 'LUMAI', name: 'Luma AI', category: 'Tech' },
-  { entityId: 47, ticker: 'CURSO', name: 'Cursor', category: 'Tech' },
+  { entityId: 40, name: 'Cluely', category: 'Tech' },
+  { entityId: 41, name: 'Perplexity', category: 'Tech' },
+  { entityId: 42, name: 'Abridge', category: 'Tech' },
+  { entityId: 43, name: 'Replit', category: 'Tech' },
+  { entityId: 44, name: 'Mercury', category: 'Tech' },
+  { entityId: 45, name: 'Character.AI', category: 'Tech' },
+  { entityId: 46, name: 'Luma AI', category: 'Tech' },
+  { entityId: 47, name: 'Cursor', category: 'Tech' },
 ];
 
 /**
@@ -81,7 +81,7 @@ function createAnalysisPrompt(article: {
   publishedAt: string;
 }): string {
   const entitiesList = AVAILABLE_ENTITIES.map(e => 
-    `- ${e.ticker} (${e.name}) - ${e.category}`
+    `- ${e.name} - ${e.category}`
   ).join('\n');
 
   return `You are a financial news analyst for a tokenized social trading platform. Analyze the following news article and provide a structured JSON response.
@@ -129,7 +129,7 @@ ANALYSIS REQUIREMENTS:
    - Can assign to multiple entities if the news affects multiple people/companies
    - For each assigned entity, provide:
      * entityId: The numeric ID from the list above
-     * ticker: The ticker symbol
+     * name: The entity name
      * name: The entity name
      * confidence: 0.0-1.0 (how confident you are this news relates to this entity)
    - Only assign entities with confidence >= 0.6

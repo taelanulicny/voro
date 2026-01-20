@@ -162,7 +162,6 @@ const generateEntityData = (entityId: number, categoryId: string) => {
     return {
       entity: {
         id: entityId,
-        ticker: `ENTITY${entityId}`,
         name: `Entity ${entityId}`,
         type: 'stock' as const,
         currentPrice: 100,
@@ -188,7 +187,6 @@ const generateEntityData = (entityId: number, categoryId: string) => {
   return {
     entity: {
       id: entityId,
-      ticker: entityData?.ticker || `ENTITY${entityId}`,
       name: entityData?.name || `Entity ${entityId}`,
       type: 'stock' as const,
       currentPrice: 100, // All entities start at 100
@@ -324,11 +322,11 @@ export default function EntityScreen() {
       
       // Get all top 5 teams with their info
       const top5Teams = [
-        { id: 100, name: 'Kansas City Chiefs', ticker: 'KCCHI' },
-        { id: 114, name: 'Dallas Cowboys', ticker: 'DALCO' },
-        { id: 116, name: 'Philadelphia Eagles', ticker: 'PHIEA' },
-        { id: 127, name: 'San Francisco 49ers', ticker: 'SF49' },
-        { id: 101, name: 'Buffalo Bills', ticker: 'BUFBI' },
+        { id: 100, name: 'Kansas City Chiefs' },
+        { id: 114, name: 'Dallas Cowboys' },
+        { id: 116, name: 'Philadelphia Eagles' },
+        { id: 127, name: 'San Francisco 49ers' },
+        { id: 101, name: 'Buffalo Bills' },
       ];
       
       // Create matchups for each top 5 team
@@ -345,11 +343,9 @@ export default function EntityScreen() {
       
       return {
         teamName: entity?.name || '',
-        teamTicker: entity?.ticker || '',
         teamId: entityId,
         teamScore: game.teamScore,
         opponentName: game.opponent.name,
-        opponentTicker: game.opponent.ticker,
         opponentId: game.opponent.id,
         opponentScore: game.opponentScore,
         quarter: game.quarter,
@@ -367,11 +363,11 @@ export default function EntityScreen() {
       
       // Get all top 5 teams with their info
       const top5Teams = [
-        { id: 200, name: 'Boston Celtics', ticker: 'BOSCE' },
-        { id: 201, name: 'Milwaukee Bucks', ticker: 'MILBU' },
-        { id: 202, name: 'Denver Nuggets', ticker: 'DENNU' },
-        { id: 203, name: 'Phoenix Suns', ticker: 'PHOEN' },
-        { id: 204, name: 'Los Angeles Lakers', ticker: 'LALAK' },
+        { id: 200, name: 'Boston Celtics' },
+        { id: 201, name: 'Milwaukee Bucks' },
+        { id: 202, name: 'Denver Nuggets' },
+        { id: 203, name: 'Phoenix Suns' },
+        { id: 204, name: 'Los Angeles Lakers' },
       ];
       
       // Create matchups for each top 5 team (matching CategoryScreen)
@@ -388,11 +384,9 @@ export default function EntityScreen() {
       
       return {
         teamName: entity?.name || '',
-        teamTicker: entity?.ticker || '',
         teamId: entityId,
         teamScore: game.teamScore,
         opponentName: game.opponent.name,
-        opponentTicker: game.opponent.ticker,
         opponentId: game.opponent.id,
         opponentScore: game.opponentScore,
         quarter: game.quarter,
@@ -443,7 +437,7 @@ export default function EntityScreen() {
         feedPosts.push({
           ...post,
           entityId: post.entityId || entityData.entity.id,
-          entityTicker: post.entityTicker || entityData.entity.ticker,
+          entityName: post.entityName || entityData.entity.name,
           entityName: post.entityName || entityData.entity.name,
         });
       }
@@ -470,7 +464,7 @@ export default function EntityScreen() {
           feedPosts.push({
             ...post,
             entityId: post.entityId || entityData.entity.id,
-            entityTicker: post.entityTicker || entityData.entity.ticker,
+            entityName: post.entityName || entityData.entity.name,
             entityName: post.entityName || entityData.entity.name,
           });
         }
@@ -497,7 +491,7 @@ export default function EntityScreen() {
           avatarUrl: comment.avatarUrl,
           content: comment.content,
           entityId: entityData.entity.id,
-          entityTicker: entityData.entity.ticker,
+          entityName: entityData.entity.name,
           entityName: entityData.entity.name,
           sentiment: undefined,
           likes: comment.likes,
@@ -1156,7 +1150,7 @@ export default function EntityScreen() {
                         {liveGameData.teamScore}
                       </Text>
                       <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
-                        {liveGameData.teamTicker.substring(0, 3)}
+                        {liveGameData.teamName.substring(0, 3)}
                       </Text>
                     </View>
                     
@@ -1167,7 +1161,7 @@ export default function EntityScreen() {
                         {liveGameData.opponentScore}
                       </Text>
                       <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
-                        {liveGameData.opponentTicker.substring(0, 3)}
+                        {liveGameData.opponentName.substring(0, 3)}
                       </Text>
                     </View>
                   </View>
@@ -1286,7 +1280,7 @@ export default function EntityScreen() {
                         {liveGameData.teamScore}
                       </Text>
                       <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
-                        {liveGameData.teamTicker.substring(0, 3)}
+                        {liveGameData.teamName.substring(0, 3)}
                       </Text>
                     </View>
                     
@@ -1297,7 +1291,7 @@ export default function EntityScreen() {
                         {liveGameData.opponentScore}
                       </Text>
                       <Text style={[styles.liveGameTeamAbbr, { color: theme.textSecondary }]}>
-                        {liveGameData.opponentTicker.substring(0, 3)}
+                        {liveGameData.opponentName.substring(0, 3)}
                       </Text>
                     </View>
                   </View>
@@ -1355,7 +1349,6 @@ export default function EntityScreen() {
               onPress={() => navigation.navigate('CreateAlert', {
                 entityId: entityId,
                 entityName: entityData?.entity?.name || '',
-                entityTicker: entityData?.entity?.ticker || '',
                 currentPrice: currentPrice,
                 change24h: priceChange,
                 changePercent24h: priceChangePercent,
@@ -1379,7 +1372,6 @@ export default function EntityScreen() {
         onClose={() => setTradeModalVisible(false)}
         entityId={entityId}
         entityName={entityData?.entity?.name || ''}
-        entityTicker={entityData?.entity?.ticker || ''}
         category={categoryId}
       />
 
@@ -1389,7 +1381,6 @@ export default function EntityScreen() {
         onClose={() => setShareOpinionModalVisible(false)}
         entityId={entityId}
         entityName={entityData?.entity?.name || ''}
-        entityTicker={entityData?.entity?.ticker || ''}
         slideFromBottom={true}
         prefillEntityTag={true}
       />

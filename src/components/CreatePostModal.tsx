@@ -22,7 +22,6 @@ interface CreatePostModalProps {
   visible: boolean;
   onClose: () => void;
   entityId?: number;
-  entityTicker?: string;
   entityName?: string;
   categoryId?: string; // For category-level posts (subcategory or big category)
   categoryName?: string; // Display name for category
@@ -35,7 +34,6 @@ export default function CreatePostModal({
   visible,
   onClose,
   entityId,
-  entityTicker,
   entityName,
   categoryId,
   categoryName,
@@ -87,7 +85,6 @@ export default function CreatePostModal({
     const result = await createPost({
       content: content.trim(),
       entityId,
-      entityTicker,
       entityName,
       sentiment, // Always include sentiment
     });

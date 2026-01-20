@@ -263,16 +263,7 @@ export async function searchEntities(params: {
       let bestScore = 0;
       let bestMatchType: 'exact' | 'fuzzy' | 'partial' = 'partial';
 
-      // Fast ticker check first (tickers are shorter, faster to check)
-      const tickerMatch = quickMatch(query, entity.ticker);
-      if (tickerMatch) {
-        matchedFields.push('ticker');
-        const tickerScore = tickerMatch.matchType === 'exact' ? 1.0 : tickerMatch.score * 0.9;
-        if (tickerScore > bestScore) {
-          bestScore = tickerScore;
-          bestMatchType = tickerMatch.matchType;
-        }
-      }
+      // Ticker removed - search by name only
 
       // Fast name check
       const nameMatch = quickMatch(query, entity.name);

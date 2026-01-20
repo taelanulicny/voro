@@ -27,7 +27,6 @@ const SIMULATOR_STARTING_BALANCE = 10000;
 interface SimulatorHolding {
   entityId: number;
   entityName: string;
-  entityTicker: string;
   quantity: number;
   averageCost: number;
   totalCost: number;
@@ -56,7 +55,6 @@ export default function SimulatorScreen() {
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<{
     id: number;
-    ticker: string;
     name: string;
     price: number;
     category: string;
@@ -102,7 +100,6 @@ export default function SimulatorScreen() {
   const handleExecuteSimulatorTrade = async (
     entityId: number,
     entityName: string,
-    entityTicker: string,
     type: 'buy' | 'sell',
     quantity: number,
     pricePerToken: number,
@@ -139,7 +136,7 @@ export default function SimulatorScreen() {
           const newHolding: SimulatorHolding = {
             entityId,
             entityName,
-            entityTicker,
+            entityName,
             quantity,
             averageCost: pricePerToken,
             totalCost,
@@ -185,7 +182,6 @@ export default function SimulatorScreen() {
         id: `sim-${Date.now()}-${Math.random()}`,
         entityId,
         entityName,
-        entityTicker,
         type,
         quantity,
         pricePerToken,
@@ -221,7 +217,7 @@ export default function SimulatorScreen() {
     );
   };
 
-  const handleOpenTradeModal = (entity: { id: number; ticker: string; name: string; price: number; category: string }) => {
+  const handleOpenTradeModal = (entity: { id: number; name: string; price: number; category: string }) => {
     setSelectedEntity(entity);
     setTradeModalVisible(true);
   };
@@ -366,7 +362,7 @@ export default function SimulatorScreen() {
                 <View style={styles.holdingHeader}>
                   <View>
                     <Text style={[styles.holdingTicker, { color: theme.text }]}>
-                      {holding.entityTicker}
+                      {holding.entityName}
                     </Text>
                     <Text style={[styles.holdingName, { color: theme.textSecondary }]}>
                       {holding.entityName}
@@ -439,7 +435,7 @@ export default function SimulatorScreen() {
                     </View>
                     <View style={styles.transactionInfo}>
                       <Text style={[styles.transactionTicker, { color: theme.text }]}>
-                        {transaction.entityTicker}
+                        {transaction.entityName}
                       </Text>
                       <Text style={[styles.transactionName, { color: theme.textSecondary }]}>
                         {transaction.entityName}
@@ -489,7 +485,7 @@ export default function SimulatorScreen() {
                 </TouchableOpacity>
               </View>
               <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
-                {selectedEntity.name} ({selectedEntity.ticker})
+                {selectedEntity.name}
               </Text>
               <Text style={[styles.modalInfo, { color: theme.textSecondary }]}>
                 This trade will only affect your simulator portfolio

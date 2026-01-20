@@ -46,7 +46,7 @@ export default function SearchScreen() {
       const changePercent24h = (change24h / BASE_PRICE) * 100;
       return {
         id: entity.id,
-        ticker: entity.ticker,
+        name: entity.name,
         name: entity.name,
         type: 'stock' as const,
         currentPrice,
@@ -74,7 +74,7 @@ export default function SearchScreen() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (e) =>
-          e.ticker.toLowerCase().includes(query) ||
+          e.name.toLowerCase().includes(query) ||
           e.name.toLowerCase().includes(query) ||
           e.category.toLowerCase().includes(query)
       );

@@ -23,7 +23,6 @@ export async function createPost(
   userId: string,
   content: string,
   entityId?: number,
-  entityTicker?: string,
   entityName?: string,
   sentiment?: 'positive' | 'negative' | 'neutral',
   images?: string[]
@@ -66,7 +65,6 @@ export async function createPost(
       avatarUrl: user.avatarUrl,
       content: moderationResult.filteredContent || content,
       entityId,
-      entityTicker,
       entityName,
       sentiment,
       images: imageUrls.length > 0 ? imageUrls : undefined,

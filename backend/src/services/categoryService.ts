@@ -18,7 +18,7 @@ export interface CategoryVolume {
 
 export interface EntityWithStats {
   entityId: number;
-  ticker: string;
+  name: string;
   name: string;
   category: string;
   basePrice: number;
@@ -144,7 +144,7 @@ export async function getMostDiscussed(limit: number = 20): Promise<
   Array<{
     entityId: number;
     entityName: string;
-    entityTicker: string;
+    entityName: string;
     postCount: number;
     commentCount: number;
   }>
@@ -162,7 +162,7 @@ export async function getMostDiscussed(limit: number = 20): Promise<
     // Count posts and comments per entity
     const entityStats: Record<
       number,
-      { postCount: number; commentCount: number; entityName?: string; entityTicker?: string }
+      { postCount: number; commentCount: number; entityName?: string }
     > = {};
 
     posts.forEach((post) => {
@@ -172,7 +172,7 @@ export async function getMostDiscussed(limit: number = 20): Promise<
             postCount: 0,
             commentCount: 0,
             entityName: post.entityName,
-            entityTicker: post.entityTicker,
+            entityName: post.entityName,
           };
         }
         entityStats[post.entityId].postCount += 1;
@@ -185,7 +185,7 @@ export async function getMostDiscussed(limit: number = 20): Promise<
       .map(([entityId, stats]) => ({
         entityId: parseInt(entityId, 10),
         entityName: stats.entityName || 'Unknown',
-        entityTicker: stats.entityTicker || 'UNK',
+        entityName: stats.entityName || 'Unknown',
         postCount: stats.postCount,
         commentCount: stats.commentCount,
       }))

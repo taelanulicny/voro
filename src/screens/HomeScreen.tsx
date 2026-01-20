@@ -111,7 +111,7 @@ export default function HomeScreen() {
     const positions: Array<{
       entityId: number;
       entityName: string;
-      entityTicker: string;
+      entityName: string;
       category: string;
       currentPrice: number;
       pnl: number;
@@ -125,7 +125,7 @@ export default function HomeScreen() {
         positions.push({
           entityId: entity.id,
           entityName: entity.name,
-          entityTicker: entity.ticker,
+          entityName: entity.name,
           category: entity.category,
           currentPrice,
           pnl,
@@ -152,7 +152,7 @@ export default function HomeScreen() {
       
       return {
         id: entity.id,
-        ticker: entity.ticker,
+        name: entity.name,
         name: entity.name,
         type: 'stock' as const,
         currentPrice,
@@ -187,7 +187,6 @@ export default function HomeScreen() {
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<{
     id: number;
-    ticker: string;
     name: string;
     price: number;
     category: string;
@@ -325,7 +324,7 @@ export default function HomeScreen() {
       const changePercent24h = (change24h / BASE_PRICE) * 100;
       return {
         id: entity.id,
-        ticker: entity.ticker,
+        name: entity.name,
         name: entity.name,
         currentPrice,
         change24h,
@@ -612,7 +611,7 @@ export default function HomeScreen() {
       return {
       id: entity.id,
       name: entity.name,
-      ticker: entity.ticker,
+        name: entity.name,
       category: entity.category,
       displayCategory: entity.category,
         currentPrice,
@@ -642,7 +641,7 @@ export default function HomeScreen() {
 
       return {
         id: entity.id,
-        ticker: entity.ticker,
+        name: entity.name,
         name: entity.name,
         category: entity.category,
         displayCategory: entity.category,
@@ -1776,7 +1775,7 @@ export default function HomeScreen() {
           }}
           entityId={selectedEntity.id}
           entityName={selectedEntity.name}
-          entityTicker={selectedEntity.ticker}
+          entityName={selectedEntity.name}
           currentPrice={selectedEntity.price}
           category={selectedEntity.category}
           existingQuantity={portfolio.holdings.find(h => h.entityId === selectedEntity.id)?.quantity}

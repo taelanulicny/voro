@@ -20,7 +20,7 @@ const NEWS_API_BASE_URL = 'https://newsapi.org/v2';
 
 interface EntityMatch {
   entityId: number;
-  ticker: string;
+  name: string;
   name: string;
   keywords: string[];
   category: 'Tech' | 'Politics' | 'People' | 'Events' | 'General';
@@ -30,52 +30,52 @@ interface EntityMatch {
 // This matches the entities from MOCK_ENTITIES in the frontend
 const ENTITY_MAPPINGS: EntityMatch[] = [
   // Politics
-  { entityId: 10, ticker: 'TRUMP', name: 'Donald Trump', keywords: ['donald trump', 'trump', 'president trump', 'trump administration', 'maga', 'make america great again'], category: 'Politics' },
-  { entityId: 31, ticker: 'JBIDN', name: 'Joe Biden', keywords: ['joe biden', 'biden', 'president biden', 'biden administration'], category: 'Politics' },
-  { entityId: 32, ticker: 'KHARR', name: 'Kamala Harris', keywords: ['kamala harris', 'vice president harris', 'harris'], category: 'Politics' },
-  { entityId: 33, ticker: 'RDESA', name: 'Ron DeSantis', keywords: ['ron desantis', 'desantis', 'florida governor', 'governor desantis'], category: 'Politics' },
-  { entityId: 34, ticker: 'AOC', name: 'Alexandria Ocasio-Cortez', keywords: ['alexandria ocasio-cortez', 'aoc', 'ocasio-cortez', 'rep aoc'], category: 'Politics' },
-  { entityId: 35, ticker: 'VRAMA', name: 'Vivek Ramaswamy', keywords: ['vivek ramaswamy', 'ramaswamy', 'vivek'], category: 'Politics' },
-  { entityId: 36, ticker: 'NHALE', name: 'Nikki Haley', keywords: ['nikki haley', 'haley', 'ambassador haley'], category: 'Politics' },
-  { entityId: 37, ticker: 'GNEWS', name: 'Gavin Newsom', keywords: ['gavin newsom', 'newsom', 'california governor', 'governor newsom'], category: 'Politics' },
-  { entityId: 38, ticker: 'TCARS', name: 'Tucker Carlson', keywords: ['tucker carlson', 'carlson', 'tucker'], category: 'Politics' },
-  { entityId: 39, ticker: 'BSAND', name: 'Bernie Sanders', keywords: ['bernie sanders', 'sanders', 'senator sanders'], category: 'Politics' },
+  { entityId: 10, name: 'Donald Trump', keywords: ['donald trump', 'trump', 'president trump', 'trump administration', 'maga', 'make america great again'], category: 'Politics' },
+  { entityId: 31, name: 'Joe Biden', keywords: ['joe biden', 'biden', 'president biden', 'biden administration'], category: 'Politics' },
+  { entityId: 32, name: 'Kamala Harris', keywords: ['kamala harris', 'vice president harris', 'harris'], category: 'Politics' },
+  { entityId: 33, name: 'Ron DeSantis', keywords: ['ron desantis', 'desantis', 'florida governor', 'governor desantis'], category: 'Politics' },
+  { entityId: 34, name: 'Alexandria Ocasio-Cortez', keywords: ['alexandria ocasio-cortez', 'aoc', 'ocasio-cortez', 'rep aoc'], category: 'Politics' },
+  { entityId: 35, name: 'Vivek Ramaswamy', keywords: ['vivek ramaswamy', 'ramaswamy', 'vivek'], category: 'Politics' },
+  { entityId: 36, name: 'Nikki Haley', keywords: ['nikki haley', 'haley', 'ambassador haley'], category: 'Politics' },
+  { entityId: 37, name: 'Gavin Newsom', keywords: ['gavin newsom', 'newsom', 'california governor', 'governor newsom'], category: 'Politics' },
+  { entityId: 38, name: 'Tucker Carlson', keywords: ['tucker carlson', 'carlson', 'tucker'], category: 'Politics' },
+  { entityId: 39, name: 'Bernie Sanders', keywords: ['bernie sanders', 'sanders', 'senator sanders'], category: 'Politics' },
   
   // Influencers
-  { entityId: 11, ticker: 'ALIX', name: 'Alix Earle', keywords: ['alix earle', 'alixearle'], category: 'People' },
-  { entityId: 12, ticker: 'MRBST', name: 'MrBeast', keywords: ['mrbeast', 'jimmy donaldson', 'mr beast', 'beast philanthropy', 'feastables'], category: 'People' },
-  { entityId: 14, ticker: 'KACEN', name: 'Kai Cenat', keywords: ['kai cenat', 'kaicenat'], category: 'People' },
-  { entityId: 20, ticker: 'CDAME', name: 'Charli D\'Amelio', keywords: ['charli d\'amelio', 'charli damelio', 'charlidamelio'], category: 'People' },
-  { entityId: 15, ticker: 'LPAUL', name: 'Logan Paul', keywords: ['logan paul', 'loganpaul', 'prime hydration'], category: 'People' },
-  { entityId: 19, ticker: 'JPAUL', name: 'Jake Paul', keywords: ['jake paul', 'jakepaul'], category: 'People' },
-  { entityId: 18, ticker: 'ACOOP', name: 'Alex Cooper', keywords: ['alex cooper', 'call her daddy', 'chd'], category: 'People' },
-  { entityId: 16, ticker: 'ECHAM', name: 'Emma Chamberlain', keywords: ['emma chamberlain', 'emmachamberlain'], category: 'People' },
-  { entityId: 17, ticker: 'AROSS', name: 'Adin Ross', keywords: ['adin ross', 'adinross'], category: 'People' },
-  { entityId: 13, ticker: 'ATATE', name: 'Andrew Tate', keywords: ['andrew tate', 'tate', 'cobra tate'], category: 'People' },
+  { entityId: 11, name: 'Alix Earle', keywords: ['alix earle', 'alixearle'], category: 'People' },
+  { entityId: 12, name: 'MrBeast', keywords: ['mrbeast', 'jimmy donaldson', 'mr beast', 'beast philanthropy', 'feastables'], category: 'People' },
+  { entityId: 14, name: 'Kai Cenat', keywords: ['kai cenat', 'kaicenat'], category: 'People' },
+  { entityId: 20, name: 'Charli D\'Amelio', keywords: ['charli d\'amelio', 'charli damelio', 'charlidamelio'], category: 'People' },
+  { entityId: 15, name: 'Logan Paul', keywords: ['logan paul', 'loganpaul', 'prime hydration'], category: 'People' },
+  { entityId: 19, name: 'Jake Paul', keywords: ['jake paul', 'jakepaul'], category: 'People' },
+  { entityId: 18, name: 'Alex Cooper', keywords: ['alex cooper', 'call her daddy', 'chd'], category: 'People' },
+  { entityId: 16, name: 'Emma Chamberlain', keywords: ['emma chamberlain', 'emmachamberlain'], category: 'People' },
+  { entityId: 17, name: 'Adin Ross', keywords: ['adin ross', 'adinross'], category: 'People' },
+  { entityId: 13, name: 'Andrew Tate', keywords: ['andrew tate', 'tate', 'cobra tate'], category: 'People' },
   
   // Music Artists
-  { entityId: 21, ticker: 'TSWFT', name: 'Taylor Swift', keywords: ['taylor swift', 'taylorswift', 'swift', 'eras tour', 'swiftie', 'taylor swift album'], category: 'People' },
-  { entityId: 22, ticker: 'DRAKE', name: 'Drake', keywords: ['drake', 'drake rapper', 'aubrey graham', 'ovo', 'ovo sound'], category: 'People' },
-  { entityId: 23, ticker: 'KANYE', name: 'Kanye West', keywords: ['kanye west', 'kanye', 'ye', 'yeezy'], category: 'People' },
-  { entityId: 24, ticker: 'BUNNY', name: 'Bad Bunny', keywords: ['bad bunny', 'badbunny', 'benito'], category: 'People' },
-  { entityId: 25, ticker: 'TSOTT', name: 'Travis Scott', keywords: ['travis scott', 'travisscott', 'cactus jack', 'utopia'], category: 'People' },
-  { entityId: 26, ticker: 'RODRI', name: 'Olivia Rodrigo', keywords: ['olivia rodrigo', 'oliviarodrigo', 'sour', 'guts'], category: 'People' },
-  { entityId: 27, ticker: 'CARTI', name: 'Playboi Carti', keywords: ['playboi carti', 'playboicarti', 'carti'], category: 'People' },
-  { entityId: 28, ticker: 'ISPCE', name: 'Ice Spice', keywords: ['ice spice', 'icespice'], category: 'People' },
-  { entityId: 29, ticker: 'WKEND', name: 'The Weeknd', keywords: ['the weeknd', 'weeknd', 'abel tesfaye'], category: 'People' },
-  { entityId: 30, ticker: 'DOJAC', name: 'Doja Cat', keywords: ['doja cat', 'dojacat', 'doja'], category: 'People' },
+  { entityId: 21, name: 'Taylor Swift', keywords: ['taylor swift', 'taylorswift', 'swift', 'eras tour', 'swiftie', 'taylor swift album'], category: 'People' },
+  { entityId: 22, name: 'Drake', keywords: ['drake', 'drake rapper', 'aubrey graham', 'ovo', 'ovo sound'], category: 'People' },
+  { entityId: 23, name: 'Kanye West', keywords: ['kanye west', 'kanye', 'ye', 'yeezy'], category: 'People' },
+  { entityId: 24, name: 'Bad Bunny', keywords: ['bad bunny', 'badbunny', 'benito'], category: 'People' },
+  { entityId: 25, name: 'Travis Scott', keywords: ['travis scott', 'travisscott', 'cactus jack', 'utopia'], category: 'People' },
+  { entityId: 26, name: 'Olivia Rodrigo', keywords: ['olivia rodrigo', 'oliviarodrigo', 'sour', 'guts'], category: 'People' },
+  { entityId: 27, name: 'Playboi Carti', keywords: ['playboi carti', 'playboicarti', 'carti'], category: 'People' },
+  { entityId: 28, name: 'Ice Spice', keywords: ['ice spice', 'icespice'], category: 'People' },
+  { entityId: 29, name: 'The Weeknd', keywords: ['the weeknd', 'weeknd', 'abel tesfaye'], category: 'People' },
+  { entityId: 30, name: 'Doja Cat', keywords: ['doja cat', 'dojacat', 'doja'], category: 'People' },
   
   // Tech Startups
-  { entityId: 40, ticker: 'CLUEL', name: 'Cluely', keywords: ['cluely', 'cluely ai'], category: 'Tech' },
-  { entityId: 41, ticker: 'PERPL', name: 'Perplexity', keywords: ['perplexity', 'perplexity ai', 'perplexity search'], category: 'Tech' },
-  { entityId: 42, ticker: 'ABRID', name: 'Abridge', keywords: ['abridge', 'abridge ai', 'medical transcription'], category: 'Tech' },
-  { entityId: 43, ticker: 'REPLI', name: 'Replit', keywords: ['replit', 'replit ai', 'replit coding'], category: 'Tech' },
-  { entityId: 44, ticker: 'MERCU', name: 'Mercury', keywords: ['mercury', 'mercury banking', 'mercury bank'], category: 'Tech' },
-  { entityId: 45, ticker: 'CHRAC', name: 'Character.AI', keywords: ['character.ai', 'character ai', 'characterai'], category: 'Tech' },
-  { entityId: 46, ticker: 'LUMAI', name: 'Luma AI', keywords: ['luma ai', 'lumaai', 'luma dream machine'], category: 'Tech' },
-  { entityId: 47, ticker: 'CURSO', name: 'Cursor', keywords: ['cursor', 'cursor ai', 'cursor ide', 'cursor editor'], category: 'Tech' },
-  { entityId: 48, ticker: 'VAPI', name: 'Vapi', keywords: ['vapi', 'vapi ai', 'vapi voice'], category: 'Tech' },
-  { entityId: 49, ticker: 'ANYSP', name: 'Anysphere', keywords: ['anysphere', 'anysphere ai'], category: 'Tech' },
+  { entityId: 40, name: 'Cluely', keywords: ['cluely', 'cluely ai'], category: 'Tech' },
+  { entityId: 41, name: 'Perplexity', keywords: ['perplexity', 'perplexity ai', 'perplexity search'], category: 'Tech' },
+  { entityId: 42, name: 'Abridge', keywords: ['abridge', 'abridge ai', 'medical transcription'], category: 'Tech' },
+  { entityId: 43, name: 'Replit', keywords: ['replit', 'replit ai', 'replit coding'], category: 'Tech' },
+  { entityId: 44, name: 'Mercury', keywords: ['mercury', 'mercury banking', 'mercury bank'], category: 'Tech' },
+  { entityId: 45, name: 'Character.AI', keywords: ['character.ai', 'character ai', 'characterai'], category: 'Tech' },
+  { entityId: 46, name: 'Luma AI', keywords: ['luma ai', 'lumaai', 'luma dream machine'], category: 'Tech' },
+  { entityId: 47, name: 'Cursor', keywords: ['cursor', 'cursor ai', 'cursor ide', 'cursor editor'], category: 'Tech' },
+  { entityId: 48, name: 'Vapi', keywords: ['vapi', 'vapi ai', 'vapi voice'], category: 'Tech' },
+  { entityId: 49, name: 'Anysphere', keywords: ['anysphere', 'anysphere ai'], category: 'Tech' },
 ];
 
 /**
@@ -577,7 +577,7 @@ export async function fetchFromNewsAPI(options: {
         let entityMatch = geminiAnalysis?.assignedEntities?.[0] 
           ? {
               entityId: geminiAnalysis.assignedEntities[0].entityId,
-              ticker: geminiAnalysis.assignedEntities[0].ticker,
+              name: geminiAnalysis.assignedEntities[0].name,
               name: geminiAnalysis.assignedEntities[0].name,
               keywords: [],
               category: AVAILABLE_ENTITIES.find(e => e.entityId === geminiAnalysis!.assignedEntities[0].entityId)?.category || 'General' as any,
@@ -630,7 +630,6 @@ export async function fetchFromNewsAPI(options: {
           publishedAt: article.publishedAt,
           category: categorizeArticle(article, entityMatch),
           entityId: entityMatch?.entityId,
-          entityTicker: entityMatch?.ticker,
           entityName: entityMatch?.name,
           sentiment: sentiment.sentiment,
           sentimentScore: sentiment.score,
@@ -670,7 +669,6 @@ export async function fetchFromNewsAPI(options: {
           publishedAt: article.publishedAt,
           category: categorizeArticle(article, entityMatch),
           entityId: entityMatch?.entityId,
-          entityTicker: entityMatch?.ticker,
           entityName: entityMatch?.name,
           sentiment: sentiment.sentiment,
           sentimentScore: sentiment.score,
@@ -686,8 +684,8 @@ export async function fetchFromNewsAPI(options: {
     allArticles.push(...remainingArticles);
 
     // Separate articles with and without entity matches
-    const articlesWithEntities = allArticles.filter(a => a.entityTicker);
-    const articlesWithoutEntities = allArticles.filter(a => !a.entityTicker);
+    const articlesWithEntities = allArticles.filter(a => a.entityId);
+    const articlesWithoutEntities = allArticles.filter(a => !a.entityId);
 
     console.log(`Matched ${articlesWithEntities.length} articles to entities, ${articlesWithoutEntities.length} without matches`);
 
@@ -716,8 +714,7 @@ export async function fetchFromNewsAPI(options: {
 export async function fetchNewsForEntity(entityName: string, pageSize = 10): Promise<NewsArticle[]> {
   // Find entity in our mappings to get keywords
   const entity = ENTITY_MAPPINGS.find(e => 
-    e.name.toLowerCase() === entityName.toLowerCase() ||
-    e.ticker.toLowerCase() === entityName.toLowerCase()
+    e.name.toLowerCase() === entityName.toLowerCase()
   );
   
   const searchTerm = entity ? entity.keywords.slice(0, 3).join(' OR ') : entityName;
@@ -780,7 +777,6 @@ export async function fetchTopHeadlines(category?: string, pageSize = 20): Promi
           publishedAt: article.publishedAt,
           category: categorizeArticle(article, entityMatch),
           entityId: entityMatch?.entityId,
-          entityTicker: entityMatch?.ticker,
           entityName: entityMatch?.name,
           sentiment: sentiment.sentiment,
           sentimentScore: sentiment.score,
@@ -794,7 +790,7 @@ export async function fetchTopHeadlines(category?: string, pageSize = 20): Promi
     
     // Only return articles that have a matched entity/ticker
     return allArticles
-      .filter(a => a.entityTicker)
+      .filter(a => a.entityName)
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   } catch (error) {
     console.error('Error fetching headlines:', error);
@@ -807,7 +803,7 @@ function extractTags(title: string, entityMatch: EntityMatch | null): string[] {
   
   // Add entity ticker as a tag
   if (entityMatch) {
-    tags.push(entityMatch.ticker);
+    tags.push(entityMatch.name);
   }
   
   const lowerTitle = title.toLowerCase();

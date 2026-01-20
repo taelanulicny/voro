@@ -27,7 +27,7 @@ export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewa
     const userId = auth.event.userId!;
     const body = JSON.parse(event.body || '{}');
 
-    const { content, entityId, entityTicker, entityName, sentiment, images } = body;
+    const { content, entityId, entityName, sentiment, images } = body;
 
     if (!content) {
       return createErrorResponse(400, 'Missing required field: content');
@@ -42,7 +42,6 @@ export async function createPost(event: APIGatewayProxyEvent): Promise<APIGatewa
       userId,
       content,
       entityId,
-      entityTicker,
       entityName,
       sentiment,
       images // Array of S3 keys

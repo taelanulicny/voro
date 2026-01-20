@@ -270,7 +270,6 @@ export async function createMentionNotification(
 export async function createPriceAlertNotification(
   userId: string,
   entityId: number,
-  entityTicker: string,
   entityName: string,
   targetPrice: number,
   currentPrice: number,
@@ -280,9 +279,8 @@ export async function createPriceAlertNotification(
     userId,
     type: 'price_alert',
     title: 'Price Alert',
-    message: `${entityTicker} ${alertType === 'above' ? 'rose above' : 'fell below'} ${targetPrice.toFixed(2)}`,
+    message: `${entityName} ${alertType === 'above' ? 'rose above' : 'fell below'} ${targetPrice.toFixed(2)}`,
     entityId,
-    entityTicker,
     entityName,
     targetPrice,
     currentPrice,

@@ -28,7 +28,6 @@ interface ApiResponse<T = any> {
 export async function createPost(params: {
   content: string;
   entityId?: number;
-  entityTicker?: string;
   entityName?: string;
   sentiment?: 'positive' | 'negative' | 'neutral';
   images?: string[];

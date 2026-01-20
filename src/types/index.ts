@@ -6,7 +6,7 @@ export type RootStackParamList = {
   Main: undefined;
   Entity: { entityId: number; categoryId: string };
   Category: { categoryId: string };
-  Trade: { entityId: number; ticker: string; name: string };
+  Trade: { entityId: number; name: string };
   GroupDetail: { groupId: string };
   RecommendedGroups: undefined;
   CreateGroup: undefined;
@@ -21,7 +21,7 @@ export type RootStackParamList = {
   AccountValue: undefined;
   ChartDevelopment: undefined;
   TradeHistory: undefined;
-  CreateAlert: { entityId: number; entityName: string; entityTicker: string; currentPrice: number; change24h: number; changePercent24h: number };
+  CreateAlert: { entityId: number; entityName: string; currentPrice: number; change24h: number; changePercent24h: number };
   CommentReplies: { postId: string; commentId: string; commentUsername: string; commentContent: string };
   AllComments: { postId: string; post: Post };
   CastYourVote: undefined;
@@ -61,7 +61,6 @@ export interface UserProfile extends User {
 // Trading Types
 export interface Entity {
   id: number;
-  ticker: string;
   name: string;
   type: 'stock' | 'crypto' | 'commodity' | 'forex';
   currentPrice: number;
@@ -76,7 +75,6 @@ export interface Entity {
 export interface Position {
   id: string;
   entityId: number;
-  ticker: string;
   name: string;
   quantity: number;
   averagePrice: number;
@@ -90,7 +88,7 @@ export interface Position {
 export interface Trade {
   id: string;
   entityId: number;
-  ticker: string;
+  name: string;
   type: 'buy' | 'sell';
   quantity: number;
   price: number;
@@ -108,7 +106,6 @@ export interface Post {
   avatarUrl?: string;
   content: string;
   entityId?: number;
-  entityTicker?: string;
   entityName?: string;
   sentiment?: 'positive' | 'negative' | 'neutral';
   images?: string[];
@@ -183,7 +180,7 @@ export interface Activity {
   avatarUrl?: string;
   type: 'trade' | 'follow' | 'post' | 'like' | 'comment';
   description: string;
-  entityTicker?: string;
+  entityName?: string;
   timestamp: string;
 }
 
@@ -200,7 +197,6 @@ export interface NewsArticle {
   publishedAt: string;
   category: 'Tech' | 'Politics' | 'Events' | 'People' | 'General';
   entityId?: number;
-  entityTicker?: string;
   entityName?: string;
   sentiment: 'positive' | 'negative' | 'neutral';
   sentimentScore: number; // -100 to 100
@@ -235,7 +231,6 @@ export interface LeaderboardEntry {
 export interface Holding {
   entityId: number;
   entityName: string;
-  entityTicker: string;
   quantity: number;
   averageCost: number;
   currentPrice: number;
@@ -258,7 +253,6 @@ export interface UserTransaction {
   id: string;
   entityId: number;
   entityName: string;
-  entityTicker: string;
   type: 'open' | 'close';
   direction?: 'positive' | 'negative'; // Required for 'open', not present for 'close'
   tokensCommitted: number; // Tokens committed for this transaction
@@ -295,7 +289,6 @@ export interface EntityDetailData {
 export interface PriceAlert {
   id: string;
   entityId: number;
-  entityTicker: string;
   entityName: string;
   alertType: 'above' | 'below';
   targetPrice: number;
@@ -307,7 +300,6 @@ export interface PriceAlert {
 
 export interface WatchlistItem {
   entityId: number;
-  entityTicker: string;
   entityName: string;
   category: string;
   addedAt: string;
