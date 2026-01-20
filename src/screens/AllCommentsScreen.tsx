@@ -151,9 +151,7 @@ export default function AllCommentsScreen() {
         <Text style={[styles.headerTitle, { color: theme.text }]}>
           All Comments ({comments.length})
         </Text>
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={24} color={theme.text} />
-        </TouchableOpacity>
+        <View style={styles.headerRight} />
       </View>
 
       {/* Post and Comments List */}
@@ -178,9 +176,6 @@ export default function AllCommentsScreen() {
               </View>
               <TouchableOpacity style={styles.followButton}>
                 <Text style={styles.followButtonText}>Follow</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuButtonPost}>
-                <Ionicons name="ellipsis-vertical" size={20} color={theme.text} />
               </TouchableOpacity>
             </View>
             <Text style={[styles.postContent, { color: theme.text }]}>
@@ -489,12 +484,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-  },
-  menuButtonPost: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   postContent: {
     fontSize: 15,
