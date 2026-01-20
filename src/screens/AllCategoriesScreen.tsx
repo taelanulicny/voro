@@ -114,6 +114,25 @@ export default function AllCategoriesScreen() {
     </View>
   );
 
+  // Define People and Teams subcategories
+  const peopleSubcategories = [
+    'Actors',
+    'NBA Players',
+    'NFL Players',
+    'Soccer Players',
+    'Influencers',
+    'Political Figures',
+    'Hip Hop',
+    'Country Music',
+    'Pop Music',
+  ];
+
+  const teamsSubcategories = [
+    'NFL Teams',
+    'NBA Teams',
+    'College Basketball Teams',
+  ];
+
   // Get real category volumes from transactions and calculate category data
   const categoryTradeVolumes = useMemo(() => {
     const categoryVolumes = getCategoryVolumes();
@@ -135,6 +154,37 @@ export default function AllCategoriesScreen() {
       };
     });
   }, [getCategoryVolumes, transactions]);
+
+  // Calculate total volumes for People and Teams categories
+  const hierarchicalTreemapData = useMemo(() => {
+    const peopleSubcategoryData = categoryTradeVolumes.filter(cat => 
+      peopleSubcategories.includes(cat.categoryId)
+    );
+    const teamsSubcategoryData = categoryTradeVolumes.filter(cat => 
+      teamsSubcategories.includes(cat.categoryId)
+    );
+
+    // Calculate total percentages for People and Teams
+    const peopleTotal = peopleSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
+    const teamsTotal = teamsSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
+    const grandTotal = peopleTotal + teamsTotal;
+
+    // Calculate percentages relative to grand total (for height allocation)
+    // If both are 0, give equal heights. Otherwise, use proportional heights
+    const peoplePercentage = grandTotal > 0 ? (peopleTotal / grandTotal) * 100 : 50;
+    const teamsPercentage = grandTotal > 0 ? (teamsTotal / grandTotal) * 100 : 50;
+
+    return {
+      people: {
+        totalPercentage: peoplePercentage,
+        subcategories: peopleSubcategoryData.filter(cat => cat.percentage > 0),
+      },
+      teams: {
+        totalPercentage: teamsPercentage,
+        subcategories: teamsSubcategoryData.filter(cat => cat.percentage > 0),
+      },
+    };
+  }, [categoryTradeVolumes]);
 
   // Filter out categories with 0% volume for treemap (but keep them for list view)
   const categoriesWithVolume = useMemo(() => {
@@ -345,12 +395,73 @@ export default function AllCategoriesScreen() {
         <View style={[styles.pageContainer, { width: SCREEN_WIDTH }]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.treemapWrapper}>
-          <Treemap
-            data={categoriesWithVolume}
-            onItemPress={handleCategoryPress}
-            containerHeight={TREEMAP_HEIGHT}
-            padding={8}
-          />
+          <View style={[styles.hierarchicalTreemap, { height: TREEMAP_HEIGHT }]}>
+            {/* People Section */}
+            <View 
+              style={[
+                styles.categorySection,
+                { 
+                  height: TREEMAP_HEIGHT * (hierarchicalTreemapData.people.totalPercentage / 100),
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                  borderColor: theme.border,
+                }
+              ]}
+            >
+              <View style={[styles.categoryLabelContainer, { borderRightColor: theme.border }]}>
+                <Text style={[styles.categoryLabel, { color: theme.text }]}>People</Text>
+              </View>
+              <View style={styles.categoryTreemapContainer}>
+                {hierarchicalTreemapData.people.subcategories.length > 0 ? (
+                  <Treemap
+                    data={hierarchicalTreemapData.people.subcategories}
+                    onItemPress={handleCategoryPress}
+                    containerWidth={SCREEN_WIDTH - 120}
+                    containerHeight={TREEMAP_HEIGHT * (hierarchicalTreemapData.people.totalPercentage / 100)}
+                    padding={8}
+                  />
+                ) : (
+                  <View style={styles.emptyTreemap}>
+                    <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                      No trading activity
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Teams Section */}
+            <View 
+              style={[
+                styles.categorySection,
+                { 
+                  height: TREEMAP_HEIGHT * (hierarchicalTreemapData.teams.totalPercentage / 100),
+                  borderColor: theme.border,
+                }
+              ]}
+            >
+              <View style={[styles.categoryLabelContainer, { borderRightColor: theme.border }]}>
+                <Text style={[styles.categoryLabel, { color: theme.text }]}>Teams</Text>
+              </View>
+              <View style={styles.categoryTreemapContainer}>
+                {hierarchicalTreemapData.teams.subcategories.length > 0 ? (
+                  <Treemap
+                    data={hierarchicalTreemapData.teams.subcategories}
+                    onItemPress={handleCategoryPress}
+                    containerWidth={SCREEN_WIDTH - 120}
+                    containerHeight={TREEMAP_HEIGHT * (hierarchicalTreemapData.teams.totalPercentage / 100)}
+                    padding={8}
+                  />
+                ) : (
+                  <View style={styles.emptyTreemap}>
+                    <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                      No trading activity
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
         </View>
           </ScrollView>
         </View>
@@ -419,6 +530,38 @@ const styles = StyleSheet.create({
   },
   treemapWrapper: {
     // Padding is handled by Treemap component
+  },
+  hierarchicalTreemap: {
+    width: '100%',
+  },
+  categorySection: {
+    flexDirection: 'row',
+    width: '100%',
+    borderWidth: 1,
+  },
+  categoryLabelContainer: {
+    width: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderRightWidth: 1,
+  },
+  categoryLabel: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    transform: [{ rotate: '-90deg' }],
+  },
+  categoryTreemapContainer: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  emptyTreemap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
   },
   listContent: {
     paddingVertical: 8,
