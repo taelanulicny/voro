@@ -27,7 +27,7 @@ interface VoteEntity {
   rank: number;
 }
 
-// Fake data - entities not currently in the app
+// Fake data - entities not currently in the app (top 9 for centered bell curve)
 const FAKE_VOTE_DATA: VoteEntity[] = [
   { name: 'LeBron James', votes: 61000, rank: 1 },
   { name: 'Kylie Jenner', votes: 48000, rank: 2 },
@@ -38,15 +38,21 @@ const FAKE_VOTE_DATA: VoteEntity[] = [
   { name: 'Pokimane', votes: 22000, rank: 7 },
   { name: 'Pete Davidson', votes: 18000, rank: 8 },
   { name: 'xQc', votes: 14000, rank: 9 },
-  { name: 'Sam Altman', votes: 1000, rank: 10 },
 ];
 
-// X-axis positions: tallest in center (position 5), second left (3), third right (7), etc.
-// This creates the alternating pattern from center outward based on vote count order
+// X-axis positions mapping: rank to position
+// Rank 1 → Position 5, Rank 2 → Position 4, Rank 3 → Position 6, etc.
 const getXAxisPositionByOrder = (order: number): number => {
-  // Center is at 5, then alternate left/right: [5, 3, 7, 1, 9, 0, 10, 2, 8, 4]
-  // order 0 = tallest (center), order 1 = second (left), order 2 = third (right), etc.
-  const positions = [5, 3, 7, 1, 9, 0, 10, 2, 8, 4];
+  // order 0 = rank 1 (most votes) → position 5
+  // order 1 = rank 2 → position 4
+  // order 2 = rank 3 → position 6
+  // order 3 = rank 4 → position 3
+  // order 4 = rank 5 → position 7
+  // order 5 = rank 6 → position 2
+  // order 6 = rank 7 → position 8
+  // order 7 = rank 8 → position 1
+  // order 8 = rank 9 → position 9
+  const positions = [5, 4, 6, 3, 7, 2, 8, 1, 9];
   return positions[order] || 5;
 };
 
@@ -87,11 +93,12 @@ export default function CastYourVoteScreen() {
 
   const maxVotes = Math.max(...voteData.map((e) => e.votes));
   const chartWidth = SCREEN_WIDTH - CHART_PADDING * 2;
-  const totalSlots = 10;
-  const barSpacing = chartWidth / (totalSlots + 1); // Even spacing for 10 slots
+  const totalSlots = 9; // 9 slots with positions 1-9 (left to right: 8, 6, 4, 2, 1, 3, 5, 7, 9)
+  const barSpacing = chartWidth / (totalSlots + 1); // Even spacing for 9 slots
   const baseBarWidth = barSpacing * 0.6;
 
   // Sort by vote count (descending) - tallest first
+  // Rank 1 = most votes (position 1), Rank 2 = 2nd most (position 2), etc.
   const sortedByVotes = [...voteData].sort((a, b) => b.votes - a.votes);
 
   const handleEntitySelect = (entityName: string) => {
@@ -132,10 +139,12 @@ export default function CastYourVoteScreen() {
           
           {/* Chart */}
           <View style={[styles.chart, { height: CHART_HEIGHT, width: chartWidth }]}>
-            {/* Bars - ordered by vote count (tallest in center) */}
+            {/* Bars - ordered by vote count (tallest at position 1, then alternating left/right) */}
             {sortedByVotes.map((entity, index) => {
-              const slotPosition = getXAxisPositionByOrder(index); // 0 = center, 1 = left, 2 = right, etc.
-              const barHeight = (entity.votes / maxVotes) * (CHART_HEIGHT - 60); // Reserve space for text at bottom
+              const slotPosition = getXAxisPositionByOrder(index); // Rank 1 → position 1, Rank 2 → position 2, etc.
+              const maxBarHeight = CHART_HEIGHT - 60; // Reserve space for text at bottom
+              // Use actual vote count for height (no two bars same height)
+              const barHeight = (entity.votes / maxVotes) * maxBarHeight;
               const xPos = (slotPosition * barSpacing) - (baseBarWidth / 2);
               
               return (
@@ -158,36 +167,10 @@ export default function CastYourVoteScreen() {
                         backgroundColor: index === 0 ? '#775a96' : theme.primary, // Tallest bar is purple
                         height: barHeight,
                         width: baseBarWidth,
-                        bottom: 25, // Start at x-axis level
-                        zIndex: 0, // Bar is behind the text
+                        bottom: 0, // Touch x-axis
                       },
                     ]}
                   />
-                  
-                  {/* Entity name and votes at the bottom (x-axis level) */}
-                  <View
-                    style={[
-                      styles.entityNameContainer,
-                      {
-                        bottom: 25, // Position at x-axis level, on top of bar base
-                        zIndex: 1, // Text appears on top of bar
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.entityNameText,
-                        {
-                          color: theme.text,
-                        },
-                      ]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit={true}
-                      minimumFontScale={0.7}
-                    >
-                      {entity.name} {formatVotes(entity.votes)}
-                    </Text>
-                  </View>
                 </View>
               );
             })}
@@ -205,7 +188,7 @@ export default function CastYourVoteScreen() {
 
           {/* Top 10 Entity Buttons */}
           <View style={styles.entityButtonsContainer}>
-            {sortedByVotes.map((entity) => (
+            {sortedByVotes.map((entity, index) => (
               <TouchableOpacity
                 key={entity.name}
                 style={[
@@ -225,7 +208,7 @@ export default function CastYourVoteScreen() {
                     },
                   ]}
                 >
-                  {entity.name}
+                  #{index + 1} {entity.name}
                 </Text>
                 <Text
                   style={[
@@ -378,7 +361,7 @@ const styles = StyleSheet.create({
     zIndex: 1, // Text appears on top of bar
   },
   entityNameText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
   },
