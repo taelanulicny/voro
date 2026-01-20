@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { RootStackParamList } from '../types';
 import CommentSection from './CommentSection';
 import { getEntityByName, getEntityByMention, entityNameToMention, cleanMentionName } from '../utils/entities';
 import { getCategoryByMention } from '../utils/categories';
+import { Comment } from '../types';
 
 interface PostCardProps {
   post: Post;
@@ -34,10 +35,85 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function PostCard({ post, onPress, isCategoryFeed = false, categoryId, categoryName, isEntityFeed = false, entityId, entityName }: PostCardProps) {
   const { user } = useAuth();
-  const { toggleLikePost, deletePost } = useSocial();
+  const { toggleLikePost, deletePost, postComments, getComments } = useSocial();
   const { theme } = useTheme();
   const [showComments, setShowComments] = useState(false);
   const navigation = useNavigation<NavigationProp>();
+
+  // Load comments automatically
+  const comments = postComments[post.id] || [];
+  
+  // Load comments when component mounts
+  useEffect(() => {
+    getComments(post.id);
+  }, [post.id]);
+
+  const formatCommentTimestamp = (timestamp: string) => {
+    const now = new Date();
+    const commentDate = new Date(timestamp);
+    const diffMs = now.getTime() - commentDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return commentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const renderComment = (comment: Comment) => {
+    const hasReplies = comment.replies && comment.replies.length > 0;
+    const mostRecentReply = hasReplies ? comment.replies![0] : null; // Replies are sorted newest first
+    const totalReplies = comment.replies?.length || 0;
+
+    return (
+      <View key={comment.id} style={[styles.commentItem, { borderBottomColor: theme.border }]}>
+        {/* Top-level comment */}
+        <View style={styles.commentContent}>
+          <Text style={[styles.commentUsername, { color: theme.text }]}>
+            {comment.displayName}
+          </Text>
+          <Text style={[styles.commentText, { color: theme.text }]}>
+            {comment.content}
+          </Text>
+        </View>
+
+        {/* Most recent reply (if exists) */}
+        {mostRecentReply && (
+          <View style={[styles.recentReplyContainer, { backgroundColor: theme.backgroundSecondary }]}>
+            <Text style={[styles.recentReplyUsername, { color: theme.text }]}>
+              {mostRecentReply.displayName}
+            </Text>
+            <Text style={[styles.recentReplyText, { color: theme.text }]}>
+              {mostRecentReply.content}
+            </Text>
+          </View>
+        )}
+
+        {/* All comments button (if has replies) */}
+        {hasReplies && (
+          <TouchableOpacity
+            style={styles.allCommentsButton}
+            onPress={() => {
+              navigation.navigate('CommentReplies', {
+                postId: post.id,
+                commentId: comment.id,
+                commentUsername: comment.displayName,
+                commentContent: comment.content,
+              });
+            }}
+          >
+            <Text style={[styles.allCommentsText, { color: theme.primary }]}>
+              All comments ({totalReplies})
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   const formatTimestamp = (timestamp: string) => {
     const now = new Date();
@@ -589,7 +665,24 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         </TouchableOpacity>
       </View>
 
-      {/* Comments Section */}
+      {/* Comments Section - Show top-level comments directly */}
+      {comments.length > 0 && (
+        <View style={[styles.commentsSection, { borderTopColor: theme.border }]}>
+          {comments.slice(0, 3).map(comment => renderComment(comment))}
+          {comments.length > 3 && (
+            <TouchableOpacity
+              style={styles.viewAllCommentsButton}
+              onPress={() => setShowComments(!showComments)}
+            >
+              <Text style={[styles.viewAllCommentsText, { color: theme.primary }]}>
+                View all {comments.length} comments
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Full Comment Section (when expanded) */}
       {showComments && (
         <CommentSection postId={post.id} />
       )}
@@ -703,6 +796,58 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   actionText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  commentsSection: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  commentItem: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
+  commentContent: {
+    marginBottom: 8,
+  },
+  commentUsername: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  commentText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  recentReplyContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  recentReplyUsername: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  recentReplyText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  allCommentsButton: {
+    marginTop: 4,
+  },
+  allCommentsText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  viewAllCommentsButton: {
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  viewAllCommentsText: {
     fontSize: 14,
     fontWeight: '500',
   },

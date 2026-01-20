@@ -180,7 +180,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       entityTicker: 'TSWFT',
       sentiment: 'positive',
       likes: 823,
-      comments: 156,
+      comments: 1,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
@@ -197,7 +197,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       entityTicker: 'MRBST',
       sentiment: 'positive',
       likes: 542,
-      comments: 89,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
@@ -225,7 +225,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       content: '@ElonMusk latest tweet about @Tesla production numbers is concerning. Supply chain issues are real and investors should be cautious.',
       sentiment: 'negative',
       likes: 678,
-      comments: 145,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 15).toISOString(),
@@ -242,7 +242,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       entityTicker: 'KANYE',
       sentiment: 'positive',
       likes: 945,
-      comments: 201,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
@@ -256,7 +256,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       content: '@LeBronJames breaking another record. The longevity of his career is unmatched. His brand partnerships are worth watching.',
       sentiment: 'positive',
       likes: 1102,
-      comments: 267,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
@@ -270,7 +270,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       content: '@OpenAI latest model release is game-changing. The AI space is moving so fast, investors need to stay on top of these developments.',
       sentiment: 'positive',
       likes: 1567,
-      comments: 312,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
@@ -287,7 +287,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       entityTicker: 'DRAKE',
       sentiment: 'positive',
       likes: 834,
-      comments: 178,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
@@ -304,7 +304,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       entityTicker: 'TCARS',
       sentiment: 'neutral',
       likes: 456,
-      comments: 123,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
@@ -318,7 +318,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       content: '@OpenAI valuation keeps climbing. The AI revolution is real and early investors are seeing massive returns.',
       sentiment: 'positive',
       likes: 1890,
-      comments: 445,
+      comments: 0,
       isLiked: false,
       isBookmarked: false,
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(),
@@ -521,7 +521,123 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getComments = useCallback(async (postId: string) => {
-    if (!token) return;
+    // Mock comments with replies for specific posts to demonstrate the feature
+    const mockCommentsWithReplies: Record<string, Comment[]> = {
+      'inf-1': [
+        {
+          id: 'comment-1',
+          postId: 'inf-1',
+          userId: 'user-comment-1',
+          username: 'trader_joe',
+          displayName: 'Trader Joe',
+          avatarUrl: undefined,
+          content: 'This is huge! Alix has been on fire lately.',
+          likes: 12,
+          isLiked: false,
+          timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+          replies: [
+            {
+              id: 'reply-1-1',
+              postId: 'inf-1',
+              userId: 'user-reply-1',
+              username: 'market_analyst',
+              displayName: 'Market Analyst',
+              avatarUrl: undefined,
+              content: 'Agreed! Her engagement rates are through the roof.',
+              likes: 5,
+              isLiked: false,
+              timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+            },
+            {
+              id: 'reply-1-2',
+              postId: 'inf-1',
+              userId: 'user-reply-2',
+              username: 'social_trader',
+              displayName: 'Social Trader',
+              avatarUrl: undefined,
+              content: 'I\'ve been watching her metrics closely. This deal makes sense.',
+              likes: 3,
+              isLiked: false,
+              timestamp: new Date(Date.now() - 1000 * 60 * 2).toISOString(),
+            },
+          ],
+        },
+        {
+          id: 'comment-2',
+          postId: 'inf-1',
+          userId: 'user-comment-2',
+          username: 'influencer_watcher',
+          displayName: 'Influencer Watcher',
+          avatarUrl: undefined,
+          content: 'Skincare brands are investing heavily in creators right now.',
+          likes: 8,
+          isLiked: false,
+          timestamp: new Date(Date.now() - 1000 * 60 * 8).toISOString(),
+        },
+      ],
+      'inf-1b': [
+        {
+          id: 'comment-3',
+          postId: 'inf-1b',
+          userId: 'user-comment-3',
+          username: 'content_creator',
+          displayName: 'Content Creator',
+          avatarUrl: undefined,
+          content: 'TikTok is definitely where the money is moving.',
+          likes: 15,
+          isLiked: false,
+          timestamp: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
+          replies: [
+            {
+              id: 'reply-3-1',
+              postId: 'inf-1b',
+              userId: 'user-reply-3',
+              username: 'brand_manager',
+              displayName: 'Brand Manager',
+              avatarUrl: undefined,
+              content: 'The ROI on TikTok creators is unmatched compared to other platforms.',
+              likes: 7,
+              isLiked: false,
+              timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+            },
+          ],
+        },
+      ],
+      '1': [
+        {
+          id: 'comment-4',
+          postId: '1',
+          userId: 'user-comment-4',
+          username: 'swiftie_trader',
+          displayName: 'Swiftie Trader',
+          avatarUrl: undefined,
+          content: 'Taylor\'s tour is going to break records!',
+          likes: 45,
+          isLiked: false,
+          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(),
+          replies: [
+            {
+              id: 'reply-4-1',
+              postId: '1',
+              userId: 'user-reply-4',
+              username: 'music_analyst',
+              displayName: 'Music Analyst',
+              avatarUrl: undefined,
+              content: 'The demand is absolutely insane. Ticket prices are already skyrocketing.',
+              likes: 23,
+              isLiked: false,
+              timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+            },
+          ],
+        },
+      ],
+    };
+
+    // Return mock comments if available, otherwise try API
+    if (mockCommentsWithReplies[postId]) {
+      setPostComments(prev => ({ ...prev, [postId]: mockCommentsWithReplies[postId] }));
+      return;
+    }
 
     try {
       const response = await authenticatedRequest<Comment[]>(
@@ -544,6 +660,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           likes: c.likes || 0,
           isLiked: c.isLiked || false,
           timestamp: c.timestamp,
+          replies: c.replies || [],
         }));
 
         setPostComments(prev => ({ ...prev, [postId]: mappedComments }));
