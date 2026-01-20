@@ -29,7 +29,7 @@ interface VoteEntity {
 
 // Fake data - entities not currently in the app (top 9 for centered bell curve)
 const FAKE_VOTE_DATA: VoteEntity[] = [
-  { name: 'LeBron James', votes: 61000, rank: 1 },
+  { name: 'LeBron James', votes: 100000, rank: 1 }, // 100K to show clear difference
   { name: 'Kylie Jenner', votes: 48000, rank: 2 },
   { name: 'Harry Styles', votes: 42000, rank: 3 },
   { name: 'Billie Eilish', votes: 38000, rank: 4 },
@@ -148,8 +148,9 @@ export default function CastYourVoteScreen() {
             {/* Bars - all 9 positions with rank 1 at position 5 (center) */}
             {sortedByVotes.map((entity, index) => {
               const slotPosition = getXAxisPositionByOrder(index); // Rank 1 → position 5, Rank 2 → position 4, Rank 3 → position 6
-              const maxBarHeight = CHART_HEIGHT - 40; // Reserve space for rank label at bottom
-              // Use actual vote count for height (no two bars same height)
+              const maxBarHeight = CHART_HEIGHT - 35; // Reserve minimal space for rank label at bottom
+              // Use actual vote count for height - scales proportionally to show clear differences
+              // If rank 1 has 100K and rank 2 has 48K, rank 2's bar will be 48% the height of rank 1's bar
               const barHeight = (entity.votes / maxVotes) * maxBarHeight;
               // Center position 5 at chart center, then space other positions relative to it
               const chartCenter = chartWidth / 2;
