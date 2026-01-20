@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import VideoSplashScreen from './src/components/VideoSplashScreen';
 
 // Context Providers
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -195,6 +196,18 @@ function RootNavigator() {
 }
 
 export default function App() {
+  const [videoFinished, setVideoFinished] = useState(false);
+
+  if (!videoFinished) {
+    return (
+      <VideoSplashScreen
+        videoSource={require('./assets/moro-load-in.mp4')}
+        onFinish={() => setVideoFinished(true)}
+        skippable={true}
+      />
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
