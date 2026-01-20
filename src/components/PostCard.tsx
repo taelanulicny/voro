@@ -648,7 +648,9 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
           {hasMoreComments && (
             <TouchableOpacity
               style={styles.viewAllCommentsButton}
-              onPress={() => setShowComments(!showComments)}
+              onPress={() => {
+                navigation.navigate('AllComments', { postId: post.id, post });
+              }}
             >
               <Text style={[styles.viewAllCommentsText, { color: theme.textSecondary }]}>
                 All Comments >
