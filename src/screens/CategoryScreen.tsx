@@ -836,7 +836,16 @@ export default function CategoryScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>{displayName}</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => {
+              navigation.navigate('Search');
+            }}
+          >
+            <Ionicons name="search" size={24} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tab Selector */}
@@ -1170,6 +1179,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 40,
+    justifyContent: 'flex-end',
+  },
+  searchButton: {
+    padding: 4,
   },
   listContent: {
     paddingVertical: 8,
