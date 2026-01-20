@@ -19,6 +19,9 @@ import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
 import { getEntitiesByCategory, getEntityById } from '../utils/entities';
+import { extractCategoryMentions } from '../utils/categories';
+import { getAllCategoryFeedPosts } from '../utils/categoryFeedPosts';
+import { useSocial } from '../context/SocialContext';
 import PostCard from '../components/PostCard';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 
@@ -147,6 +150,7 @@ export default function CategoryScreen() {
   const { categoryId } = route.params;
   const { getEntityPrice, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
+  const { activityFeed } = useSocial();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'entities' | 'about' | 'feed' | 'news'>('entities');
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1037,8 +1041,45 @@ export default function CategoryScreen() {
       );
     }
 
-    return basePosts[categoryId] || [];
-  }, [categoryId]);
+    const baseCategoryPosts = basePosts[categoryId] || [];
+    
+    // Also include posts from activityFeed and other category feeds that mention this category
+    const additionalPosts: Post[] = [];
+    const seenPostIds = new Set<string>(baseCategoryPosts.map(p => p.id));
+    
+    // Check activityFeed for posts that mention this category
+    activityFeed.forEach(post => {
+      const mentionedCategories = extractCategoryMentions(post.content);
+      const mentionsThisCategory = mentionedCategories.some(cat => 
+        cat === categoryId
+      );
+      
+      if (mentionsThisCategory && !seenPostIds.has(post.id)) {
+        additionalPosts.push(post);
+        seenPostIds.add(post.id);
+      }
+    });
+    
+    // Check all category feed posts for posts that mention this category
+    const allCategoryFeedPosts = getAllCategoryFeedPosts();
+    allCategoryFeedPosts.forEach(post => {
+      const mentionedCategories = extractCategoryMentions(post.content);
+      const mentionsThisCategory = mentionedCategories.some(cat => 
+        cat === categoryId
+      );
+      
+      if (mentionsThisCategory && !seenPostIds.has(post.id)) {
+        additionalPosts.push(post);
+        seenPostIds.add(post.id);
+      }
+    });
+    
+    // Combine base posts with additional posts and sort by timestamp
+    const allPosts = [...baseCategoryPosts, ...additionalPosts];
+    return allPosts.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [categoryId, activityFeed]);
 
   // Categories are now stored directly (no mapping needed)
   const displayName = categoryId;

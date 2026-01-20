@@ -23,8 +23,11 @@ interface CreatePostModalProps {
   entityId?: number;
   entityTicker?: string;
   entityName?: string;
+  categoryId?: string; // For category-level posts (subcategory or big category)
+  categoryName?: string; // Display name for category
   slideFromBottom?: boolean;
-  prefillEntityTag?: boolean;
+  prefillEntityTag?: boolean; // Auto-tag entity if posting from entity feed
+  prefillCategoryTag?: boolean; // Auto-tag category if posting from category feed
 }
 
 export default function CreatePostModal({
@@ -33,8 +36,11 @@ export default function CreatePostModal({
   entityId,
   entityTicker,
   entityName,
+  categoryId,
+  categoryName,
   slideFromBottom = false,
   prefillEntityTag = false,
+  prefillCategoryTag = false,
 }: CreatePostModalProps) {
   const { user } = useAuth();
   const { createPost } = useSocial();
@@ -43,19 +49,29 @@ export default function CreatePostModal({
   const [sentiment, setSentiment] = useState<'positive' | 'negative' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pre-fill entity tag when modal opens
+  // Pre-fill entity or category tag when modal opens
   useEffect(() => {
-    if (visible && prefillEntityTag && entityName) {
-      const entityMention = `@${entityName.replace(/\s+/g, '')} `;
-      if (!content.startsWith(entityMention.trim())) {
-        setContent(entityMention);
+    if (visible) {
+      let mention = '';
+      
+      // Priority: Entity tag > Category tag
+      if (prefillEntityTag && entityName) {
+        // Entity feed: auto-tag the entity (e.g., "@TomBrady ")
+        mention = `@${entityName.replace(/\s+/g, '')} `;
+      } else if (prefillCategoryTag && categoryName) {
+        // Category feed: auto-tag the category (e.g., "@Influencers " or "@People ")
+        mention = `@${categoryName.replace(/\s+/g, '')} `;
+      }
+      
+      if (mention && !content.startsWith(mention.trim())) {
+        setContent(mention);
       }
     } else if (!visible) {
       // Reset content when modal closes
       setContent('');
       setSentiment('neutral');
     }
-  }, [visible, prefillEntityTag, entityName]);
+  }, [visible, prefillEntityTag, prefillCategoryTag, entityName, categoryName]);
 
   const handleSubmit = async () => {
     if (!content.trim()) {

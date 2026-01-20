@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import CommentSection from './CommentSection';
 import { getEntityByName, getEntityByMention, entityNameToMention, cleanMentionName } from '../utils/entities';
+import { getCategoryByMention } from '../utils/categories';
 
 interface PostCardProps {
   post: Post;
@@ -184,36 +185,58 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         // Clean mention name for comparison and lookup (remove possessive)
         const cleanedMentionName = cleanMentionName(mentionName);
         
+        // Check if this is a category mention
+        const mentionedCategory = getCategoryByMention(cleanedMentionName);
+        
         // Check if this is the main entity mention
         const isMainEntityMention = cleanedMentionName.toLowerCase() === entityNameToMention(entityName || '').toLowerCase();
         
         // Capture values in closure to ensure correct value
         const capturedMentionName = cleanedMentionName;
         const isMainMention = isMainEntityMention;
+        const category = mentionedCategory;
         
-        // Render the entity mention (blue, clickable)
-        parts.push(
-          <Text
-            key={`mention-${startIndex}`}
-            style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
-            onPress={() => {
-              if (capturedMentionName) {
-                if (isMainMention && entityId) {
-                  // Main entity mention - navigate to current entity page (the entity whose feed we're in)
-                  navigation.navigate('Entity' as never, {
-                    entityId: entityId,
-                    categoryId: categoryId || 'Influencers',
-                  } as never);
-                } else {
-                  // Other entity mentions - navigate to their entity page (NOT the current entity)
-                  handleEntityPress(capturedMentionName);
+        // Render the mention (blue, clickable) - either category or entity
+        if (category) {
+          // Category mention - navigate to category
+          parts.push(
+            <Text
+              key={`mention-${startIndex}`}
+              style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+              onPress={() => {
+                navigation.navigate('Category' as never, {
+                  categoryId: category,
+                } as never);
+              }}
+            >
+              {entityMention}
+            </Text>
+          );
+        } else {
+          // Entity mention - navigate to entity
+          parts.push(
+            <Text
+              key={`mention-${startIndex}`}
+              style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+              onPress={() => {
+                if (capturedMentionName) {
+                  if (isMainMention && entityId) {
+                    // Main entity mention - navigate to current entity page (the entity whose feed we're in)
+                    navigation.navigate('Entity' as never, {
+                      entityId: entityId,
+                      categoryId: categoryId || 'Influencers',
+                    } as never);
+                  } else {
+                    // Other entity mentions - navigate to their entity page (NOT the current entity)
+                    handleEntityPress(capturedMentionName);
+                  }
                 }
-              }
-            }}
-          >
-            {entityMention}
-          </Text>
-        );
+              }}
+            >
+              {entityMention}
+            </Text>
+          );
+        }
         
         // If there's possessive text, render it as regular text (not blue)
         if (possessiveText) {
@@ -283,17 +306,26 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         // Clean mention name for comparison (remove possessive)
         const cleanedMentionName = cleanMentionName(mentionName);
         
-        // Check if this is the category mention (compare with no-space version)
+        // Check if this is a category mention (any category, not just the current one)
+        const mentionedCategory = getCategoryByMention(cleanedMentionName);
+        // Also check if this is the current category mention (compare with no-space version)
         const categoryMentionNameForComparison = categoryName ? categoryName.replace(/\s+/g, '') : '';
-        const isCategoryMention = categoryMentionNameForComparison && cleanedMentionName.toLowerCase() === categoryMentionNameForComparison.toLowerCase();
+        const isCurrentCategoryMention = categoryMentionNameForComparison && cleanedMentionName.toLowerCase() === categoryMentionNameForComparison.toLowerCase();
         
-        if (isCategoryMention) {
+        if (mentionedCategory || isCurrentCategoryMention) {
           // Category mention - clickable, navigates to category
+          const targetCategory = mentionedCategory || categoryId;
           parts.push(
             <Text
               key={`mention-${startIndex}`}
               style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
-              onPress={handleCategoryPress}
+              onPress={() => {
+                if (targetCategory) {
+                  navigation.navigate('Category' as never, {
+                    categoryId: targetCategory,
+                  } as never);
+                }
+              }}
             >
               {entityMention}
             </Text>
@@ -362,6 +394,9 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
       // Clean mention name for lookup
       const cleanedMentionName = cleanMentionName(mentionName);
       
+      // Check if this is a category mention
+      const mentionedCategory = getCategoryByMention(cleanedMentionName);
+      
       // Add text before the mention
       if (startIndex > lastIndex) {
         const textBefore = post.content.substring(lastIndex, startIndex);
@@ -374,20 +409,38 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
         }
       }
       
-      // Add the clickable entity mention (blue)
-      parts.push(
-        <Text
-          key={`mention-${startIndex}`}
-          style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
-          onPress={() => {
-            if (cleanedMentionName) {
-              handleEntityPress(cleanedMentionName);
-            }
-          }}
-        >
-          {entityMention}
-        </Text>
-      );
+      // Add the clickable mention (blue) - either category or entity
+      if (mentionedCategory) {
+        // Category mention - navigate to category
+        parts.push(
+          <Text
+            key={`mention-${startIndex}`}
+            style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+            onPress={() => {
+              navigation.navigate('Category' as never, {
+                categoryId: mentionedCategory,
+              } as never);
+            }}
+          >
+            {entityMention}
+          </Text>
+        );
+      } else {
+        // Entity mention - navigate to entity
+        parts.push(
+          <Text
+            key={`mention-${startIndex}`}
+            style={[styles.contentText, styles.mentionText, { color: theme.primary }]}
+            onPress={() => {
+              if (cleanedMentionName) {
+                handleEntityPress(cleanedMentionName);
+              }
+            }}
+          >
+            {entityMention}
+          </Text>
+        );
+      }
       
       // If there's possessive text, render it as regular text (not blue)
       if (possessiveText) {

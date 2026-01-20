@@ -24,6 +24,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
 import { getEntityById, extractEntityMentions, entityNameToMention } from '../utils/entities';
+import { getAllCategoryFeedPosts } from '../utils/categoryFeedPosts';
 import { useSocial } from '../context/SocialContext';
 import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
@@ -217,7 +218,7 @@ export default function EntityScreen() {
   const { getNewsByEntity } = useNews();
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
-  const { postComments } = useSocial();
+  const { postComments, activityFeed } = useSocial();
   
   // Generate entity data based on current entityId - updates when entityId changes
   const entityData = useMemo(() => generateEntityData(entityId, categoryId), [entityId, categoryId]);
@@ -418,17 +419,67 @@ export default function EntityScreen() {
     } as never);
   };
   
-  // Entity-specific feed posts - includes comments that mention the entity
+  // Entity-specific feed posts - includes posts and comments that mention the entity
   const entityFeedPosts = useMemo(() => {
     if (!entityData?.entity) return [];
     
     const entityMentionName = entityNameToMention(entityData.entity.name).toLowerCase();
     const feedPosts: Post[] = [];
     
-    // Get all comments from all posts
+    // 1. Filter posts from activity feed that mention this entity OR are directly tagged with it
+    activityFeed.forEach(post => {
+      // Check if post is directly tagged with this entity
+      const isDirectlyTagged = post.entityId === entityData.entity.id;
+      
+      // Check if post mentions this entity in content
+      const mentionedEntities = extractEntityMentions(post.content);
+      const mentionsThisEntity = mentionedEntities.some(e => {
+        const mentionName = entityNameToMention(e.name).toLowerCase();
+        return mentionName === entityMentionName;
+      });
+      
+      if (isDirectlyTagged || mentionsThisEntity) {
+        // Add post to entity feed (with entity info if not already set)
+        feedPosts.push({
+          ...post,
+          entityId: post.entityId || entityData.entity.id,
+          entityTicker: post.entityTicker || entityData.entity.ticker,
+          entityName: post.entityName || entityData.entity.name,
+        });
+      }
+    });
+    
+    // 2. Filter posts from category feeds (People/Teams) that mention this entity
+    const categoryFeedPosts = getAllCategoryFeedPosts();
+    categoryFeedPosts.forEach(post => {
+      // Check if post is directly tagged with this entity
+      const isDirectlyTagged = post.entityId === entityData.entity.id;
+      
+      // Check if post mentions this entity in content
+      const mentionedEntities = extractEntityMentions(post.content);
+      const mentionsThisEntity = mentionedEntities.some(e => {
+        const mentionName = entityNameToMention(e.name).toLowerCase();
+        return mentionName === entityMentionName;
+      });
+      
+      if (isDirectlyTagged || mentionsThisEntity) {
+        // Check if we already have this post (avoid duplicates)
+        const alreadyAdded = feedPosts.some(p => p.id === post.id);
+        if (!alreadyAdded) {
+          // Add post to entity feed (with entity info if not already set)
+          feedPosts.push({
+            ...post,
+            entityId: post.entityId || entityData.entity.id,
+            entityTicker: post.entityTicker || entityData.entity.ticker,
+            entityName: post.entityName || entityData.entity.name,
+          });
+        }
+      }
+    });
+    
+    // 3. Get all comments from all posts and filter those that mention this entity
     const allComments = Object.values(postComments).flat();
     
-    // Filter comments that mention this entity and convert them to post format
     allComments.forEach(comment => {
       const mentionedEntities = extractEntityMentions(comment.content);
       const mentionsThisEntity = mentionedEntities.some(e => {
@@ -463,7 +514,7 @@ export default function EntityScreen() {
     return feedPosts.sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
-  }, [entityId, entityData?.entity, postComments]);
+  }, [entityId, entityData?.entity, postComments, activityFeed]);
 
   // Get biggest trade in this entity for today - return null when no data (fresh start)
   const biggestEntityTrade = useMemo(() => {
