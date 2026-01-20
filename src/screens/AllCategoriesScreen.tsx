@@ -156,49 +156,41 @@ export default function AllCategoriesScreen() {
   }, [getCategoryVolumes, transactions]);
 
   // Calculate total volumes for People and Teams categories
-  // TEMPORARY: Using hardcoded example data for visualization
   const hierarchicalTreemapData = useMemo(() => {
-    // Example data: People = 65% of total, Teams = 35% of total
-    const peoplePercentage = 65;
-    const teamsPercentage = 35;
+    const peopleSubcategoryData = categoryTradeVolumes.filter(cat => 
+      peopleSubcategories.includes(cat.categoryId)
+    );
+    const teamsSubcategoryData = categoryTradeVolumes.filter(cat => 
+      teamsSubcategories.includes(cat.categoryId)
+    );
 
-    // Example People subcategories (percentages relative to People total)
-    const peopleSubcategoryData = [
-      { name: 'Actors', percentage: 15, categoryId: 'Actors', color: 'green' as const },
-      { name: 'NBA Players', percentage: 20, categoryId: 'NBA Players', color: 'green' as const },
-      { name: 'NFL Players', percentage: 12, categoryId: 'NFL Players', color: 'red' as const },
-      { name: 'Soccer Players', percentage: 8, categoryId: 'Soccer Players', color: 'green' as const },
-      { name: 'Influencers', percentage: 18, categoryId: 'Influencers', color: 'green' as const },
-      { name: 'Political Figures', percentage: 10, categoryId: 'Political Figures', color: 'grey' as const },
-      { name: 'Hip Hop', percentage: 7, categoryId: 'Hip Hop', color: 'green' as const },
-      { name: 'Country Music', percentage: 5, categoryId: 'Country Music', color: 'red' as const },
-      { name: 'Pop Music', percentage: 5, categoryId: 'Pop Music', color: 'green' as const },
-    ];
+    // Calculate total percentages for People and Teams
+    const peopleTotal = peopleSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
+    const teamsTotal = teamsSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
+    const grandTotal = peopleTotal + teamsTotal;
 
-    // Example Teams subcategories (percentages relative to Teams total)
-    const teamsSubcategoryData = [
-      { name: 'NFL Teams', percentage: 18, categoryId: 'NFL Teams', color: 'green' as const },
-      { name: 'NBA Teams', percentage: 12, categoryId: 'NBA Teams', color: 'green' as const },
-      { name: 'College Basketball Teams', percentage: 5, categoryId: 'College Basketball Teams', color: 'red' as const },
-    ];
-
-    // Calculate sum of subcategory percentages for each section
-    const peopleSubcategorySum = peopleSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
-    const teamsSubcategorySum = teamsSubcategoryData.reduce((sum, cat) => sum + cat.percentage, 0);
+    // Calculate percentages relative to grand total (for height allocation)
+    // If both are 0, give equal heights (50/50) so sections are visible, but displayed percentage will be 0%
+    // Otherwise, use proportional heights based on actual trade volumes
+    const peoplePercentage = grandTotal > 0 ? (peopleTotal / grandTotal) * 100 : 50;
+    const teamsPercentage = grandTotal > 0 ? (teamsTotal / grandTotal) * 100 : 50;
+    
+    // Note: peopleTotal and teamsTotal will be 0 when there's no volume,
+    // so subcategorySum will correctly show 0.0% in the UI
 
     return {
       people: {
         totalPercentage: peoplePercentage,
-        subcategorySum: peopleSubcategorySum,
-        subcategories: peopleSubcategoryData,
+        subcategorySum: peopleTotal, // Total percentage of all People subcategories
+        subcategories: peopleSubcategoryData.filter(cat => cat.percentage > 0),
       },
       teams: {
         totalPercentage: teamsPercentage,
-        subcategorySum: teamsSubcategorySum,
-        subcategories: teamsSubcategoryData,
+        subcategorySum: teamsTotal, // Total percentage of all Teams subcategories
+        subcategories: teamsSubcategoryData.filter(cat => cat.percentage > 0),
       },
     };
-  }, []);
+  }, [categoryTradeVolumes]);
 
   // Filter out categories with 0% volume for treemap (but keep them for list view)
   const categoriesWithVolume = useMemo(() => {
@@ -433,7 +425,7 @@ export default function AllCategoriesScreen() {
               >
                 <Text style={[styles.categoryLabel, { color: theme.text }]}>People</Text>
                 <Text style={[styles.categoryPercentage, { color: theme.textSecondary }]}>
-                  {hierarchicalTreemapData.people.totalPercentage.toFixed(1)}%
+                  {hierarchicalTreemapData.people.subcategorySum.toFixed(1)}%
                 </Text>
               </TouchableOpacity>
               <View style={styles.categoryTreemapContainer}>
@@ -472,7 +464,7 @@ export default function AllCategoriesScreen() {
               >
                 <Text style={[styles.categoryLabel, { color: theme.text }]}>Teams</Text>
                 <Text style={[styles.categoryPercentage, { color: theme.textSecondary }]}>
-                  {hierarchicalTreemapData.teams.totalPercentage.toFixed(1)}%
+                  {hierarchicalTreemapData.teams.subcategorySum.toFixed(1)}%
                 </Text>
               </TouchableOpacity>
               <View style={[styles.categoryTreemapContainer, { paddingBottom: 8 }]}>
