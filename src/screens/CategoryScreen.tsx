@@ -987,7 +987,8 @@ export default function CategoryScreen() {
       ],
       'NFL Teams': [],
       'NBA Teams': [],
-      'College Basketball': [],
+      'College Basketball Teams': [],
+      'Teams': [], // Teams category aggregates posts from all team subcategories
       'Hip Hop': [],
       'Country Music': [],
       'Pop Music': [],
@@ -1350,7 +1351,7 @@ export default function CategoryScreen() {
           </View>
           <View style={styles.entityInfo}>
             <Text style={[styles.entityName, { color: theme.text }]}>{item.name}</Text>
-            {categoryId === 'People' && (
+            {(categoryId === 'People' || categoryId === 'Teams') && (
               <Text style={[styles.entitySubcategory, { color: theme.textSecondary }]}>
                 {item.category}
               </Text>

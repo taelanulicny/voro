@@ -961,6 +961,15 @@ export const getEntitiesByCategory = (category: string): EntityData[] => {
     ];
     return ENTITIES.filter(entity => peopleSubcategories.includes(entity.category));
   }
+  // Teams category aggregates entities from team subcategories
+  if (category === 'Teams') {
+    const teamsSubcategories = [
+      'NFL Teams',
+      'NBA Teams',
+      'College Basketball Teams',
+    ];
+    return ENTITIES.filter(entity => teamsSubcategories.includes(entity.category));
+  }
   return ENTITIES.filter(entity => entity.category === category);
 };
 

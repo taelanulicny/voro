@@ -106,7 +106,8 @@ export default function CommunityScreen() {
       'Political Figures': 'Politics',
       'NFL Teams': 'Events',
       'NBA Teams': 'Events',
-      'College Basketball': 'Events',
+      'College Basketball Teams': 'Events',
+      'Teams': 'Events',
       'Hip Hop': 'People',
       'Country Music': 'People',
       'Pop Music': 'People',
@@ -296,7 +297,7 @@ export default function CommunityScreen() {
   );
 
   const renderNewsFilterTabs = () => {
-    const categories = ['People', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball', 'Hip Hop', 'Country Music', 'Pop Music'];
+    const categories = ['People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Hip Hop', 'Country Music', 'Pop Music'];
     const sentiments = [
       { key: 'positive', label: 'Positive', color: '#10B981', icon: 'trending-up' },
       { key: 'negative', label: 'Negative', color: '#EF4444', icon: 'trending-down' },
