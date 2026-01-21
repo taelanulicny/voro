@@ -2573,7 +2573,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 9, // Moved down 5px from 4
     paddingBottom: 12,
     gap: 8,
     // backgroundColor will be set dynamically using theme
@@ -2680,10 +2680,12 @@ const styles = StyleSheet.create({
   xAxisDateLabels: {
     position: 'relative',
     width: SCREEN_WIDTH,
-    height: 24,
+    height: 50, // Increased to give more vertical space for dates
     marginTop: 2,
     paddingLeft: 0,
-    paddingBottom: 16,
+    paddingBottom: 30, // Increased to give more space below date text
+    zIndex: 10, // Ensure dates are above other elements
+    overflow: 'visible', // Ensure text isn't clipped
   },
   xAxisDateLabel: {
     position: 'absolute',
