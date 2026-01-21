@@ -1131,12 +1131,12 @@ export default function HomeScreen() {
               
               // Page 3: Featured IMO
               if (index === 2) {
-                const abridgeEntity = getEntityById(42); // Abridge entity ID
-                const handleAbridgePress = () => {
-                  if (abridgeEntity) {
+                const adinRossEntity = getEntityById(17); // Adin Ross entity ID
+                const handleAdinRossPress = () => {
+                  if (adinRossEntity) {
                     navigation.navigate('Entity', { 
-                      entityId: abridgeEntity.id, 
-                      categoryId: abridgeEntity.category 
+                      entityId: adinRossEntity.id, 
+                      categoryId: adinRossEntity.category 
                     });
                   }
                 };
@@ -1166,7 +1166,7 @@ export default function HomeScreen() {
                       <Text
                         key={`mention-${startIndex}`}
                         style={[styles.imoText, styles.imoMention, { color: theme.primary }]}
-                        onPress={handleAbridgePress}
+                        onPress={handleAdinRossPress}
                       >
                         {mention}
                       </Text>
@@ -1199,11 +1199,11 @@ export default function HomeScreen() {
                           Featured IMO
                         </Text>
                         <TouchableOpacity 
-                          onPress={handleAbridgePress}
+                          onPress={handleAdinRossPress}
                           style={[styles.imoTagButton, { backgroundColor: theme.primaryLight }]}
                         >
-                          <Text style={[styles.imoTag, { color: theme.primary }]}>
-                            @Abridge
+                          <Text style={[styles.imoTag, { color: '#FFFFFF' }]}>
+                            @AdinRoss
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1212,13 +1212,13 @@ export default function HomeScreen() {
                       <View style={[styles.imoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <View style={styles.imoContent}>
                           <Text style={[styles.imoWelcomeText, { color: theme.text }]}>
-                            We would like to welcome Abridge onto Moro and are excited to see what the public's opinion is!
+                            We would like to welcome Adin Ross onto Moro and are excited to see what the public's opinion is!
                           </Text>
                           
                           <View style={styles.imoDivider} />
                           
                           <View style={styles.imoTextContainer}>
-                            {renderTextWithMentions('To be a part of the "Initial Moro Offering", click the tag and decide if you feel positively or negatively about @Abridge.')}
+                            {renderTextWithMentions('To be a part of the "Initial Moro Offering", click the tag and decide if you feel positively or negatively about @AdinRoss.')}
                           </View>
                         </View>
                       </View>
