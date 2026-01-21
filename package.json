@@ -6,9 +6,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
-    "embed-charts-lib": "node scripts/embed-charts-library.js",
-    "prebuild": "npm run embed-charts-lib"
+    "web": "expo start --web"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

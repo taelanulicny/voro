@@ -50,7 +50,7 @@ interface TradingContextType {
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
 
-const INITIAL_CASH_BALANCE = 1000;
+const INITIAL_CASH_BALANCE = 10000;
 
 export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const { token, isAuthenticated } = useAuth();
@@ -173,6 +173,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           id: t.transactionId || t.id,
           entityId: t.entityId,
           entityName: t.entityName,
+          entityName: t.entityName,
           type: t.type === 'buy' ? 'open' : t.type === 'sell' ? 'close' : t.type, // Map old format
           direction: t.direction,
           tokensCommitted: t.tokensCommitted ?? t.quantity ?? 0, // Use tokensCommitted or fallback to quantity
@@ -237,22 +238,6 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
     return () => clearInterval(interval);
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
-
-  // Always recalculate prices every second even if pools haven't changed
-  // This keeps UI and timestamps fresh in standalone mode as well.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const recalculated: Record<number, number> = {};
-      ENTITIES.forEach((entity) => {
-        const pools = entityPools[entity.id] || getInitialPoolValues();
-        recalculated[entity.id] = calculatePrice(pools.positiveTokens, pools.negativeTokens);
-      });
-      setEntityPrices((prev) => ({ ...prev, ...recalculated }));
-      setLastPriceUpdateTime(Date.now());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [entityPools]);
 
   // Check for new day (midnight reset) - runs every second
   useEffect(() => {
