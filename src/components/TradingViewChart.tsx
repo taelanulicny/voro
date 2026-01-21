@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../context/ThemeContext';
+import { lightweightChartsLib } from './lightweightChartsLib';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -22,6 +23,9 @@ interface TradingViewChartProps {
   entityName?: string;
   currentPrice?: number;
   currentVolume?: number;
+  // New props for timeframe and navigation
+  selectedTimeframe?: '1H' | '1D' | '5D' | '1M' | 'ALL';
+  onTimeframeChange?: (timeframe: '1H' | '1D' | '5D' | '1M' | 'ALL') => void;
 }
 
 const TradingViewChart: React.FC<TradingViewChartProps> = ({
@@ -34,6 +38,8 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   entityName = 'Example Entity',
   currentPrice,
   currentVolume = 0,
+  selectedTimeframe = '1D',
+  onTimeframeChange,
 }) => {
   const { theme } = useTheme();
   const chartTheme = themeMode || (theme.background === '#000000' ? 'dark' : 'light');
@@ -101,12 +107,15 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const sixHoursAgo = now - (6 * 60 * 60); // 6 hours in seconds
 
   // TradingView widget HTML with custom data support
+  // Using local embedded lightweight-charts library (no CDN dependency)
   const htmlContent = useCustomData ? `
     <!DOCTYPE html>
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <script type="text/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+        <script type="text/javascript">
+          ${lightweightChartsLib}
+        </script>
         <style>
           body {
             margin: 0;
@@ -229,45 +238,97 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
               }
             }
 
-            // Set initial view: 6 hours before current time on left
+            // Set initial view using logical range
+            // 1 logical unit = 1 data point (1 minute in our case)
+            // Since we have 1-minute data, 60 data points = 1 hour
+            // Default: 18 hours = 1080 minutes = 1080 logical units (6 hours left + 12 hours right)
             // Use setTimeout to ensure chart is fully initialized
             setTimeout(() => {
-              const now = Math.floor(Date.now() / 1000);
-              const sixHoursAgo = now - (6 * 60 * 60); // 6 hours in seconds
-              
-              // Try to set visible range, fallback to fitContent if no data
               if (formattedData.length > 0) {
-                // Find the data point closest to 6 hours ago
-                const targetTime = sixHoursAgo;
-                let closestIndex = 0;
-                let minDiff = Math.abs(formattedData[0].time - targetTime);
+                // Since we have 1-minute data, 1 hour = 60 logical units
+                // Default view: 6 hours left (360 units) + 12 hours right (720 units) = 18 hours total
+                const dataLength = formattedData.length;
+                const currentLogicalIndex = dataLength - 1; // Last data point (current time)
                 
-                for (let i = 1; i < formattedData.length; i++) {
-                  const diff = Math.abs(formattedData[i].time - targetTime);
-                  if (diff < minDiff) {
-                    minDiff = diff;
-                    closestIndex = i;
-                  }
-                }
+                // Set visible logical range: 6 hours before (-360 units) to 12 hours after (+720 units from start)
+                // But we want 6 hours before current point, so: currentLogicalIndex - 360
+                // And 12 hours after current point, but we can't show future data, so: currentLogicalIndex + 12 hours = currentLogicalIndex + 720
+                // Actually, let's show 6 hours before current, and extend 12 hours into the future (beyond current data)
+                const hoursLeft = 6;
+                const hoursRight = 12;
+                const minutesPerHour = 60;
                 
-                // Set visible range to show from 6 hours ago to now
+                // Convert hours to logical units (minutes)
+                const leftLogicalUnits = hoursLeft * minutesPerHour; // 360 units (6 hours)
+                const rightLogicalUnits = hoursRight * minutesPerHour; // 720 units (12 hours)
+                
+                // Set visible logical range: 6 hours before current to 12 hours after current
                 try {
-                  chart.timeScale().setVisibleRange({
-                    from: formattedData[closestIndex].time,
-                    to: now,
+                  chart.timeScale().setVisibleLogicalRange({
+                    from: currentLogicalIndex - leftLogicalUnits,
+                    to: currentLogicalIndex + rightLogicalUnits,
                   });
                 } catch (e) {
-                  // If setVisibleRange fails (e.g., data not in range), use fitContent
+                  // Fallback to showing all data
                   chart.timeScale().fitContent();
                 }
               } else {
-                // No data yet, set range for when data arrives
-                chart.timeScale().setVisibleRange({
-                  from: sixHoursAgo,
-                  to: now,
+                // No data yet, use a default logical range
+                chart.timeScale().setVisibleLogicalRange({
+                  from: -360,
+                  to: 720,
                 });
               }
             }, 100);
+            
+            // Function to set visible range based on timeframe
+            window.setTimeframe = function(timeframe) {
+              if (formattedData.length === 0) return;
+              
+              const dataLength = formattedData.length;
+              const currentLogicalIndex = dataLength - 1;
+              const minutesPerHour = 60;
+              
+              let from, to;
+              switch(timeframe) {
+                case '1H':
+                  // 1 hour: show 30 minutes before and 30 minutes after (1 hour total)
+                  from = currentLogicalIndex - 30;
+                  to = currentLogicalIndex + 30;
+                  break;
+                case '1D':
+                  // 1 day: 6 hours left + current + 12 hours right (18 hours total)
+                  from = currentLogicalIndex - (6 * minutesPerHour);
+                  to = currentLogicalIndex + (12 * minutesPerHour);
+                  break;
+                case '5D':
+                  // 5 days: 2.5 days before and 2.5 days after (5 days total)
+                  // 5 days = 120 hours = 7200 minutes
+                  from = currentLogicalIndex - (60 * minutesPerHour);
+                  to = currentLogicalIndex + (60 * minutesPerHour);
+                  break;
+                case '1M':
+                  // 1 month: ~15 days before and ~15 days after (30 days total)
+                  // 30 days = 720 hours = 43200 minutes
+                  // But we might not have that much data, so cap it
+                  from = Math.max(0, currentLogicalIndex - (360 * minutesPerHour));
+                  to = currentLogicalIndex + (360 * minutesPerHour);
+                  break;
+                case 'ALL':
+                  // Show all data
+                  chart.timeScale().fitContent();
+                  return;
+                default:
+                  return;
+              }
+              
+              try {
+                chart.timeScale().setVisibleLogicalRange({ from, to });
+              } catch (e) {
+                // Fallback to fitContent
+                chart.timeScale().fitContent();
+              }
+            };
 
             // Function to update chart with new data
             window.updateChart = function(newData) {
@@ -433,6 +494,18 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       `);
     }
   }, [currentPrice, currentVolume, useCustomData]);
+
+  // Update timeframe when selectedTimeframe changes
+  useEffect(() => {
+    if (useCustomData && selectedTimeframe && webViewRef.current) {
+      webViewRef.current.injectJavaScript(`
+        if (window.setTimeframe) {
+          window.setTimeframe('${selectedTimeframe}');
+        }
+        true;
+      `);
+    }
+  }, [selectedTimeframe, useCustomData]);
 
   return (
     <View style={[styles.container, { width, height }]}>

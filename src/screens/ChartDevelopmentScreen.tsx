@@ -37,15 +37,38 @@ export default function ChartDevelopmentScreen() {
   const high = BASE_PRICE;
   const low = BASE_PRICE;
   
-  // Generate fake data: every minute from 6 hours ago until now, price = 100
+  // Generate fake data: every minute from 8am EST this morning until now, price = 100, volume = 0
   const generateFakeData = (): PriceDataPoint[] => {
     const now = Math.floor(Date.now() / 1000);
-    const sixHoursAgo = now - (6 * 60 * 60); // 6 hours in seconds
+    
+    // Get current date in EST
+    const estNowParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date(now * 1000));
+    
+    const estYear = parseInt(estNowParts.find(p => p.type === 'year')?.value || '2025', 10);
+    const estMonth = parseInt(estNowParts.find(p => p.type === 'month')?.value || '1', 10) - 1;
+    const estDay = parseInt(estNowParts.find(p => p.type === 'day')?.value || '1', 10);
+    
+    // Create 8am EST this morning
+    const est8AmDate = new Date(Date.UTC(estYear, estMonth, estDay, 8, 0, 0));
+    // Convert EST to UTC (EST is UTC-5, but we need to handle this properly)
+    // Actually, let's use a simpler approach - create date in local time and adjust
+    const eightAmLocal = new Date(estYear, estMonth, estDay, 8, 0, 0);
+    // Get offset between EST and UTC
+    const estOffset = -5 * 60 * 60; // EST is UTC-5 (simplified, doesn't account for DST)
+    const eightAmUTC = Math.floor((eightAmLocal.getTime() / 1000) - estOffset);
     
     const data: PriceDataPoint[] = [];
     
-    // Generate data every minute (60 seconds) from 6 hours ago until now
-    for (let timestamp = sixHoursAgo; timestamp <= now; timestamp += 60) {
+    // Generate data every minute from 8am EST until now
+    for (let timestamp = eightAmUTC; timestamp <= now; timestamp += 60) {
       // Helper to get EST hour from a timestamp
       const estParts = new Intl.DateTimeFormat('en-US', {
         timeZone: 'America/New_York',
@@ -60,7 +83,7 @@ export default function ChartDevelopmentScreen() {
         data.push({
           time: timestamp,
           price: 100,
-          volume: 1000 + Math.floor(Math.random() * 500), // Random volume between 1000-1500
+          volume: 0, // No volume as requested
         });
       }
     }
@@ -72,6 +95,7 @@ export default function ChartDevelopmentScreen() {
   const tradingViewData = useMemo(() => generateFakeData(), []);
   
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'1H' | '1D' | '5D' | '1M' | 'ALL'>('1D');
   const scrollViewRef = React.useRef<ScrollView>(null);
 
   const handleTabChange = (tab: 'chart' | 'about' | 'feed' | 'news') => {
@@ -98,11 +122,29 @@ export default function ChartDevelopmentScreen() {
     return value.toFixed(2);
   };
 
+  const handleTimeframeChange = (timeframe: '1H' | '1D' | '5D' | '1M' | 'ALL') => {
+    setSelectedTimeframe(timeframe);
+  };
+
   const renderChartContent = () => (
     <>
       {/* TradingView Chart Container */}
       <View style={[styles.entityChartWrapperFullWidth, { backgroundColor: theme.card }]}>
         <View style={styles.entityChartContainerFull}>
+          {/* Timeframe Selector (Top-Left) */}
+          <View style={[styles.timeframeSelector, { backgroundColor: theme.card }]}>
+            <TouchableOpacity 
+              style={[styles.timeframeButton, { borderColor: theme.border }]}
+              onPress={() => {
+                // Toggle between 1H and other timeframes - for now just set to 1H
+                handleTimeframeChange('1H');
+              }}
+            >
+              <Text style={[styles.timeframeButtonText, { color: theme.text }]}>1H</Text>
+              <Ionicons name="chevron-down" size={16} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+          
           <View style={styles.tradingViewContainer}>
             <TradingViewChart
               width={SCREEN_WIDTH}
@@ -112,9 +154,39 @@ export default function ChartDevelopmentScreen() {
               currentPrice={currentPrice}
               currentVolume={volume}
               theme={theme.background === '#000000' ? 'dark' : 'light'}
+              selectedTimeframe={selectedTimeframe}
+              onTimeframeChange={handleTimeframeChange}
             />
           </View>
-
+          
+          {/* Bottom Navigation Bar */}
+          <View style={[styles.bottomNavigation, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+            <View style={styles.timeRangeButtons}>
+              {(['1D', '5D', '1M', 'ALL'] as const).map((timeframe) => (
+                <TouchableOpacity
+                  key={timeframe}
+                  style={[
+                    styles.timeRangeButton,
+                    selectedTimeframe === timeframe && styles.timeRangeButtonActive,
+                  ]}
+                  onPress={() => handleTimeframeChange(timeframe)}
+                >
+                  <Text
+                    style={[
+                      styles.timeRangeButtonText,
+                      { color: theme.text },
+                      selectedTimeframe === timeframe && [styles.timeRangeButtonTextActive, { color: '#A855F7' }],
+                    ]}
+                  >
+                    {timeframe}
+                  </Text>
+                  {selectedTimeframe === timeframe && (
+                    <View style={[styles.timeRangeButtonUnderline, { backgroundColor: '#A855F7' }]} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
       </View>
     </>
@@ -418,6 +490,60 @@ const styles = StyleSheet.create({
   tradingViewContainer: {
     width: SCREEN_WIDTH,
     overflow: 'visible', // Changed to visible to show axes
+  },
+  timeframeSelector: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    zIndex: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  timeframeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  timeframeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  bottomNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+  },
+  timeRangeButtons: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  timeRangeButton: {
+    paddingVertical: 4,
+    position: 'relative',
+  },
+  timeRangeButtonActive: {
+    // Active state styling
+  },
+  timeRangeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  timeRangeButtonTextActive: {
+    // Active text styling
+  },
+  timeRangeButtonUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#A855F7',
   },
   comingSoonContainer: {
     flex: 1,
