@@ -303,10 +303,17 @@ export default function EntityScreen() {
   const isPositive = priceChange >= 0;
   
   // categoryId is already in the correct format (no mapping needed)
+  // Preserve acronyms (NBA, NFL) and capitalize other words properly
   const displayCategoryId = categoryId
-    .toLowerCase()
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(word => {
+      // If word is all uppercase (acronym like NBA, NFL), keep it as is
+      if (word === word.toUpperCase() && word.length <= 4) {
+        return word;
+      }
+      // Otherwise capitalize first letter and lowercase the rest
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
     .join(' ');
 
   // Generate mock live game data for top 5 NFL and NBA teams
@@ -407,10 +414,10 @@ export default function EntityScreen() {
 
   // Handler to navigate to team entity page
   const handleTeamPress = (teamId: number, sportCategory?: string) => {
-    navigation.navigate('Entity' as never, {
+    (navigation as NavigationProp).navigate('Entity', {
       entityId: teamId,
       categoryId: sportCategory || categoryId,
-    } as never);
+    });
   };
   
   // Entity-specific feed posts - includes posts and comments that mention the entity
@@ -438,7 +445,6 @@ export default function EntityScreen() {
           ...post,
           entityId: post.entityId || entityData.entity.id,
           entityName: post.entityName || entityData.entity.name,
-          entityName: post.entityName || entityData.entity.name,
         });
       }
     });
@@ -464,7 +470,6 @@ export default function EntityScreen() {
           feedPosts.push({
             ...post,
             entityId: post.entityId || entityData.entity.id,
-            entityName: post.entityName || entityData.entity.name,
             entityName: post.entityName || entityData.entity.name,
           });
         }
@@ -492,7 +497,6 @@ export default function EntityScreen() {
           content: comment.content,
           entityId: entityData.entity.id,
           entityName: entityData.entity.name,
-          entityName: entityData.entity.name,
           sentiment: undefined,
           likes: comment.likes,
           comments: 0, // Comments don't have nested comments in feed
@@ -511,7 +515,14 @@ export default function EntityScreen() {
   }, [entityId, entityData?.entity, postComments, activityFeed]);
 
   // Get biggest trade in this entity for today - return null when no data (fresh start)
-  const biggestEntityTrade = useMemo(() => {
+  const biggestEntityTrade = useMemo<{
+    userInitials: string;
+    userName: string;
+    entityName: string;
+    category: string;
+    amount: number;
+    isPositive: boolean;
+  } | null>(() => {
     // Return null - no hardcoded data, don't show section until real trade data exists
     return null;
   }, [entityId, entityData?.entity?.name, displayCategoryId]);
@@ -930,13 +941,13 @@ export default function EntityScreen() {
           <View style={styles.entityChangeContainer}>
             <Text style={[
               styles.entityChangeText,
-              { color: getChangeColor(priceChange, theme) }
+              { color: getChangeColor(priceChange) }
             ]}>
               {priceChange === 0 ? '' : isPositive ? '+' : ''}{formatCurrency(priceChange)}
             </Text>
             <Text style={[
               styles.entityChangePercent,
-              { color: getChangeColor(priceChange, theme) }
+              { color: getChangeColor(priceChange) }
             ]}>
               ({priceChangePercent === 0 ? '' : isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%)
             </Text>
@@ -1949,23 +1960,11 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     flex: 1,
   },
-  positionCard: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
   positionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-  },
-  positionLabel: {
-    fontSize: 15,
-  },
-  positionValue: {
-    fontSize: 15,
-    fontWeight: '600',
   },
   positionDivider: {
     height: 1,
