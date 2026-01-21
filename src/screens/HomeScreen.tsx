@@ -711,7 +711,7 @@ export default function HomeScreen() {
     {
       id: '1',
       type: 'ad' as const,
-      title: 'bonus',
+      title: 'Marty Supreme',
       imageSource: require('../../assets/spotlight1.png'),
       backgroundColor: '#000000',
       textColor: '#F5F5DC',
