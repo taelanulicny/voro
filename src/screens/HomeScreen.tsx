@@ -1904,6 +1904,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10, // Ensure menu button is above the logo image
   },
   moroContainer: {
     position: 'relative',
