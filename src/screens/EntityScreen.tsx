@@ -12,6 +12,7 @@ import {
   Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -688,206 +689,81 @@ export default function EntityScreen() {
     return '';
   };
 
+  // Generate TradingView chart HTML
+  const chartHtml = useMemo(() => {
+    const entityName = entityData?.entity?.name || 'Entity';
+    const chartTheme = theme.background === '#000000' || theme.background === '#1A1A1A' ? 'dark' : 'light';
+    
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: ${theme.background || '#000000'};
+    }
+    #tradingview_widget {
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="tradingview_widget"></div>
+
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+    new TradingView.widget({
+      "autosize": true,
+      "symbol": "NASDAQ:AAPL",
+      "interval": "1",
+      "timezone": "Etc/UTC",
+      "theme": "${chartTheme}",
+      "style": "0",
+      "locale": "en",
+      "toolbar_bg": "${theme.card || '#1e1e1e'}",
+      "enable_publishing": false,
+      "allow_symbol_change": false,
+      "hide_side_toolbar": false,
+      "hide_top_toolbar": false,
+      "withdateranges": true,
+      "container_id": "tradingview_widget"
+    });
+  </script>
+</body>
+</html>
+    `;
+  }, [theme, entityData?.entity?.name]);
+
   const renderChartContent = () => (
     <>
-        {/* Chart Container */}
-        <View style={[styles.entityChartWrapperFullWidth, { backgroundColor: theme.card }]}>
-          <View style={styles.entityChartContainerFull}>
-            {/* SVG Chart */}
-            <View style={styles.chartWithOverlay}>
-              <Svg width={chartWidth} height={chartHeight}>
-                <Defs>
-                  <LinearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="5%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity="0.8" />
-                    <Stop offset="95%" stopColor={isPositive ? "#10B981" : "#EF4444"} stopOpacity="0.1" />
-                  </LinearGradient>
-                </Defs>
-                
-                {/* Horizontal line at bottom edge */}
-                <Line
-                  x1={0}
-                  y1={margin.top + innerHeight}
-                  x2={chartWidth}
-                  y2={margin.top + innerHeight}
-                  stroke="#000000"
-                  strokeWidth="1"
-                />
-                
-                {/* Line stroke */}
-                {chartPrices.length > 1 && (
-                  <Path
-                    d={generateLinePath()}
-                    stroke={isPositive ? "#10B981" : "#EF4444"}
-                    strokeWidth="2"
-                    fill="none"
-                  />
-                )}
-                
-                {/* Current price horizontal dotted line - show price at 100 */}
-                {(() => {
-                  const currentPriceValue = currentPrice || 100;
-                  const currentPriceY = margin.top + innerHeight - ((currentPriceValue - yDomain.yMin) / yDomain.yRange) * innerHeight;
-                  return (
-                    <G>
-                      <Line
-                        x1={0}
-                        y1={currentPriceY}
-                        x2={chartWidth}
-                        y2={currentPriceY}
-                        stroke="#000000"
-                        strokeWidth="1"
-                        strokeDasharray="3 3"
-                      />
-                      {/* Price label box on the right */}
-                      <Rect
-                        x={chartWidth - 60}
-                        y={currentPriceY - 12}
-                        width={55}
-                        height={24}
-                        rx={4}
-                        fill={isPositive ? "#10B981" : "#EF4444"}
-                      />
-                      <SvgText
-                        x={chartWidth - 32.5}
-                        y={currentPriceY + 4}
-                        fontSize="12"
-                        fill="#FFFFFF"
-                        fontWeight="600"
-                        textAnchor="middle"
-                      >
-                        {currentPriceValue.toFixed(2)}
-                      </SvgText>
-                    </G>
-                  );
-                })()}
-              </Svg>
-            </View>
-          </View>
-
-          {/* Time Frame Selector */}
-          <View style={styles.timeframeSelector}>
-              <TouchableOpacity
-                style={[
-                styles.timeframeButton,
-                {
-                  backgroundColor: selectedTimeframe === '1min' ? theme.primary : theme.backgroundSecondary,
-                  borderColor: theme.border,
-                },
-                ]}
-              onPress={() => setSelectedTimeframe('1min')}
-            >
-              <Text style={[
-                styles.timeframeButtonText,
-                { color: selectedTimeframe === '1min' ? '#FFFFFF' : theme.text }
-              ]}>
-                1 min
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                  style={[
-                styles.timeframeButton,
-                {
-                  backgroundColor: theme.backgroundSecondary,
-                  borderColor: theme.border,
-                },
-              ]}
-              disabled={true}
-            >
-              <Text style={[
-                styles.timeframeButtonText,
-                { color: theme.textSecondary }
-              ]}>
-                More Timeframes Coming Soon
-                </Text>
-              </TouchableOpacity>
-          </View>
+        {/* TradingView Chart */}
+        <View style={[styles.tradingViewContainer, { backgroundColor: theme.card }]}>
+          <WebView
+            source={{ html: chartHtml }}
+            style={styles.tradingViewWebView}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            originWhitelist={['*']}
+            scrollEnabled={false}
+            bounces={false}
+            overScrollMode="never"
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            onLoadEnd={() => console.log('TradingView chart loaded')}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView error:', nativeEvent);
+            }}
+          />
         </View>
-
-        {/* Biggest Trade in Entity Today - hidden for fresh start */}
-        {biggestEntityTrade && (
-          <View style={[styles.infoCard, styles.biggestTradeCard, { backgroundColor: theme.card }]}>
-            <Text style={[styles.infoCardTitle, { color: theme.text }]}>Biggest Trade Today</Text>
-            <View style={styles.biggestTradeContainer}>
-              {/* Top Row: User (left) and Entity (right) */}
-              <View style={styles.biggestTradeTopRow}>
-                <View style={styles.biggestTradeLeft}>
-                  <View style={[styles.userAvatar, { backgroundColor: theme.primary + '20' }]}>
-                    <Text style={[styles.userAvatarText, { color: theme.primary }]}>
-                      {biggestEntityTrade.userInitials}
-                    </Text>
-                  </View>
-                  <Text style={[styles.userName, { color: theme.text }]}>
-                    {biggestEntityTrade.userName}
-                  </Text>
-                </View>
-                <View style={styles.biggestTradeRight}>
-                  <Text style={[styles.entityNameInTrade, { color: theme.text }]}>
-                    {biggestEntityTrade.entityName}
-                  </Text>
-                  <Text style={[styles.categoryInTrade, { color: theme.textSecondary }]}>
-                    {biggestEntityTrade.category}
-                  </Text>
-                </View>
-              </View>
-              
-              {/* Divider */}
-              <View style={[styles.biggestTradeDivider, { backgroundColor: theme.borderLight }]} />
-              
-              {/* Bottom Row: Amount (left) and Positive/Negative (right) */}
-              <View style={styles.biggestTradeBottomRow}>
-                <Text style={[styles.tradeAmount, { color: theme.text }]}>
-                  {biggestEntityTrade.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {TOKEN_SYMBOL}
-                </Text>
-                <Text style={[
-                  styles.tradeSentiment,
-                  { color: biggestEntityTrade.isPositive ? '#10B981' : '#EF4444' }
-                ]}>
-                  {biggestEntityTrade.isPositive ? 'Positive' : 'Negative'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Top Comment in Entity Feed Today */}
-        {topFeedPost && (
-          <View style={[styles.infoCard, { backgroundColor: theme.card }]}>
-            <Text style={[styles.infoCardTitle, { color: theme.text }]}>Top Comment Today</Text>
-            <View style={styles.commentInfo}>
-              <View style={styles.commentHeader}>
-                <Text style={[styles.commentAuthor, { color: theme.text }]}>
-                  {topFeedPost.displayName}
-                </Text>
-                <Text style={[styles.commentTime, { color: theme.textSecondary }]}>
-                  {(() => {
-                    const now = Date.now();
-                    const postTime = new Date(topFeedPost.timestamp).getTime();
-                    const diffMs = now - postTime;
-                    const diffMins = Math.floor(diffMs / 60000);
-                    const diffHours = Math.floor(diffMs / 3600000);
-                    if (diffMins < 60) return `${diffMins}m ago`;
-                    if (diffHours < 24) return `${diffHours}h ago`;
-                    return 'Today';
-                  })()}
-                </Text>
-              </View>
-              <Text style={[styles.commentContent, { color: theme.text }]} numberOfLines={3}>
-                {topFeedPost.content}
-              </Text>
-              <View style={styles.commentEngagement}>
-                <Ionicons name="heart-outline" size={14} color={theme.textSecondary} />
-                <Text style={[styles.commentEngagementText, { color: theme.textSecondary }]}>
-                  {topFeedPost.likes}
-                </Text>
-                <Ionicons name="chatbubble-outline" size={14} color={theme.textSecondary} style={{ marginLeft: 12 }} />
-                <Text style={[styles.commentEngagementText, { color: theme.textSecondary }]}>
-                  {topFeedPost.comments}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
     </>
   );
 
@@ -1584,24 +1460,14 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
   },
-  timeframeSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-    alignSelf: 'flex-start',
+  tradingViewContainer: {
+    width: SCREEN_WIDTH,
+    height: 400,
+    backgroundColor: '#000000',
   },
-  timeframeButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  timeframeButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
+  tradingViewWebView: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   infoCard: {
     marginHorizontal: 16,
