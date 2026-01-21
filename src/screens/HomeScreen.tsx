@@ -1267,7 +1267,7 @@ export default function HomeScreen() {
                   <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
                     <View style={styles.mostLikedContainer}>
                       <Text style={[styles.mostLikedHeader, { color: theme.text }]}>
-                        Most Liked Today
+                        Most Liked Feed Post
                       </Text>
                       <ScrollView
                         style={styles.mostLikedScroll}
