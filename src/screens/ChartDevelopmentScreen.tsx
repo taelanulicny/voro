@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { RootStackParamList } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { formatCurrency, getChangeColor } from '../utils/dataGenerator';
+import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
+import { calculatePrice, BASE_PRICE, EPSILON } from '../utils/sentimentTrading';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -25,13 +26,13 @@ export default function ChartDevelopmentScreen() {
   const { theme } = useTheme();
   
   // Mock entity data to match EntityScreen structure
-  const [currentPrice] = useState(100);
-  const [priceChange] = useState(0);
-  const [priceChangePercent] = useState(0);
-  const [volume] = useState(0);
-  const [high] = useState(100);
-  const [low] = useState(100);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'1min' | 'coming-soon'>('1min');
+  // Base price is 100, representing neutral 0/0 ratio state (no buy/sell pressure)
+  const [currentPrice, setCurrentPrice] = useState(BASE_PRICE);
+  const [priceChange, setPriceChange] = useState(0);
+  const [priceChangePercent, setPriceChangePercent] = useState(0);
+  const [volume, setVolume] = useState(0);
+  const [high, setHigh] = useState(BASE_PRICE);
+  const [low, setLow] = useState(BASE_PRICE);
   const entityName = 'Example Entity';
   const categoryName = 'Test Category';
   const isInWatchlist = false;
@@ -43,19 +44,44 @@ export default function ChartDevelopmentScreen() {
     return value.toFixed(2);
   };
 
-  // Generate sample price data for TradingView chart
+  // Generate price data using the real pricing algorithm
+  // Algorithm: Price = BASE_PRICE * (P + EPSILON) / (N + EPSILON)
+  // Start with P=0, N=0 (neutral state = price of exactly 100)
+  // No randomization - price stays at 100 until actual trading activity
   const priceData = useMemo(() => {
-    const data = [];
+    const points: { time: number; value: number }[] = [];
     const now = Date.now();
-    // Generate 100 data points over the last 24 hours
-    for (let i = 100; i >= 0; i--) {
-      const timestamp = now - (i * 15 * 60 * 1000); // 15 minute intervals
-      // Simulate price movement
-      const price = 100 + Math.sin(i / 10) * 5 + Math.random() * 2;
-      data.push({ time: Math.floor(timestamp / 1000), value: price });
+    
+    // Start with neutral pools (P=0, N=0) = price of exactly 100
+    const positiveTokens = 0;
+    const negativeTokens = 0;
+    
+    // Generate points - all at base price of 100 (no trading activity yet)
+    for (let i = 180; i >= 0; i--) {
+      const ts = now - i * 15 * 60 * 1000; // 15m spacing
+      
+      // Calculate price using the real algorithm
+      // With P=0, N=0: Price = 100 * (0 + 10000) / (0 + 10000) = 100 * 1 = 100
+      const price = calculatePrice(positiveTokens, negativeTokens, EPSILON);
+      points.push({ time: Math.floor(ts / 1000), value: price });
     }
-    return data;
+
+    return points;
   }, []);
+
+  useEffect(() => {
+    if (!priceData.length) return;
+    // All prices should be exactly 100 (P=0, N=0)
+    const price = priceData[0].value; // Should be BASE_PRICE (100)
+    
+    // Set all stats to base values
+    setCurrentPrice(BASE_PRICE);
+    setPriceChange(0);
+    setPriceChangePercent(0);
+    setHigh(BASE_PRICE);
+    setLow(BASE_PRICE);
+    setVolume(0); // No trading activity = no volume
+  }, [priceData]);
 
   // Create HTML for TradingView Lightweight Charts
   const chartHTML = useMemo(() => {
@@ -196,43 +222,6 @@ export default function ChartDevelopmentScreen() {
           </View>
         </View>
 
-        {/* Time Frame Selector */}
-        <View style={styles.timeframeSelector}>
-          <TouchableOpacity
-            style={[
-              styles.timeframeButton,
-              {
-                backgroundColor: selectedTimeframe === '1min' ? theme.primary : theme.backgroundSecondary,
-                borderColor: theme.border,
-              },
-            ]}
-            onPress={() => setSelectedTimeframe('1min')}
-          >
-            <Text style={[
-              styles.timeframeButtonText,
-              { color: selectedTimeframe === '1min' ? '#FFFFFF' : theme.text }
-            ]}>
-              1 min
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.timeframeButton,
-              {
-                backgroundColor: theme.backgroundSecondary,
-                borderColor: theme.border,
-              },
-            ]}
-            disabled={true}
-          >
-            <Text style={[
-              styles.timeframeButtonText,
-              { color: theme.textSecondary }
-            ]}>
-              More Timeframes Coming Soon
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </>
   );
@@ -295,7 +284,7 @@ export default function ChartDevelopmentScreen() {
         </View>
         <View style={styles.entityStatsInfo}>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
-            Volume: <Text style={{ color: theme.text }}>{formatVolume(volume)} TOK</Text>
+            Volume: <Text style={{ color: theme.text }}>{formatVolume(volume)} {TOKEN_SYMBOL}</Text>
           </Text>
           <Text style={[styles.entityStatsLabel, { color: theme.textSecondary }]}>
             High: <Text style={{ color: theme.text }}>{formatCurrency(high)}</Text>
@@ -471,25 +460,6 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontSize: 15,
     lineHeight: 18,
-  },
-  timeframeSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-    alignSelf: 'flex-start',
-  },
-  timeframeButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  timeframeButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   horizontalScrollView: {
     flex: 1,
