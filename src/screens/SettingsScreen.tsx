@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
@@ -414,6 +415,29 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Attribution Section */}
+        <View style={dynamicStyles.section}>
+          <Text style={dynamicStyles.sectionTitle}>ATTRIBUTION</Text>
+          
+          <View style={styles.attributionContainer}>
+            <Text style={[styles.attributionText, { color: theme.textSecondary }]}>
+              Charts powered by TradingView Lightweight Charts™
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                WebBrowser.openBrowserAsync('https://www.tradingview.com/');
+              }}
+            >
+              <Text style={[styles.attributionLink, { color: theme.primary }]}>
+                https://www.tradingview.com/
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.attributionText, { color: theme.textSecondary, marginTop: 8, fontSize: 12 }]}>
+              Licensed under the Apache License 2.0. This software incorporates TradingView Lightweight Charts library created by TradingView.
+            </Text>
+          </View>
+        </View>
+
         {/* Danger Zone */}
         <TouchableOpacity
           style={[styles.logoutButton, { backgroundColor: theme.error }]}
@@ -527,6 +551,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  attributionContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+  },
+  attributionText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  attributionLink: {
+    fontSize: 14,
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
 });
 
