@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -37,11 +37,41 @@ export default function ChartDevelopmentScreen() {
   const high = BASE_PRICE;
   const low = BASE_PRICE;
   
-  // TradingView chart data - empty initially, can be populated later
-  const [tradingViewData, setTradingViewData] = useState<PriceDataPoint[]>([]);
+  // Generate fake data: every minute from 6 hours ago until now, price = 100
+  const generateFakeData = (): PriceDataPoint[] => {
+    const now = Math.floor(Date.now() / 1000);
+    const sixHoursAgo = now - (6 * 60 * 60); // 6 hours in seconds
+    
+    const data: PriceDataPoint[] = [];
+    
+    // Generate data every minute (60 seconds) from 6 hours ago until now
+    for (let timestamp = sixHoursAgo; timestamp <= now; timestamp += 60) {
+      // Helper to get EST hour from a timestamp
+      const estParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        hour: '2-digit',
+        hour12: false,
+      }).formatToParts(new Date(timestamp * 1000));
+      
+      const estHour = parseInt(estParts.find(p => p.type === 'hour')?.value || '0', 10);
+      
+      // Only add data if it's within trading hours (8am-2am EST)
+      if (estHour >= 8 || estHour < 2) {
+        data.push({
+          time: timestamp,
+          price: 100,
+          volume: 1000 + Math.floor(Math.random() * 500), // Random volume between 1000-1500
+        });
+      }
+    }
+    
+    return data;
+  };
+
+  // TradingView chart data - generate fake data for testing
+  const tradingViewData = useMemo(() => generateFakeData(), []);
   
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'1min' | 'coming-soon'>('1min');
   const scrollViewRef = React.useRef<ScrollView>(null);
 
   const handleTabChange = (tab: 'chart' | 'about' | 'feed' | 'news') => {
@@ -76,7 +106,7 @@ export default function ChartDevelopmentScreen() {
           <View style={styles.tradingViewContainer}>
             <TradingViewChart
               width={SCREEN_WIDTH}
-              height={500}
+              height={450}
               customData={tradingViewData}
               entityName={entityName}
               currentPrice={currentPrice}
@@ -85,42 +115,6 @@ export default function ChartDevelopmentScreen() {
             />
           </View>
 
-          {/* TradingView Style Time Frame Selector */}
-          <View style={[styles.tradingViewTimeframeSelector, { backgroundColor: theme.card }]}>
-            <View style={styles.tradingViewTimeframeContainer}>
-              {(['1', '5', '15', '30', '60', '240', '1D', '1W', '1M'] as const).map((tf) => {
-                const isSelected = selectedTimeframe === '1min' && tf === '1';
-                return (
-                  <TouchableOpacity
-                    key={tf}
-                    style={[
-                      styles.tradingViewTimeframeButton,
-                      {
-                        backgroundColor: isSelected ? (theme.background === '#000000' ? '#2962FF' : '#2962FF') : 'transparent',
-                      },
-                    ]}
-                    onPress={() => {
-                      if (tf === '1') setSelectedTimeframe('1min');
-                      // Other timeframes coming soon
-                    }}
-                    disabled={tf !== '1'}
-                  >
-                    <Text style={[
-                      styles.tradingViewTimeframeButtonText,
-                      { 
-                        color: isSelected 
-                          ? '#FFFFFF' 
-                          : (tf !== '1' ? theme.textSecondary : theme.text),
-                        fontWeight: isSelected ? '600' : '400',
-                      }
-                    ]}>
-                      {tf}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
         </View>
       </View>
     </>
@@ -433,29 +427,5 @@ const styles = StyleSheet.create({
   },
   comingSoonText: {
     fontSize: 16,
-  },
-  tradingViewTimeframeSelector: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  tradingViewTimeframeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    flexWrap: 'wrap',
-  },
-  tradingViewTimeframeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    minWidth: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tradingViewTimeframeButtonText: {
-    fontSize: 12,
-    fontWeight: '400',
   },
 });

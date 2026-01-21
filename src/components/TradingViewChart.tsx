@@ -143,8 +143,12 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
                 horzLines: { color: '${chartTheme === 'dark' ? '#2A2A2A' : '#E5E7EB'}' },
               },
               timeScale: {
+                visible: true,
                 timeVisible: true,
-                secondsVisible: false,
+                secondsVisible: true,
+                shiftVisibleRangeOnNewBar: true,
+                allowShiftVisibleRangeOnWhitespaceReplacement: true,
+                ticksVisible: true,
                 rightOffset: 12,
                 barSpacing: 3,
                 fixLeftEdge: false,
@@ -154,12 +158,20 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
               },
               rightPriceScale: {
                 visible: true,
-                borderVisible: true,
-                borderColor: '${chartTheme === 'dark' ? '#374151' : '#E5E7EB'}',
+                autoScale: true,
+                mode: 0, // PriceScaleMode.Normal (0 = Normal, 1 = Log, 2 = Percentage)
+                invertScale: false,
+                alignLabels: true,
                 scaleMargins: {
                   top: 0.05,
                   bottom: 0.25, // More bottom margin for volume histogram
                 },
+                borderVisible: true,
+                borderColor: '${chartTheme === 'dark' ? '#374151' : '#E5E7EB'}',
+                textColor: '${chartTheme === 'dark' ? '#D1D5DB' : '#111827'}',
+                entireTextOnly: false,
+                ticksVisible: true,
+                ensureEdgeTickMarksVisible: false,
               },
               leftPriceScale: {
                 visible: false, // Hide left price scale, only show right
