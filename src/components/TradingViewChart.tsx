@@ -117,6 +117,10 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
           #chart_container {
             width: 100%;
             height: 100%;
+            overflow: visible;
+          }
+          canvas {
+            display: block;
           }
         </style>
       </head>
@@ -132,6 +136,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
               layout: {
                 background: { color: '${chartTheme === 'dark' ? '#1B1B1B' : '#FFFFFF'}' },
                 textColor: '${chartTheme === 'dark' ? '#D1D5DB' : '#111827'}',
+                fontSize: 12,
               },
               grid: {
                 vertLines: { color: '${chartTheme === 'dark' ? '#2A2A2A' : '#E5E7EB'}' },
@@ -144,6 +149,20 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
                 barSpacing: 3,
                 fixLeftEdge: false,
                 fixRightEdge: false,
+                borderVisible: true,
+                borderColor: '${chartTheme === 'dark' ? '#374151' : '#E5E7EB'}',
+              },
+              rightPriceScale: {
+                visible: true,
+                borderVisible: true,
+                borderColor: '${chartTheme === 'dark' ? '#374151' : '#E5E7EB'}',
+                scaleMargins: {
+                  top: 0.05,
+                  bottom: 0.25, // More bottom margin for volume histogram
+                },
+              },
+              leftPriceScale: {
+                visible: false, // Hide left price scale, only show right
               },
             });
 
@@ -255,6 +274,23 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
               }
             };
 
+            // Subscribe to visible time range changes to maintain 6-hour window
+            let isAutoScrolling = true;
+            chart.timeScale().subscribeVisibleTimeRangeChange(function(newVisibleTimeRange) {
+              if (newVisibleTimeRange === null || !isAutoScrolling) {
+                return;
+              }
+              
+              // Track if user manually scrolled (if range is not near current time)
+              const now = Math.floor(Date.now() / 1000);
+              const timeDiff = Math.abs(newVisibleTimeRange.to - now);
+              
+              // If user scrolled more than 1 hour away from current time, disable auto-scroll
+              if (timeDiff > 3600) {
+                isAutoScrolling = false;
+              }
+            });
+
             // Function to update current price (for real-time updates every second)
             window.updatePrice = function(timestamp, price, volume) {
               lineSeries.update({
@@ -269,22 +305,39 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
                 });
               }
               
-              // Maintain 6-hour window: scroll forward as new data arrives
+              // Maintain 6-hour window: scroll forward as new data arrives (only if auto-scrolling)
+              if (isAutoScrolling) {
+                const now = Math.floor(Date.now() / 1000);
+                const sixHoursAgo = now - (6 * 60 * 60);
+                try {
+                  const visibleRange = chart.timeScale().getVisibleRange();
+                  if (visibleRange && visibleRange.to < now) {
+                    // Only update if we're near the right edge (within 1 hour)
+                    if (visibleRange.to >= now - 3600) {
+                      chart.timeScale().setVisibleRange({
+                        from: sixHoursAgo,
+                        to: now,
+                      });
+                    }
+                  }
+                } catch (e) {
+                  // Ignore errors if range can't be set
+                }
+              }
+            };
+
+            // Function to re-enable auto-scroll (can be called when user wants to go back to live)
+            window.enableAutoScroll = function() {
+              isAutoScrolling = true;
               const now = Math.floor(Date.now() / 1000);
               const sixHoursAgo = now - (6 * 60 * 60);
               try {
-                const visibleRange = chart.timeScale().getVisibleRange();
-                if (visibleRange && visibleRange.to < now) {
-                  // Only update if we're near the right edge (within 1 hour)
-                  if (visibleRange.to >= now - 3600) {
-                    chart.timeScale().setVisibleRange({
-                      from: sixHoursAgo,
-                      to: now,
-                    });
-                  }
-                }
+                chart.timeScale().setVisibleRange({
+                  from: sixHoursAgo,
+                  to: now,
+                });
               } catch (e) {
-                // Ignore errors if range can't be set
+                // Ignore errors
               }
             };
 
@@ -388,10 +441,10 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 0,
+    overflow: 'visible', // Changed from 'hidden' to 'visible' to show axes
+    borderWidth: 0, // Remove border to allow axes to show
+    borderColor: 'transparent',
   },
   webview: {
     backgroundColor: 'transparent',

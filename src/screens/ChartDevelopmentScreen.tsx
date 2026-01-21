@@ -41,6 +41,7 @@ export default function ChartDevelopmentScreen() {
   const [tradingViewData, setTradingViewData] = useState<PriceDataPoint[]>([]);
   
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'1min' | 'coming-soon'>('1min');
   const scrollViewRef = React.useRef<ScrollView>(null);
 
   const handleTabChange = (tab: 'chart' | 'about' | 'feed' | 'news') => {
@@ -75,13 +76,50 @@ export default function ChartDevelopmentScreen() {
           <View style={styles.tradingViewContainer}>
             <TradingViewChart
               width={SCREEN_WIDTH}
-              height={450}
+              height={500}
               customData={tradingViewData}
               entityName={entityName}
               currentPrice={currentPrice}
               currentVolume={volume}
               theme={theme.background === '#000000' ? 'dark' : 'light'}
             />
+          </View>
+
+          {/* TradingView Style Time Frame Selector */}
+          <View style={[styles.tradingViewTimeframeSelector, { backgroundColor: theme.card }]}>
+            <View style={styles.tradingViewTimeframeContainer}>
+              {(['1', '5', '15', '30', '60', '240', '1D', '1W', '1M'] as const).map((tf) => {
+                const isSelected = selectedTimeframe === '1min' && tf === '1';
+                return (
+                  <TouchableOpacity
+                    key={tf}
+                    style={[
+                      styles.tradingViewTimeframeButton,
+                      {
+                        backgroundColor: isSelected ? (theme.background === '#000000' ? '#2962FF' : '#2962FF') : 'transparent',
+                      },
+                    ]}
+                    onPress={() => {
+                      if (tf === '1') setSelectedTimeframe('1min');
+                      // Other timeframes coming soon
+                    }}
+                    disabled={tf !== '1'}
+                  >
+                    <Text style={[
+                      styles.tradingViewTimeframeButtonText,
+                      { 
+                        color: isSelected 
+                          ? '#FFFFFF' 
+                          : (tf !== '1' ? theme.textSecondary : theme.text),
+                        fontWeight: isSelected ? '600' : '400',
+                      }
+                    ]}>
+                      {tf}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </View>
       </View>
@@ -385,7 +423,7 @@ const styles = StyleSheet.create({
   },
   tradingViewContainer: {
     width: SCREEN_WIDTH,
-    overflow: 'hidden',
+    overflow: 'visible', // Changed to visible to show axes
   },
   comingSoonContainer: {
     flex: 1,
@@ -395,5 +433,29 @@ const styles = StyleSheet.create({
   },
   comingSoonText: {
     fontSize: 16,
+  },
+  tradingViewTimeframeSelector: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  tradingViewTimeframeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexWrap: 'wrap',
+  },
+  tradingViewTimeframeButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    minWidth: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tradingViewTimeframeButtonText: {
+    fontSize: 12,
+    fontWeight: '400',
   },
 });
