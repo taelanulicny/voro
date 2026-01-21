@@ -790,7 +790,13 @@ export default function HomeScreen() {
             <Ionicons name="menu" size={24} color={theme.text} />
           </TouchableOpacity>
           
-          <Text style={[styles.logoText, { color: theme.text }]}>moro</Text>
+          <View style={styles.moroContainer}>
+            <Image 
+              source={require('../../assets/moro-logo.png')} 
+              style={styles.moroLogo}
+              resizeMode="contain"
+            />
+          </View>
         </View>
         
         <View style={styles.headerRight}>
@@ -1899,13 +1905,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoText: {
+  moroContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  moroText: {
     fontSize: 28,
     fontWeight: 'bold',
-    fontStyle: 'italic',
-    // Note: Bukhari Script font should be loaded via expo-font
-    // For now using italic style as placeholder
-    // fontFamily: 'BukhariScript', // Uncomment when font is loaded
+    color: '#FFFFFF',
+    lineHeight: 28,
+  },
+  moroLogo: {
+    position: 'absolute',
+    top: -36, // Adjust to center vertically on text
+    left: -60, // Adjust to align with text start
+    width: 200,
+    height: 65,
+    zIndex: 1,
   },
   categorySelectorContainer: {
     borderBottomWidth: 1,
