@@ -53,6 +53,10 @@ export default function HomeScreen() {
   const [referralModalVisible, setReferralModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('For You');
   const [addedCategories, setAddedCategories] = useState<string[]>([]);
+  
+  // State to force updates every minute (for top movers, chart tickers, and discover new additions)
+  // Declared early so it can be used in useMemo hooks below
+  const [updateKey, setUpdateKey] = useState(0);
 
   // Load added categories from AsyncStorage on mount and when focused
   useEffect(() => {
@@ -87,7 +91,7 @@ export default function HomeScreen() {
       loadAddedCategories();
     }, [])
   );
-  
+
   // Swipeable section state
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const swipeableScrollRef = useRef<ScrollView>(null);
@@ -145,7 +149,6 @@ export default function HomeScreen() {
     const positions: Array<{
       entityId: number;
       entityName: string;
-      entityName: string;
       category: string;
       currentPrice: number;
       pnl: number;
@@ -158,7 +161,6 @@ export default function HomeScreen() {
         const pnl = getPositionOpenPnL(entity.id);
         positions.push({
           entityId: entity.id,
-          entityName: entity.name,
           entityName: entity.name,
           category: entity.category,
           currentPrice,
@@ -186,7 +188,6 @@ export default function HomeScreen() {
       
       return {
         id: entity.id,
-        name: entity.name,
         name: entity.name,
         type: 'stock' as const,
         currentPrice,
@@ -358,7 +359,6 @@ export default function HomeScreen() {
       const changePercent24h = (change24h / BASE_PRICE) * 100;
       return {
         id: entity.id,
-        name: entity.name,
         name: entity.name,
         currentPrice,
         change24h,
@@ -574,18 +574,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Listen for category to add from navigation params (when navigating from CategoryScreen)
-  useFocusEffect(
-    React.useCallback(() => {
-      const params = navigation.getState()?.routes?.find(r => r.name === 'Main')?.params as any;
-      if (params?.addCategory) {
-        handleAddCategory(params.addCategory);
-        // Clear the param after handling
-        navigation.setParams({ addCategory: undefined } as any);
-      }
-    }, [navigation, addedCategories])
-  );
-
   // Handle removing a category from home screen
   const handleRemoveCategory = async (category: string) => {
     const updated = addedCategories.filter(c => c !== category);
@@ -623,11 +611,9 @@ export default function HomeScreen() {
     return dates;
   };
 
-  // State to force updates every minute (for top movers, chart tickers, and discover new additions)
-  const [updateKey, setUpdateKey] = useState(0);
-
   // Static entity selection for "Discover New Additions" (same as DiscoverNewAdditionsScreen)
   // Same entities are always shown, sorted by date (newest first)
+  // Note: updateKey state is declared earlier in the component
   const discoverNewAdditions = useMemo(() => {
     const weekDates = getDatesThisWeek();
     
@@ -663,10 +649,9 @@ export default function HomeScreen() {
       const changePercent24h = (change24h / BASE_PRICE) * 100;
 
       return {
-      id: entity.id,
-      name: entity.name,
+        id: entity.id,
         name: entity.name,
-      category: entity.category,
+        category: entity.category,
       displayCategory: entity.category,
         currentPrice,
         change24h,
@@ -695,7 +680,6 @@ export default function HomeScreen() {
 
       return {
         id: entity.id,
-        name: entity.name,
         name: entity.name,
         category: entity.category,
         displayCategory: entity.category,
@@ -1829,10 +1813,7 @@ export default function HomeScreen() {
           }}
           entityId={selectedEntity.id}
           entityName={selectedEntity.name}
-          entityName={selectedEntity.name}
-          currentPrice={selectedEntity.price}
           category={selectedEntity.category}
-          existingQuantity={portfolio.holdings.find(h => h.entityId === selectedEntity.id)?.quantity}
         />
       )}
 
@@ -2658,11 +2639,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
   },
-  customChartSvg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
   yAxisLabelsRight: {
     position: 'absolute',
     right: 16,
@@ -2959,58 +2935,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  referralModal: {
-    width: SCREEN_WIDTH * 0.85,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  modalCloseButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: 4,
-  },
-  referralModalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  referralModalText: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 16,
-  },
-  referralTokenAmount: {
-    fontSize: 36,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  referralShareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-    width: '100%',
-  },
-  referralShareButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
