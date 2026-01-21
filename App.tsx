@@ -38,6 +38,7 @@ import CreateAlertScreen from './src/screens/CreateAlertScreen';
 import CommentRepliesScreen from './src/screens/CommentRepliesScreen';
 import AllCommentsScreen from './src/screens/AllCommentsScreen';
 import CastYourVoteScreen from './src/screens/CastYourVoteScreen';
+import TradingViewChartDevelopmentScreen from './src/screens/TradingViewChartDevelopment';
 
 import { RootStackParamList } from './src/types';
 
@@ -127,6 +128,14 @@ function RootNavigator() {
           <Stack.Screen 
             name="AccountValue" 
             component={AccountValueScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen 
+            name="TradingViewChartDevelopment" 
+            component={TradingViewChartDevelopmentScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',

@@ -806,6 +806,13 @@ export default function HomeScreen() {
           >
             <Ionicons name="gift-outline" size={24} color={theme.text} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate('TradingViewChartDevelopment')}
+          >
+            <Ionicons name="bar-chart-outline" size={24} color={theme.text} />
+          </TouchableOpacity>
           
           <TouchableOpacity
             style={styles.iconButton}

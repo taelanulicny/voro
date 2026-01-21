@@ -19,6 +19,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   DiscoverNewAdditions: undefined;
   AccountValue: undefined;
+  TradingViewChartDevelopment: undefined;
   TradeHistory: undefined;
   CreateAlert: { entityId: number; entityName: string; currentPrice: number; change24h: number; changePercent24h: number };
   CommentReplies: { postId: string; commentId: string; commentUsername: string; commentContent: string };
