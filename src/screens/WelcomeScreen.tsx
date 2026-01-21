@@ -57,12 +57,6 @@ export default function WelcomeScreen() {
         >
           <Text style={styles.skipButtonText}>Skip</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.chartDevButton}
-          onPress={() => navigation.navigate('ChartDevelopment')}
-        >
-          <Text style={styles.chartDevButtonText}>Chart Development</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -160,17 +154,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   skipButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  chartDevButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#775a96',
-    borderRadius: 6,
-  },
-  chartDevButtonText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '600',

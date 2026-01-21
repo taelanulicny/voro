@@ -33,7 +33,6 @@ import CategoryScreen from './src/screens/CategoryScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import DiscoverNewAdditionsScreen from './src/screens/DiscoverNewAdditionsScreen';
 import AccountValueScreen from './src/screens/AccountValueScreen';
-import ChartDevelopmentScreen from './src/screens/ChartDevelopmentScreen';
 import TradeHistoryScreen from './src/screens/TradeHistoryScreen';
 import CreateAlertScreen from './src/screens/CreateAlertScreen';
 import CommentRepliesScreen from './src/screens/CommentRepliesScreen';
@@ -58,14 +57,6 @@ function RootNavigator() {
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
-          <Stack.Screen 
-            name="ChartDevelopment" 
-            component={ChartDevelopmentScreen}
-            options={{
-              presentation: 'card',
-              animation: 'slide_from_right',
-            }}
-          />
         </>
       ) : (
         <>
@@ -152,14 +143,6 @@ function RootNavigator() {
           <Stack.Screen 
             name="CreateAlert" 
             component={CreateAlertScreen}
-            options={{
-              presentation: 'card',
-              animation: 'slide_from_right',
-            }}
-          />
-          <Stack.Screen 
-            name="ChartDevelopment" 
-            component={ChartDevelopmentScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',
