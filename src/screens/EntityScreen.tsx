@@ -722,16 +722,17 @@ export default function EntityScreen() {
   <script type="text/javascript">
     new TradingView.widget({
       "autosize": true,
-      "symbol": "NASDAQ:AAPL",
+      "symbol": "NASDAQ:TSLA",
       "interval": "1",
+      "range": "1D",
       "timezone": "Etc/UTC",
       "theme": "${chartTheme}",
-      "style": "0",
+      "style": "2",
       "locale": "en",
       "toolbar_bg": "${theme.card || '#1e1e1e'}",
       "enable_publishing": false,
       "allow_symbol_change": false,
-      "hide_side_toolbar": false,
+      "hide_side_toolbar": true,
       "hide_top_toolbar": false,
       "withdateranges": true,
       "container_id": "tradingview_widget"
