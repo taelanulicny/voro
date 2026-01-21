@@ -467,7 +467,6 @@ export default function CategoryScreen() {
       return {
         id: entity.id,
         name: entity.name,
-        name: entity.name,
         currentPrice,
         change24h,
         changePercent24h,
@@ -475,8 +474,16 @@ export default function CategoryScreen() {
       };
     });
     
-    // Sort by price (descending) - highest price = rank #1
-    const sorted = [...mappedEntities].sort((a, b) => b.currentPrice - a.currentPrice);
+    // For People and Teams megacategories, randomize the order
+    // For subcategories, sort by price (descending) - highest price = rank #1
+    let sorted: typeof mappedEntities;
+    if (categoryId === 'People' || categoryId === 'Teams') {
+      // Randomize order for megacategories
+      sorted = [...mappedEntities].sort(() => Math.random() - 0.5);
+    } else {
+      // Sort by price for subcategories
+      sorted = [...mappedEntities].sort((a, b) => b.currentPrice - a.currentPrice);
+    }
     
     // Add rank and position change to each entity
     return sorted.map((entity, index) => {
@@ -683,10 +690,10 @@ export default function CategoryScreen() {
 
   // Handler to navigate to team entity page
   const handleTeamPress = (teamId: number, sportCategory: string) => {
-    navigation.navigate('Entity' as never, {
+    (navigation as NavigationProp).navigate('Entity', {
       entityId: teamId,
       categoryId: sportCategory,
-    } as never);
+    });
   };
 
   // Generate all live game data for top 5 teams (NFL or NBA)
@@ -711,10 +718,8 @@ export default function CategoryScreen() {
       // Return all games
       return matchups.map(game => ({
         teamName: game.team.name,
-        teamName: game.team.name,
         teamId: game.team.id,
         teamScore: game.teamScore,
-        opponentName: game.opponent.name,
         opponentName: game.opponent.name,
         opponentId: game.opponent.id,
         opponentScore: game.opponentScore,
@@ -746,10 +751,8 @@ export default function CategoryScreen() {
       // Return all games
       return matchups.map(game => ({
         teamName: game.team.name,
-        teamName: game.team.name,
         teamId: game.team.id,
         teamScore: game.teamScore,
-        opponentName: game.opponent.name,
         opponentName: game.opponent.name,
         opponentId: game.opponent.id,
         opponentScore: game.opponentScore,
@@ -777,21 +780,6 @@ export default function CategoryScreen() {
       >
         <View style={styles.rankContainer}>
           <Text style={[styles.rankNumber, { color: theme.textSecondary }]}>{item.rank}</Text>
-          {item.positionChange !== 0 && (
-            <View style={styles.positionChangeContainer}>
-              {item.positionChange > 0 ? (
-                <View style={styles.positionChangeUp}>
-                  <Ionicons name="arrow-up" size={10} color="#10B981" />
-                  <Text style={styles.positionChangeTextUp}>{item.positionChange}</Text>
-                </View>
-              ) : (
-                <View style={styles.positionChangeDown}>
-                  <Ionicons name="arrow-down" size={10} color="#EF4444" />
-                  <Text style={styles.positionChangeTextDown}>{Math.abs(item.positionChange)}</Text>
-                </View>
-              )}
-            </View>
-          )}
         </View>
         <View style={styles.entityLeft}>
           <View style={[styles.entityIcon, { backgroundColor: theme.primaryLight }]}>
