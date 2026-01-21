@@ -1228,6 +1228,77 @@ export const ENTITIES: EntityData[] = [
     basePrice: 100,
     description: 'Rapper, singer, and producer. Trade confidence in Baby Keem\'s Grammy-winning music, album releases, and collaborations with Kendrick Lamar.',
   },
+  // Pop Music
+  {
+    id: 258,
+    name: 'Taylor Swift',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Award-winning singer-songwriter and global pop icon. Track confidence in Taylor Swift\'s album releases, tours, and cultural influence.',
+  },
+  {
+    id: 259,
+    name: 'Ariana Grande',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Grammy-winning pop superstar. Trade confidence in Ariana Grande\'s chart-topping hits, album releases, and massive global fanbase.',
+  },
+  {
+    id: 260,
+    name: 'Harry Styles',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Singer-songwriter and former One Direction member. Track confidence in Harry Styles\' solo career, album releases, and cultural impact.',
+  },
+  {
+    id: 261,
+    name: 'Billie Eilish',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Grammy-winning alternative pop artist. Trade confidence in Billie Eilish\'s chart dominance, album releases, and influence on Gen Z culture.',
+  },
+  {
+    id: 262,
+    name: 'Dua Lipa',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'International pop sensation. Track confidence in Dua Lipa\'s global hits, album releases, and growing influence in the pop music scene.',
+  },
+  {
+    id: 263,
+    name: 'Olivia Rodrigo',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Rising pop star and songwriter. Trade confidence in Olivia Rodrigo\'s album success, chart performance, and growing fanbase.',
+  },
+  {
+    id: 264,
+    name: 'The Weeknd',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Grammy-winning pop and R&B artist. Track confidence in The Weeknd\'s chart-topping albums, tours, and cultural influence.',
+  },
+  {
+    id: 265,
+    name: 'Doja Cat',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Pop and rap crossover artist. Trade confidence in Doja Cat\'s viral hits, album releases, and growing mainstream success.',
+  },
+  {
+    id: 266,
+    name: 'Ed Sheeran',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Singer-songwriter and global pop star. Track confidence in Ed Sheeran\'s chart-topping albums, world tours, and consistent hit-making.',
+  },
+  {
+    id: 267,
+    name: 'Bruno Mars',
+    category: 'Pop Music',
+    basePrice: 100,
+    description: 'Grammy-winning pop and R&B artist. Trade confidence in Bruno Mars\' hit singles, album releases, and live performance excellence.',
+  },
 ];
 
 /**
