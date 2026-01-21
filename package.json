@@ -37,6 +37,7 @@
     "react-native-screenshot-prevent": "^1.2.1",
     "react-native-ssl-pinning": "^1.6.0",
     "react-native-svg": "15.12.1",
+    "react-native-webview": "^13.16.0",
     "zod": "^4.2.1"
   },
   "devDependencies": {
