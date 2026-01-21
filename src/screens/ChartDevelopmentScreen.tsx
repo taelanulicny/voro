@@ -221,7 +221,6 @@ export default function ChartDevelopmentScreen() {
             />
           </View>
         </View>
-
       </View>
     </>
   );
