@@ -79,6 +79,7 @@ export default function ChartDevelopmentScreen() {
               customData={tradingViewData}
               entityName={entityName}
               currentPrice={currentPrice}
+              currentVolume={volume}
               theme={theme.background === '#000000' ? 'dark' : 'light'}
             />
           </View>

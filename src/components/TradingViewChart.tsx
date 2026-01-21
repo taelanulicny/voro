@@ -7,10 +7,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface PriceDataPoint {
   time: number; // Unix timestamp in seconds
-  open: number;
-  high: number;
-  low: number;
-  close: number;
+  price: number;
   volume: number;
 }
 
@@ -24,6 +21,7 @@ interface TradingViewChartProps {
   customData?: PriceDataPoint[];
   entityName?: string;
   currentPrice?: number;
+  currentVolume?: number;
 }
 
 const TradingViewChart: React.FC<TradingViewChartProps> = ({
@@ -35,6 +33,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   customData = [],
   entityName = 'Example Entity',
   currentPrice,
+  currentVolume = 0,
 }) => {
   const { theme } = useTheme();
   const chartTheme = themeMode || (theme.background === '#000000' ? 'dark' : 'light');
@@ -43,8 +42,63 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   // Use custom data if provided, otherwise use symbol
   const useCustomData = customData.length > 0 || currentPrice !== undefined;
 
+  // Helper function to check if timestamp is within trading hours (8am-2am EST)
+  const isTradingHour = (timestamp: number): boolean => {
+    const date = new Date(timestamp * 1000);
+    const estDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const hour = estDate.getHours();
+    // Trading hours: 8am (8) to 2am (2) next day
+    // So hours 0-1 and 8-23 are trading hours
+    return hour >= 8 || hour < 2;
+  };
+
+  // Process data to only include trading hours and connect gaps
+  const processTradingHoursData = (data: PriceDataPoint[]): PriceDataPoint[] => {
+    if (data.length === 0) return [];
+    
+    const processed: PriceDataPoint[] = [];
+    let lastTradingPoint: PriceDataPoint | null = null;
+    
+    for (let i = 0; i < data.length; i++) {
+      const point = data[i];
+      
+      if (isTradingHour(point.time)) {
+        // If there was a gap (last point was before 2am, current is after 8am), connect them
+        if (lastTradingPoint) {
+          const lastDate = new Date(lastTradingPoint.time * 1000);
+          const lastEstDate = new Date(lastDate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+          const lastHour = lastEstDate.getHours();
+          
+          const currentDate = new Date(point.time * 1000);
+          const currentEstDate = new Date(currentDate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+          const currentHour = currentEstDate.getHours();
+          
+          // If last was 0-1 (before 2am) and current is 8-23 (after 8am), connect
+          if (lastHour < 2 && currentHour >= 8) {
+            processed.push(lastTradingPoint);
+            processed.push(point);
+          } else {
+            processed.push(point);
+          }
+        } else {
+          processed.push(point);
+        }
+        lastTradingPoint = point;
+      }
+    }
+    
+    return processed;
+  };
+
+  // Process data for trading hours only
+  const processedData = processTradingHoursData(customData);
+  
   // Convert custom data to JSON string for injection
-  const dataJson = JSON.stringify(customData);
+  const dataJson = JSON.stringify(processedData);
+
+  // Calculate initial time range: 6 hours before current time
+  const now = Math.floor(Date.now() / 1000);
+  const sixHoursAgo = now - (6 * 60 * 60); // 6 hours in seconds
 
   // TradingView widget HTML with custom data support
   const htmlContent = useCustomData ? `
@@ -86,23 +140,39 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
               timeScale: {
                 timeVisible: true,
                 secondsVisible: false,
+                rightOffset: 12,
+                barSpacing: 3,
+                fixLeftEdge: false,
+                fixRightEdge: false,
               },
             });
 
-            const candlestickSeries = chart.addCandlestickSeries({
-              upColor: '#10B981',
-              downColor: '#EF4444',
-              borderVisible: false,
-              wickUpColor: '#10B981',
-              wickDownColor: '#EF4444',
+            // Create line series for price
+            const lineSeries = chart.addLineSeries({
+              color: '#14B8A6',
+              lineWidth: 2,
+              priceFormat: {
+                type: 'price',
+                precision: 2,
+                minMove: 0.01,
+              },
             });
 
+            // Create histogram series for volume at bottom
             const volumeSeries = chart.addHistogramSeries({
               color: '#26a69a',
               priceFormat: {
                 type: 'volume',
               },
-              priceScaleId: '',
+              priceScaleId: 'volume', // Use separate price scale for volume
+              scaleMargins: {
+                top: 0.8,
+                bottom: 0,
+              },
+            });
+
+            // Set up overlay price scale for volume
+            chart.priceScale('volume').applyOptions({
               scaleMargins: {
                 top: 0.8,
                 bottom: 0,
@@ -112,39 +182,110 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
             // Convert data to format expected by lightweight-charts
             const formattedData = chartData.map(item => ({
               time: item.time,
-              open: item.open,
-              high: item.high,
-              low: item.low,
-              close: item.close,
+              value: item.price,
             }));
 
             const volumeData = chartData.map(item => ({
               time: item.time,
               value: item.volume,
-              color: item.close >= item.open ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+              color: 'rgba(16, 185, 129, 0.5)',
             }));
 
             if (formattedData.length > 0) {
-              candlestickSeries.setData(formattedData);
-              volumeSeries.setData(volumeData);
+              lineSeries.setData(formattedData);
+              if (volumeData.length > 0) {
+                volumeSeries.setData(volumeData);
+              }
             }
+
+            // Set initial view: 6 hours before current time on left
+            // Use setTimeout to ensure chart is fully initialized
+            setTimeout(() => {
+              const now = Math.floor(Date.now() / 1000);
+              const sixHoursAgo = now - (6 * 60 * 60); // 6 hours in seconds
+              
+              // Try to set visible range, fallback to fitContent if no data
+              if (formattedData.length > 0) {
+                // Find the data point closest to 6 hours ago
+                const targetTime = sixHoursAgo;
+                let closestIndex = 0;
+                let minDiff = Math.abs(formattedData[0].time - targetTime);
+                
+                for (let i = 1; i < formattedData.length; i++) {
+                  const diff = Math.abs(formattedData[i].time - targetTime);
+                  if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIndex = i;
+                  }
+                }
+                
+                // Set visible range to show from 6 hours ago to now
+                try {
+                  chart.timeScale().setVisibleRange({
+                    from: formattedData[closestIndex].time,
+                    to: now,
+                  });
+                } catch (e) {
+                  // If setVisibleRange fails (e.g., data not in range), use fitContent
+                  chart.timeScale().fitContent();
+                }
+              } else {
+                // No data yet, set range for when data arrives
+                chart.timeScale().setVisibleRange({
+                  from: sixHoursAgo,
+                  to: now,
+                });
+              }
+            }, 100);
 
             // Function to update chart with new data
             window.updateChart = function(newData) {
               const formatted = newData.map(item => ({
                 time: item.time,
-                open: item.open,
-                high: item.high,
-                low: item.low,
-                close: item.close,
+                value: item.price,
               }));
               const volumes = newData.map(item => ({
                 time: item.time,
                 value: item.volume,
-                color: item.close >= item.open ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+                color: 'rgba(16, 185, 129, 0.5)',
               }));
-              candlestickSeries.setData(formatted);
-              volumeSeries.setData(volumes);
+              lineSeries.setData(formatted);
+              if (volumes.length > 0) {
+                volumeSeries.setData(volumes);
+              }
+            };
+
+            // Function to update current price (for real-time updates every second)
+            window.updatePrice = function(timestamp, price, volume) {
+              lineSeries.update({
+                time: timestamp,
+                value: price,
+              });
+              if (volume !== undefined && volume > 0) {
+                volumeSeries.update({
+                  time: timestamp,
+                  value: volume,
+                  color: 'rgba(16, 185, 129, 0.5)',
+                });
+              }
+              
+              // Maintain 6-hour window: scroll forward as new data arrives
+              const now = Math.floor(Date.now() / 1000);
+              const sixHoursAgo = now - (6 * 60 * 60);
+              try {
+                const visibleRange = chart.timeScale().getVisibleRange();
+                if (visibleRange && visibleRange.to < now) {
+                  // Only update if we're near the right edge (within 1 hour)
+                  if (visibleRange.to >= now - 3600) {
+                    chart.timeScale().setVisibleRange({
+                      from: sixHoursAgo,
+                      to: now,
+                    });
+                  }
+                }
+              } catch (e) {
+                // Ignore errors if range can't be set
+              }
             };
 
             // Handle window resize
@@ -202,10 +343,10 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
     </html>
   `;
 
-  // Update chart when custom data changes
+  // Update chart when custom data changes (full data update)
   useEffect(() => {
-    if (useCustomData && customData.length > 0 && webViewRef.current) {
-      const dataJson = JSON.stringify(customData);
+    if (useCustomData && processedData.length > 0 && webViewRef.current) {
+      const dataJson = JSON.stringify(processedData);
       webViewRef.current.injectJavaScript(`
         if (window.updateChart) {
           window.updateChart(${dataJson});
@@ -213,7 +354,20 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         true;
       `);
     }
-  }, [customData, useCustomData]);
+  }, [processedData, useCustomData]);
+
+  // Update current price every second (real-time price updates)
+  useEffect(() => {
+    if (useCustomData && currentPrice !== undefined && webViewRef.current) {
+      const now = Math.floor(Date.now() / 1000);
+      webViewRef.current.injectJavaScript(`
+        if (window.updatePrice) {
+          window.updatePrice(${now}, ${currentPrice}, ${currentVolume || 0});
+        }
+        true;
+      `);
+    }
+  }, [currentPrice, currentVolume, useCustomData]);
 
   return (
     <View style={[styles.container, { width, height }]}>
