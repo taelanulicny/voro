@@ -738,7 +738,7 @@ export default function HomeScreen() {
     {
       id: '3',
       type: 'entity' as const,
-      title: 'moro & X',
+      title: 'MLB Teams',
       imageSource: require('../../assets/spotlight3.png'),
       backgroundColor: '#1E3A8A',
       textColor: '#FFFFFF',
@@ -1553,7 +1553,7 @@ export default function HomeScreen() {
                   <Image
                     source={spotlights[currentSpotlightIndex].imageSource}
                     style={styles.spotlightImage}
-                    resizeMode="contain"
+                    resizeMode="cover"
                   />
                 ) : (
                   <View
