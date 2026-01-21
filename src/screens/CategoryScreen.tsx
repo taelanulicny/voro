@@ -856,7 +856,7 @@ export default function CategoryScreen() {
               }
             }}
           >
-            <Ionicons name="add" size={24} color={theme.textSecondary} />
+            <Ionicons name="add" size={28} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
