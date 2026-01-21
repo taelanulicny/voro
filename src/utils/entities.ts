@@ -144,14 +144,12 @@ export const ENTITIES: EntityData[] = [
     basePrice: 100,
     description: 'Gymnast and social media influencer. Track confidence in Livvy Dunne\'s athletic career, brand partnerships, and social media influence.',
   },
-  // Music Artists
   {
     id: 21,
-
-    name: 'Taylor Swift',
-    category: 'Music Artists',
+    name: 'Bad Bunny',
+    category: 'Pop Music',
     basePrice: 100,
-    description: 'Award-winning singer-songwriter and global pop icon. Track confidence in Taylor Swift\'s album releases, tours, and cultural influence.',
+    description: 'Global reggaeton and Latin trap artist. Trade confidence in Bad Bunny\'s chart success, tours, and cultural impact.',
   },
   {
     id: 22,
@@ -170,28 +168,12 @@ export const ENTITIES: EntityData[] = [
     description: 'Influential rapper, producer, and fashion designer. Track confidence in Kanye West\'s music releases and brand partnerships.',
   },
   {
-    id: 24,
-
-    name: 'Bad Bunny',
-    category: 'Music Artists',
-    basePrice: 100,
-    description: 'Global reggaeton and Latin trap artist. Trade confidence in Bad Bunny\'s chart success, tours, and cultural impact.',
-  },
-  {
     id: 25,
 
     name: 'Travis Scott',
     category: 'Rap Music',
     basePrice: 100,
     description: 'Hip-hop artist and record producer. Track confidence in Travis Scott\'s album releases, collaborations, and live performances.',
-  },
-  {
-    id: 26,
-
-    name: 'Olivia Rodrigo',
-    category: 'Music Artists',
-    basePrice: 100,
-    description: 'Rising pop star and songwriter. Trade confidence in Olivia Rodrigo\'s album success, chart performance, and growing fanbase.',
   },
   {
     id: 27,
@@ -208,22 +190,6 @@ export const ENTITIES: EntityData[] = [
     category: 'Rap Music',
     basePrice: 100,
     description: 'Rising rapper and viral sensation. Trade confidence in Ice Spice\'s chart success, collaborations, and career growth.',
-  },
-  {
-    id: 29,
-
-    name: 'The Weeknd',
-    category: 'Music Artists',
-    basePrice: 100,
-    description: 'Grammy-winning singer, songwriter, and producer. Track confidence in The Weeknd\'s album releases, tours, and artistic evolution.',
-  },
-  {
-    id: 30,
-
-    name: 'Doja Cat',
-    category: 'Music Artists',
-    basePrice: 100,
-    description: 'Singer, rapper, and songwriter. Trade confidence in Doja Cat\'s chart-topping hits, album releases, and social media presence.',
   },
   // Political Figures
   {
@@ -1230,70 +1196,70 @@ export const ENTITIES: EntityData[] = [
   },
   // Pop Music
   {
-    id: 258,
+    id: 274,
     name: 'Taylor Swift',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Award-winning singer-songwriter and global pop icon. Track confidence in Taylor Swift\'s album releases, tours, and cultural influence.',
   },
   {
-    id: 259,
+    id: 275,
     name: 'Ariana Grande',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Grammy-winning pop superstar. Trade confidence in Ariana Grande\'s chart-topping hits, album releases, and massive global fanbase.',
   },
   {
-    id: 260,
+    id: 276,
     name: 'Harry Styles',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Singer-songwriter and former One Direction member. Track confidence in Harry Styles\' solo career, album releases, and cultural impact.',
   },
   {
-    id: 261,
+    id: 277,
     name: 'Billie Eilish',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Grammy-winning alternative pop artist. Trade confidence in Billie Eilish\'s chart dominance, album releases, and influence on Gen Z culture.',
   },
   {
-    id: 262,
+    id: 278,
     name: 'Dua Lipa',
     category: 'Pop Music',
     basePrice: 100,
     description: 'International pop sensation. Track confidence in Dua Lipa\'s global hits, album releases, and growing influence in the pop music scene.',
   },
   {
-    id: 263,
+    id: 279,
     name: 'Olivia Rodrigo',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Rising pop star and songwriter. Trade confidence in Olivia Rodrigo\'s album success, chart performance, and growing fanbase.',
   },
   {
-    id: 264,
+    id: 280,
     name: 'The Weeknd',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Grammy-winning pop and R&B artist. Track confidence in The Weeknd\'s chart-topping albums, tours, and cultural influence.',
   },
   {
-    id: 265,
+    id: 281,
     name: 'Doja Cat',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Pop and rap crossover artist. Trade confidence in Doja Cat\'s viral hits, album releases, and growing mainstream success.',
   },
   {
-    id: 266,
+    id: 282,
     name: 'Ed Sheeran',
     category: 'Pop Music',
     basePrice: 100,
     description: 'Singer-songwriter and global pop star. Track confidence in Ed Sheeran\'s chart-topping albums, world tours, and consistent hit-making.',
   },
   {
-    id: 267,
+    id: 283,
     name: 'Bruno Mars',
     category: 'Pop Music',
     basePrice: 100,

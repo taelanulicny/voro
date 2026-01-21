@@ -622,21 +622,21 @@ export default function HomeScreen() {
     const influencers = ENTITIES.filter(e => e.id >= 11 && e.id <= 20);
     const fixedInfluencer = influencers[0]; // Always use first one
     
-    // Get 1 entity from Music Artists (IDs 21-30) - using a fixed index
-    const musicArtists = ENTITIES.filter(e => e.id >= 21 && e.id <= 30);
-    const fixedMusicArtist = musicArtists[0]; // Always use first one
+    // Get 1 entity from Pop Music - using a fixed index
+    const popArtists = ENTITIES.filter(e => e.category === 'Pop Music');
+    const fixedPopArtist = popArtists[0]; // Always use first one
     
     // Get 1 entity from Political Figures (IDs 31-39) - using a fixed index
     const politicalFigures = ENTITIES.filter(e => e.category === 'Politics' && e.id >= 31 && e.id <= 39);
     const fixedPolitical = politicalFigures[0]; // Always use first one
     
     // Get 1 more entity from any of these categories - using a fixed index
-    const allCandidates = [...influencers, ...musicArtists, ...politicalFigures];
+    const allCandidates = [...influencers, ...popArtists, ...politicalFigures];
     const fixedFourth = allCandidates[3]; // Always use same one
     
     const entities = [
       fixedInfluencer,
-      fixedMusicArtist,
+      fixedPopArtist,
       fixedPolitical,
       fixedFourth,
     ].filter(Boolean); // Remove any undefined values
