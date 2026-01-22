@@ -98,8 +98,8 @@ export default function HomeScreen() {
   const TOTAL_PAGES = 6;
   
   // Categories match the treemap categories from AllCategoriesScreen
-  const categories = ['For You', 'People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
-  const customizableCategories = ['People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
+  const categories = ['For You', 'People', 'Teams', 'Actors', 'Influencers', 'NBA Players', 'NFL Players', 'Soccer Players', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
+  const customizableCategories = ['People', 'Teams', 'Actors', 'Influencers', 'NBA Players', 'NFL Players', 'Soccer Players', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
 
   // Get icon name for each category
   const getCategoryIcon = (category: string): string => {
