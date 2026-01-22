@@ -61,7 +61,7 @@ export default function SearchScreen() {
   }, [entityPrices, getEntityPrice]);
   
 
-  const categories = ['All', 'People', 'Teams', 'Actors', 'NBA Players', 'NFL Players', 'Soccer Players', 'Influencers', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
+  const categories = ['All', 'People', 'Teams', 'Actors', 'Influencers', 'NBA Players', 'NFL Players', 'Soccer Players', 'Political Figures', 'NFL Teams', 'NBA Teams', 'College Basketball Teams', 'Rap Music', 'Country Music', 'Pop Music'];
 
   // Categories are now stored directly (no mapping needed)
 
