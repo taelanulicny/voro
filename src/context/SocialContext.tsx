@@ -60,17 +60,6 @@ const SocialContext = createContext<SocialContextType | undefined>(undefined);
 // Mock groups (not yet implemented in backend)
 const MOCK_GROUPS: Group[] = [
   {
-    id: '1',
-    name: 'Tech Stock Bulls',
-    description: 'Discussion group for technology stock investors',
-    category: 'Technology',
-    memberCount: 1234,
-    isPrivate: false,
-    isMember: true,
-    location: 'California',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-  },
-  {
     id: '2',
     name: 'Crypto Enthusiasts',
     description: 'All things cryptocurrency and blockchain',
@@ -268,18 +257,19 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.success && response.data) {
+      const responseData = response.data as any; // Backend may return postId instead of id
       const newPost: Post = {
-          id: response.data.postId || response.data.id,
-          userId: response.data.userId,
-          username: response.data.username,
-          displayName: response.data.displayName,
-          avatarUrl: response.data.avatarUrl,
-          content: response.data.content,
-          entityId: response.data.entityId,
-          entityName: response.data.entityName,
-          sentiment: response.data.sentiment,
-          likes: response.data.likes || 0,
-          comments: response.data.comments || 0,
+          id: responseData.postId || responseData.id,
+          userId: responseData.userId,
+          username: responseData.username,
+          displayName: responseData.displayName,
+          avatarUrl: responseData.avatarUrl,
+          content: responseData.content,
+          entityId: responseData.entityId,
+          entityName: responseData.entityName,
+          sentiment: responseData.sentiment,
+          likes: responseData.likes || 0,
+          comments: responseData.comments || 0,
         isLiked: false,
         isBookmarked: false,
           timestamp: response.data.timestamp,
@@ -346,7 +336,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     return { success: true };
   }, []);
 
-  const getComments = useCallback(async (postId: string) => {
+  const getComments = useCallback(async (postId: string | null) => {
+    if (!postId || !token) {
+      return;
+    }
+    // TypeScript: postId and token are guaranteed to be string after null checks
+    const validPostId: string = postId;
+    const validToken: string = token;
     // Mock comments with replies for specific posts to demonstrate the feature
     const mockCommentsWithReplies: Record<string, Comment[]> = {
       'inf-1': [
@@ -498,15 +494,15 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     };
 
     // Return mock comments if available, otherwise try API
-    if (mockCommentsWithReplies[postId]) {
-      setPostComments(prev => ({ ...prev, [postId]: mockCommentsWithReplies[postId] }));
+    if (mockCommentsWithReplies[validPostId]) {
+      setPostComments(prev => ({ ...prev, [validPostId]: mockCommentsWithReplies[validPostId] }));
       return;
     }
 
     try {
       const response = await authenticatedRequest<Comment[]>(
-        `/api/social/posts/${postId}/comments`,
-        token,
+        `/api/social/posts/${validPostId}/comments`,
+        validToken,
         {
           method: 'GET',
         }
@@ -550,17 +546,18 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-    const newComment: Comment = {
-          id: response.data.commentId || response.data.id,
-          postId: response.data.postId,
-          userId: response.data.userId,
-          username: response.data.username,
-          displayName: response.data.displayName,
-          avatarUrl: response.data.avatarUrl,
-          content: response.data.content,
-          likes: response.data.likes || 0,
+      const responseData = response.data as any; // Backend may return commentId instead of id
+      const newComment: Comment = {
+          id: responseData.commentId || responseData.id,
+          postId: responseData.postId,
+          userId: responseData.userId,
+          username: responseData.username,
+          displayName: responseData.displayName,
+          avatarUrl: responseData.avatarUrl,
+          content: responseData.content,
+          likes: responseData.likes || 0,
       isLiked: false,
-          timestamp: response.data.timestamp,
+          timestamp: responseData.timestamp,
     };
     
     setPostComments(prev => ({
