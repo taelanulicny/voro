@@ -63,6 +63,7 @@ export interface Entity {
   id: number;
   name: string;
   type: 'stock' | 'crypto' | 'commodity' | 'forex';
+  category?: string;
   currentPrice: number;
   change24h: number;
   changePercent24h: number;

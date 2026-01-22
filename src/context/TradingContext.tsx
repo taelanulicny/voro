@@ -173,7 +173,6 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           id: t.transactionId || t.id,
           entityId: t.entityId,
           entityName: t.entityName,
-          entityName: t.entityName,
           type: t.type === 'buy' ? 'open' : t.type === 'sell' ? 'close' : t.type, // Map old format
           direction: t.direction,
           tokensCommitted: t.tokensCommitted ?? t.quantity ?? 0, // Use tokensCommitted or fallback to quantity

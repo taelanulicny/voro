@@ -53,12 +53,12 @@ export default function EntityCard({
         'Politics': 'Political Figures',
         'People': 'Influencers',
       };
-      const categoryId = categoryMap[entity.category] || entity.category;
-      
-      navigation.navigate('Entity' as never, {
+      const categoryId = (entity.category && categoryMap[entity.category]) || entity.category || 'Uncategorized';
+
+      navigation.navigate('Entity', {
         entityId: entity.id,
-        categoryId: categoryId,
-      } as never);
+        categoryId,
+      });
     }
   };
 

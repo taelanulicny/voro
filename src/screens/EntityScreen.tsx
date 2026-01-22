@@ -722,7 +722,7 @@ export default function EntityScreen() {
   <script type="text/javascript">
     new TradingView.widget({
       "autosize": true,
-      "symbol": "NASDAQ:TSLA",
+      "symbol": "NASDAQ:HOOD",
       "interval": "1",
       "range": "1D",
       "timezone": "Etc/UTC",
