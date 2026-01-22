@@ -23,7 +23,7 @@ import {
   BASE_PRICE,
 } from './priceCalculationService';
 
-const INITIAL_CASH_BALANCE = 10000;
+const INITIAL_CASH_BALANCE = 1000;
 const dynamoDbClient = new DynamoDBClient({
   region: process.env.AWS_REGION || 'us-east-1',
 });

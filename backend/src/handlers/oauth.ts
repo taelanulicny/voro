@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import jwksClient from 'jwks-rsa';
 import { logger } from '../utils/logger';
 
-const INITIAL_CASH_BALANCE = 10000;
+const INITIAL_CASH_BALANCE = 1000;
 
 interface GoogleTokenPayload {
   iss: string;

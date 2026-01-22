@@ -50,7 +50,7 @@ interface TradingContextType {
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
 
-const INITIAL_CASH_BALANCE = 10000;
+const INITIAL_CASH_BALANCE = 1000;
 
 export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const { token, isAuthenticated } = useAuth();

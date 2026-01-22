@@ -7,7 +7,7 @@ import { Portfolio, Transaction, Entity, PriceHistory } from '../models/types';
 import { logger } from '../utils/logger';
 import { BASE_PRICE } from './priceCalculationService';
 
-const INITIAL_CASH_BALANCE = 10000;
+const INITIAL_CASH_BALANCE = 1000;
 
 // DynamoDB client for TransactWriteItems (requires regular client, not document client)
 const dynamoDbClient = new DynamoDBClient({

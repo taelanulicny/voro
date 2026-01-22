@@ -22,7 +22,7 @@ import { useScreenshotProtection } from '../utils/security';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const SIMULATOR_STARTING_BALANCE = 10000;
+const SIMULATOR_STARTING_BALANCE = 1000;
 
 interface SimulatorHolding {
   entityId: number;
@@ -201,7 +201,7 @@ export default function SimulatorScreen() {
   const handleResetSimulator = () => {
     Alert.alert(
       'Reset Simulator',
-      'Are you sure you want to reset your simulator portfolio? This will delete all trades and reset to $10,000.',
+      'Are you sure you want to reset your simulator portfolio? This will delete all trades and reset to $1,000.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

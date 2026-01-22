@@ -34,7 +34,7 @@ export default function SettingsScreen() {
   const handleResetPortfolio = () => {
     Alert.alert(
       'Reset Portfolio',
-      'Are you sure you want to reset your portfolio? This will clear all positions and reset your balance to $10,000.',
+      'Are you sure you want to reset your portfolio? This will clear all positions and reset your balance to $1,000.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

@@ -18,7 +18,7 @@ const cognitoClient = new CognitoIdentityProviderClient({
 
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 const CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
-const INITIAL_CASH_BALANCE = 10000;
+const INITIAL_CASH_BALANCE = 1000;
 
 export async function signup(
   email: string,

@@ -36,7 +36,7 @@ export default function ProfileScreen() {
   const userPosts = activityFeed.filter(post => post.userId === user?.id);
 
   // Mock follower/following counts based on followedUsers
-  const followersCount = 245; // Mock count
+  const followersCount = 0; // Mock count
   const followingCount = followedUsers.size;
   const postsCount = userPosts.length;
   const groupsCount = 0; // Mock count - will be replaced with actual data later

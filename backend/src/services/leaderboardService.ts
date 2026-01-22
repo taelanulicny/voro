@@ -3,7 +3,7 @@ import { ScanCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { User } from '../models/types';
 import { getUserPortfolio } from './tradingService';
 
-const INITIAL_CASH_BALANCE = 10000;
+const INITIAL_CASH_BALANCE = 1000;
 
 export interface LeaderboardEntry {
   rank: number;
