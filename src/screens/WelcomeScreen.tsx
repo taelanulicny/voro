@@ -31,7 +31,7 @@ export default function WelcomeScreen() {
           </View>
         </View>
         <Text style={styles.subtitle}>
-          The first platform to quantify public opinion continuously over time.
+          The first platform to quantify public opinion.
         </Text>
 
         <TouchableOpacity
