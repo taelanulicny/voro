@@ -44,7 +44,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { portfolio, getEntityPrice, getAllEntityPrices, getPosition, getPositionOpenPnL } = useTrading();
+  const { portfolio, getEntityPrice, getAllEntityPrices, getPosition, getPositionOpenPnL, transactions } = useTrading();
   const { theme } = useTheme();
   const { watchlist } = useWatchlist();
   const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
@@ -707,6 +707,63 @@ export default function HomeScreen() {
   }, [entityPrices, getEntityPrice, updateKey]); // Include updateKey to force refresh
 
   // Mock spotlight items - can be ads, entities, users, or events
+  // Get top 2 biggest trades today from database
+  // TODO: This currently only uses current user's transactions. 
+  // Need to create API endpoint `/api/trades/top-today` that returns all users' trades for today
+  // with user info (username, displayName, avatarUrl) included
+  const topTradesToday = useMemo<Array<{
+    id: string;
+    userName: string;
+    userInitials: string;
+    entityName: string;
+    category: string;
+    amount: number;
+    isPositive: boolean;
+  }>>(() => {
+    // Get today's date at midnight
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTimestamp = today.getTime();
+
+    // Filter transactions for today and type 'open' (only opening trades, not closes)
+    const todayTrades = transactions.filter(t => {
+      const tradeDate = new Date(t.timestamp);
+      tradeDate.setHours(0, 0, 0, 0);
+      return tradeDate.getTime() === todayTimestamp && t.type === 'open';
+    });
+
+    // Sort by tokensCommitted (descending) and take top 2
+    const sortedTrades = todayTrades
+      .sort((a, b) => b.tokensCommitted - a.tokensCommitted)
+      .slice(0, 2);
+
+    // Map to display format
+    // Note: Currently transactions don't have user info, so we can't show other users' trades
+    // This will need to be updated when API endpoint is created
+    return sortedTrades.map(trade => {
+      // For now, we can't get user info from transactions
+      // This will be populated from API response when endpoint is created
+      const entity = getEntityById(trade.entityId);
+      const getInitials = (name: string) => {
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+          return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+      };
+
+      return {
+        id: trade.id,
+        userName: 'User', // TODO: Get from API response
+        userInitials: 'U', // TODO: Get from API response
+        entityName: trade.entityName,
+        category: trade.category || entity?.category || 'Uncategorized',
+        amount: trade.tokensCommitted,
+        isPositive: trade.direction === 'positive',
+      };
+    });
+  }, [transactions]);
+
   const spotlights = useMemo(() => [
     {
       id: '1',
@@ -1403,27 +1460,8 @@ export default function HomeScreen() {
               
               // Page 6: Top 2 Biggest Trades Today
               if (index === 5) {
-                // Fake trade data
-                const topTrades = [
-                  {
-                    id: 1,
-                    userName: 'Alex Morgan',
-                    userInitials: 'AM',
-                    entityName: 'Alix Earle',
-                    category: 'Influencers',
-                    amount: 15420.50,
-                    isPositive: true,
-                  },
-                  {
-                    id: 2,
-                    userName: 'Jordan Smith',
-                    userInitials: 'JS',
-                    entityName: 'Joe Biden',
-                    category: 'Political Figures',
-                    amount: 12350.75,
-                    isPositive: false,
-                  },
-                ];
+                // Get top trades from database (currently returns empty array - needs API endpoint for all users' trades)
+                const topTrades = topTradesToday;
 
                 return (
                   <View key={index} style={[styles.swipeablePage, { backgroundColor: theme.backgroundSecondary }]}>
@@ -1431,57 +1469,69 @@ export default function HomeScreen() {
                       <Text style={[styles.topTradesHeader, { color: theme.text }]}>
                         Top 2 Biggest Trades Today
                       </Text>
-                      <ScrollView
-                        style={styles.topTradesScroll}
-                        contentContainerStyle={styles.topTradesScrollContent}
-                        showsVerticalScrollIndicator={false}
-                      >
-                        {topTrades.map((trade) => (
-                          <View
-                            key={trade.id}
-                            style={[styles.topTradeCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-                          >
-                            <View style={styles.topTradeCardTop}>
-                              {/* Left: User */}
-                              <View style={styles.topTradeUserInfo}>
-                                <View style={[styles.topTradeAvatar, { backgroundColor: theme.primaryLight }]}>
-                                  <Text style={[styles.topTradeAvatarText, { color: theme.primary }]}>
-                                    {trade.userInitials}
+                      {topTrades.length > 0 ? (
+                        <ScrollView
+                          style={styles.topTradesScroll}
+                          contentContainerStyle={styles.topTradesScrollContent}
+                          showsVerticalScrollIndicator={false}
+                        >
+                          {topTrades.map((trade) => (
+                            <View
+                              key={trade.id}
+                              style={[styles.topTradeCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                            >
+                              <View style={styles.topTradeCardTop}>
+                                {/* Left: User */}
+                                <View style={styles.topTradeUserInfo}>
+                                  <View style={[styles.topTradeAvatar, { backgroundColor: theme.primaryLight }]}>
+                                    <Text style={[styles.topTradeAvatarText, { color: theme.primary }]}>
+                                      {trade.userInitials}
+                                    </Text>
+                                  </View>
+                                  <Text style={[styles.topTradeUserName, { color: theme.text }]}>
+                                    {trade.userName}
                                   </Text>
                                 </View>
-                                <Text style={[styles.topTradeUserName, { color: theme.text }]}>
-                                  {trade.userName}
-                                </Text>
+                                
+                                {/* Right: Entity and Category */}
+                                <View style={styles.topTradeEntityInfo}>
+                                  <Text style={[styles.topTradeEntityName, { color: theme.text }]}>
+                                    {trade.entityName}
+                                  </Text>
+                                  <Text style={[styles.topTradeCategory, { color: theme.textSecondary }]}>
+                                    {trade.category}
+                                  </Text>
+                                </View>
                               </View>
                               
-                              {/* Right: Entity and Category */}
-                              <View style={styles.topTradeEntityInfo}>
-                                <Text style={[styles.topTradeEntityName, { color: theme.text }]}>
-                                  {trade.entityName}
+                              {/* Bottom: Amount and Positive/Negative */}
+                              <View style={[styles.topTradeCardBottom, { borderTopColor: theme.border }]}>
+                                <Text style={[styles.topTradeAmount, { color: theme.text }]}>
+                                  {formatCurrency(trade.amount)}
                                 </Text>
-                                <Text style={[styles.topTradeCategory, { color: theme.textSecondary }]}>
-                                  {trade.category}
+                                <Text
+                                  style={[
+                                    styles.topTradeStatus,
+                                    { color: trade.isPositive ? '#10B981' : '#EF4444' },
+                                  ]}
+                                >
+                                  {trade.isPositive ? 'Positive' : 'Negative'}
                                 </Text>
                               </View>
                             </View>
-                            
-                            {/* Bottom: Amount and Positive/Negative */}
-                            <View style={[styles.topTradeCardBottom, { borderTopColor: theme.border }]}>
-                              <Text style={[styles.topTradeAmount, { color: theme.text }]}>
-                                {formatCurrency(trade.amount)}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.topTradeStatus,
-                                  { color: trade.isPositive ? '#10B981' : '#EF4444' },
-                                ]}
-                              >
-                                {trade.isPositive ? 'Positive' : 'Negative'}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                      </ScrollView>
+                          ))}
+                        </ScrollView>
+                      ) : (
+                        <View style={styles.topTradesEmptyState}>
+                          <Ionicons name="trending-up-outline" size={48} color={theme.textTertiary} />
+                          <Text style={[styles.topTradesEmptyText, { color: theme.textSecondary }]}>
+                            No trades today yet
+                          </Text>
+                          <Text style={[styles.topTradesEmptySubtext, { color: theme.textTertiary }]}>
+                            The biggest trades will appear here
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 );
@@ -3054,5 +3104,23 @@ const styles = StyleSheet.create({
   topTradeStatus: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  topTradesEmptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  topTradesEmptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  topTradesEmptySubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
