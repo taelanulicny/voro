@@ -12,7 +12,7 @@ import {
   Share,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -41,6 +41,7 @@ export default function CommunityScreen() {
   const { activityFeed, isLoadingFeed, refreshActivityFeed, followedUsers, isFollowingUser, myGroups, groups } = useSocial();
   const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'trending' | 'following'>('trending');
   const [refreshing, setRefreshing] = useState(false);
@@ -700,7 +701,26 @@ export default function CommunityScreen() {
       <CreatePostModal
         visible={showCreatePost}
         onClose={() => setShowCreatePost(false)}
+        slideFromBottom={true}
       />
+
+      {/* Floating Action Button - Only show on Feed tab */}
+      {selectedTab === 'feed' && (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            {
+              backgroundColor: theme.primary,
+              bottom: Math.max(insets.bottom, 12) + 48 + 20, // Above profile button (48px) + 20px gap
+              right: 16 + 12, // Same as nav padding + offset to be diagonally up and left
+            }
+          ]}
+          onPress={() => setShowCreatePost(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -1007,5 +1027,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
+  },
+  fab: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

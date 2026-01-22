@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     right: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '90%',
+    maxHeight: '50%',
   },
   header: {
     flexDirection: 'row',
