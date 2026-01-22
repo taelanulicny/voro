@@ -336,6 +336,13 @@ export const ENTITIES: EntityData[] = [
   },
   // Actors
   {
+    id: 999,
+    name: 'test_entity',
+    category: 'Actors',
+    basePrice: 100,
+    description: 'Test entity for development and testing purposes.',
+  },
+  {
     id: 50,
 
     name: 'Zendaya',
