@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "moro-systems-llc",
     "name": "Moro",
     "slug": "moro-mobile",
     "version": "10.1.8",
