@@ -60,6 +60,28 @@ const SocialContext = createContext<SocialContextType | undefined>(undefined);
 // Mock groups (not yet implemented in backend)
 const MOCK_GROUPS: Group[] = [
   {
+    id: '9',
+    name: 'BYU Users',
+    description: 'Brigham Young University community',
+    category: 'Education',
+    memberCount: 2651,
+    isPrivate: false,
+    isMember: false,
+    location: 'Utah',
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(),
+  },
+  {
+    id: '10',
+    name: 'Better Than Fantasy?',
+    description: 'Fantasy sports and trading community',
+    category: 'Trading',
+    memberCount: 23,
+    isPrivate: true,
+    isMember: true,
+    location: 'United States',
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
+  },
+  {
     id: '2',
     name: 'Crypto Enthusiasts',
     description: 'All things cryptocurrency and blockchain',

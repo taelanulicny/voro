@@ -536,7 +536,17 @@ export default function CommunityScreen() {
 
   // Get recommended groups (groups user is not a member of)
   const recommendedGroups = useMemo(() => {
-    return groups.filter(group => !group.isMember).slice(0, 5); // Limit to 5 for the slider
+    const recommendedNames = ['Brown University', 'Top NYC Traders', 'Influencer Focused'];
+    const recommendedMemberCounts = [714, undefined, undefined] as const;
+
+    return groups
+      .filter(group => !group.isMember)
+      .slice(0, recommendedNames.length)
+      .map((group, index) => ({
+        ...group,
+        name: recommendedNames[index] ?? group.name,
+        memberCount: recommendedMemberCounts[index] ?? group.memberCount,
+      }));
   }, [groups]);
 
   // Generate color based on category for visual consistency
@@ -894,12 +904,12 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   groupsHeader: {
-    marginTop: 8,
+    marginTop: 24,
     marginBottom: 16,
     alignItems: 'center',
   },
   groupsTitle: {
-    fontSize: 24,
+    fontSize: 34,
     fontWeight: '700',
     paddingHorizontal: 0,
     textAlign: 'center',
@@ -929,7 +939,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   recommendedTeamsSection: {
-    marginTop: 32,
+    marginTop: 16,
   },
   recommendedTeamsHeader: {
     flexDirection: 'row',
@@ -999,7 +1009,7 @@ const styles = StyleSheet.create({
   },
   actionButtonsSection: {
     marginTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
   actionButtonsTitle: {
     fontSize: 16,
