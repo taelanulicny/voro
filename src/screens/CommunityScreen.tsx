@@ -52,6 +52,8 @@ export default function CommunityScreen() {
   const [selectedSentiment, setSelectedSentiment] = useState<'positive' | 'negative' | 'neutral' | undefined>();
   const [filteredNews, setFilteredNews] = useState<NewsArticle[]>(news);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [isFilterScrolling, setIsFilterScrolling] = useState(false);
+  const filterScrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadFeed();
@@ -308,9 +310,16 @@ export default function CommunityScreen() {
     return (
       <View style={[styles.newsFilterSection, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <ScrollView
+          ref={filterScrollViewRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.newsFilterTabs}
+          bounces={false}
+          scrollEnabled={true}
+          onScrollBeginDrag={() => setIsFilterScrolling(true)}
+          onScrollEndDrag={() => setIsFilterScrolling(false)}
+          onMomentumScrollEnd={() => setIsFilterScrolling(false)}
+          nestedScrollEnabled={true}
         >
           <TouchableOpacity
             style={[
@@ -426,6 +435,12 @@ export default function CommunityScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.newsSubFilterContainer}
+            bounces={false}
+            scrollEnabled={true}
+            onScrollBeginDrag={() => setIsFilterScrolling(true)}
+            onScrollEndDrag={() => setIsFilterScrolling(false)}
+            onMomentumScrollEnd={() => setIsFilterScrolling(false)}
+            nestedScrollEnabled={true}
           >
             {categories.map((category) => (
               <TouchableOpacity
@@ -459,6 +474,12 @@ export default function CommunityScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.newsSubFilterContainer}
+            bounces={false}
+            scrollEnabled={true}
+            onScrollBeginDrag={() => setIsFilterScrolling(true)}
+            onScrollEndDrag={() => setIsFilterScrolling(false)}
+            onMomentumScrollEnd={() => setIsFilterScrolling(false)}
+            nestedScrollEnabled={true}
           >
             {sentiments.map((sentiment) => (
               <TouchableOpacity
@@ -702,6 +723,7 @@ export default function CommunityScreen() {
         scrollEventThrottle={16}
         style={styles.horizontalScroll}
         contentContainerStyle={styles.horizontalScrollContent}
+        scrollEnabled={!isFilterScrolling}
       >
         {renderFeedContent()}
         {renderNewsContent()}

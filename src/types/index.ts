@@ -1,9 +1,11 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+
 // Navigation Types
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Signup: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   Entity: { entityId: number; categoryId: string };
   Category: { categoryId: string };
   Trade: { entityId: number; name: string };
