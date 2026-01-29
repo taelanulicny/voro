@@ -134,3 +134,91 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
   }
 }
 
+export async function changePassword(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const userId = auth.event.userId!;
+    const body = JSON.parse(event.body || '{}');
+    const { currentPassword, newPassword } = body;
+
+    if (!currentPassword || !newPassword) {
+      return createErrorResponse(400, 'Missing required fields: currentPassword, newPassword');
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 8) {
+      return createErrorResponse(400, 'Password must be at least 8 characters long');
+    }
+
+    const hasUpperCase = /[A-Z]/.test(newPassword);
+    const hasLowerCase = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
+      return createErrorResponse(400, 'Password must contain uppercase, lowercase, and numbers');
+    }
+
+    // Import the changePassword service function
+    const { changePassword: changePasswordService } = await import('../services/authService');
+    const result = await changePasswordService(userId, currentPassword, newPassword);
+
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to change password');
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Password changed successfully',
+    });
+  } catch (error: any) {
+    logger.error('Error in changePassword handler', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function changeEmail(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const userId = auth.event.userId!;
+    const body = JSON.parse(event.body || '{}');
+    const { newEmail, password } = body;
+
+    if (!newEmail || !password) {
+      return createErrorResponse(400, 'Missing required fields: newEmail, password');
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return createErrorResponse(400, 'Invalid email format');
+    }
+
+    // Import the changeEmail service function
+    const { changeEmail: changeEmailService } = await import('../services/authService');
+    const result = await changeEmailService(userId, newEmail, password);
+
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to change email');
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Verification email sent to new address',
+      data: {
+        pendingEmail: newEmail,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Error in changeEmail handler', error);
+    return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+

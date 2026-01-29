@@ -17,6 +17,7 @@ import * as categoryHandlers from './handlers/categories';
 import * as searchHandlers from './handlers/search';
 import * as notificationHandlers from './handlers/notifications';
 import * as purchaseHandlers from './handlers/purchases';
+import * as supportHandlers from './handlers/support';
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -60,6 +61,12 @@ export const handler = async (
     }
     if (path.endsWith('/me') && method === 'GET') {
       return authHandlers.getMe(event);
+    }
+    if (path.endsWith('/change-password') && method === 'POST') {
+      return authHandlers.changePassword(event);
+    }
+    if (path.endsWith('/change-email') && method === 'POST') {
+      return authHandlers.changeEmail(event);
     }
   }
 
@@ -389,6 +396,10 @@ export const handler = async (
     if (method === 'GET') {
       return notificationHandlers.getNotificationsHandler(event);
     }
+  }
+
+  if (path.includes('/api/support/tickets') && method === 'POST') {
+    return supportHandlers.createTicketHandler(event);
   }
 
   // Default 404 - log for debugging

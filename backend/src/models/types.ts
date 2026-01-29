@@ -40,6 +40,10 @@ export interface User {
   // OAuth provider IDs
   googleId?: string;
   appleId?: string;
+  // Email change fields
+  pendingEmail?: string;
+  emailVerificationToken?: string;
+  emailVerificationExpiry?: string;
   createdAt: string;
   updatedAt: string;
 }
