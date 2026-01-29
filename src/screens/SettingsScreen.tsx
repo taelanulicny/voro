@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,13 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
+import { authenticatedRequest, isBackendConfigured } from '../config/api';
+
+const NOTIFICATION_SETTINGS_KEY = '@settings:notifications';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const { theme, themeMode, isDark, setThemeMode } = useTheme();
   const { resetPortfolio } = useTrading();
 
@@ -28,6 +31,76 @@ export default function SettingsScreen() {
   const [priceAlerts, setPriceAlerts] = useState(true);
   const [tradingAlerts, setTradingAlerts] = useState(true);
   const [socialNotifications, setSocialNotifications] = useState(true);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
+  // Load notification settings on mount
+  useEffect(() => {
+    loadNotificationSettings();
+  }, [user, token]);
+
+  const loadNotificationSettings = async () => {
+    try {
+      // Try to load from AsyncStorage first
+      const cached = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+      if (cached) {
+        const settings = JSON.parse(cached);
+        setPushNotifications(settings.pushNotifications ?? true);
+        setPriceAlerts(settings.priceAlerts ?? true);
+        setTradingAlerts(settings.tradingAlerts ?? true);
+        setSocialNotifications(settings.socialNotifications ?? true);
+      }
+
+      // Try to load from backend if configured
+      if (isBackendConfigured() && token && user) {
+        const response = await authenticatedRequest('/api/auth/me', token, {
+          method: 'GET',
+        });
+
+        if (response.success && response.data?.user?.notificationSettings) {
+          const settings = response.data.user.notificationSettings;
+          setPushNotifications(settings.pushNotifications ?? true);
+          setPriceAlerts(settings.priceAlerts ?? true);
+          setTradingAlerts(settings.tradingAlerts ?? true);
+          setSocialNotifications(settings.socialNotifications ?? true);
+
+          // Update cache
+          await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const saveNotificationSetting = async (key: string, value: boolean) => {
+    const settings = {
+      pushNotifications,
+      priceAlerts,
+      tradingAlerts,
+      socialNotifications,
+      [key]: value,
+    };
+
+    try {
+      // Save to AsyncStorage immediately
+      await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
+
+      // Save to backend if configured
+      if (isBackendConfigured() && token && user) {
+        await authenticatedRequest('/api/user/preferences', token, {
+          method: 'PUT',
+          body: JSON.stringify({
+            notificationSettings: settings,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error('Error saving notification setting:', error);
+      Alert.alert('Error', 'Failed to save notification settings. Please try again.');
+    }
+  };
 
   const handleThemeChange = (mode: 'light' | 'dark' | 'auto') => {
     setThemeMode(mode);
@@ -166,7 +239,10 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>ACCOUNT</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('EditProfile')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="person-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -176,8 +252,11 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('Security')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-checkmark-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -187,13 +266,16 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('Email')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
                 <Text style={dynamicStyles.menuItemText}>Email</Text>
-                <Text style={dynamicStyles.menuItemSubtext}>team@moro.support</Text>
+                <Text style={dynamicStyles.menuItemSubtext}>{user?.email || 'team@moro.support'}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
@@ -294,7 +376,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={pushNotifications}
-              onValueChange={setPushNotifications}
+              onValueChange={(value) => {
+                setPushNotifications(value);
+                saveNotificationSetting('pushNotifications', value);
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
             />
@@ -310,7 +395,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={priceAlerts}
-              onValueChange={setPriceAlerts}
+              onValueChange={(value) => {
+                setPriceAlerts(value);
+                saveNotificationSetting('priceAlerts', value);
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
               disabled={!pushNotifications}
@@ -327,7 +415,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={tradingAlerts}
-              onValueChange={setTradingAlerts}
+              onValueChange={(value) => {
+                setTradingAlerts(value);
+                saveNotificationSetting('tradingAlerts', value);
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
               disabled={!pushNotifications}
@@ -344,7 +435,10 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={socialNotifications}
-              onValueChange={setSocialNotifications}
+              onValueChange={(value) => {
+                setSocialNotifications(value);
+                saveNotificationSetting('socialNotifications', value);
+              }}
               trackColor={{ false: '#D1D5DB', true: theme.primary }}
               thumbColor="#FFFFFF"
               disabled={!pushNotifications}
@@ -356,7 +450,10 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>PRIVACY & SAFETY</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('PrivacySettings')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -366,8 +463,11 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('BlockedUsers')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="eye-off-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -383,7 +483,10 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>TRADING</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('TradeHistory')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -393,8 +496,11 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('TradingPreferences')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="settings-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>
@@ -458,23 +564,32 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>SUPPORT</Text>
           
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('HelpCenter')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle-outline" size={20} color={theme.textSecondary} />
               <Text style={dynamicStyles.menuItemText}>Help Center</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('ContactSupport')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="chatbox-ellipses-outline" size={20} color={theme.textSecondary} />
               <Text style={dynamicStyles.menuItemText}>Contact Support</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('Legal', { documentType: 'terms' })}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="document-text-outline" size={20} color={theme.textSecondary} />
               <Text style={dynamicStyles.menuItemText}>Terms & Privacy Policy</Text>
@@ -482,7 +597,10 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={dynamicStyles.menuItem}>
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('About')}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
               <View style={styles.menuItemContent}>

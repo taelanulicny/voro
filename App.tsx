@@ -43,6 +43,16 @@ import CommentRepliesScreen from './src/screens/CommentRepliesScreen';
 import AllCommentsScreen from './src/screens/AllCommentsScreen';
 import CastYourVoteScreen from './src/screens/CastYourVoteScreen';
 import SimulatorScreen from './src/screens/SimulatorScreen';
+import SecurityScreen from './src/screens/SecurityScreen';
+import EmailScreen from './src/screens/EmailScreen';
+import HelpCenterScreen from './src/screens/HelpCenterScreen';
+import ContactSupportScreen from './src/screens/ContactSupportScreen';
+import LegalDocumentScreen from './src/screens/LegalDocumentScreen';
+import AboutScreen from './src/screens/AboutScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import TradingPreferencesScreen from './src/screens/TradingPreferencesScreen';
+import PrivacySettingsScreen from './src/screens/PrivacySettingsScreen';
+import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -196,6 +206,86 @@ function RootNavigator() {
           <Stack.Screen
             name="Simulator"
             component={SimulatorScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="Security"
+            component={SecurityScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="Email"
+            component={EmailScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="HelpCenter"
+            component={HelpCenterScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="ContactSupport"
+            component={ContactSupportScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="Legal"
+            component={LegalDocumentScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="About"
+            component={AboutScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="TradingPreferences"
+            component={TradingPreferencesScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="PrivacySettings"
+            component={PrivacySettingsScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="BlockedUsers"
+            component={BlockedUsersScreen}
             options={{
               presentation: 'card',
               animation: 'slide_from_right',

@@ -27,6 +27,17 @@ export type RootStackParamList = {
   CommentReplies: { postId: string; commentId: string; commentUsername: string; commentContent: string };
   AllComments: { postId: string; post: Post };
   CastYourVote: undefined;
+  Simulator: undefined;
+  EditProfile: undefined;
+  TradingPreferences: undefined;
+  PrivacySettings: undefined;
+  BlockedUsers: undefined;
+  Security: undefined;
+  Email: undefined;
+  HelpCenter: undefined;
+  ContactSupport: undefined;
+  Legal: { documentType: 'terms' | 'privacy' | 'eula' };
+  About: undefined;
 };
 
 export type MainTabParamList = {
