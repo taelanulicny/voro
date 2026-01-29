@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import VideoSplashScreen from './src/components/VideoSplashScreen';
+import { initializeFeatureFlags } from './src/config/featureFlags';
+import { initializeSentry } from './src/config/sentry';
 
 // Context Providers
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -13,6 +15,7 @@ import { NewsProvider } from './src/context/NewsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { WatchlistProvider } from './src/context/WatchlistContext';
 import { SideMenuProvider } from './src/context/SideMenuContext';
+import { FeatureFlagsProvider } from './src/context/FeatureFlagsContext';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -39,6 +42,7 @@ import CreateAlertScreen from './src/screens/CreateAlertScreen';
 import CommentRepliesScreen from './src/screens/CommentRepliesScreen';
 import AllCommentsScreen from './src/screens/AllCommentsScreen';
 import CastYourVoteScreen from './src/screens/CastYourVoteScreen';
+import SimulatorScreen from './src/screens/SimulatorScreen';
 
 import { RootStackParamList } from './src/types';
 
@@ -189,6 +193,14 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           />
+          <Stack.Screen
+            name="Simulator"
+            component={SimulatorScreen}
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
         </>
       )}
     </Stack.Navigator>
@@ -197,6 +209,32 @@ function RootNavigator() {
 
 export default function App() {
   const [videoFinished, setVideoFinished] = useState(false);
+  const [appReady, setAppReady] = useState(false);
+
+  // Initialize app systems
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Initialize crash reporting (must be first)
+        await initializeSentry();
+
+        // Initialize feature flags
+        await initializeFeatureFlags();
+
+        // Add other initializations here (analytics, etc.)
+
+        setAppReady(true);
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        // Still allow app to start even if initialization fails
+        setAppReady(true);
+      }
+    };
+
+    if (videoFinished) {
+      initializeApp();
+    }
+  }, [videoFinished]);
 
   if (!videoFinished) {
     return (
@@ -208,25 +246,31 @@ export default function App() {
     );
   }
 
+  if (!appReady) {
+    return null; // Or a simple loading screen
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <SocialProvider>
-            <NewsProvider>
-              <TradingProvider>
-                <WatchlistProvider>
-                  <SideMenuProvider>
-                  <NavigationContainer>
-                    <StatusBar style="auto" />
-                    <RootNavigator />
-                  </NavigationContainer>
-                  </SideMenuProvider>
-                </WatchlistProvider>
-              </TradingProvider>
-            </NewsProvider>
-          </SocialProvider>
-        </AuthProvider>
+        <FeatureFlagsProvider>
+          <AuthProvider>
+            <SocialProvider>
+              <NewsProvider>
+                <TradingProvider>
+                  <WatchlistProvider>
+                    <SideMenuProvider>
+                    <NavigationContainer>
+                      <StatusBar style="auto" />
+                      <RootNavigator />
+                    </NavigationContainer>
+                    </SideMenuProvider>
+                  </WatchlistProvider>
+                </TradingProvider>
+              </NewsProvider>
+            </SocialProvider>
+          </AuthProvider>
+        </FeatureFlagsProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

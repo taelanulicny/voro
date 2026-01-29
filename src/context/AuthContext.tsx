@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout, refreshToken as apiRefreshToken } from '../services/authService';
@@ -41,12 +42,78 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
+  const [sessionWarningShown, setSessionWarningShown] = useState(false);
 
   const isAuthenticated = !!user && !!token;
+
+  // Session timeout configuration (30 minutes of inactivity)
+  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  const WARNING_TIME = 5 * 60 * 1000; // Warn 5 minutes before timeout
 
   useEffect(() => {
     loadAuthData();
   }, []);
+
+  // Track user activity
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkSession = () => {
+      const now = Date.now();
+      const timeSinceLastActivity = now - lastActivityTime;
+
+      // Show warning 5 minutes before timeout
+      if (timeSinceLastActivity >= (SESSION_TIMEOUT - WARNING_TIME) && !sessionWarningShown) {
+        setSessionWarningShown(true);
+        Alert.alert(
+          'Session Expiring Soon',
+          'Your session will expire in 5 minutes due to inactivity. Continue using the app to stay logged in.',
+          [
+            {
+              text: 'Stay Logged In',
+              onPress: () => {
+                setLastActivityTime(Date.now());
+                setSessionWarningShown(false);
+              },
+            },
+          ]
+        );
+      }
+
+      // Auto-logout after timeout
+      if (timeSinceLastActivity >= SESSION_TIMEOUT) {
+        Alert.alert(
+          'Session Expired',
+          'You have been logged out due to inactivity.',
+          [
+            {
+              text: 'OK',
+              onPress: () => logout(),
+            },
+          ]
+        );
+      }
+    };
+
+    const interval = setInterval(checkSession, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, lastActivityTime, sessionWarningShown]);
+
+  // Reset activity timer on app state change
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && isAuthenticated) {
+        setLastActivityTime(Date.now());
+        setSessionWarningShown(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isAuthenticated]);
 
   const loadAuthData = async () => {
     try {

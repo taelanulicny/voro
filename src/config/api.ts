@@ -12,7 +12,15 @@
  * - When enabled, uses react-native-ssl-pinning for all API requests
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+// AsyncStorage keys
+const STORAGE_KEYS = {
+  CACHE: '@api:cache',
+  OFFLINE_QUEUE: '@api:offlineQueue',
+};
 
 // Try to import SSL pinning (will be undefined in managed workflow)
 let sslPinningFetch: any;
@@ -121,6 +129,21 @@ interface CacheEntry<T> {
 
 const responseCache = new Map<string, CacheEntry<any>>();
 
+/**
+ * Offline queue for failed requests
+ */
+interface QueuedRequest {
+  id: string;
+  endpoint: string;
+  options: RequestInit;
+  retryConfig?: { maxRetries?: number; retryable?: boolean; deduplicate?: boolean };
+  timestamp: number;
+  retryCount: number;
+}
+
+const OFFLINE_QUEUE_MAX_SIZE = 100; // Maximum number of queued requests
+const MAX_RETRY_COUNT = 5; // Maximum retry attempts for queued requests
+
 // Default TTLs for different data types (in milliseconds)
 const CACHE_TTL = {
   prices: 5000,      // 5 seconds
@@ -185,11 +208,59 @@ function setCachedResponse<T>(cacheKey: string, data: T, ttl: number): void {
     timestamp: Date.now(),
     ttl,
   });
+  
+  // Persist cache to AsyncStorage (async, don't await)
+  persistCacheToStorage();
 }
+
+// Persist cache to AsyncStorage (only non-expired entries)
+async function persistCacheToStorage(): Promise<void> {
+  try {
+    const now = Date.now();
+    const cacheEntries: Array<{ key: string; entry: CacheEntry<any> }> = [];
+    
+    for (const [key, entry] of responseCache.entries()) {
+      // Only persist non-expired entries
+      const age = now - entry.timestamp;
+      if (age < entry.ttl) {
+        cacheEntries.push({ key, entry });
+      }
+    }
+    
+    await AsyncStorage.setItem(STORAGE_KEYS.CACHE, JSON.stringify(cacheEntries));
+  } catch (error) {
+    console.error('Error persisting cache to AsyncStorage:', error);
+  }
+}
+
+// Load cache from AsyncStorage on startup
+async function loadCacheFromStorage(): Promise<void> {
+  try {
+    const cachedData = await AsyncStorage.getItem(STORAGE_KEYS.CACHE);
+    if (cachedData) {
+      const cacheEntries: Array<{ key: string; entry: CacheEntry<any> }> = JSON.parse(cachedData);
+      const now = Date.now();
+      
+      for (const { key, entry } of cacheEntries) {
+        // Only load non-expired entries
+        const age = now - entry.timestamp;
+        if (age < entry.ttl) {
+          responseCache.set(key, entry);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading cache from AsyncStorage:', error);
+  }
+}
+
+// Initialize cache from storage on module load
+loadCacheFromStorage();
 
 function invalidateCache(pattern?: string): void {
   if (!pattern) {
     responseCache.clear();
+    persistCacheToStorage(); // Update storage
     return;
   }
   
@@ -199,9 +270,169 @@ function invalidateCache(pattern?: string): void {
       responseCache.delete(key);
     }
   }
+  
+  persistCacheToStorage(); // Update storage
 }
 
 export { invalidateCache };
+
+/**
+ * Offline queue management
+ */
+async function addToOfflineQueue(
+  endpoint: string,
+  options: RequestInit,
+  retryConfig?: { maxRetries?: number; retryable?: boolean; deduplicate?: boolean }
+): Promise<void> {
+  try {
+    const queueData = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_QUEUE);
+    const queue: QueuedRequest[] = queueData ? JSON.parse(queueData) : [];
+    
+    // Remove oldest entries if queue is full
+    if (queue.length >= OFFLINE_QUEUE_MAX_SIZE) {
+      queue.shift(); // Remove oldest
+    }
+    
+    // Add new request to queue
+    queue.push({
+      id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      endpoint,
+      options,
+      retryConfig,
+      timestamp: Date.now(),
+      retryCount: 0,
+    });
+    
+    await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_QUEUE, JSON.stringify(queue));
+  } catch (error) {
+    console.error('Error adding request to offline queue:', error);
+  }
+}
+
+async function getOfflineQueue(): Promise<QueuedRequest[]> {
+  try {
+    const queueData = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_QUEUE);
+    return queueData ? JSON.parse(queueData) : [];
+  } catch (error) {
+    console.error('Error reading offline queue:', error);
+    return [];
+  }
+}
+
+async function removeFromOfflineQueue(requestId: string): Promise<void> {
+  try {
+    const queue = await getOfflineQueue();
+    const filtered = queue.filter(req => req.id !== requestId);
+    await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_QUEUE, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error removing request from offline queue:', error);
+  }
+}
+
+async function updateQueuedRequest(requestId: string, updates: Partial<QueuedRequest>): Promise<void> {
+  try {
+    const queue = await getOfflineQueue();
+    const index = queue.findIndex(req => req.id === requestId);
+    if (index !== -1) {
+      queue[index] = { ...queue[index], ...updates };
+      await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_QUEUE, JSON.stringify(queue));
+    }
+  } catch (error) {
+    console.error('Error updating queued request:', error);
+  }
+}
+
+/**
+ * Process offline queue when connection is restored
+ */
+export async function processOfflineQueue(): Promise<void> {
+  if (!isBackendConfigured()) {
+    return;
+  }
+  
+  const queue = await getOfflineQueue();
+  if (queue.length === 0) {
+    return;
+  }
+  
+  // Process queue in order (oldest first)
+  for (const request of queue) {
+    // Skip if exceeded max retry count
+    if (request.retryCount >= MAX_RETRY_COUNT) {
+      await removeFromOfflineQueue(request.id);
+      continue;
+    }
+    
+    try {
+      // Attempt to process the request
+      const response = await apiRequest(request.endpoint, request.options, {
+        ...request.retryConfig,
+        maxRetries: 1, // Only one retry for queued requests
+      });
+      
+      // If successful, remove from queue
+      if (response.success) {
+        await removeFromOfflineQueue(request.id);
+      } else {
+        // Increment retry count
+        await updateQueuedRequest(request.id, {
+          retryCount: request.retryCount + 1,
+        });
+      }
+    } catch (error) {
+      // Increment retry count on error
+      await updateQueuedRequest(request.id, {
+        retryCount: request.retryCount + 1,
+      });
+    }
+  }
+}
+
+// Check network connectivity and process queue periodically
+let isProcessingQueue = false;
+let queueProcessingInterval: NodeJS.Timeout | null = null;
+
+function startOfflineQueueProcessor(): void {
+  if (queueProcessingInterval) {
+    return; // Already started
+  }
+  
+  queueProcessingInterval = setInterval(async () => {
+    if (!isProcessingQueue && isBackendConfigured()) {
+      isProcessingQueue = true;
+      try {
+        await processOfflineQueue();
+      } catch (error) {
+        console.error('Error processing offline queue:', error);
+      } finally {
+        isProcessingQueue = false;
+      }
+    }
+  }, 30000); // Check every 30 seconds
+}
+
+function stopOfflineQueueProcessor(): void {
+  if (queueProcessingInterval) {
+    clearInterval(queueProcessingInterval);
+    queueProcessingInterval = null;
+  }
+}
+
+// Start queue processor on module load
+if (isBackendConfigured()) {
+  startOfflineQueueProcessor();
+}
+
+/**
+ * Clear offline queue (useful for testing or manual cleanup)
+ */
+export async function clearOfflineQueue(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
+  } catch (error) {
+    console.error('Error clearing offline queue:', error);
+  }
+}
 
 /**
  * Retry helper with exponential backoff
@@ -398,6 +629,14 @@ export async function apiRequest<T = any>(
       }
       
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        // Queue non-GET requests that timed out
+        const method = options.method || 'GET';
+        if (method !== 'GET' && isBackendConfigured()) {
+          addToOfflineQueue(endpoint, options, retryConfig).catch(err => {
+            console.error('Error adding timed out request to offline queue:', err);
+          });
+        }
+        
         return {
           success: false,
           error: 'Request timed out. The server is taking too long to respond. Please check your connection and try again.',
@@ -412,6 +651,17 @@ export async function apiRequest<T = any>(
             error: 'Backend not available. App is running in standalone mode.',
           };
         }
+        
+        // Queue non-GET requests for offline processing
+        // GET requests are idempotent and can be retried, but POST/PUT/DELETE should be queued
+        const method = options.method || 'GET';
+        if (method !== 'GET' && isBackendConfigured()) {
+          // Add to offline queue (async, don't await)
+          addToOfflineQueue(endpoint, options, retryConfig).catch(err => {
+            console.error('Error adding request to offline queue:', err);
+          });
+        }
+        
         // Re-throw network errors for retry logic
         const networkError: any = new Error('Unable to connect to the server. Please check your internet connection and try again.');
         networkError.status = 0;

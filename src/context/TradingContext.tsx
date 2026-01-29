@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio, Holding, UserTransaction } from '../types';
-import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { authenticatedRequest, isBackendConfigured, invalidateCache } from '../config/api';
 import { useAuth } from './AuthContext';
 import { ENTITIES } from '../utils/entities';
 import { calculatePrice, getInitialPoolValues, calculateSentimentRatio } from '../utils/sentimentTrading';
@@ -52,6 +53,35 @@ const TradingContext = createContext<TradingContextType | undefined>(undefined);
 
 const INITIAL_CASH_BALANCE = 1000;
 
+// AsyncStorage keys for persistence
+const STORAGE_KEYS = {
+  ENTITY_POOLS: '@trading:entityPools',
+  USER_POSITIONS: '@trading:userPositions',
+  CASH_BALANCE: '@trading:cashBalance',
+  TRANSACTIONS: '@trading:transactions',
+};
+
+// Transaction queue to prevent race conditions
+interface QueuedTrade {
+  id: string;
+  entityId: number;
+  entityName: string;
+  type: 'open' | 'close';
+  direction: 'positive' | 'negative';
+  tokensCommitted: number;
+  category: string;
+  resolve: (success: boolean) => void;
+  reject: (error: Error) => void;
+}
+
+// Optimistic update state for rollback
+interface OptimisticState {
+  entityPools: Record<number, { positiveTokens: number; negativeTokens: number }>;
+  userPositions: Record<number, { direction: 'positive' | 'negative'; tranches: PositionTranche[] }>;
+  cashBalance: number;
+  transactions: UserTransaction[];
+}
+
 export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const { token, isAuthenticated } = useAuth();
   const [cashBalance, setCashBalance] = useState(INITIAL_CASH_BALANCE);
@@ -78,6 +108,35 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     entryRatio: number;
   }
   const [userPositions, setUserPositions] = useState<Record<number, { direction: 'positive' | 'negative'; tranches: PositionTranche[] }>>({});
+  
+  // Transaction queue to prevent race conditions
+  const tradeQueueRef = useRef<QueuedTrade[]>([]);
+  const isProcessingQueueRef = useRef<boolean>(false);
+  const optimisticStateRef = useRef<OptimisticState | null>(null);
+  
+  // Refs to track latest state for queue processor (avoids stale closures)
+  const entityPoolsRef = useRef(entityPools);
+  const userPositionsRef = useRef(userPositions);
+  const cashBalanceRef = useRef(cashBalance);
+  const transactionsRef = useRef(transactions);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    entityPoolsRef.current = entityPools;
+  }, [entityPools]);
+  useEffect(() => {
+    userPositionsRef.current = userPositions;
+  }, [userPositions]);
+  useEffect(() => {
+    cashBalanceRef.current = cashBalance;
+  }, [cashBalance]);
+  useEffect(() => {
+    transactionsRef.current = transactions;
+  }, [transactions]);
+  
+  // Debounce timer for price updates
+  const priceUpdateDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingPriceUpdatesRef = useRef<Record<number, number>>({});
 
   // Global entity prices - calculated from sentiment pools
   const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
@@ -114,6 +173,105 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
   const portfolioHistoryRef = useRef<number[]>([]);
   const maxHistoryLength = 100;
+
+  // Persistence functions
+  const saveEntityPools = useCallback(async (pools: Record<number, { positiveTokens: number; negativeTokens: number }>) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.ENTITY_POOLS, JSON.stringify(pools));
+    } catch (error) {
+      console.error('Error saving entity pools to AsyncStorage:', error);
+    }
+  }, []);
+
+  const saveUserPositions = useCallback(async (positions: Record<number, { direction: 'positive' | 'negative'; tranches: PositionTranche[] }>) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_POSITIONS, JSON.stringify(positions));
+    } catch (error) {
+      console.error('Error saving user positions to AsyncStorage:', error);
+    }
+  }, []);
+
+  const saveCashBalance = useCallback(async (balance: number) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.CASH_BALANCE, JSON.stringify(balance));
+    } catch (error) {
+      console.error('Error saving cash balance to AsyncStorage:', error);
+    }
+  }, []);
+
+  const saveTransactions = useCallback(async (txns: UserTransaction[]) => {
+    try {
+      // Only save last 100 transactions to avoid storage bloat
+      const toSave = txns.slice(0, 100);
+      await AsyncStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(toSave));
+    } catch (error) {
+      console.error('Error saving transactions to AsyncStorage:', error);
+    }
+  }, []);
+
+  // Load persisted data on mount
+  useEffect(() => {
+    const loadPersistedData = async () => {
+      try {
+        // Load entity pools
+        const poolsData = await AsyncStorage.getItem(STORAGE_KEYS.ENTITY_POOLS);
+        if (poolsData) {
+          const parsedPools = JSON.parse(poolsData);
+          // Merge with initial pools to ensure all entities are present
+          const mergedPools: Record<number, { positiveTokens: number; negativeTokens: number }> = {};
+          ENTITIES.forEach((entity) => {
+            mergedPools[entity.id] = parsedPools[entity.id] || getInitialPoolValues();
+          });
+          setEntityPools(mergedPools);
+        }
+
+        // Load user positions
+        const positionsData = await AsyncStorage.getItem(STORAGE_KEYS.USER_POSITIONS);
+        if (positionsData) {
+          setUserPositions(JSON.parse(positionsData));
+        }
+
+        // Load cash balance
+        const balanceData = await AsyncStorage.getItem(STORAGE_KEYS.CASH_BALANCE);
+        if (balanceData) {
+          const balance = JSON.parse(balanceData);
+          if (typeof balance === 'number' && balance >= 0) {
+            setCashBalance(balance);
+          }
+        }
+
+        // Load transactions
+        const transactionsData = await AsyncStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+        if (transactionsData) {
+          setTransactions(JSON.parse(transactionsData));
+        }
+      } catch (error) {
+        console.error('Error loading persisted trading data:', error);
+      }
+    };
+
+    loadPersistedData();
+  }, []); // Only run on mount
+
+  // Save entity pools whenever they change
+  useEffect(() => {
+    saveEntityPools(entityPools);
+  }, [entityPools, saveEntityPools]);
+
+  // Save user positions whenever they change
+  useEffect(() => {
+    saveUserPositions(userPositions);
+  }, [userPositions, saveUserPositions]);
+
+  // Save cash balance whenever it changes
+  useEffect(() => {
+    saveCashBalance(cashBalance);
+  }, [cashBalance, saveCashBalance]);
+
+  // Save transactions whenever they change
+  useEffect(() => {
+    saveTransactions(transactions);
+  }, [transactions, saveTransactions]);
 
   // Fetch portfolio from backend
   const fetchPortfolio = useCallback(async () => {
@@ -191,7 +349,30 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, isAuthenticated]);
 
-  // Fetch entity prices
+  // Debounced price update function
+  const debouncedPriceUpdate = useCallback(() => {
+    if (priceUpdateDebounceTimerRef.current) {
+      clearTimeout(priceUpdateDebounceTimerRef.current);
+    }
+
+    priceUpdateDebounceTimerRef.current = setTimeout(() => {
+      const updates = { ...pendingPriceUpdatesRef.current };
+      pendingPriceUpdatesRef.current = {};
+
+      if (Object.keys(updates).length > 0) {
+        setEntityPrices(prev => {
+          const updated = { ...prev };
+          Object.keys(updates).forEach(entityIdStr => {
+            updated[parseInt(entityIdStr, 10)] = updates[parseInt(entityIdStr, 10)];
+          });
+          return updated;
+        });
+        setLastPriceUpdateTime(Date.now());
+      }
+    }, 300); // 300ms debounce delay
+  }, []);
+
+  // Fetch entity prices with debouncing
   const fetchEntityPrices = useCallback(async () => {
     if (!token || !isAuthenticated || !isBackendConfigured()) return;
 
@@ -201,19 +382,20 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (response.success && response.data) {
-        const prices: Record<number, number> = {};
+        // Store updates in pending ref instead of updating state directly
         response.data.forEach((entity: any) => {
-          prices[entity.entityId] = entity.currentPrice || entity.basePrice;
+          const price = entity.currentPrice || entity.basePrice;
+          pendingPriceUpdatesRef.current[entity.entityId] = price;
         });
-        setEntityPrices(prices);
-        // Update last price update time
-        setLastPriceUpdateTime(Date.now());
+        
+        // Trigger debounced update
+        debouncedPriceUpdate();
       }
     } catch (error) {
       // Silently handle errors - don't crash the app
       console.debug('Error fetching entity prices (backend may not be running):', error);
     }
-  }, [token, isAuthenticated]);
+  }, [token, isAuthenticated, debouncedPriceUpdate]);
 
   // Load portfolio and transactions on mount and when auth changes
   useEffect(() => {
@@ -227,6 +409,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
   // Poll for price updates every 1 second (only if backend is configured)
   // More frequent updates for real-time trading experience
+  // Debouncing is handled in fetchEntityPrices
   useEffect(() => {
     if (!isAuthenticated || !token || !isBackendConfigured()) return;
 
@@ -235,7 +418,13 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
     }, 1000); // 1 second for real-time price updates
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      // Cleanup debounce timer on unmount
+      if (priceUpdateDebounceTimerRef.current) {
+        clearTimeout(priceUpdateDebounceTimerRef.current);
+      }
+    };
   }, [isAuthenticated, token, fetchEntityPrices, fetchPortfolio]);
 
   // Check for new day (midnight reset) - runs every second
@@ -319,7 +508,66 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     setPortfolioHistory([...portfolioHistoryRef.current]);
   }, [holdings, cashBalance]);
 
-  const executeTrade = async (
+  // Internal trade execution function (without queue - called by queue processor)
+  // Uses refs to get latest state values
+  const executeTradeInternalRef = useRef<((entityId: number, entityName: string, type: 'open' | 'close', direction: 'positive' | 'negative', tokensCommitted: number, category: string) => Promise<boolean>) | null>(null);
+
+  // Transaction queue processor - ensures trades execute sequentially to prevent race conditions
+  const processTradeQueue = useCallback(async () => {
+    if (isProcessingQueueRef.current || tradeQueueRef.current.length === 0) {
+      return;
+    }
+
+    if (!executeTradeInternalRef.current) {
+      console.error('executeTradeInternal not initialized');
+      return;
+    }
+
+    isProcessingQueueRef.current = true;
+
+    while (tradeQueueRef.current.length > 0) {
+      const trade = tradeQueueRef.current.shift();
+      if (!trade) break;
+
+      try {
+        // Save current state for rollback (using refs to get latest values)
+        optimisticStateRef.current = {
+          entityPools: JSON.parse(JSON.stringify(entityPoolsRef.current)),
+          userPositions: JSON.parse(JSON.stringify(userPositionsRef.current)),
+          cashBalance: cashBalanceRef.current,
+          transactions: [...transactionsRef.current],
+        };
+
+        // Execute trade optimistically (this will update state)
+        const success = await executeTradeInternalRef.current(
+          trade.entityId,
+          trade.entityName,
+          trade.type,
+          trade.direction,
+          trade.tokensCommitted,
+          trade.category
+        );
+
+        trade.resolve(success);
+      } catch (error) {
+        // Rollback on error
+        if (optimisticStateRef.current) {
+          setEntityPools(optimisticStateRef.current.entityPools);
+          setUserPositions(optimisticStateRef.current.userPositions);
+          setCashBalance(optimisticStateRef.current.cashBalance);
+          setTransactions(optimisticStateRef.current.transactions);
+          optimisticStateRef.current = null;
+        }
+        trade.reject(error instanceof Error ? error : new Error('Trade execution failed'));
+      }
+    }
+
+    isProcessingQueueRef.current = false;
+  }, []);
+
+  // Internal trade execution function (without queue - called by queue processor)
+  // Uses refs to get latest state values
+  const executeTradeInternal = useCallback(async (
     entityId: number,
     entityName: string,
     type: 'open' | 'close',
@@ -327,128 +575,33 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     tokensCommitted: number,
     category: string
   ): Promise<boolean> => {
-    try {
-      setIsLoading(true);
+    // Get current state from refs (always latest values)
+    const currentPools = entityPoolsRef.current[entityId] || getInitialPoolValues();
+    const currentPositions = userPositionsRef.current;
+    const currentBalance = cashBalanceRef.current;
+    const currentTransactions = transactionsRef.current;
 
-      // Get current pools for this entity
-      const currentPools = entityPools[entityId] || getInitialPoolValues();
-      const p = currentPools.positiveTokens;
-      const n = currentPools.negativeTokens;
+    const p = currentPools.positiveTokens;
+    const n = currentPools.negativeTokens;
 
-      if (type === 'open') {
-        // Check if user already has an open position for this entity
-        const existingPosition = userPositions[entityId];
-        
-        if (existingPosition) {
-          // User has existing position - check if direction matches
-          if (existingPosition.direction !== direction) {
-            Alert.alert('Direction Mismatch', `You already have a ${existingPosition.direction} position. Cannot add ${direction} tokens. Close the existing position first.`);
-            return false;
-          }
-
-          // ADD TO EXISTING POSITION
-          // Check sufficient funds
-          if (cashBalance < tokensCommitted) {
-            Alert.alert('Insufficient Funds', `You need ${tokensCommitted} tokens but only have ${cashBalance.toFixed(2)}.`);
-            return false;
-          }
-
-          // Calculate current ratio BEFORE adding new tokens (this is the entry ratio for this tranche)
-          const currentRatio = calculateSentimentRatio(p, n);
-
-          // Add tokens to appropriate pool
-          const newP = direction === 'positive' ? p + tokensCommitted : p;
-          const newN = direction === 'negative' ? n + tokensCommitted : n;
-
-          // Ensure P and N never go below 0
-          if (newP < 0 || newN < 0) {
-            Alert.alert('Invalid Pool State', 'Pools cannot go negative.');
-            return false;
-          }
-
-          // Update pools immediately
-          setEntityPools(prev => ({
-            ...prev,
-            [entityId]: { positiveTokens: newP, negativeTokens: newN }
-          }));
-
-          // Add new tranche to position (each add is a separate tranche with its own entry ratio)
-          setUserPositions(prev => ({
-            ...prev,
-            [entityId]: { 
-              direction,
-              tranches: [
-                ...existingPosition.tranches,
-                { tokensCommitted, entryRatio: currentRatio }
-              ]
-            }
-          }));
-
-          // Recalculate price immediately using new pools
-          const newPrice = calculatePrice(newP, newN);
-          setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
-
-          // Update cash balance (deduct tokens committed)
-          setCashBalance(prev => Math.max(0, prev - tokensCommitted));
-
-          // Record transaction for adding to position
-          const newTransaction: UserTransaction = {
-            id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            entityId,
-          entityName,
-            type: 'open', // Still 'open' type
-            direction,
-            tokensCommitted, // Only the new tokens added
-            pricePerToken: currentRatio, // Current ratio before adding
-            totalAmount: tokensCommitted, // Cost is new tokens committed
-            timestamp: new Date().toISOString(),
-            category,
-          };
-          setTransactions(prev => [newTransaction, ...prev]);
-
-          // Try to execute on backend (treat as 'add' type if backend supports it)
-          if (token && isBackendConfigured()) {
-            try {
-              const response = await authenticatedRequest<{
-                cashBalance: number;
-                holdings: Holding[];
-                totalValue: number;
-                todayChange: number;
-                todayChangePercent: number;
-              }>('/api/trade/execute', token, {
-                method: 'POST',
-                body: JSON.stringify({
-                  entityId,
-                  type: 'open', // Backend should handle adding to existing position
-                  direction,
-                  tokensCommitted,
-                }),
-              });
-
-              if (response.success && response.data) {
-                setCashBalance(response.data.cashBalance);
-                setHoldings(response.data.holdings);
-                setTodayChange(response.data.todayChange);
-                setTodayChangePercent(response.data.todayChangePercent);
-                await fetchTransactions();
-              }
-            } catch (error) {
-              console.error('Error adding to position on backend:', error);
-            }
-          }
-
-          return true;
+    if (type === 'open') {
+      // Check if user already has an open position for this entity
+      const existingPosition = currentPositions[entityId];
+      
+      if (existingPosition) {
+        // User has existing position - check if direction matches
+        if (existingPosition.direction !== direction) {
+          throw new Error(`Direction mismatch: You already have a ${existingPosition.direction} position.`);
         }
 
-        // NEW POSITION
+        // ADD TO EXISTING POSITION
         // Check sufficient funds
-        if (cashBalance < tokensCommitted) {
-          Alert.alert('Insufficient Funds', `You need ${tokensCommitted} tokens but only have ${cashBalance.toFixed(2)}.`);
-          return false;
+        if (currentBalance < tokensCommitted) {
+          throw new Error(`Insufficient funds: You need ${tokensCommitted} tokens but only have ${currentBalance.toFixed(2)}.`);
         }
 
-        // Calculate EntryRatio BEFORE adding tokens
-        const entryRatio = calculateSentimentRatio(p, n);
+        // Calculate current ratio BEFORE adding new tokens (this is the entry ratio for this tranche)
+        const currentRatio = calculateSentimentRatio(p, n);
 
         // Add tokens to appropriate pool
         const newP = direction === 'positive' ? p + tokensCommitted : p;
@@ -456,22 +609,24 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
         // Ensure P and N never go below 0
         if (newP < 0 || newN < 0) {
-          Alert.alert('Invalid Pool State', 'Pools cannot go negative.');
-          return false;
+          throw new Error('Invalid pool state: Pools cannot go negative.');
         }
 
-        // Update pools immediately
+        // Update pools immediately (optimistic update)
         setEntityPools(prev => ({
           ...prev,
           [entityId]: { positiveTokens: newP, negativeTokens: newN }
         }));
 
-        // Store position (first tranche)
+        // Add new tranche to position
         setUserPositions(prev => ({
           ...prev,
           [entityId]: { 
-            direction, 
-            tranches: [{ tokensCommitted, entryRatio }]
+            direction,
+            tranches: [
+              ...existingPosition.tranches,
+              { tokensCommitted, entryRatio: currentRatio }
+            ]
           }
         }));
 
@@ -482,7 +637,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         // Update cash balance (deduct tokens committed)
         setCashBalance(prev => Math.max(0, prev - tokensCommitted));
 
-        // Record transaction for new position
+        // Record transaction
         const newTransaction: UserTransaction = {
           id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           entityId,
@@ -490,159 +645,14 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           type: 'open',
           direction,
           tokensCommitted,
-          pricePerToken: entryRatio, // Entry ratio at time of opening
-          totalAmount: tokensCommitted, // Cost is tokens committed
+          pricePerToken: currentRatio,
+          totalAmount: tokensCommitted,
           timestamp: new Date().toISOString(),
           category,
         };
         setTransactions(prev => [newTransaction, ...prev]);
 
-        // Try to execute trade on backend if available
-        if (token && isBackendConfigured()) {
-          try {
-      const response = await authenticatedRequest<{
-        cashBalance: number;
-        holdings: Holding[];
-        totalValue: number;
-        todayChange: number;
-        todayChangePercent: number;
-      }>('/api/trade/execute', token, {
-        method: 'POST',
-        body: JSON.stringify({
-            entityId,
-                type: 'open',
-                direction,
-                tokensCommitted,
-        }),
-      });
-
-      if (response.success && response.data) {
-        // Update local state with backend response
-        setCashBalance(response.data.cashBalance);
-        setHoldings(response.data.holdings);
-        setTodayChange(response.data.todayChange);
-        setTodayChangePercent(response.data.todayChangePercent);
-
-              // Refresh transactions
-              await fetchTransactions();
-            }
-          } catch (error) {
-            console.error('Error executing trade on backend:', error);
-            // Continue with local state (already updated above)
-          }
-        }
-
-        return true;
-      } else {
-        // CLOSE position
-        const position = userPositions[entityId];
-        if (!position) {
-          Alert.alert('No Position', 'You do not have an open position for this entity.');
-          return false;
-        }
-
-        const positionDirection = position.direction;
-        const tranches = position.tranches;
-        
-        // Calculate total tokens committed (sum of all tranches)
-        const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
-
-        // Remove ALL user tokens from pool FIRST (to restore pools to state before user's first trade)
-        const newP = positionDirection === 'positive' ? Math.max(0, p - totalTokensCommitted) : p;
-        const newN = positionDirection === 'negative' ? Math.max(0, n - totalTokensCommitted) : n;
-
-        // Calculate exitRatio AFTER removing all tokens (as required)
-        // This exitRatio represents the pool state without the user's tokens
-        const exitRatio = calculateSentimentRatio(newP, newN);
-
-        // Calculate PnL per tranche and sum them
-        // CRITICAL: To ensure users get back exactly what they put in when no other trades occur,
-        // we need to simulate what each tranche's effective "exit state" would be.
-        // Since exitRatio is the pool state after removing ALL tokens (i.e., original state if no other trades),
-        // we need to account for the fact that each tranche's entryRatio was calculated with previous tranches' impact.
-        // 
-        // The solution: When calculating each tranche's P&L, we need to determine what the exitRatio
-        // would be from that tranche's perspective - i.e., the pool state just before that tranche was added.
-        // This requires working backwards from the current exitRatio.
-        
-        // Reverse simulate: Start from exitRatio (state after removing all tokens),
-        // and work backwards to determine what each tranche's "effective exit ratio" should be
-        // by re-adding previous tranches one by one
-        
-        let simulatedP = newP;
-        let simulatedN = newN;
-        let totalProfitLoss = 0;
-        
-        // Process tranches in reverse order (last added = first to evaluate)
-        // As we work backwards, we're essentially asking: "If this tranche exits,
-        // what would the pool state be (which other tranches are still in)?"
-        for (let i = tranches.length - 1; i >= 0; i--) {
-          const tranche = tranches[i];
-          
-          // The effective exit ratio for this tranche is the current simulated pool state
-          // This represents what the pool looks like when evaluating this tranche's exit,
-          // accounting for all tranches added before it
-          const effectiveExitRatio = calculateSentimentRatio(simulatedP, simulatedN);
-          
-          // Calculate P&L for this tranche using its entryRatio vs effectiveExitRatio
-          const deltaR = effectiveExitRatio - tranche.entryRatio;
-          let tranchePnL = tranche.tokensCommitted * deltaR;
-          
-          // Direction adjustment: if negative position, flip PnL
-          if (positionDirection === 'negative') {
-            tranchePnL = -tranchePnL;
-          }
-          
-          totalProfitLoss += tranchePnL;
-          
-          // Re-add this tranche's tokens to simulated pool (working backwards)
-          // This prepares the state for evaluating the next (earlier) tranche
-          if (positionDirection === 'positive') {
-            simulatedP += tranche.tokensCommitted;
-          } else {
-            simulatedN += tranche.tokensCommitted;
-          }
-        }
-
-        // Calculate total tokens returned
-        const tokensReturned = Math.max(0, totalTokensCommitted + totalProfitLoss);
-
-        // Update pools immediately
-        setEntityPools(prev => ({
-          ...prev,
-          [entityId]: { positiveTokens: newP, negativeTokens: newN }
-        }));
-
-        // Remove position (close it)
-        setUserPositions(prev => {
-          const updated = { ...prev };
-          delete updated[entityId];
-          return updated;
-        });
-
-        // Recalculate price immediately using new pools
-        const newPrice = calculatePrice(newP, newN);
-        setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
-
-        // Update cash balance (add tokens returned)
-        setCashBalance(prev => prev + tokensReturned);
-
-        // Record transaction for closing position
-        const newTransaction: UserTransaction = {
-          id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          entityId,
-          entityName,
-          type: 'close',
-          tokensCommitted: totalTokensCommitted, // Total tokens from all tranches
-          pricePerToken: exitRatio, // Exit ratio after removing all tokens
-          totalAmount: tokensReturned, // Tokens returned to user
-          timestamp: new Date().toISOString(),
-          category,
-          profitLoss: totalProfitLoss, // Total P&L (sum of all tranches)
-        };
-        setTransactions(prev => [newTransaction, ...prev]);
-
-        // Try to execute trade on backend if available
+        // Try to execute on backend
         if (token && isBackendConfigured()) {
           try {
             const response = await authenticatedRequest<{
@@ -655,34 +665,318 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
               method: 'POST',
               body: JSON.stringify({
                 entityId,
-                type: 'close',
+                type: 'open',
+                direction,
+                tokensCommitted,
               }),
             });
 
             if (response.success && response.data) {
-              // Update local state with backend response
+              // Update with backend response (authoritative)
               setCashBalance(response.data.cashBalance);
               setHoldings(response.data.holdings);
               setTodayChange(response.data.todayChange);
               setTodayChangePercent(response.data.todayChangePercent);
-
-        // Refresh transactions
-        await fetchTransactions();
+              await fetchTransactions();
+              
+              // Invalidate cache after successful trade execution
+              invalidateCache('portfolio');
+              invalidateCache('transactions');
+            } else {
+              // Backend failed - rollback will be handled by queue processor
+              throw new Error(response.error || 'Backend trade execution failed');
             }
           } catch (error) {
-            console.error('Error executing trade on backend:', error);
-            // Continue with local state (already updated above)
+            // Backend error - rollback
+            throw error;
           }
         }
 
         return true;
       }
-    } catch (error) {
-      console.error('Error executing trade:', error);
-      return false;
-    } finally {
-      setIsLoading(false);
+
+      // NEW POSITION
+      // Check sufficient funds
+      if (currentBalance < tokensCommitted) {
+        throw new Error(`Insufficient funds: You need ${tokensCommitted} tokens but only have ${currentBalance.toFixed(2)}.`);
+      }
+
+      // Calculate EntryRatio BEFORE adding tokens
+      const entryRatio = calculateSentimentRatio(p, n);
+
+      // Add tokens to appropriate pool
+      const newP = direction === 'positive' ? p + tokensCommitted : p;
+      const newN = direction === 'negative' ? n + tokensCommitted : n;
+
+      // Ensure P and N never go below 0
+      if (newP < 0 || newN < 0) {
+        throw new Error('Invalid pool state: Pools cannot go negative.');
+      }
+
+      // Update pools immediately (optimistic update)
+      setEntityPools(prev => ({
+        ...prev,
+        [entityId]: { positiveTokens: newP, negativeTokens: newN }
+      }));
+
+      // Store position (first tranche)
+      setUserPositions(prev => ({
+        ...prev,
+        [entityId]: { 
+          direction, 
+          tranches: [{ tokensCommitted, entryRatio }]
+        }
+      }));
+
+      // Recalculate price immediately using new pools
+      const newPrice = calculatePrice(newP, newN);
+      setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+
+      // Update cash balance (deduct tokens committed)
+      setCashBalance(prev => Math.max(0, prev - tokensCommitted));
+
+      // Record transaction
+      const newTransaction: UserTransaction = {
+        id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        entityId,
+        entityName,
+        type: 'open',
+        direction,
+        tokensCommitted,
+        pricePerToken: entryRatio,
+        totalAmount: tokensCommitted,
+        timestamp: new Date().toISOString(),
+        category,
+      };
+      setTransactions(prev => [newTransaction, ...prev]);
+
+      // Try to execute trade on backend if available
+      if (token && isBackendConfigured()) {
+        try {
+          const response = await authenticatedRequest<{
+            cashBalance: number;
+            holdings: Holding[];
+            totalValue: number;
+            todayChange: number;
+            todayChangePercent: number;
+          }>('/api/trade/execute', token, {
+            method: 'POST',
+            body: JSON.stringify({
+              entityId,
+              type: 'open',
+              direction,
+              tokensCommitted,
+            }),
+          });
+
+          if (response.success && response.data) {
+            // Update with backend response (authoritative)
+            setCashBalance(response.data.cashBalance);
+            setHoldings(response.data.holdings);
+            setTodayChange(response.data.todayChange);
+            setTodayChangePercent(response.data.todayChangePercent);
+            await fetchTransactions();
+            
+            // Invalidate cache after successful trade execution
+            invalidateCache('portfolio');
+            invalidateCache('transactions');
+          } else {
+            // Backend failed - rollback
+            throw new Error(response.error || 'Backend trade execution failed');
+          }
+        } catch (error) {
+          // Backend error - rollback
+          throw error;
+        }
+      }
+
+      return true;
+    } else {
+      // CLOSE position
+      const position = currentPositions[entityId];
+      if (!position) {
+        throw new Error('No position: You do not have an open position for this entity.');
+      }
+
+      const positionDirection = position.direction;
+      const tranches = position.tranches;
+      
+      // Calculate total tokens committed (sum of all tranches)
+      const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
+
+      // Remove ALL user tokens from pool FIRST
+      const newP = positionDirection === 'positive' ? Math.max(0, p - totalTokensCommitted) : p;
+      const newN = positionDirection === 'negative' ? Math.max(0, n - totalTokensCommitted) : n;
+
+      // Calculate exitRatio AFTER removing all tokens
+      const exitRatio = calculateSentimentRatio(newP, newN);
+
+      // Calculate PnL per tranche using reverse simulation
+      let simulatedP = newP;
+      let simulatedN = newN;
+      let totalProfitLoss = 0;
+      
+      for (let i = tranches.length - 1; i >= 0; i--) {
+        const tranche = tranches[i];
+        const effectiveExitRatio = calculateSentimentRatio(simulatedP, simulatedN);
+        const deltaR = effectiveExitRatio - tranche.entryRatio;
+        let tranchePnL = tranche.tokensCommitted * deltaR;
+        
+        if (positionDirection === 'negative') {
+          tranchePnL = -tranchePnL;
+        }
+        
+        totalProfitLoss += tranchePnL;
+        
+        if (positionDirection === 'positive') {
+          simulatedP += tranche.tokensCommitted;
+        } else {
+          simulatedN += tranche.tokensCommitted;
+        }
+      }
+
+      // Calculate total tokens returned
+      const tokensReturned = Math.max(0, totalTokensCommitted + totalProfitLoss);
+
+      // Update pools immediately (optimistic update)
+      setEntityPools(prev => ({
+        ...prev,
+        [entityId]: { positiveTokens: newP, negativeTokens: newN }
+      }));
+
+      // Remove position (close it)
+      setUserPositions(prev => {
+        const updated = { ...prev };
+        delete updated[entityId];
+        return updated;
+      });
+
+      // Recalculate price immediately using new pools
+      const newPrice = calculatePrice(newP, newN);
+      setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+
+      // Update cash balance (add tokens returned)
+      setCashBalance(prev => prev + tokensReturned);
+
+      // Record transaction
+      const newTransaction: UserTransaction = {
+        id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        entityId,
+        entityName,
+        type: 'close',
+        tokensCommitted: totalTokensCommitted,
+        pricePerToken: exitRatio,
+        totalAmount: tokensReturned,
+        timestamp: new Date().toISOString(),
+        category,
+        profitLoss: totalProfitLoss,
+      };
+      setTransactions(prev => [newTransaction, ...prev]);
+
+      // Try to execute trade on backend if available
+      if (token && isBackendConfigured()) {
+        try {
+          const response = await authenticatedRequest<{
+            cashBalance: number;
+            holdings: Holding[];
+            totalValue: number;
+            todayChange: number;
+            todayChangePercent: number;
+          }>('/api/trade/execute', token, {
+            method: 'POST',
+            body: JSON.stringify({
+              entityId,
+              type: 'close',
+            }),
+          });
+
+          if (response.success && response.data) {
+            // Update with backend response (authoritative)
+            setCashBalance(response.data.cashBalance);
+            setHoldings(response.data.holdings);
+            setTodayChange(response.data.todayChange);
+            setTodayChangePercent(response.data.todayChangePercent);
+            await fetchTransactions();
+            
+            // Invalidate cache after successful trade execution
+            invalidateCache('portfolio');
+            invalidateCache('transactions');
+          } else {
+            // Backend failed - rollback
+            throw new Error(response.error || 'Backend trade execution failed');
+          }
+        } catch (error) {
+          // Backend error - rollback
+          throw error;
+        }
+      }
+
+      return true;
     }
+  }, [token, fetchTransactions]);
+
+  // Store executeTradeInternal in ref so processTradeQueue can access it
+  useEffect(() => {
+    executeTradeInternalRef.current = executeTradeInternal;
+  }, [executeTradeInternal]);
+
+  // Public executeTrade function - queues trades to prevent race conditions
+  const executeTrade = async (
+    entityId: number,
+    entityName: string,
+    type: 'open' | 'close',
+    direction: 'positive' | 'negative',
+    tokensCommitted: number,
+    category: string
+  ): Promise<boolean> => {
+    return new Promise((resolve, reject) => {
+      setIsLoading(true);
+
+      // Create queued trade
+      const queuedTrade: QueuedTrade = {
+        id: `trade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        entityId,
+        entityName,
+        type,
+        direction,
+        tokensCommitted,
+        category,
+        resolve: (success: boolean) => {
+          setIsLoading(false);
+          // Invalidate cache after successful trade
+          if (success) {
+            invalidateCache('portfolio');
+            invalidateCache('transactions');
+          }
+          resolve(success);
+        },
+        reject: (error: Error) => {
+          setIsLoading(false);
+          // Show user-friendly alert for errors
+          if (error.message.includes('Direction mismatch')) {
+            Alert.alert('Direction Mismatch', error.message.replace('Direction mismatch: ', ''));
+          } else if (error.message.includes('Insufficient funds')) {
+            Alert.alert('Insufficient Funds', error.message.replace('Insufficient funds: ', ''));
+          } else if (error.message.includes('No position')) {
+            Alert.alert('No Position', error.message.replace('No position: ', ''));
+          } else if (error.message.includes('Invalid pool state')) {
+            Alert.alert('Invalid Pool State', error.message.replace('Invalid pool state: ', ''));
+          } else {
+            Alert.alert('Trade Failed', error.message || 'An error occurred while executing the trade.');
+          }
+          reject(error);
+        },
+      };
+
+      // Add to queue
+      tradeQueueRef.current.push(queuedTrade);
+
+      // Process queue (will process sequentially)
+      processTradeQueue().catch(err => {
+        console.error('Error processing trade queue:', err);
+        queuedTrade.reject(err instanceof Error ? err : new Error('Queue processing failed'));
+      });
+    });
   };
 
   // Wrapper functions for openPosition and closePosition
@@ -750,7 +1044,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const resetPortfolio = () => {
+  const resetPortfolio = async () => {
     setCashBalance(INITIAL_CASH_BALANCE);
     setHoldings([]);
     setTransactions([]);
@@ -782,6 +1076,18 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     setEntityHighLow(resetHighLow);
     // Clear all positions
     setUserPositions({});
+    
+    // Clear AsyncStorage
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.ENTITY_POOLS,
+        STORAGE_KEYS.USER_POSITIONS,
+        STORAGE_KEYS.CASH_BALANCE,
+        STORAGE_KEYS.TRANSACTIONS,
+      ]);
+    } catch (error) {
+      console.error('Error clearing AsyncStorage:', error);
+    }
   };
 
   const getEntityPrice = (entityId: number): number => {

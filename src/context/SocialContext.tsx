@@ -176,25 +176,69 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
 
-  // Mock posts for trending feed (fallback when backend not available)
-  const MOCK_POSTS: Post[] = [
-    {
-      id: 'people-example-tom-brady',
-      userId: 'user-example',
-      username: 'nfl_fan',
-      displayName: 'NFL Fan',
-      avatarUrl: undefined,
-      content: '@TomBrady is still the goat out of all the NFL football players 🐐',
-      entityId: 69, // Tom Brady's entity ID
-      entityName: 'Tom Brady',
-      sentiment: 'positive',
-      likes: 5,
-      comments: 3,
-      isLiked: false,
-      isBookmarked: false,
-      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
-    },
-  ];
+  // No mock posts - posts come from backend or user-created content only
+  const MOCK_POSTS: Post[] = [];
+
+  // AsyncStorage keys for social data persistence
+  const SOCIAL_STORAGE_KEYS = {
+    ACTIVITY_FEED: '@social:activityFeed',
+    POST_COMMENTS: '@social:postComments',
+  };
+
+  // Load persisted social data on mount
+  useEffect(() => {
+    const loadPersistedData = async () => {
+      try {
+        // Load activity feed
+        const feedData = await AsyncStorage.getItem(SOCIAL_STORAGE_KEYS.ACTIVITY_FEED);
+        if (feedData) {
+          setActivityFeed(JSON.parse(feedData));
+        }
+
+        // Load post comments
+        const commentsData = await AsyncStorage.getItem(SOCIAL_STORAGE_KEYS.POST_COMMENTS);
+        if (commentsData) {
+          setPostComments(JSON.parse(commentsData));
+        }
+      } catch (error) {
+        console.error('Error loading persisted social data:', error);
+      }
+    };
+
+    loadPersistedData();
+  }, []);
+
+  // Save activity feed whenever it changes
+  useEffect(() => {
+    const saveFeed = async () => {
+      try {
+        // Only save last 50 posts to avoid storage bloat
+        const toSave = activityFeed.slice(0, 50);
+        await AsyncStorage.setItem(SOCIAL_STORAGE_KEYS.ACTIVITY_FEED, JSON.stringify(toSave));
+      } catch (error) {
+        console.error('Error saving activity feed:', error);
+      }
+    };
+
+    if (activityFeed.length > 0) {
+      saveFeed();
+    }
+  }, [activityFeed]);
+
+  // Save post comments whenever they change
+  useEffect(() => {
+    const saveComments = async () => {
+      try {
+        await AsyncStorage.setItem(SOCIAL_STORAGE_KEYS.POST_COMMENTS, JSON.stringify(postComments));
+      } catch (error) {
+        console.error('Error saving post comments:', error);
+      }
+    };
+
+    if (Object.keys(postComments).length > 0) {
+      saveComments();
+    }
+  }, [postComments]);
 
   // Fetch activity feed from backend
   const refreshActivityFeed = useCallback(async () => {

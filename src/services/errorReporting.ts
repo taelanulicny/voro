@@ -1,11 +1,11 @@
 /**
  * Error Reporting Service
- * 
- * Centralized error reporting that can be extended to integrate with
- * crash reporting services like Sentry, Bugsnag, Firebase Crashlytics, etc.
+ *
+ * Centralized error reporting integrated with Sentry for crash tracking.
  */
 
 import { ErrorInfo } from 'react';
+import { captureException, captureMessage, addBreadcrumb as sentryAddBreadcrumb, setUserContext as sentrySetUserContext } from '../config/sentry';
 
 export interface ErrorReport {
   error: Error;
@@ -24,24 +24,14 @@ class ErrorReportingService {
 
   /**
    * Initialize the error reporting service
-   * In the future, this can initialize Sentry, Bugsnag, etc.
+   * Sentry is initialized in App.tsx before this is called
    */
   init(): void {
     if (this.isInitialized) {
       return;
     }
 
-    // In development, just log to console
-    if (__DEV__) {
-      console.log('[ErrorReporting] Initialized (development mode)');
-    }
-
-    // In production, you would initialize your crash reporting service here:
-    // Example with Sentry:
-    // Sentry.init({
-    //   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    //   environment: __DEV__ ? 'development' : 'production',
-    // });
+    console.log('[ErrorReporting] Initialized');
 
     this.isInitialized = true;
     this.flushQueue();
@@ -80,10 +70,10 @@ class ErrorReportingService {
    * Report an error with user context
    */
   setUserContext(userId?: string, userData?: Record<string, any>): void {
-    // In production, you would set user context in your crash reporting service:
-    // Example with Sentry:
-    // Sentry.setUser({ id: userId, ...userData });
-    
+    if (userId) {
+      sentrySetUserContext(userId);
+    }
+
     if (__DEV__) {
       console.log('[ErrorReporting] User context set:', { userId, userData });
     }
@@ -93,10 +83,8 @@ class ErrorReportingService {
    * Add breadcrumb for debugging
    */
   addBreadcrumb(message: string, category?: string, data?: Record<string, any>): void {
-    // In production, you would add breadcrumb to your crash reporting service:
-    // Example with Sentry:
-    // Sentry.addBreadcrumb({ message, category, data, level: 'info' });
-    
+    sentryAddBreadcrumb(message, category || 'app', 'info', data);
+
     if (__DEV__) {
       console.log('[ErrorReporting] Breadcrumb:', { message, category, data });
     }
@@ -114,27 +102,18 @@ class ErrorReportingService {
         componentStack: report.errorInfo?.componentStack,
         context: report.context,
       });
-      return;
     }
 
-    // In production, send to crash reporting service:
-    // Example with Sentry:
-    // Sentry.captureException(report.error, {
-    //   contexts: {
-    //     react: {
-    //       componentStack: report.errorInfo?.componentStack,
-    //     },
-    //   },
-    //   extra: report.context,
-    // });
+    // Send to Sentry
+    const context = {
+      ...report.context,
+      componentStack: report.errorInfo?.componentStack,
+      timestamp: report.timestamp,
+      userAgent: report.userAgent,
+      url: report.url,
+    };
 
-    // Example with Firebase Crashlytics:
-    // crashlytics().recordError(report.error);
-    // if (report.context) {
-    //   Object.entries(report.context).forEach(([key, value]) => {
-    //     crashlytics().setAttribute(key, String(value));
-    //   });
-    // }
+    captureException(report.error, context);
   }
 
   /**

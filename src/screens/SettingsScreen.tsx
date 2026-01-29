@@ -11,6 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
@@ -59,6 +61,52 @@ export default function SettingsScreen() {
           text: 'Log Out',
           style: 'destructive',
           onPress: logout,
+        },
+      ]
+    );
+  };
+
+  const handleResetAppData = () => {
+    Alert.alert(
+      'Reset All App Data',
+      'This will delete ALL app data including:\n\n• Trading positions and history\n• Social posts and comments\n• Watchlist\n• Settings\n• Cached data\n\nYou will be logged out and need to sign in again. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Everything',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Clear AsyncStorage
+              await AsyncStorage.clear();
+
+              // Clear SecureStore tokens
+              try {
+                await SecureStore.deleteItemAsync('userToken');
+                await SecureStore.deleteItemAsync('refreshToken');
+              } catch (error) {
+                console.log('SecureStore clear error (may not exist):', error);
+              }
+
+              // Show success message
+              Alert.alert(
+                'Data Cleared',
+                'All app data has been deleted. The app will restart.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      // Logout will clear auth state and navigate to welcome
+                      logout();
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              Alert.alert('Error', 'Failed to reset app data. Please try again.');
+              console.error('Reset app data error:', error);
+            }
+          },
         },
       ]
     );
@@ -359,6 +407,22 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
+            onPress={() => (navigation as any).navigate('Simulator')}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="analytics-outline" size={20} color={theme.accent} />
+              <View style={styles.menuItemContent}>
+                <Text style={[dynamicStyles.menuItemText, { color: theme.accent }]}>
+                  Paper Trading Simulator
+                </Text>
+                <Text style={dynamicStyles.menuItemSubtext}>Practice trading with virtual money</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
             onPress={handleResetPortfolio}
           >
             <View style={styles.menuItemLeft}>
@@ -368,6 +432,22 @@ export default function SettingsScreen() {
                   Reset Portfolio
                 </Text>
                 <Text style={dynamicStyles.menuItemSubtext}>Clear all positions (Dev Only)</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={dynamicStyles.menuItem}
+            onPress={handleResetAppData}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <View style={styles.menuItemContent}>
+                <Text style={[dynamicStyles.menuItemText, { color: '#EF4444' }]}>
+                  Reset All App Data
+                </Text>
+                <Text style={dynamicStyles.menuItemSubtext}>Clear everything and logout</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />

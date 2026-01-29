@@ -6,7 +6,7 @@ Set the environment variable and deploy:
 
 ```bash
 cd backend
-export GEMINI_API_KEY=AIzaSyACY9QEnVzWDzYK3YuBmHRJ_1uCGBbxVqc
+export GEMINI_API_KEY=your_gemini_api_key_here  # Get from https://makersuite.google.com/app/apikey
 export JWT_SECRET=$(openssl rand -hex 32)  # If not already set
 npm run deploy
 ```
@@ -14,7 +14,7 @@ npm run deploy
 ## One-Line Deploy
 
 ```bash
-cd backend && GEMINI_API_KEY=AIzaSyACY9QEnVzWDzYK3YuBmHRJ_1uCGBbxVqc npm run deploy
+cd backend && GEMINI_API_KEY=your_gemini_api_key_here npm run deploy
 ```
 
 ## Using .env File (Recommended)
@@ -23,7 +23,7 @@ Create a `.env` file in the `backend` directory:
 
 ```bash
 # backend/.env
-GEMINI_API_KEY=AIzaSyACY9QEnVzWDzYK3YuBmHRJ_1uCGBbxVqc
+GEMINI_API_KEY=your_gemini_api_key_here  # Get from https://makersuite.google.com/app/apikey
 JWT_SECRET=your_jwt_secret_here
 NEWS_API_KEY=your_news_api_key_here  # If you have one
 ```

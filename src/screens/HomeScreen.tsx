@@ -29,11 +29,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useSideMenu } from '../context/SideMenuContext';
 import { useSocial } from '../context/SocialContext';
+import { useFeatureFlags } from '../context/FeatureFlagsContext';
 import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
 import { getEntityById, getAllEntities, ENTITIES, getEntitiesByCategory } from '../utils/entities';
 import { BASE_PRICE } from '../utils/sentimentTrading';
 import TradeModal from '../components/TradeModal';
 import SideMenu from '../components/SideMenu';
+import { BetaNotice } from '../components/BetaNotice';
 
 type NavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList>,
@@ -49,6 +51,7 @@ export default function HomeScreen() {
   const { watchlist } = useWatchlist();
   const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
   const { activityFeed } = useSocial();
+  const { flags } = useFeatureFlags();
   const [refreshing, setRefreshing] = useState(false);
   const [referralModalVisible, setReferralModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('For You');
@@ -863,15 +866,17 @@ export default function HomeScreen() {
           >
             <Ionicons name="gift-outline" size={24} color={theme.text} />
           </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => {
-              navigation.navigate('Notifications');
-            }}
-          >
-            <Ionicons name="notifications-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
+
+          {flags.notifications && (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {
+                navigation.navigate('Notifications');
+              }}
+            >
+              <Ionicons name="notifications-outline" size={24} color={theme.text} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -917,6 +922,11 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
+        {/* Beta Notice */}
+        <BetaNotice
+          message="You're using the beta version of Moro. Trading data is stored locally and may be reset during updates."
+          type="info"
+        />
 
         {/* Swipeable Section with 5 Pages */}
         <View style={[styles.section, { backgroundColor: 'transparent', borderBottomColor: theme.backgroundSecondary, paddingHorizontal: 0, paddingVertical: 0 }]}>

@@ -64,7 +64,12 @@ export default function NewsScreen() {
 
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.backgroundSecondary }]}>
-      <Text style={[styles.title, { color: theme.text }]}>News</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={[styles.title, { color: theme.text }]}>News</Text>
+        <View style={{ backgroundColor: theme.accent + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+          <Text style={{ color: theme.accent, fontSize: 10, fontWeight: '600' }}>POWERED BY NEWSAPI</Text>
+        </View>
+      </View>
       {breakingNews.length > 0 && (
         <View style={styles.breakingCountBadge}>
           <Ionicons name="flash" size={12} color="#FFFFFF" />

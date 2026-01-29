@@ -62,6 +62,8 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.env
+backend/.env.*
 
 # TypeScript
 *.tsbuildinfo
@@ -216,3 +218,4 @@ Pods/
 # Backup files
 *.backup
 package.json.backup
+BETA_LAUNCH_AUDIT_REPORT.md
