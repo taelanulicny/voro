@@ -386,6 +386,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Skip authentication (dev only) - creates a mock user
   const skipAuth = async () => {
+    if (!__DEV__) {
+      console.warn('skipAuth is disabled in production');
+      return;
+    }
+
     const mockUser: User = {
       id: 'guest_user',
       email: 'guest@moro.app',

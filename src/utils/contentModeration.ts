@@ -1,21 +1,27 @@
 /**
  * Content moderation utilities
  * Focused on blocking slurs while allowing general profanity
+ *
+ * PRODUCTION RECOMMENDATION:
+ * For comprehensive content moderation, integrate an external service:
+ * - Google Perspective API (toxicity, profanity, threats)
+ * - AWS Comprehend (toxicity detection)
+ * - Azure Content Moderator
+ * - OpenAI Moderation API
  */
 
 // Slur list - offensive slurs that target protected groups
 // Add actual slurs you want to block here (using lowercase)
 // Note: Using word boundaries to match whole words only
-// In production, consider using AWS Comprehend or a comprehensive moderation library
+// IMPORTANT: For production, populate this list or use an external moderation service
 const SLURS = [
-  // TODO: Add racial/ethnic slurs
-  // TODO: Add homophobic slurs
-  // TODO: Add transphobic slurs
-  // TODO: Add ableist slurs
-  // TODO: Add religious slurs
-  // Example format (DO NOT include actual slurs in comments):
-  // 'slur1',
-  // 'slur2',
+  // TODO: Populate with appropriate content filters for your use case
+  // Consider using a comprehensive list from:
+  // - https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words
+  // - Or integrate external moderation API
+
+  // Example patterns (non-offensive placeholders for demonstration):
+  // Add actual words based on your community guidelines
 ];
 
 // Spam patterns
@@ -23,25 +29,63 @@ const SPAM_PATTERNS = [
   /(https?:\/\/[^\s]+){3,}/gi, // Multiple URLs
   /(buy|sell|click|free|limited|offer)[\s\S]{0,50}(buy|sell|click|free|limited|offer)/gi, // Repetitive spam words
   /[A-Z]{20,}/, // All caps spam
+  /(.)\1{10,}/, // Character repeated 10+ times (e.g., "aaaaaaaaaa")
+  /🚀{5,}/, // Excessive emoji spam
 ];
+
+/**
+ * Normalize text to handle l33t speak and obfuscation attempts
+ */
+function normalizeText(text: string): string {
+  let normalized = text.toLowerCase();
+
+  // Common l33t speak substitutions
+  const leetMap: Record<string, string> = {
+    '0': 'o',
+    '1': 'i',
+    '3': 'e',
+    '4': 'a',
+    '5': 's',
+    '7': 't',
+    '8': 'b',
+    '@': 'a',
+    '$': 's',
+    '!': 'i',
+    '+': 't',
+    '|': 'i',
+  };
+
+  // Replace l33t characters
+  for (const [leet, normal] of Object.entries(leetMap)) {
+    normalized = normalized.split(leet).join(normal);
+  }
+
+  // Remove common obfuscation characters
+  normalized = normalized.replace(/[\*_\-\.\s]+/g, '');
+
+  return normalized;
+}
 
 /**
  * Check if content contains slurs
  */
 export function containsSlurs(text: string): boolean {
+  // Normalize text to handle l33t speak and obfuscation
+  const normalizedText = normalizeText(text);
   const lowerText = text.toLowerCase();
-  
+
   // Check against slur list (using word boundaries)
   for (const slur of SLURS) {
     const slurLower = slur.toLowerCase();
     // Match slur as whole word to avoid false positives
     const regex = new RegExp(`\\b${slurLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (regex.test(text)) {
+
+    // Check both original and normalized text
+    if (regex.test(lowerText) || normalizedText.includes(slurLower)) {
       return true;
     }
   }
-  
-  // Spam patterns are checked separately, not here
+
   return false;
 }
 

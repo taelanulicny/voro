@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ function PortfolioScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<'holdings' | 'history'>('holdings');
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // SECURITY: Enable screenshot protection for sensitive financial data
   const { BlurOverlay } = useScreenshotProtection(true);
 
@@ -38,8 +38,21 @@ function PortfolioScreen() {
     navigation.navigate('Entity', { entityId, categoryId: category });
   };
 
-  const sortedHoldings = [...portfolio.holdings].sort((a, b) => b.totalValue - a.totalValue);
-  const recentTransactions = transactions.slice(0, 20); // Last 20 transactions
+  // Memoize expensive calculations to prevent recalculation on every render
+  const sortedHoldings = useMemo(
+    () => [...portfolio.holdings].sort((a, b) => b.totalValue - a.totalValue),
+    [portfolio.holdings]
+  );
+
+  const recentTransactions = useMemo(
+    () => transactions.slice(0, 20),
+    [transactions]
+  );
+
+  const investedAmount = useMemo(
+    () => portfolio.totalValue - portfolio.cashBalance,
+    [portfolio.totalValue, portfolio.cashBalance]
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]}>
@@ -73,7 +86,7 @@ function PortfolioScreen() {
           <View style={styles.cashRow}>
             <Text style={[styles.cashLabel, { color: theme.textSecondary }]}>Invested</Text>
             <Text style={[styles.cashAmount, { color: theme.text }]}>
-              {formatCurrency(portfolio.totalValue - portfolio.cashBalance)}
+              {formatCurrency(investedAmount)}
             </Text>
           </View>
         </View>

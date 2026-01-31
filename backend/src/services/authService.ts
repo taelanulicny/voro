@@ -30,14 +30,18 @@ export async function signup(
   displayName: string
 ): Promise<{ success: boolean; userId?: string; error?: string }> {
   try {
+    // Normalize email and username to lowercase for case-insensitive matching
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedUsername = username.toLowerCase().trim();
+
     // Sign up user in Cognito - use username as Cognito Username since email is configured as alias
     const signUpCommand = new SignUpCommand({
       ClientId: CLIENT_ID,
-      Username: username, // Use username, not email (email is an alias)
+      Username: normalizedUsername, // Use username, not email (email is an alias)
       Password: password,
       UserAttributes: [
-        { Name: 'email', Value: email },
-        { Name: 'preferred_username', Value: username },
+        { Name: 'email', Value: normalizedEmail },
+        { Name: 'preferred_username', Value: normalizedUsername },
         { Name: 'name', Value: displayName },
       ],
     });
@@ -54,8 +58,8 @@ export async function signup(
     const now = new Date().toISOString();
     const user: User = {
       userId,
-      email,
-      username,
+      email: normalizedEmail,
+      username: normalizedUsername,
       displayName,
       followersCount: 0,
       followingCount: 0,
@@ -99,11 +103,14 @@ export async function login(
   error?: string;
 }> {
   try {
+    // Normalize email to lowercase for case-insensitive login
+    const normalizedEmail = email.toLowerCase().trim();
+
     const authCommand = new InitiateAuthCommand({
       ClientId: CLIENT_ID,
       AuthFlow: 'USER_PASSWORD_AUTH',
       AuthParameters: {
-        USERNAME: email,
+        USERNAME: normalizedEmail,
         PASSWORD: password,
       },
     });
@@ -293,6 +300,9 @@ export async function changeEmail(
   password: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Normalize new email to lowercase
+    const normalizedNewEmail = newEmail.toLowerCase().trim();
+
     // Get user to find their username and current email
     const user = await getUserById(userId);
     if (!user) {
@@ -319,7 +329,7 @@ export async function changeEmail(
     }
 
     // Check if email is same
-    if (user.email === newEmail) {
+    if (user.email === normalizedNewEmail) {
       return { success: false, error: 'New email must be different from current email' };
     }
 
@@ -330,7 +340,7 @@ export async function changeEmail(
       UserAttributes: [
         {
           Name: 'email',
-          Value: newEmail,
+          Value: normalizedNewEmail,
         },
         {
           Name: 'email_verified',
@@ -348,14 +358,14 @@ export async function changeEmail(
         Key: { userId },
         UpdateExpression: 'SET email = :email, pendingEmail = :pendingEmail, updatedAt = :updatedAt',
         ExpressionAttributeValues: {
-          ':email': newEmail,
-          ':pendingEmail': newEmail,
+          ':email': normalizedNewEmail,
+          ':pendingEmail': normalizedNewEmail,
           ':updatedAt': new Date().toISOString(),
         },
       })
     );
 
-    logger.info('Email change initiated', { userId, newEmail });
+    logger.info('Email change initiated', { userId, newEmail: normalizedNewEmail });
 
     // TODO: Trigger email verification flow in Cognito
     // Cognito will automatically send verification email if configured

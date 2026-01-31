@@ -38,13 +38,19 @@ export async function login(credentials: LoginCredentials): Promise<{
   user?: AuthResponse['user'];
 }> {
   try {
+    // Normalize email to lowercase for case-insensitive login
+    const normalizedCredentials = {
+      ...credentials,
+      email: credentials.email.toLowerCase().trim(),
+    };
+
     const response = await apiRequest<{
       token: string;
       refreshToken?: string;
       user: AuthResponse['user'];
     }>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(normalizedCredentials),
     });
 
     if (!response.success || !response.data) {
@@ -79,12 +85,19 @@ export async function signup(data: SignupData): Promise<{
   user?: AuthResponse['user'];
 }> {
   try {
+    // Normalize email and username to lowercase for case-insensitive matching
+    const normalizedData = {
+      ...data,
+      email: data.email.toLowerCase().trim(),
+      username: data.username.toLowerCase().trim(),
+    };
+
     const response = await apiRequest<{
       userId: string;
       message: string;
     }>('/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(normalizedData),
     });
 
     if (!response.success || !response.data) {
@@ -96,7 +109,7 @@ export async function signup(data: SignupData): Promise<{
 
     // After signup, automatically log in
     const loginResult = await login({
-      email: data.email,
+      email: normalizedData.email,
       password: data.password,
     });
 
@@ -121,12 +134,15 @@ export async function loginWithOAuth(data: OAuthLoginData): Promise<{
   user?: AuthResponse['user'];
 }> {
   try {
+    // Normalize email to lowercase for consistency
+    const normalizedEmail = data.email.toLowerCase().trim();
+
     const endpoint = data.provider === 'google' ? '/api/auth/google' : '/api/auth/apple';
-    
+
     const response = await apiRequest<AuthResponse & { refreshToken?: string }>(endpoint, {
       method: 'POST',
       body: JSON.stringify({
-        email: data.email,
+        email: normalizedEmail,
         providerId: data.id,
         name: data.name,
         photo: data.photo,

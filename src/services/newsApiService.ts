@@ -154,7 +154,7 @@ const mapNewsApiArticlesToAppFormat = (articles: NewsApiArticle[]): NewsArticle[
     })
     .map((article, index) => {
       // Determine category based on source or content (simplified logic)
-      const category = categorizArticle(article);
+      const category = categorizeArticle(article);
 
       // Determine sentiment (simplified - would need ML for real sentiment analysis)
       const sentiment = determineSentiment(article);

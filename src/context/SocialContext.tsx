@@ -7,6 +7,8 @@ interface SocialContextType {
   // Posts state
   activityFeed: Post[];
   isLoadingFeed: boolean;
+  hasMorePosts: boolean;
+  loadMorePosts: () => Promise<void>;
 
   // Comments state
   postComments: Record<string, Comment[]>;
@@ -57,115 +59,14 @@ interface SocialContextType {
 
 const SocialContext = createContext<SocialContextType | undefined>(undefined);
 
-// Mock groups (not yet implemented in backend)
-const MOCK_GROUPS: Group[] = [
-  {
-    id: '9',
-    name: 'BYU Users',
-    description: 'Brigham Young University community',
-    category: 'Education',
-    memberCount: 2651,
-    isPrivate: false,
-    isMember: false,
-    location: 'Utah',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(),
-  },
-  {
-    id: '10',
-    name: 'Better Than Fantasy?',
-    description: 'Fantasy sports and trading community',
-    category: 'Trading',
-    memberCount: 23,
-    isPrivate: true,
-    isMember: true,
-    location: 'United States',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Crypto Enthusiasts',
-    description: 'All things cryptocurrency and blockchain',
-    category: 'Cryptocurrency',
-    memberCount: 3421,
-    isPrivate: false,
-    isMember: false,
-    location: 'United States of America',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
-  },
-  {
-    id: '3',
-    name: 'NYC Traders',
-    description: 'New York City trading community',
-    category: 'Trading',
-    memberCount: 2156,
-    isPrivate: false,
-    isMember: false,
-    location: 'New York',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString(),
-  },
-  {
-    id: '4',
-    name: 'Texas Investors',
-    description: 'Investment community in Texas',
-    category: 'Investing',
-    memberCount: 1890,
-    isPrivate: false,
-    isMember: false,
-    location: 'Texas',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
-  },
-  {
-    id: '5',
-    name: 'Global Markets',
-    description: 'Worldwide market discussions',
-    category: 'Trading',
-    memberCount: 5432,
-    isPrivate: false,
-    isMember: false,
-    location: 'Whole World',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 90).toISOString(),
-  },
-  {
-    id: '6',
-    name: 'Florida Options',
-    description: 'Options trading group in Florida',
-    category: 'Trading',
-    memberCount: 1234,
-    isPrivate: false,
-    isMember: false,
-    location: 'Florida',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(),
-  },
-  {
-    id: '7',
-    name: 'Silicon Valley Startups',
-    description: 'Startup investment discussions',
-    category: 'Investing',
-    memberCount: 3456,
-    isPrivate: false,
-    isMember: false,
-    location: 'California',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-  },
-  {
-    id: '8',
-    name: 'Chicago Bulls',
-    description: 'Chicago trading community',
-    category: 'Trading',
-    memberCount: 987,
-    isPrivate: false,
-    isMember: false,
-    location: 'Illinois',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-  },
-];
-
 export function SocialProvider({ children }: { children: ReactNode }) {
   const { user, token, isAuthenticated } = useAuth();
   const [activityFeed, setActivityFeed] = useState<Post[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(false);
+  const [feedCursor, setFeedCursor] = useState<string | null>(null);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
-  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [isLoadingMyGroups, setIsLoadingMyGroups] = useState(false);
   
@@ -241,7 +142,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [postComments]);
 
   // Fetch activity feed from backend
-  const refreshActivityFeed = useCallback(async () => {
+  const refreshActivityFeed = useCallback(async (loadMore = false) => {
     if (!token || !isAuthenticated) {
       // Use mock posts if not authenticated or backend not configured
       setActivityFeed(MOCK_POSTS);
@@ -256,16 +157,23 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
     try {
       setIsLoadingFeed(true);
+
+      // Build URL with pagination params
+      let url = '/api/social/feed?limit=20';
+      if (feedCursor && loadMore) {
+        url += `&lastKey=${encodeURIComponent(feedCursor)}`;
+      }
+
       const response = await authenticatedRequest<{
         posts: Post[];
         lastEvaluatedKey?: string;
-      }>('/api/social/feed', token, {
+      }>(url, token, {
         method: 'GET',
       });
 
-      if (response.success && response.data && response.data.posts.length > 0) {
+      if (response.success && response.data) {
         // Map backend post format to frontend format
-        const mappedPosts: Post[] = response.data.posts.map((p: any) => ({
+        const mappedPosts: Post[] = (response.data.posts || []).map((p: any) => ({
           id: p.postId || p.id,
           userId: p.userId,
           username: p.username,
@@ -281,19 +189,34 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           isBookmarked: p.isBookmarked || false,
           timestamp: p.timestamp,
         }));
-        setActivityFeed(mappedPosts);
-      } else {
-        // Use mock posts if backend returns empty
+
+        if (loadMore) {
+          // Append to existing feed
+          setActivityFeed(prev => [...prev, ...mappedPosts]);
+        } else {
+          // Replace feed
+          setActivityFeed(mappedPosts);
+        }
+
+        // Update pagination state
+        setFeedCursor(response.data.lastEvaluatedKey || null);
+        setHasMorePosts(!!response.data.lastEvaluatedKey);
+      } else if (!loadMore) {
+        // Only use mock posts if this is initial load
         setActivityFeed(MOCK_POSTS);
+        setHasMorePosts(false);
       }
     } catch (error) {
-      // Use mock posts as fallback on error
-      console.debug('Error fetching feed (backend may not be running):', error);
-      setActivityFeed(MOCK_POSTS);
+      // Use mock posts as fallback on error (initial load only)
+      if (!loadMore) {
+        console.debug('Error fetching feed (backend may not be running):', error);
+        setActivityFeed(MOCK_POSTS);
+        setHasMorePosts(false);
+      }
     } finally {
       setIsLoadingFeed(false);
     }
-  }, [token, isAuthenticated]);
+  }, [token, isAuthenticated, feedCursor, loadMore]);
 
   // Load feed on mount and when auth changes
   useEffect(() => {
@@ -301,6 +224,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       refreshActivityFeed().catch(err => console.error('Error refreshing feed:', err));
     }
   }, [isAuthenticated, token, refreshActivityFeed]);
+
+  // Load groups on mount and when auth changes
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      refreshGroups().catch(err => console.error('Error refreshing groups:', err));
+    }
+  }, [isAuthenticated, token, refreshGroups]);
 
   const createPost = useCallback(async (params: {
     content: string;
@@ -387,20 +317,86 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const toggleBookmarkPost = useCallback(async (postId: string) => {
-    // TODO: Implement bookmark functionality in backend
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Optimistically update UI
     setActivityFeed(prev =>
       prev.map(post =>
         post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
       )
     );
-    return { success: true };
-  }, []);
+
+    try {
+      const response = await authenticatedRequest(`/api/social/posts/${postId}/bookmark`, token, {
+        method: 'POST',
+      });
+
+      if (response.success) {
+        // Update with actual state from server
+        const isBookmarked = response.data?.isBookmarked ?? !activityFeed.find(p => p.id === postId)?.isBookmarked;
+        setActivityFeed(prev =>
+          prev.map(post =>
+            post.id === postId ? { ...post, isBookmarked } : post
+          )
+        );
+        return { success: true };
+      }
+
+      // Rollback on failure
+      setActivityFeed(prev =>
+        prev.map(post =>
+          post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
+        )
+      );
+      return { success: false, error: response.error || 'Failed to bookmark post' };
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      // Rollback on error
+      setActivityFeed(prev =>
+        prev.map(post =>
+          post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
+        )
+      );
+      return { success: false, error: 'Failed to bookmark post' };
+    }
+  }, [token, activityFeed]);
 
   const deletePost = useCallback(async (postId: string) => {
-    // TODO: Implement delete post in backend
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Save the post for rollback
+    const deletedPost = activityFeed.find(p => p.id === postId);
+
+    // Optimistically remove from UI
     setActivityFeed(prev => prev.filter(post => post.id !== postId));
-    return { success: true };
-  }, []);
+
+    try {
+      const response = await authenticatedRequest(`/api/social/posts/${postId}`, token, {
+        method: 'DELETE',
+      });
+
+      if (response.success) {
+        return { success: true };
+      }
+
+      // Rollback on failure
+      if (deletedPost) {
+        setActivityFeed(prev => [deletedPost, ...prev]);
+      }
+      return { success: false, error: response.error || 'Failed to delete post' };
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      // Rollback on error
+      if (deletedPost) {
+        setActivityFeed(prev => [deletedPost, ...prev]);
+      }
+      return { success: false, error: 'Failed to delete post' };
+    }
+  }, [token, activityFeed]);
 
   const getComments = useCallback(async (postId: string | null) => {
     if (!postId || !token) {
@@ -645,7 +641,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token, user]);
 
   const toggleLikeComment = useCallback(async (postId: string, commentId: string) => {
-    // TODO: Implement like comment in backend
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // Optimistically update UI
     setPostComments(prev => ({
       ...prev,
       [postId]: (prev[postId] || []).map(comment =>
@@ -658,8 +658,67 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           : comment
       ),
     }));
-    return { success: true };
-  }, []);
+
+    try {
+      const response = await authenticatedRequest(`/api/social/comments/${commentId}/like`, token, {
+        method: 'POST',
+      });
+
+      if (response.success) {
+        // Update with actual state from server if provided
+        const isLiked = response.data?.isLiked;
+        if (isLiked !== undefined) {
+          setPostComments(prev => ({
+            ...prev,
+            [postId]: (prev[postId] || []).map(comment => {
+              if (comment.id === commentId) {
+                const currentLikes = comment.likes;
+                const wasLiked = !isLiked; // Previous state was opposite
+                return {
+                  ...comment,
+                  isLiked,
+                  likes: isLiked ? currentLikes : currentLikes,
+                };
+              }
+              return comment;
+            }),
+          }));
+        }
+        return { success: true };
+      }
+
+      // Rollback on failure
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                isLiked: !comment.isLiked,
+                likes: comment.isLiked ? comment.likes + 1 : comment.likes - 1,
+              }
+            : comment
+        ),
+      }));
+      return { success: false, error: response.error || 'Failed to like comment' };
+    } catch (error) {
+      console.error('Error toggling comment like:', error);
+      // Rollback on error
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                isLiked: !comment.isLiked,
+                likes: comment.isLiked ? comment.likes + 1 : comment.likes - 1,
+              }
+            : comment
+        ),
+      }));
+      return { success: false, error: 'Failed to like comment' };
+    }
+  }, [token]);
 
   const toggleFollowUser = useCallback(async (userId: string) => {
     if (!token) {
@@ -750,18 +809,23 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [token, followedUsers]);
 
   const refreshGroups = useCallback(async () => {
+    if (!token) return;
+
     setIsLoadingGroups(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    // Preserve user-created groups (where isMember === true) when refreshing
-    setGroups(prev => {
-      const userGroups = prev.filter(group => group.isMember === true);
-      const mockGroupsWithoutUserGroups = MOCK_GROUPS.filter(mockGroup => 
-        !userGroups.some(userGroup => userGroup.id === mockGroup.id)
-      );
-      return [...userGroups, ...mockGroupsWithoutUserGroups];
-    });
-    setIsLoadingGroups(false);
-  }, []);
+    try {
+      const response = await authenticatedRequest('/api/groups', token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data?.groups) {
+        setGroups(response.data.groups);
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  }, [token]);
 
   const refreshUserGroups = useCallback(async () => {
     setIsLoadingMyGroups(true);
@@ -779,58 +843,122 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     password?: string;
     coverImage?: string;
   }) => {
-    // TODO: Implement groups in backend
-    const newGroup: Group = {
-      id: Date.now().toString(),
-      name: params.name,
-      description: params.description,
-      category: params.category,
-      memberCount: 1,
-      isPrivate: params.isPrivate,
-      isMember: true,
-      createdAt: new Date().toISOString(),
-      location: params.location,
-      password: params.password,
-      coverImage: params.coverImage,
-    };
-    
-    setGroups(prev => [newGroup, ...prev]);
-    return { success: true, group: newGroup };
-  }, []);
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
 
-  const joinGroup = useCallback(async (groupId: string) => {
-    // TODO: Implement groups in backend
-    setGroups(prev =>
-      prev.map(group =>
-      group.id === groupId
-        ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
-        : group
-      )
-    );
-    return { success: true };
-  }, []);
+    try {
+      const response = await authenticatedRequest('/api/groups', token, {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+
+      if (response.success && response.data?.group) {
+        setGroups(prev => [response.data.group, ...prev]);
+        return { success: true, group: response.data.group };
+      }
+
+      return { success: false, error: response.error || 'Failed to create group' };
+    } catch (error) {
+      console.error('Error creating group:', error);
+      return { success: false, error: 'Failed to create group' };
+    }
+  }, [token]);
+
+  const joinGroup = useCallback(async (groupId: string, password?: string) => {
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+      const response = await authenticatedRequest(`/api/groups/${groupId}/join`, token, {
+        method: 'POST',
+        body: password ? JSON.stringify({ password }) : undefined,
+      });
+
+      if (response.success) {
+        // Optimistically update local state
+        setGroups(prev =>
+          prev.map(group =>
+            group.id === groupId
+              ? { ...group, isMember: true, memberCount: group.memberCount + 1 }
+              : group
+          )
+        );
+        return { success: true };
+      }
+
+      return { success: false, error: response.error || 'Failed to join group' };
+    } catch (error) {
+      console.error('Error joining group:', error);
+      return { success: false, error: 'Failed to join group' };
+    }
+  }, [token]);
 
   const leaveGroup = useCallback(async (groupId: string) => {
-    // TODO: Implement groups in backend
-    setGroups(prev =>
-      prev.map(group =>
-      group.id === groupId
-        ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
-        : group
-      )
-    );
-    return { success: true };
-  }, []);
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+      const response = await authenticatedRequest(`/api/groups/${groupId}/leave`, token, {
+        method: 'POST',
+      });
+
+      if (response.success) {
+        // Optimistically update local state
+        setGroups(prev =>
+          prev.map(group =>
+            group.id === groupId
+              ? { ...group, isMember: false, memberCount: Math.max(0, group.memberCount - 1) }
+              : group
+          )
+        );
+        return { success: true };
+      }
+
+      return { success: false, error: response.error || 'Failed to leave group' };
+    } catch (error) {
+      console.error('Error leaving group:', error);
+      return { success: false, error: 'Failed to leave group' };
+    }
+  }, [token]);
 
   const deleteGroup = useCallback(async (groupId: string) => {
-    // TODO: Implement groups in backend
-    setGroups(prev => prev.filter(group => group.id !== groupId));
-    return { success: true };
-  }, []);
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+      const response = await authenticatedRequest(`/api/groups/${groupId}`, token, {
+        method: 'DELETE',
+      });
+
+      if (response.success) {
+        // Remove from local state
+        setGroups(prev => prev.filter(group => group.id !== groupId));
+        return { success: true };
+      }
+
+      return { success: false, error: response.error || 'Failed to delete group' };
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      return { success: false, error: 'Failed to delete group' };
+    }
+  }, [token]);
+
+  const loadMorePosts = useCallback(async () => {
+    if (!hasMorePosts || isLoadingFeed) {
+      return;
+    }
+    await refreshActivityFeed(true);
+  }, [hasMorePosts, isLoadingFeed, refreshActivityFeed]);
 
   const value: SocialContextType = {
     activityFeed,
     isLoadingFeed,
+    hasMorePosts,
+    loadMorePosts,
     postComments,
     groups,
     isLoadingGroups,
