@@ -1,27 +1,30 @@
 /**
- * Content moderation utilities
- * Focused on blocking slurs while allowing general profanity
+ * Client-side content moderation utilities
  *
- * PRODUCTION RECOMMENDATION:
- * For comprehensive content moderation, integrate an external service:
- * - Google Perspective API (toxicity, profanity, threats)
- * - AWS Comprehend (toxicity detection)
- * - Azure Content Moderator
- * - OpenAI Moderation API
+ * This provides basic validation on the client side before submission.
+ * The backend uses AWS Comprehend for comprehensive AI-powered moderation
+ * that detects toxicity, hate speech, harassment, threats, and profanity.
+ *
+ * PRODUCTION NOTE:
+ * The backend's AWS Comprehend integration (backend/src/utils/contentModeration.ts)
+ * provides production-grade AI-powered moderation. This client-side validation
+ * serves as a first pass to provide immediate feedback to users.
+ *
+ * To enhance client-side filtering, you can:
+ * 1. Use the backend's moderateWithComprehend function (RECOMMENDED)
+ * 2. Populate the SLURS array below with terms from:
+ *    - https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words
+ *    - Or other community-maintained lists
  */
 
-// Slur list - offensive slurs that target protected groups
-// Add actual slurs you want to block here (using lowercase)
-// Note: Using word boundaries to match whole words only
-// IMPORTANT: For production, populate this list or use an external moderation service
+// Basic keyword filter (optional - backend has comprehensive AI moderation)
+// This is intentionally minimal since backend handles comprehensive moderation
 const SLURS = [
-  // TODO: Populate with appropriate content filters for your use case
-  // Consider using a comprehensive list from:
-  // - https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words
-  // - Or integrate external moderation API
-
-  // Example patterns (non-offensive placeholders for demonstration):
-  // Add actual words based on your community guidelines
+  // Populate this list only if you need client-side filtering
+  // The backend's AWS Comprehend provides comprehensive AI-powered moderation
+  //
+  // Example: Add terms based on your community guidelines
+  // Format: lowercase words
 ];
 
 // Spam patterns

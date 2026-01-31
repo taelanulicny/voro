@@ -16,6 +16,7 @@ import * as groupHandlers from './handlers/groups';
 import * as categoryHandlers from './handlers/categories';
 import * as searchHandlers from './handlers/search';
 import * as notificationHandlers from './handlers/notifications';
+import * as pushNotificationHandlers from './handlers/pushNotifications';
 import * as purchaseHandlers from './handlers/purchases';
 import * as supportHandlers from './handlers/support';
 
@@ -378,6 +379,30 @@ export const handler = async (
   }
 
   if (path.includes('/api/notifications')) {
+    // Push notification routes (must come before general notification routes)
+    if (path.includes('/token')) {
+      // DELETE /api/notifications/token/:deviceId
+      const deleteTokenMatch = path.match(/\/api\/notifications\/token\/([^/]+)$/);
+      if (deleteTokenMatch && method === 'DELETE') {
+        const deviceId = deleteTokenMatch[1];
+        event.pathParameters = event.pathParameters || {};
+        event.pathParameters.deviceId = deviceId;
+        return pushNotificationHandlers.deletePushToken(event);
+      }
+      // POST /api/notifications/token
+      if (path.endsWith('/token') && method === 'POST') {
+        return pushNotificationHandlers.storePushToken(event);
+      }
+      // GET /api/notifications/tokens
+      if (path.endsWith('/tokens') && method === 'GET') {
+        return pushNotificationHandlers.getPushTokens(event);
+      }
+    }
+    // POST /api/notifications/test
+    if (path.endsWith('/test') && method === 'POST') {
+      return pushNotificationHandlers.sendTestNotification(event);
+    }
+    // General notification routes
     if (path.includes('/count') && method === 'GET') {
       return notificationHandlers.getUnreadCountHandler(event);
     }

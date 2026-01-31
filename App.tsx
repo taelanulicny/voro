@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useEffect, useRef } from 'react';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import VideoSplashScreen from './src/components/VideoSplashScreen';
+import PushNotificationManager from './src/components/PushNotificationManager';
 import { initializeFeatureFlags } from './src/config/featureFlags';
 import { initializeSentry } from './src/config/sentry';
 
@@ -55,8 +56,69 @@ import PrivacySettingsScreen from './src/screens/PrivacySettingsScreen';
 import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 
 import { RootStackParamList } from './src/types';
+import * as Linking from 'expo-linking';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Deep Linking Configuration
+const linking = {
+  prefixes: [
+    'moro://',
+    'https://moro.app',
+    'https://*.moro.app',
+  ],
+  config: {
+    screens: {
+      Welcome: 'welcome',
+      Login: 'login',
+      Signup: 'signup',
+      Main: {
+        path: 'main',
+        screens: {
+          Home: 'home',
+          News: 'news',
+          Community: 'community',
+          Groups: 'groups',
+          Portfolio: 'portfolio',
+          Watchlist: 'watchlist',
+          Categories: 'discover',
+          SeasonalCompetition: 'competition',
+          Profile: 'profile',
+        },
+      },
+      Entity: {
+        path: 'entity/:entityId',
+        parse: {
+          entityId: (entityId: string) => Number(entityId),
+        },
+      },
+      Category: 'category/:categoryId',
+      GroupDetail: 'group/:groupId',
+      UserProfile: 'user/:userId',
+      NewsDetail: 'news/:articleId',
+      NewsFeed: 'news-feed',
+      Search: 'search',
+      Settings: 'settings',
+      Notifications: 'notifications',
+      DiscoverNewAdditions: 'discover/new',
+      AccountValue: 'account/value',
+      TradeHistory: 'account/history',
+      CreateAlert: 'alert/create',
+      CommentReplies: 'post/:postId/comment/:commentId/replies',
+      AllComments: 'post/:postId/comments',
+      EditProfile: 'settings/edit-profile',
+      TradingPreferences: 'settings/trading',
+      PrivacySettings: 'settings/privacy',
+      BlockedUsers: 'settings/blocked',
+      Security: 'settings/security',
+      Email: 'settings/email',
+      HelpCenter: 'help',
+      ContactSupport: 'support',
+      Legal: 'legal/:documentType',
+      About: 'about',
+    },
+  },
+};
 
 function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -300,6 +362,7 @@ function RootNavigator() {
 export default function App() {
   const [videoFinished, setVideoFinished] = useState(false);
   const [appReady, setAppReady] = useState(false);
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
 
   // Initialize app systems
   useEffect(() => {
@@ -350,7 +413,8 @@ export default function App() {
                 <TradingProvider>
                   <WatchlistProvider>
                     <SideMenuProvider>
-                    <NavigationContainer>
+                    <NavigationContainer ref={navigationRef} linking={linking}>
+                      <PushNotificationManager navigationRef={navigationRef} />
                       <StatusBar style="auto" />
                       <RootNavigator />
                     </NavigationContainer>

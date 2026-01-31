@@ -15,7 +15,7 @@ import CommunityScreen from '../screens/CommunityScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
 import WatchlistScreen from '../screens/WatchlistScreen';
-import AllCategoriesScreen from '../screens/AllCategoriesScreen';
+import DiscoverScreen from '../screens/DiscoverScreen';
 import SeasonalCompetitionScreen from '../screens/SeasonalCompetitionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
@@ -197,7 +197,7 @@ export default function BottomTabNavigator() {
           <Tab.Screen name="Categories">
             {() => (
               <ErrorBoundary>
-                <AllCategoriesScreen />
+                <DiscoverScreen />
               </ErrorBoundary>
             )}
           </Tab.Screen>

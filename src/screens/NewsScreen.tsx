@@ -15,9 +15,10 @@ import { useNews } from '../context/NewsContext';
 import { useTheme } from '../context/ThemeContext';
 import { NewsArticle, NewsFilter } from '../types';
 import NewsCard from '../components/NewsCard';
+import ErrorState from '../components/ErrorState';
 
 export default function NewsScreen() {
-  const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter } = useNews();
+  const { news, isLoadingNews, breakingNews, refreshNews, getNewsByFilter, error } = useNews();
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'breaking' | 'category' | 'sentiment'>('all');
@@ -279,6 +280,21 @@ export default function NewsScreen() {
       </Text>
     </View>
   );
+
+  // Show error state with retry button
+  if (error && news.length === 0) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundSecondary }]} edges={['top']}>
+        {renderHeader()}
+        <ErrorState
+          title="Failed to Load News"
+          message={error}
+          onRetry={refreshNews}
+          icon="cloud-offline-outline"
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (isLoadingNews && news.length === 0) {
     return (

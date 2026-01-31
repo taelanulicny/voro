@@ -7,6 +7,7 @@ interface NewsContextType {
   news: NewsArticle[];
   isLoadingNews: boolean;
   breakingNews: NewsArticle[];
+  error: string | null;
 
   // Actions
   refreshNews: () => Promise<void>;
@@ -20,6 +21,7 @@ const NewsContext = createContext<NewsContextType | undefined>(undefined);
 export function NewsProvider({ children }: { children: ReactNode }) {
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const breakingNews = news.filter(article => article.isBreaking);
 
@@ -28,10 +30,12 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     if (!isNewsApiConfigured()) {
       console.warn('[NewsContext] NewsAPI not configured. Set EXPO_PUBLIC_NEWS_API_KEY environment variable.');
       setNews([]);
+      setError('News API not configured. Please contact support.');
       return;
     }
 
     setIsLoadingNews(true);
+    setError(null); // Clear previous errors
     try {
       // Fetch top headlines from multiple categories
       const [general, tech, business] = await Promise.all([
@@ -47,9 +51,11 @@ export function NewsProvider({ children }: { children: ReactNode }) {
       );
 
       setNews(uniqueNews);
-    } catch (error) {
+      setError(null); // Clear error on success
+    } catch (error: any) {
       console.error('[NewsContext] Error fetching news:', error);
-      setNews([]);
+      setError(error?.message || 'Failed to load news. Please try again.');
+      setNews([]); // Keep existing news or clear? Let's keep for better UX
     } finally {
       setIsLoadingNews(false);
     }
@@ -84,6 +90,7 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     news,
     isLoadingNews,
     breakingNews,
+    error,
     refreshNews,
     getNewsByEntity,
     getNewsByFilter,

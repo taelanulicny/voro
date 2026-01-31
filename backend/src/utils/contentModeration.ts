@@ -1,33 +1,62 @@
 /**
  * Server-side content moderation
- * Focused on blocking slurs while allowing general profanity
+ *
+ * This module provides two-tier content moderation:
+ *
+ * 1. Basic keyword filtering (moderateContent) - Fast, no API cost
+ *    - Checks for explicit slurs from a keyword list
+ *    - Validates length, spam patterns, excessive mentions/URLs
+ *    - Used as a first pass before Comprehend
+ *
+ * 2. AI-powered moderation (moderateWithComprehend) - Comprehensive, AWS cost
+ *    - Uses AWS Comprehend Toxicity Detection
+ *    - Detects: toxicity, hate speech, harassment, threats, profanity
+ *    - Provides confidence scores for each category
+ *    - Recommended for production use
+ *
+ * USAGE:
+ * - For new posts/comments: Use moderateWithComprehend() for comprehensive protection
+ * - For high-volume scenarios: Use moderateContent() for basic filtering
+ *
+ * CUSTOMIZATION:
+ * To add custom keyword filtering, populate the SLURS array below with terms from:
+ * - https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words
+ * - Or other community-maintained profanity lists
+ * - Or your own community guidelines
  */
 
 import { ComprehendClient, DetectToxicContentCommand } from '@aws-sdk/client-comprehend';
 import { logger } from './logger';
 
-// Initialize Comprehend client
+// Initialize Comprehend client for AI-powered moderation
 const comprehendClient = new ComprehendClient({
   region: process.env.AWS_REGION || 'us-east-1',
 });
 
-// Slur list - offensive slurs that target protected groups
-// IMPORTANT: Add actual slurs you want to block here (using lowercase)
-// Note: Using word boundaries to match whole words only
-// This list should be populated based on your content policy
-// Categories to populate:
-// - Racial/ethnic slurs
-// - Homophobic slurs
-// - Transphobic slurs
-// - Ableist slurs
-// - Religious slurs
-// - Gender-based slurs
+/**
+ * Keyword-based filter (optional supplement to AI moderation)
+ *
+ * This list is intentionally minimal because AWS Comprehend provides
+ * comprehensive AI-powered toxicity detection. Populate this only if:
+ * 1. You have specific terms not caught by Comprehend
+ * 2. You want instant blocking without API calls
+ * 3. You need offline moderation capability
+ *
+ * Categories to consider:
+ * - Racial/ethnic slurs
+ * - Homophobic/transphobic slurs
+ * - Ableist slurs
+ * - Religious slurs
+ * - Gender-based slurs
+ * - Platform-specific banned terms
+ */
 const SLURS: string[] = [
-  // Populate with actual offensive terms per your content policy
-  // Example structure (replace with actual terms):
-  // 'term1',
-  // 'term2',
-  // Add terms here following your content moderation policy
+  // Add terms here based on your content policy
+  // Format: lowercase words
+  // Example: 'term1', 'term2', etc.
+  //
+  // Note: AWS Comprehend (used in moderateWithComprehend) provides
+  // comprehensive detection, so this list can be minimal
 ];
 
 // Spam patterns

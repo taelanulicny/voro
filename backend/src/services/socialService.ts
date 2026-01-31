@@ -11,7 +11,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Post, Comment, Like, CommentLike, Bookmark, Follow, User } from '../models/types';
 import { v4 as uuidv4 } from 'uuid';
-import { moderateContent } from '../utils/contentModeration';
+import { moderateWithComprehend } from '../utils/contentModeration';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -28,8 +28,8 @@ export async function createPost(
   images?: string[]
 ): Promise<{ success: boolean; post?: Post; error?: string }> {
   try {
-    // Content moderation
-    const moderationResult = moderateContent(content);
+    // Content moderation using AWS Comprehend for comprehensive AI-powered detection
+    const moderationResult = await moderateWithComprehend(content);
     if (!moderationResult.approved) {
       return { success: false, error: moderationResult.reason || 'Content moderation failed' };
     }
@@ -257,6 +257,13 @@ export async function addComment(
     }
 
     const user = userResult.Item as User;
+
+    // Content moderation using AWS Comprehend for comprehensive AI-powered detection
+    const moderationResult = await moderateWithComprehend(content);
+    if (!moderationResult.approved) {
+      return { success: false, error: moderationResult.reason || 'Content moderation failed' };
+    }
+
     const now = new Date().toISOString();
     const commentId = uuidv4();
 

@@ -25,5 +25,6 @@ export const TABLE_NAMES = {
   GROUP_MEMBERS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-GroupMembers`,
   NOTIFICATIONS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-Notifications`,
   PURCHASE_TRANSACTIONS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-PurchaseTransactions`,
+  PUSH_TOKENS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-PushTokens`,
 };
 
