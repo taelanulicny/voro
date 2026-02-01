@@ -19,7 +19,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.moro.mobile',
-      buildNumber: '33',
+      buildNumber: '34',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
@@ -31,6 +31,7 @@ export default {
         backgroundColor: '#423352',
       },
       package: 'com.moro.mobile',
+      versionCode: 34,
       intentFilters: [
         {
           action: 'VIEW',
