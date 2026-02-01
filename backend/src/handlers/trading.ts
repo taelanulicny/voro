@@ -86,26 +86,31 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
 
     // Price slippage protection: Fetch current market price
     const currentMarketPrice = await getEntityPrice(entityId);
-    
+
     if (currentMarketPrice === null) {
       return createErrorResponse(400, 'Unable to fetch current market price for this entity');
     }
 
-    // Calculate price difference percentage
-    const priceDifferencePercent = Math.abs((pricePerToken - currentMarketPrice) / currentMarketPrice) * 100;
-    const SLIPPAGE_THRESHOLD_PERCENT = 2.0; // 2% slippage tolerance
+    // Calculate price difference percentage (only if pricePerToken is provided)
+    let priceDifferencePercent = 0;
+    if (pricePerToken !== undefined) {
+      priceDifferencePercent = Math.abs((pricePerToken - currentMarketPrice) / currentMarketPrice) * 100;
+      const SLIPPAGE_THRESHOLD_PERCENT = 2.0; // 2% slippage tolerance
 
-    // If price difference exceeds threshold, reject the trade
-    if (priceDifferencePercent > SLIPPAGE_THRESHOLD_PERCENT) {
-      return createErrorResponse(400, 
-        `Price slippage too high: Requested ${pricePerToken.toFixed(2)}, Current ${currentMarketPrice.toFixed(2)} (${priceDifferencePercent.toFixed(2)}% difference). Please refresh and try again.`
-      );
+      // If price difference exceeds threshold, reject the trade
+      if (priceDifferencePercent > SLIPPAGE_THRESHOLD_PERCENT) {
+        return createErrorResponse(400,
+          `Price slippage too high: Requested ${pricePerToken.toFixed(2)}, Current ${currentMarketPrice.toFixed(2)} (${priceDifferencePercent.toFixed(2)}% difference). Please refresh and try again.`
+        );
+      }
     }
 
     // Use current market price to prevent any slippage
     const executionPrice = currentMarketPrice;
 
-    const result = await executeTradeService(userId, entityId, type, quantity, executionPrice, idempotencyKey);
+    // Map 'open'/'close' to legacy 'buy'/'sell' for backwards compatibility
+    const legacyType: 'buy' | 'sell' = type === 'open' ? 'buy' : 'sell';
+    const result = await executeTradeService(userId, entityId, legacyType, quantity || 0, executionPrice, idempotencyKey);
 
     if (!result.success) {
       return createErrorResponse(400, result.error || 'Trade execution failed');
@@ -115,7 +120,7 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
     const executionDetails = {
       requestedPrice: pricePerToken,
       executionPrice: executionPrice,
-      priceAdjusted: Math.abs(executionPrice - pricePerToken) > 0.01, // If adjusted by more than 1 cent
+      priceAdjusted: pricePerToken !== undefined ? Math.abs(executionPrice - pricePerToken) > 0.01 : false,
       slippagePercent: priceDifferencePercent,
     };
 

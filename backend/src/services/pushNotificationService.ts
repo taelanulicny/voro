@@ -173,7 +173,7 @@ export async function sendPushNotification(
       throw new Error(`Expo API error: ${response.status} ${errorText}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as { data: any[] };
 
     logger.info('Push notification sent successfully', {
       tickets: result.data,

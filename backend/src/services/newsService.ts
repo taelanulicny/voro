@@ -38,7 +38,6 @@ export async function createNewsArticle(article: {
   category: 'Tech' | 'Politics' | 'Events' | 'People' | 'General';
   entityId?: number;
   entityName?: string;
-  entityName?: string;
   tags?: string[];
   isBreaking?: boolean;
 }): Promise<NewsArticle> {

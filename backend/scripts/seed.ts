@@ -9,7 +9,7 @@ import { BASE_PRICE } from '../src/services/priceCalculationService';
 // Higher epsilon = more stable prices (more tokens needed to move price)
 // Lower epsilon = more volatile prices (fewer tokens move price more)
 // Note: Ticker field removed - using entityId and name only
-const ENTITIES: Omit<Entity, 'createdAt'>[] = [
+const ENTITIES: Omit<Entity, 'createdAt' | 'updatedAt' | 'positiveTokens' | 'negativeTokens'>[] = [
   // Very High Volume (45k-50k epsilon): Major celebrities, political figures
   { entityId: 10, name: 'Donald Trump', category: 'Politics', basePrice: 142.55, epsilon: 48000, description: 'Former president and political figure. Trade confidence in political influence and electoral prospects.' },
   { entityId: 21, name: 'Taylor Swift', category: 'People', basePrice: 198.64, epsilon: 50000, description: 'Award-winning singer-songwriter and global pop icon. Track confidence in Taylor Swift\'s album releases, tours, and cultural influence.' },
@@ -80,6 +80,7 @@ async function seedEntities() {
     positiveTokens: 0, // Initialize pools
     negativeTokens: 0,
     createdAt: now,
+    updatedAt: now,
   }));
 
   // Batch write entities (DynamoDB batch write limit is 25 items)

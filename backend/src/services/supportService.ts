@@ -1,7 +1,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { logger } from '../utils/logger';
-import { generateId } from '../utils/idGenerator';
+import { v4 as uuidv4 } from 'uuid';
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const dynamodb = DynamoDBDocumentClient.from(client);
@@ -24,7 +24,7 @@ export async function createSupportTicket(params: CreateTicketParams): Promise<{
   createdAt?: string;
 }> {
   try {
-    const ticketId = `TICKET-${generateId()}`;
+    const ticketId = `TICKET-${uuidv4()}`;
     const now = new Date().toISOString();
 
     const ticket = {

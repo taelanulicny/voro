@@ -21,7 +21,6 @@ const NEWS_API_BASE_URL = 'https://newsapi.org/v2';
 interface EntityMatch {
   entityId: number;
   name: string;
-  name: string;
   keywords: string[];
   category: 'Tech' | 'Politics' | 'People' | 'Events' | 'General';
 }
@@ -574,10 +573,9 @@ export async function fetchFromNewsAPI(options: {
         }
 
         // Use Gemini results if available, otherwise fall back to keyword-based analysis
-        let entityMatch = geminiAnalysis?.assignedEntities?.[0] 
+        let entityMatch = geminiAnalysis?.assignedEntities?.[0]
           ? {
               entityId: geminiAnalysis.assignedEntities[0].entityId,
-              name: geminiAnalysis.assignedEntities[0].name,
               name: geminiAnalysis.assignedEntities[0].name,
               keywords: [],
               category: AVAILABLE_ENTITIES.find(e => e.entityId === geminiAnalysis!.assignedEntities[0].entityId)?.category || 'General' as any,

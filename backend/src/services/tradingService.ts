@@ -81,7 +81,6 @@ export async function getUserPortfolio(userId: string): Promise<{
     return {
       entityId: holding.entityId,
       entityName: entities[holding.entityId]?.name || 'Unknown',
-      entityName: entities[holding.entityId]?.name || 'Unknown',
       quantity: holding.quantity,
       averageCost: holding.averageCost,
       currentPrice,

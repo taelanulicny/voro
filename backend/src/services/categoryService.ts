@@ -19,7 +19,6 @@ export interface CategoryVolume {
 export interface EntityWithStats {
   entityId: number;
   name: string;
-  name: string;
   category: string;
   basePrice: number;
   description: string;
@@ -52,10 +51,10 @@ export async function getTrendingEntities(limit: number = 20): Promise<EntityWit
 
     const transactions = (transactionsResult.Items || []) as Transaction[];
 
-    // Calculate volume per entity (sum of totalAmount)
+    // Calculate volume per entity (sum of tokensCommitted)
     const volumeMap: Record<number, number> = {};
     transactions.forEach((tx) => {
-      volumeMap[tx.entityId] = (volumeMap[tx.entityId] || 0) + tx.totalAmount;
+      volumeMap[tx.entityId] = (volumeMap[tx.entityId] || 0) + tx.tokensCommitted;
     });
 
     // Get all entities
@@ -144,7 +143,6 @@ export async function getMostDiscussed(limit: number = 20): Promise<
   Array<{
     entityId: number;
     entityName: string;
-    entityName: string;
     postCount: number;
     commentCount: number;
   }>
@@ -172,7 +170,6 @@ export async function getMostDiscussed(limit: number = 20): Promise<
             postCount: 0,
             commentCount: 0,
             entityName: post.entityName,
-            entityName: post.entityName,
           };
         }
         entityStats[post.entityId].postCount += 1;
@@ -184,7 +181,6 @@ export async function getMostDiscussed(limit: number = 20): Promise<
     const result = Object.entries(entityStats)
       .map(([entityId, stats]) => ({
         entityId: parseInt(entityId, 10),
-        entityName: stats.entityName || 'Unknown',
         entityName: stats.entityName || 'Unknown',
         postCount: stats.postCount,
         commentCount: stats.commentCount,
@@ -418,10 +414,10 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
 
       if (txTime >= currentSessionStartTime) {
         // Current trading session
-        currentVolumeMap[category] = (currentVolumeMap[category] || 0) + tx.totalAmount;
+        currentVolumeMap[category] = (currentVolumeMap[category] || 0) + tx.tokensCommitted;
       } else if (txTime >= previousSessionStartTime) {
         // Previous trading session
-        previousVolumeMap[category] = (previousVolumeMap[category] || 0) + tx.totalAmount;
+        previousVolumeMap[category] = (previousVolumeMap[category] || 0) + tx.tokensCommitted;
       }
     });
 

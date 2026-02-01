@@ -63,7 +63,7 @@ export async function createPost(
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
-      content: moderationResult.filteredContent || content,
+      content: content.trim(),
       entityId,
       entityName,
       sentiment,

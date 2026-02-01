@@ -23,7 +23,6 @@ export interface GeminiAnalysisResult {
   assignedEntities: Array<{
     entityId: number;
     name: string;
-    name: string;
     confidence: number;   // 0-1, how confident the assignment is
   }>;
   reasoning?: string;     // Brief explanation of the analysis

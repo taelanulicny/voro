@@ -390,15 +390,11 @@ export async function changeEmail(
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
-    // Note: This is a simple implementation. For production, you'd want a GSI on email
-    const result = await docClient.send(
-      new GetCommand({
-        TableName: TABLE_NAMES.USERS,
-        // This would need a GSI for efficient email lookups
-        // For now, we rely on Cognito's email uniqueness
-      })
-    );
-    return null; // Placeholder - would need GSI implementation
+    // Note: This is a placeholder implementation.
+    // For production, you'd want a GSI on email for efficient lookups.
+    // For now, we rely on Cognito's email uniqueness.
+    // TODO: Implement GSI-based email lookup when needed
+    return null;
   } catch (error) {
     logger.error('Error getting user by email', { error, email });
     return null;
