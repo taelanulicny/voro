@@ -10,11 +10,6 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { skipAuth } = useAuth();
-
-  const handleSkipAuth = async () => {
-    await skipAuth();
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -46,22 +41,6 @@ export default function WelcomeScreen() {
           onPress={() => navigation.navigate('Signup')}
         >
           <Text style={styles.secondaryButtonText}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* DEV ONLY - Skip Sign In Button */}
-      <View style={styles.bottomButtonsContainer}>
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={handleSkipAuth}
-        >
-          <Text style={styles.skipButtonText}>Skip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.chartDevButton}
-          onPress={() => navigation.navigate('ChartDevelopment')}
-        >
-          <Text style={styles.chartDevButtonText}>Chart Development</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -143,37 +122,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  // DEV ONLY
-  bottomButtonsContainer: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    flexDirection: 'row',
-    gap: 8,
-    zIndex: 999,
-  },
-  skipButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#EF4444',
-    borderRadius: 6,
-  },
-  skipButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  chartDevButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#775a96',
-    borderRadius: 6,
-  },
-  chartDevButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
   },
 });
 

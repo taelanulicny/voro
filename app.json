@@ -25,7 +25,12 @@
       "associatedDomains": [
         "applinks:moro.app",
         "applinks:www.moro.app"
-      ]
+      ],
+      "config": {
+        "googleSignIn": {
+          "reservedClientId": "126635825818-e4etm9s9c6hee8oprdiatshn2ge3iji4.apps.googleusercontent.com"
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {

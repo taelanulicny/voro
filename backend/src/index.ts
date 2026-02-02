@@ -295,15 +295,30 @@ export const handler = async (
     }
     
     logger.debug('[Router] Processing groups route', { path, method, pathParameters: event.pathParameters });
-    const groupId = event.pathParameters?.groupId;
     // Normalize path (remove trailing slash)
     const normalizedPath = path.replace(/\/$/, '');
-    if (path.endsWith('/join') && method === 'POST' && groupId) {
+
+    // Handle join group: POST /api/groups/:groupId/join
+    const joinGroupMatch = path.match(/\/api\/groups\/([^/]+)\/join\/?$/);
+    if (joinGroupMatch && method === 'POST') {
+      const extractedGroupId = joinGroupMatch[1];
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.groupId = extractedGroupId;
+      logger.debug('[Router] Matched join group endpoint', { path, groupId: extractedGroupId });
       return groupHandlers.joinGroupHandler(event);
     }
-    if (path.endsWith('/leave') && method === 'POST' && groupId) {
+
+    // Handle leave group: POST /api/groups/:groupId/leave
+    const leaveGroupMatch = path.match(/\/api\/groups\/([^/]+)\/leave\/?$/);
+    if (leaveGroupMatch && method === 'POST') {
+      const extractedGroupId = leaveGroupMatch[1];
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.groupId = extractedGroupId;
+      logger.debug('[Router] Matched leave group endpoint', { path, groupId: extractedGroupId });
       return groupHandlers.leaveGroupHandler(event);
     }
+
+    const groupId = event.pathParameters?.groupId;
     if (path.includes('/user') && method === 'GET') {
       return groupHandlers.getUserGroupsHandler(event);
     }

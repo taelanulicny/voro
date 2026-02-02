@@ -128,6 +128,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              key="new-additions"
               style={styles.menuItem}
               onPress={() => {
                 handleClose();
@@ -141,6 +142,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              key="watchlist"
               style={styles.menuItem}
               onPress={() => {
                 handleClose();
@@ -160,6 +162,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
               {myGroups.length === 0 ? (
                 <>
                   <TouchableOpacity
+                    key="join-group"
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();
@@ -172,6 +175,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Join a group</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    key="create-group-empty"
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();
@@ -202,6 +206,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     </TouchableOpacity>
                   ))}
                   <TouchableOpacity
+                    key="join-another"
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();
@@ -214,6 +219,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Join another group</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    key="create-group-with-groups"
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();

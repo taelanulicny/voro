@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Post, Comment, Group, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
@@ -55,6 +56,7 @@ interface SocialContextType {
   joinGroup: (groupId: string) => Promise<{ success: boolean }>;
   leaveGroup: (groupId: string) => Promise<{ success: boolean }>;
   deleteGroup: (groupId: string) => Promise<{ success: boolean }>;
+  getGroupMembers: (groupId: string) => Promise<{ success: boolean; members?: any[]; error?: string }>;
 }
 
 const SocialContext = createContext<SocialContextType | undefined>(undefined);
@@ -191,10 +193,17 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         }));
 
         if (loadMore) {
-          // Append to existing feed
-          setActivityFeed(prev => [...prev, ...mappedPosts]);
+          // Append to existing feed with deduplication
+          setActivityFeed(prev => {
+            const combined = [...prev, ...mappedPosts];
+            // Deduplicate by ID
+            const unique = Array.from(
+              new Map(combined.map(post => [post.id, post])).values()
+            );
+            return unique;
+          });
         } else {
-          // Replace feed
+          // Replace feed (already unique from backend)
           setActivityFeed(mappedPosts);
         }
 
@@ -216,7 +225,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingFeed(false);
     }
-  }, [token, isAuthenticated, feedCursor, loadMore]);
+  }, [token, isAuthenticated, feedCursor]);
 
   // Load feed on mount and when auth changes
   useEffect(() => {
@@ -854,8 +863,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.success && response.data?.group) {
-        setGroups(prev => [response.data.group, ...prev]);
-        return { success: true, group: response.data.group };
+        // Ensure the creator is marked as a member
+        const newGroup = { ...response.data.group, isMember: true };
+        setGroups(prev => [newGroup, ...prev]);
+        return { success: true, group: newGroup };
       }
 
       return { success: false, error: response.error || 'Failed to create group' };
@@ -947,6 +958,27 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
+  const getGroupMembers = useCallback(async (groupId: string) => {
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+      const response = await authenticatedRequest(`/api/groups/${groupId}/members`, token, {
+        method: 'GET',
+      });
+
+      if (response.success && response.data?.members) {
+        return { success: true, members: response.data.members };
+      }
+
+      return { success: false, error: response.error || 'Failed to fetch group members' };
+    } catch (error) {
+      console.error('Error fetching group members:', error);
+      return { success: false, error: 'Failed to fetch group members' };
+    }
+  }, [token]);
+
   const loadMorePosts = useCallback(async () => {
     if (!hasMorePosts || isLoadingFeed) {
       return;
@@ -984,6 +1016,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     joinGroup,
     leaveGroup,
     deleteGroup,
+    getGroupMembers,
   };
 
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

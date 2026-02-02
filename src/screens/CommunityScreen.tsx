@@ -50,7 +50,7 @@ export default function CommunityScreen() {
   const [newsFilter, setNewsFilter] = useState<'all' | 'breaking' | 'category' | 'sentiment'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [selectedSentiment, setSelectedSentiment] = useState<'positive' | 'negative' | 'neutral' | undefined>();
-  const [filteredNews, setFilteredNews] = useState<NewsArticle[]>(news);
+  const [filteredNews, setFilteredNews] = useState<NewsArticle[]>(news || []);
   const scrollViewRef = useRef<ScrollView>(null);
   const [isFilterScrolling, setIsFilterScrolling] = useState(false);
   const filterScrollViewRef = useRef<ScrollView>(null);
@@ -119,16 +119,25 @@ export default function CommunityScreen() {
   };
 
   const applyNewsFilters = () => {
+    let filtered: NewsArticle[] = [];
+
     if (newsFilter === 'breaking') {
-      setFilteredNews(breakingNews);
+      filtered = breakingNews;
     } else if (newsFilter === 'category' && selectedCategory) {
       const newsCategory = mapCategoryToNewsCategory(selectedCategory);
-      setFilteredNews(getNewsByFilter({ category: newsCategory }));
+      filtered = getNewsByFilter({ category: newsCategory });
     } else if (newsFilter === 'sentiment' && selectedSentiment) {
-      setFilteredNews(getNewsByFilter({ sentiment: selectedSentiment }));
+      filtered = getNewsByFilter({ sentiment: selectedSentiment });
     } else {
-      setFilteredNews(news);
+      filtered = news;
     }
+
+    // Deduplicate by ID to prevent key warnings
+    const uniqueNews = Array.from(
+      new Map(filtered.map(article => [article.id, article])).values()
+    );
+
+    setFilteredNews(uniqueNews);
   };
 
   const handleTabChange = (tab: 'feed' | 'news' | 'groups') => {

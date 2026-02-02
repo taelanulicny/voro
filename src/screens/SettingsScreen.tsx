@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
@@ -17,11 +18,14 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { RootStackParamList } from '../types';
 
 const NOTIFICATION_SETTINGS_KEY = '@settings:notifications';
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function SettingsScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const { user, logout, token } = useAuth();
   const { theme, themeMode, isDark, setThemeMode } = useTheme();
   const { resetPortfolio } = useTrading();
@@ -241,7 +245,7 @@ export default function SettingsScreen() {
           
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('EditProfile')}
+            onPress={() => navigation.navigate('EditProfile')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="person-outline" size={20} color={theme.textSecondary} />
@@ -255,7 +259,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('Security')}
+            onPress={() => navigation.navigate('Security')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-checkmark-outline" size={20} color={theme.textSecondary} />
@@ -269,7 +273,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('Email')}
+            onPress={() => navigation.navigate('Email')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
@@ -452,7 +456,7 @@ export default function SettingsScreen() {
           
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('PrivacySettings')}
+            onPress={() => navigation.navigate('PrivacySettings')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
@@ -466,7 +470,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('BlockedUsers')}
+            onPress={() => navigation.navigate('BlockedUsers')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="eye-off-outline" size={20} color={theme.textSecondary} />
@@ -485,7 +489,7 @@ export default function SettingsScreen() {
           
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('TradeHistory')}
+            onPress={() => navigation.navigate('TradeHistory')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
@@ -499,7 +503,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('TradingPreferences')}
+            onPress={() => navigation.navigate('TradingPreferences')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="settings-outline" size={20} color={theme.textSecondary} />
@@ -513,7 +517,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('Simulator')}
+            onPress={() => navigation.navigate('Simulator')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="analytics-outline" size={20} color={theme.accent} />
@@ -566,7 +570,7 @@ export default function SettingsScreen() {
           
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('HelpCenter')}
+            onPress={() => navigation.navigate('HelpCenter')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle-outline" size={20} color={theme.textSecondary} />
@@ -577,7 +581,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('ContactSupport')}
+            onPress={() => navigation.navigate('ContactSupport')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="chatbox-ellipses-outline" size={20} color={theme.textSecondary} />
@@ -588,7 +592,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('Legal', { documentType: 'terms' })}
+            onPress={() => navigation.navigate('Legal', { documentType: 'terms' })}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="document-text-outline" size={20} color={theme.textSecondary} />
@@ -599,7 +603,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={dynamicStyles.menuItem}
-            onPress={() => (navigation as any).navigate('About')}
+            onPress={() => navigation.navigate('About')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />

@@ -141,20 +141,19 @@ export default function LoginScreen() {
           result.user.name,
           result.identityToken
         );
-        setIsAppleLoading(false);
 
         if (!authResult.success) {
           Alert.alert('Apple Login Failed', authResult.error || 'Unable to sign in with Apple');
         }
       } else {
-        setIsAppleLoading(false);
         if (result.error) {
           Alert.alert('Apple Login Failed', result.error);
         }
       }
     } catch (error) {
-      setIsAppleLoading(false);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsAppleLoading(false);
     }
   };
 

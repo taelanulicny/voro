@@ -159,8 +159,11 @@ const mapNewsApiArticlesToAppFormat = (articles: NewsApiArticle[]): NewsArticle[
       // Determine sentiment (simplified - would need ML for real sentiment analysis)
       const sentiment = determineSentiment(article);
 
+      // Generate consistent ID based only on URL to prevent duplicates across category fetches
+      const urlHash = article.url.replace(/[^a-zA-Z0-9]/g, '');
+
       return {
-        id: `newsapi-${Date.now()}-${index}`,
+        id: `newsapi-${urlHash}`,
         title: article.title,
         summary: article.description || article.content?.substring(0, 200) || 'No summary available',
         content: article.content || article.description || '',

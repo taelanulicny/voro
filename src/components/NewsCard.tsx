@@ -101,9 +101,11 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
         </View>
         
         {/* Impact Level Indicator */}
-        <View style={[styles.impactBadge, { backgroundColor: getImpactColor() }]}>
-          <Text style={styles.impactText}>{article.impactLevel.toUpperCase()}</Text>
-        </View>
+        {article.impactLevel && (
+          <View style={[styles.impactBadge, { backgroundColor: getImpactColor() }]}>
+            <Text style={styles.impactText}>{article.impactLevel.toUpperCase()}</Text>
+          </View>
+        )}
       </View>
 
       {/* Title */}
@@ -135,19 +137,21 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
       {/* Footer */}
       <View style={styles.footer}>
         {/* Sentiment Indicator */}
-        <View style={styles.sentimentContainer}>
-          <View style={[styles.sentimentBadge, { backgroundColor: getSentimentColor() + '20' }]}>
-            <Ionicons name={getSentimentIcon()} size={14} color={getSentimentColor()} />
-            <Text style={[styles.sentimentText, { color: getSentimentColor() }]}>
-              {article.sentiment.charAt(0).toUpperCase() + article.sentiment.slice(1)}
-            </Text>
+        {article.sentiment && (
+          <View style={styles.sentimentContainer}>
+            <View style={[styles.sentimentBadge, { backgroundColor: getSentimentColor() + '20' }]}>
+              <Ionicons name={getSentimentIcon()} size={14} color={getSentimentColor()} />
+              <Text style={[styles.sentimentText, { color: getSentimentColor() }]}>
+                {article.sentiment.charAt(0).toUpperCase() + article.sentiment.slice(1)}
+              </Text>
+            </View>
+            {article.sentimentScore !== 0 && (
+              <Text style={[styles.sentimentScore, { color: getSentimentColor() }]}>
+                {article.sentimentScore > 0 ? '+' : ''}{article.sentimentScore}
+              </Text>
+            )}
           </View>
-          {article.sentimentScore !== 0 && (
-            <Text style={[styles.sentimentScore, { color: getSentimentColor() }]}>
-              {article.sentimentScore > 0 ? '+' : ''}{article.sentimentScore}
-            </Text>
-          )}
-        </View>
+        )}
 
         {/* Views */}
         <View style={styles.viewsContainer}>
@@ -161,7 +165,7 @@ export default function NewsCard({ article, onPress, showEntity = true }: NewsCa
       </View>
 
       {/* Tags */}
-      {article.tags.length > 0 && (
+      {article.tags && article.tags.length > 0 && (
         <View style={styles.tagsContainer}>
           {article.tags.slice(0, 3).map((tag, index) => (
             <View key={index} style={[styles.tag, { backgroundColor: theme.backgroundTertiary }]}>
