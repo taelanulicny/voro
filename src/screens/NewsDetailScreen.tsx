@@ -24,18 +24,20 @@ export default function NewsDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<NewsDetailRouteProp>();
   const { articleId } = route.params;
-  const { news, markAsRead } = useNews();
+  const { news, markAsRead, incrementViewCount } = useNews();
   const { theme } = useTheme();
-  
+
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const article = news.find(a => a.id === articleId);
 
   useEffect(() => {
     if (article) {
       markAsRead(articleId);
+      incrementViewCount(articleId);
     }
-  }, [articleId]);
+  }, [articleId, incrementViewCount]);
 
   if (!article) {
     return (
@@ -122,7 +124,7 @@ export default function NewsDetailScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        
+
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerButton}
@@ -134,7 +136,7 @@ export default function NewsDetailScreen() {
               color={isBookmarked ? theme.primary : theme.textSecondary}
             />
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
             <Ionicons name="share-outline" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
@@ -224,11 +226,25 @@ export default function NewsDetailScreen() {
 
         {/* Full Article Content */}
         <View style={styles.articleContent}>
-          <Text style={[styles.contentText, { color: theme.text }]}>{article.content}</Text>
+          <Text style={[styles.contentSectionTitle, { color: theme.text }]}>Full Article</Text>
+          <Text style={[styles.contentText, { color: theme.text }]}>
+            {isExpanded || article.content.length <= 600
+              ? article.content
+              : `${article.content.substring(0, 600)}...`}
+          </Text>
+          {article.content.length > 600 && !isExpanded && (
+            <TouchableOpacity
+              style={[styles.readMoreButton, { backgroundColor: theme.primaryLight }]}
+              onPress={() => setIsExpanded(true)}
+            >
+              <Text style={[styles.readMoreText, { color: theme.primary }]}>Read full article</Text>
+              <Ionicons name="chevron-down" size={16} color={theme.primary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Tags */}
-        {article.tags.length > 0 && (
+        {article.tags?.length > 0 && (
           <View style={styles.tagsSection}>
             <Text style={[styles.tagsTitle, { color: theme.text }]}>Related Topics</Text>
             <View style={styles.tagsContainer}>
@@ -246,8 +262,8 @@ export default function NewsDetailScreen() {
           <View style={styles.statItem}>
             <Ionicons name="eye-outline" size={20} color={theme.textSecondary} />
             <Text style={[styles.statText, { color: theme.textSecondary }]}>
-              {article.viewCount >= 1000 
-                ? `${(article.viewCount / 1000).toFixed(1)}K views` 
+              {article.viewCount >= 1000
+                ? `${(article.viewCount / 1000).toFixed(1)}K views`
                 : `${article.viewCount} views`}
             </Text>
           </View>
@@ -464,9 +480,29 @@ const styles = StyleSheet.create({
   articleContent: {
     marginBottom: 24,
   },
+  contentSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
   contentText: {
     fontSize: 16,
     lineHeight: 26,
+    marginBottom: 12,
+  },
+  readMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  readMoreText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   tagsSection: {
     marginBottom: 24,

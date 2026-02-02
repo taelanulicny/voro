@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import TradeErrorModal from '../components/TradeErrorModal';
 import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, isBackendConfigured, invalidateCache } from '../config/api';
 import { useAuth } from './AuthContext';
@@ -47,9 +47,64 @@ interface TradingContextType {
   fetchTransactions: () => Promise<void>;
   lastPriceUpdateTime: number | null;
   isPriceStale: boolean;
+  /** Set when a trade fails; cleared when user dismisses the error modal */
+  tradeError: { type: 'error' | 'warning'; title: string; message: string } | null;
+  clearTradeError: () => void;
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
+
+/** Map API/throw error to user-friendly modal content */
+function getTradeErrorDisplay(error: Error): { type: 'error' | 'warning'; title: string; message: string } {
+  const msg = (error.message || '').toLowerCase();
+  if (msg.includes('insufficient funds')) {
+    return {
+      type: 'error',
+      title: 'Insufficient Funds',
+      message: "You don't have enough cash for this trade. Add more to your balance or try a smaller amount.",
+    };
+  }
+  if (msg.includes('direction mismatch') || msg.includes('direction')) {
+    return {
+      type: 'warning',
+      title: 'Direction Mismatch',
+      message: "You already have a position in the opposite direction. Close it first, or add to your existing position.",
+    };
+  }
+  if (msg.includes('no position') || msg.includes('no holding')) {
+    return {
+      type: 'warning',
+      title: 'No Position',
+      message: "You don't have an open position for this entity. Open a position first to close.",
+    };
+  }
+  if (msg.includes('invalid pool') || msg.includes('insufficient holdings')) {
+    return {
+      type: 'warning',
+      title: 'Can\'t Complete Trade',
+      message: "There isn't enough to complete this trade. Try a smaller amount or refresh and try again.",
+    };
+  }
+  if (msg.includes('market is closed')) {
+    return {
+      type: 'warning',
+      title: 'Market Closed',
+      message: "Trading is paused between 2am–8am EST. Try again during market hours.",
+    };
+  }
+  if (msg.includes('slippage') || msg.includes('price')) {
+    return {
+      type: 'warning',
+      title: 'Price Changed',
+      message: "The price moved since you opened the trade. Please refresh and try again.",
+    };
+  }
+  return {
+    type: 'error',
+    title: 'Trade Failed',
+    message: "Something went wrong. Please check your connection and try again.",
+  };
+}
 
 const INITIAL_CASH_BALANCE = 1000;
 
@@ -91,7 +146,10 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const [todayChangePercent, setTodayChangePercent] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [lastPriceUpdateTime, setLastPriceUpdateTime] = useState<number | null>(null);
-  
+  const [tradeError, setTradeError] = useState<{ type: 'error' | 'warning'; title: string; message: string } | null>(null);
+
+  const clearTradeError = useCallback(() => setTradeError(null), []);
+
   // Entity sentiment pools (P and N) - tracked locally for immediate price updates
   const [entityPools, setEntityPools] = useState<Record<number, { positiveTokens: number; negativeTokens: number }>>(() => {
     // Initialize all pools to 0 (P=0, N=0 gives price = 100)
@@ -108,18 +166,18 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     entryRatio: number;
   }
   const [userPositions, setUserPositions] = useState<Record<number, { direction: 'positive' | 'negative'; tranches: PositionTranche[] }>>({});
-  
+
   // Transaction queue to prevent race conditions
   const tradeQueueRef = useRef<QueuedTrade[]>([]);
   const isProcessingQueueRef = useRef<boolean>(false);
   const optimisticStateRef = useRef<OptimisticState | null>(null);
-  
+
   // Refs to track latest state for queue processor (avoids stale closures)
   const entityPoolsRef = useRef(entityPools);
   const userPositionsRef = useRef(userPositions);
   const cashBalanceRef = useRef(cashBalance);
   const transactionsRef = useRef(transactions);
-  
+
   // Update refs when state changes
   useEffect(() => {
     entityPoolsRef.current = entityPools;
@@ -133,7 +191,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     transactionsRef.current = transactions;
   }, [transactions]);
-  
+
   // Debounce timer for price updates
   const priceUpdateDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingPriceUpdatesRef = useRef<Record<number, number>>({});
@@ -168,7 +226,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     });
     return initialHighLow;
   });
-  
+
   // Portfolio value history for chart animation
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
   const portfolioHistoryRef = useRef<number[]>([]);
@@ -387,7 +445,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
           const price = entity.currentPrice || entity.basePrice;
           pendingPriceUpdatesRef.current[entity.entityId] = price;
         });
-        
+
         // Trigger debounced update
         debouncedPriceUpdate();
       }
@@ -432,7 +490,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     const checkNewDay = () => {
       const now = new Date();
       const today = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
-      
+
       if (today !== currentDay) {
         // New day - reset high/low to opening prices (current prices at midnight)
         setCurrentDay(today);
@@ -456,7 +514,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     // Check every second for midnight
     const interval = setInterval(checkNewDay, 1000);
     checkNewDay(); // Initial check
-    
+
     return () => clearInterval(interval);
   }, [currentDay, entityPools]);
 
@@ -472,7 +530,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         if (pools) {
           const calculatedPrice = calculatePrice(pools.positiveTokens, pools.negativeTokens);
           newPrices[entityId] = calculatedPrice;
-          
+
           // Initialize high/low if not exists
           if (!updated[entityId]) {
             updated[entityId] = {
@@ -500,7 +558,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   // Update portfolio history
   useEffect(() => {
     const totalValue = holdings.reduce((sum, h) => sum + h.totalValue, 0) + cashBalance;
-    
+
     portfolioHistoryRef.current = [...portfolioHistoryRef.current, totalValue];
     if (portfolioHistoryRef.current.length > maxHistoryLength) {
       portfolioHistoryRef.current = portfolioHistoryRef.current.slice(-maxHistoryLength);
@@ -587,7 +645,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     if (type === 'open') {
       // Check if user already has an open position for this entity
       const existingPosition = currentPositions[entityId];
-      
+
       if (existingPosition) {
         // User has existing position - check if direction matches
         if (existingPosition.direction !== direction) {
@@ -621,7 +679,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         // Add new tranche to position
         setUserPositions(prev => ({
           ...prev,
-          [entityId]: { 
+          [entityId]: {
             direction,
             tranches: [
               ...existingPosition.tranches,
@@ -678,7 +736,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
               setTodayChange(response.data.todayChange);
               setTodayChangePercent(response.data.todayChangePercent);
               await fetchTransactions();
-              
+
               // Invalidate cache after successful trade execution
               invalidateCache('portfolio');
               invalidateCache('transactions');
@@ -722,8 +780,8 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       // Store position (first tranche)
       setUserPositions(prev => ({
         ...prev,
-        [entityId]: { 
-          direction, 
+        [entityId]: {
+          direction,
           tranches: [{ tokensCommitted, entryRatio }]
         }
       }));
@@ -776,7 +834,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             setTodayChange(response.data.todayChange);
             setTodayChangePercent(response.data.todayChangePercent);
             await fetchTransactions();
-            
+
             // Invalidate cache after successful trade execution
             invalidateCache('portfolio');
             invalidateCache('transactions');
@@ -800,7 +858,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
       const positionDirection = position.direction;
       const tranches = position.tranches;
-      
+
       // Calculate total tokens committed (sum of all tranches)
       const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
 
@@ -815,19 +873,19 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       let simulatedP = newP;
       let simulatedN = newN;
       let totalProfitLoss = 0;
-      
+
       for (let i = tranches.length - 1; i >= 0; i--) {
         const tranche = tranches[i];
         const effectiveExitRatio = calculateSentimentRatio(simulatedP, simulatedN);
         const deltaR = effectiveExitRatio - tranche.entryRatio;
         let tranchePnL = tranche.tokensCommitted * deltaR;
-        
+
         if (positionDirection === 'negative') {
           tranchePnL = -tranchePnL;
         }
-        
+
         totalProfitLoss += tranchePnL;
-        
+
         if (positionDirection === 'positive') {
           simulatedP += tranche.tokensCommitted;
         } else {
@@ -887,6 +945,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             body: JSON.stringify({
               entityId,
               type: 'close',
+              quantity: totalTokensCommitted,
             }),
           });
 
@@ -897,7 +956,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             setTodayChange(response.data.todayChange);
             setTodayChangePercent(response.data.todayChangePercent);
             await fetchTransactions();
-            
+
             // Invalidate cache after successful trade execution
             invalidateCache('portfolio');
             invalidateCache('transactions');
@@ -952,18 +1011,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         },
         reject: (error: Error) => {
           setIsLoading(false);
-          // Show user-friendly alert for errors
-          if (error.message.includes('Direction mismatch')) {
-            Alert.alert('Direction Mismatch', error.message.replace('Direction mismatch: ', ''));
-          } else if (error.message.includes('Insufficient funds')) {
-            Alert.alert('Insufficient Funds', error.message.replace('Insufficient funds: ', ''));
-          } else if (error.message.includes('No position')) {
-            Alert.alert('No Position', error.message.replace('No position: ', ''));
-          } else if (error.message.includes('Invalid pool state')) {
-            Alert.alert('Invalid Pool State', error.message.replace('Invalid pool state: ', ''));
-          } else {
-            Alert.alert('Trade Failed', error.message || 'An error occurred while executing the trade.');
-          }
+          setTradeError(getTradeErrorDisplay(error));
           reject(error);
         },
       };
@@ -997,7 +1045,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   ): Promise<boolean> => {
     const position = userPositions[entityId];
     if (!position) {
-      Alert.alert('No Position', 'You do not have an open position for this entity.');
+      setTradeError(getTradeErrorDisplay(new Error('No position')));
       return false;
     }
     // For close, calculate total tokens from all tranches
@@ -1022,7 +1070,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
   const updatePrices = (entityId: number, newPrice: number) => {
     setEntityPrices((prev) => ({ ...prev, [entityId]: newPrice }));
-    
+
     // Update holdings with new price
     setHoldings((prev) =>
       prev.map(h => {
@@ -1076,7 +1124,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     setEntityHighLow(resetHighLow);
     // Clear all positions
     setUserPositions({});
-    
+
     // Clear AsyncStorage
     try {
       await AsyncStorage.multiRemove([
@@ -1094,7 +1142,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     // Always calculate price from current pools for real-time updates
     const pools = entityPools[entityId] || getInitialPoolValues();
     const calculatedPrice = calculatePrice(pools.positiveTokens, pools.negativeTokens);
-    
+
     // Update price in state if it's different (for reactivity)
     // Defer state update to avoid updating during render
     if (entityPrices[entityId] !== calculatedPrice) {
@@ -1102,7 +1150,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         setEntityPrices(prev => ({ ...prev, [entityId]: calculatedPrice }));
       });
     }
-    
+
     return calculatedPrice;
   };
 
@@ -1145,10 +1193,10 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     const pools = entityPools[entityId] || getInitialPoolValues();
     const p = pools.positiveTokens;
     const n = pools.negativeTokens;
-    
+
     const positionDirection = position.direction;
     const tranches = position.tranches;
-    
+
     // Calculate total tokens committed (sum of all tranches)
     const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
 
@@ -1163,25 +1211,25 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     let simulatedP = newP;
     let simulatedN = newN;
     let totalProfitLoss = 0;
-    
+
     // Process tranches in reverse order (last added = first to evaluate)
     for (let i = tranches.length - 1; i >= 0; i--) {
       const tranche = tranches[i];
-      
+
       // The effective exit ratio for this tranche is the current simulated pool state
       const effectiveExitRatio = calculateSentimentRatio(simulatedP, simulatedN);
-      
+
       // Calculate P&L for this tranche
       const deltaR = effectiveExitRatio - tranche.entryRatio;
       let tranchePnL = tranche.tokensCommitted * deltaR;
-      
+
       // Direction adjustment: if negative position, flip PnL
       if (positionDirection === 'negative') {
         tranchePnL = -tranchePnL;
       }
-      
+
       totalProfitLoss += tranchePnL;
-      
+
       // Re-add this tranche's tokens to simulated pool (working backwards)
       if (positionDirection === 'positive') {
         simulatedP += tranche.tokensCommitted;
@@ -1258,8 +1306,11 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         fetchTransactions,
         lastPriceUpdateTime,
         isPriceStale,
+        tradeError,
+        clearTradeError,
       }}
     >
+      <TradeErrorModal />
       {children}
     </TradingContext.Provider>
   );

@@ -126,7 +126,7 @@ export default function GroupDetailScreen() {
     loadGroupData();
   }, [groupId]);
 
-  const loadGroupData = async () => {
+  const loadGroupData = async (retryCount = 0) => {
     setIsLoading(true);
 
     try {
@@ -137,6 +137,17 @@ export default function GroupDetailScreen() {
         // Members are already sorted by account value from backend
         setMembers(result.members);
       } else {
+        // If error is "must be a member", retry with exponential backoff
+        // This handles DynamoDB eventual consistency delays
+        const maxRetries = 4; // Retry up to 4 times (total 5 attempts)
+        if (retryCount < maxRetries && result.error?.includes('must be a member')) {
+          const delay = Math.min(1000 * Math.pow(1.5, retryCount), 5000); // Exponential backoff, max 5s
+          console.log(`Membership check failed, retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+          setIsLoading(false);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return loadGroupData(retryCount + 1);
+        }
+
         console.error('Failed to load group members:', result.error);
         Alert.alert('Error', result.error || 'Failed to load group members');
         setMembers([]);

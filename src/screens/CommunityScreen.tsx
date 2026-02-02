@@ -87,7 +87,7 @@ export default function CommunityScreen() {
   const handleReferFriend = async () => {
     try {
       const shareMessage = `Join me on Moro! 🚀\n\nMoro is the social platform where you can trade, predict, and connect with others around the things you care about.\n\nCreate your account and start building your community today!\n\nDownload Moro now!`;
-      
+
       await Share.share({
         message: shareMessage,
         title: 'Invite a Friend to Moro',
@@ -162,12 +162,12 @@ export default function CommunityScreen() {
     }
     return activityFeed;
   }, [activityFeed, selectedFilter, isFollowingUser]);
-  
+
   const hasFollowedUsers = followedUsers.size > 0;
 
   const renderHeader = () => {
     return (
-    <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
         <View style={[styles.segmentedControl, { backgroundColor: 'transparent' }]}>
           <TouchableOpacity
             style={styles.segmentButton}
@@ -181,10 +181,10 @@ export default function CommunityScreen() {
               Feed
             </Text>
           </TouchableOpacity>
-      <TouchableOpacity
+          <TouchableOpacity
             style={styles.segmentButton}
             onPress={() => handleTabChange('news')}
-      >
+          >
             <Text style={[
               styles.segmentButtonText,
               { color: theme.text },
@@ -192,11 +192,11 @@ export default function CommunityScreen() {
             ]}>
               News
             </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.segmentButton}
             onPress={() => handleTabChange('groups')}
-      >
+          >
             <Text style={[
               styles.segmentButtonText,
               { color: theme.text },
@@ -204,10 +204,10 @@ export default function CommunityScreen() {
             ]}>
               Groups
             </Text>
-      </TouchableOpacity>
+          </TouchableOpacity>
         </View>
-    </View>
-  );
+      </View>
+    );
   };
 
   const renderFilterTabs = () => {
@@ -215,40 +215,40 @@ export default function CommunityScreen() {
     if (selectedTab !== 'feed') return null;
 
     return (
-    <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-      <TouchableOpacity
-        style={styles.filterTab}
+      <View style={[styles.filterTabs, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <TouchableOpacity
+          style={styles.filterTab}
           onPress={() => setSelectedFilter('trending')}
-      >
-        <Text
-          style={[
-            styles.filterTabText,
+        >
+          <Text
+            style={[
+              styles.filterTabText,
               { color: selectedFilter === 'trending' ? theme.primary : theme.textSecondary },
               selectedFilter === 'trending' && { fontWeight: '600' },
-          ]}
-        >
+            ]}
+          >
             Trending
-        </Text>
+          </Text>
           {selectedFilter === 'trending' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.filterTab}
-        onPress={() => setSelectedFilter('following')}
-      >
-        <Text
-          style={[
-            styles.filterTabText,
-            { color: selectedFilter === 'following' ? theme.primary : theme.textSecondary },
-            selectedFilter === 'following' && { fontWeight: '600' },
-          ]}
+        <TouchableOpacity
+          style={styles.filterTab}
+          onPress={() => setSelectedFilter('following')}
         >
-          Following
-        </Text>
-        {selectedFilter === 'following' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
-      </TouchableOpacity>
-    </View>
-  );
+          <Text
+            style={[
+              styles.filterTabText,
+              { color: selectedFilter === 'following' ? theme.primary : theme.textSecondary },
+              selectedFilter === 'following' && { fontWeight: '600' },
+            ]}
+          >
+            Following
+          </Text>
+          {selectedFilter === 'following' && <View style={[styles.filterTabIndicator, { backgroundColor: theme.primary }]} />}
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   const renderPost = ({ item }: { item: Post }) => (
@@ -261,18 +261,18 @@ export default function CommunityScreen() {
       <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No posts yet</Text>
       <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>
         {selectedFilter === 'following'
-          ? (hasFollowedUsers 
-          ? 'Posts from people you follow will appear here'
-              : 'Once you start following people, their comments will be shown here')
+          ? (hasFollowedUsers
+            ? 'Posts from people you follow will appear here'
+            : 'Once you start following people, their comments will be shown here')
           : 'Trending posts will appear here'}
       </Text>
       {selectedFilter === 'trending' && (
-      <TouchableOpacity
-        style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
-        onPress={() => setShowCreatePost(true)}
-      >
-        <Text style={styles.emptyStateButtonText}>Create Post</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.emptyStateButton, { backgroundColor: theme.primary }]}
+          onPress={() => setShowCreatePost(true)}
+        >
+          <Text style={styles.emptyStateButtonText}>Create Post</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -286,18 +286,18 @@ export default function CommunityScreen() {
           <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading feed...</Text>
         </View>
       ) : (
-      <FlatList
-        data={filteredFeed}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={theme.primary}
-          />
-        }
+        <FlatList
+          data={filteredFeed}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={renderEmptyState}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.primary}
+            />
+          }
           contentContainerStyle={[
             filteredFeed.length === 0 && styles.emptyListContent,
             filteredFeed.length > 0 && { paddingBottom: 100 }
@@ -333,7 +333,7 @@ export default function CommunityScreen() {
           <TouchableOpacity
             style={[
               styles.newsFilterTab,
-              { 
+              {
                 backgroundColor: newsFilter === 'all' ? theme.primaryLight : theme.backgroundSecondary,
                 borderColor: newsFilter === 'all' ? theme.primary : theme.border,
               },
@@ -358,7 +358,7 @@ export default function CommunityScreen() {
           <TouchableOpacity
             style={[
               styles.newsFilterTab,
-              { 
+              {
                 backgroundColor: newsFilter === 'breaking' ? theme.primaryLight : theme.backgroundSecondary,
                 borderColor: newsFilter === 'breaking' ? theme.primary : theme.border,
               },
@@ -388,7 +388,7 @@ export default function CommunityScreen() {
           <TouchableOpacity
             style={[
               styles.newsFilterTab,
-              { 
+              {
                 backgroundColor: newsFilter === 'category' ? theme.primaryLight : theme.backgroundSecondary,
                 borderColor: newsFilter === 'category' ? theme.primary : theme.border,
               },
@@ -414,7 +414,7 @@ export default function CommunityScreen() {
           <TouchableOpacity
             style={[
               styles.newsFilterTab,
-              { 
+              {
                 backgroundColor: newsFilter === 'sentiment' ? theme.primaryLight : theme.backgroundSecondary,
                 borderColor: newsFilter === 'sentiment' ? theme.primary : theme.border,
               },
@@ -456,7 +456,7 @@ export default function CommunityScreen() {
                 key={category}
                 style={[
                   styles.newsCategoryChip,
-                  { 
+                  {
                     backgroundColor: selectedCategory === category ? theme.primary : theme.backgroundSecondary,
                     borderColor: selectedCategory === category ? theme.primary : theme.border,
                   },
@@ -495,7 +495,7 @@ export default function CommunityScreen() {
                 key={sentiment.key}
                 style={[
                   styles.newsSentimentChip,
-                  { 
+                  {
                     backgroundColor: selectedSentiment === sentiment.key ? sentiment.color + '20' : theme.backgroundSecondary,
                     borderColor: selectedSentiment === sentiment.key ? sentiment.color : theme.border,
                   },
@@ -557,8 +557,8 @@ export default function CommunityScreen() {
               filteredNews.length === 0 && styles.emptyListContent,
               filteredNews.length > 0 && { paddingBottom: 100, paddingHorizontal: 16 }
             ]}
-        showsVerticalScrollIndicator={false}
-      />
+            showsVerticalScrollIndicator={false}
+          />
         )}
       </View>
     );
@@ -601,20 +601,20 @@ export default function CommunityScreen() {
           {/* Your Moro Community Header */}
           <View style={styles.groupsHeader}>
             <Text style={[styles.groupsTitle, { color: theme.text }]}>Your Moro Community</Text>
-            </View>
+          </View>
 
           {/* My Groups Section */}
           <View style={styles.myGroupsSection}>
             <Text style={[styles.myGroupsTitle, { color: theme.text }]}>My Groups</Text>
-            
+
             {/* Groups List */}
             {myGroups.length > 0 && (
-              <React.Fragment key="my-groups-list">
+              <>
                 {myGroups.map((group) => (
-            <TouchableOpacity
+                  <TouchableOpacity
                     key={group.id}
                     style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() => {
+                    onPress={() => {
                       navigation.navigate('GroupDetail', { groupId: group.id });
                     }}
                   >
@@ -623,9 +623,9 @@ export default function CommunityScreen() {
                     </View>
                     <Text style={[styles.groupActionText, { color: theme.text }]}>{group.name}</Text>
                     <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-            </TouchableOpacity>
+                  </TouchableOpacity>
                 ))}
-              </React.Fragment>
+              </>
             )}
           </View>
 
@@ -637,7 +637,7 @@ export default function CommunityScreen() {
           {/* Action Buttons Section */}
           <View style={styles.actionButtonsSection}>
             <Text style={[styles.actionButtonsTitle, { color: theme.text }]}>Actions</Text>
-            
+
             <TouchableOpacity
               style={[styles.groupActionButton, { backgroundColor: theme.card, borderColor: theme.border }]}
               onPress={() => {

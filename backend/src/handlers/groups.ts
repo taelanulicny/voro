@@ -202,10 +202,18 @@ export async function getGroupMembersHandler(event: APIGatewayProxyEvent): Promi
       return createErrorResponse(400, 'Group ID is required');
     }
 
-    // Check if user is a member of the group
     const userId = auth.event.userId!;
-    const member = await isGroupMember(userId, groupId);
-    if (!member) {
+
+    // Check if user is the owner or a member of the group
+    const group = await getGroup(groupId);
+    if (!group) {
+      return createErrorResponse(404, 'Group not found');
+    }
+
+    const isOwner = group.ownerId === userId;
+    const isMember = isOwner || await isGroupMember(userId, groupId);
+
+    if (!isMember) {
       return createErrorResponse(403, 'You must be a member to view group members');
     }
 

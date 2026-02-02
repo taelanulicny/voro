@@ -11,7 +11,7 @@ This guide will walk you through deploying the Moro backend to AWS.
    brew install awscli  # macOS
    # or download from https://aws.amazon.com/cli/
    
-   # Configure AWS credentials
+   # Configure AWS credentials (use an IAM user/role that can deploy CDK — see Troubleshooting)
    aws configure
    # You'll need:
    # - AWS Access Key ID
@@ -129,7 +129,81 @@ After setting up `.env`:
 npm start
 ```
 
+## CDK deploy permissions (for IAM users like Moro-DB-User)
+
+If you want to run `cdk bootstrap` and `cdk deploy` with a limited IAM user (e.g. `Moro-DB-User`), attach a policy that grants the minimum required permissions.
+
+A ready-to-use policy is in the repo:
+
+- **Policy file:** `backend/infrastructure/iam/cdk-deploy-policy.json`
+
+It allows:
+
+- **CloudFormation** – CDKToolkit stack (bootstrap) and app stacks (MoroBackendStack)
+- **IAM** – Create/manage CDK roles and PassRole for the deploy role
+- **S3** – Bootstrap and asset buckets (`cdk-*`)
+- **SSM** – Bootstrap version parameter (`/cdk-bootstrap/*`)
+- **ECR** – CDK asset repositories (`cdk-*`)
+- **STS** – Assume the CDK deploy role
+
+### Attach the policy to an IAM user (AWS Console)
+
+1. IAM → Users → select the user (e.g. `Moro-DB-User`) → **Add permissions** → **Create inline policy**.
+2. **JSON** tab → paste the contents of `backend/infrastructure/iam/cdk-deploy-policy.json`.
+3. **Next** → name the policy (e.g. `MoroCDKDeploy`) → **Create policy**.
+
+### Attach via AWS CLI
+
+From the project root, using credentials that can attach policies (e.g. root or admin):
+
+```bash
+# Create a managed policy from the JSON file
+aws iam create-policy \
+  --policy-name MoroCDKDeploy \
+  --policy-document file://backend/infrastructure/iam/cdk-deploy-policy.json
+
+# Attach it to the user (replace ACCOUNT_ID with your 12-digit AWS account ID)
+aws iam attach-user-policy \
+  --user-name Moro-DB-User \
+  --policy-arn arn:aws:iam::ACCOUNT_ID:policy/MoroCDKDeploy
+```
+
+Then run `cdk bootstrap` (once) and `npm run deploy` with that user's credentials.
+
+**Note:** The CDK deploy role (created by bootstrap) still needs permission to create your app resources (Lambda, DynamoDB, Cognito, etc.). By default bootstrap gives that role `AdministratorAccess`. To restrict it, use `cdk bootstrap --cloudformation-execution-policies ...` when bootstrapping.
+
 ## Troubleshooting
+
+### Issue: "User ... is not authorized to perform: ssm:GetParameter" or "cloudformation:DescribeStacks" or "could not assume deploy-role"
+Your current AWS credentials are for a **limited IAM user** (e.g. `Moro-DB-User`) that doesn’t have permissions for CDK/CloudFormation. CDK deploy needs an identity that can:
+- Read SSM parameters under `/cdk-bootstrap/...`
+- Assume the CDK deploy role, or have broad deploy permissions (CloudFormation, S3, IAM, etc.)
+
+**Fix:** Use credentials for an IAM user or role that can deploy CDK:
+
+1. **Option A – Use an admin / power-user**  
+   Create or use an IAM user with AdministratorAccess (or a custom policy that includes CDK deploy permissions), then:
+   ```bash
+   aws configure
+   # Enter that user’s Access Key ID and Secret Access Key
+   ```
+   Then run `npm run deploy` again from the backend folder.
+
+2. **Option B – Use a named profile**  
+   If your deploy user is a separate profile (e.g. `deploy`):
+   ```bash
+   export AWS_PROFILE=deploy
+   npm run deploy
+   ```
+
+3. **Option C – Grant the user CDK permissions**  
+   Not recommended for production. You’d need to attach policies that allow SSM GetParameter on `/cdk-bootstrap/*`, CloudFormation, S3, IAM, and the ability to assume the CDK deploy role. Attach the policy in `backend/infrastructure/iam/cdk-deploy-policy.json` to the user (see **CDK deploy permissions** above). Then run `cdk bootstrap` (once) and `npm run deploy`.
+
+**Check who you’re using:**
+```bash
+aws sts get-caller-identity
+```
+Use the identity that has CDK/deploy permissions for `cdk deploy` and `npm run deploy`.
 
 ### Issue: CDK deploy fails with "Stack already exists"
 **Solution**: The stack might be partially created. Check AWS CloudFormation console and delete the stack if needed, or use `cdk destroy` first.

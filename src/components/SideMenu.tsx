@@ -74,6 +74,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
     <>
       {/* Backdrop */}
       <Animated.View
+        key="side-menu-backdrop"
         style={[
           styles.backdrop,
           {
@@ -87,9 +88,10 @@ export default function SideMenu({ onClose }: SideMenuProps) {
           onPress={handleClose}
         />
       </Animated.View>
-      
+
       {/* Side Menu */}
       <Animated.View
+        key="side-menu-panel"
         style={[
           styles.menuContainer,
           {
@@ -128,7 +130,6 @@ export default function SideMenu({ onClose }: SideMenuProps) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              key="new-additions"
               style={styles.menuItem}
               onPress={() => {
                 handleClose();
@@ -142,7 +143,6 @@ export default function SideMenu({ onClose }: SideMenuProps) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              key="watchlist"
               style={styles.menuItem}
               onPress={() => {
                 handleClose();
@@ -158,9 +158,9 @@ export default function SideMenu({ onClose }: SideMenuProps) {
             {/* My Groups Section */}
             <View style={[styles.groupsSection, { borderTopColor: theme.border }]}>
               <Text style={[styles.groupsSectionTitle, { color: theme.text }]}>My Groups</Text>
-              
+
               {myGroups.length === 0 ? (
-                <React.Fragment key="no-groups">
+                <>
                   <TouchableOpacity
                     key="join-group"
                     style={styles.groupItem}
@@ -170,7 +170,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                  <Ionicons name="people-outline" size={16} color="#FFFFFF" />
+                      <Ionicons name="people-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Join a group</Text>
                   </TouchableOpacity>
@@ -183,13 +183,13 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                  <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
+                      <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
                   </TouchableOpacity>
-                </React.Fragment>
+                </>
               ) : (
-                <React.Fragment key="has-groups">
+                <>
                   {myGroups.map((group) => (
                     <TouchableOpacity
                       key={group.id}
@@ -200,13 +200,13 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                       }}
                     >
                       <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                    <Ionicons name="people" size={16} color="#FFFFFF" />
+                        <Ionicons name="people" size={16} color="#FFFFFF" />
                       </View>
                       <Text style={[styles.groupItemText, { color: theme.text }]}>{group.name}</Text>
                     </TouchableOpacity>
                   ))}
                   <TouchableOpacity
-                    key="join-another"
+                    key="join-another-group"
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();
@@ -214,12 +214,12 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                  <Ionicons name="people-outline" size={16} color="#FFFFFF" />
+                      <Ionicons name="people-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Join another group</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    key="create-group-with-groups"
+                    key="create-group"
                     style={styles.groupItem}
                     onPress={() => {
                       handleClose();
@@ -227,11 +227,11 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     }}
                   >
                     <View style={[styles.groupItemIcon, { backgroundColor: theme.primaryLight }]}>
-                  <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
+                      <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
                   </TouchableOpacity>
-                </React.Fragment>
+                </>
               )}
             </View>
           </View>

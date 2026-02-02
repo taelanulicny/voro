@@ -157,9 +157,9 @@ export default function TradeModal({
       }
     } catch (error) {
       console.error('Error executing trade:', error);
-      Alert.alert('Trade Failed', 'An error occurred while executing the trade. Please try again.');
+      // Error is shown via TradingContext tradeError modal (TradeErrorModal)
       setIsProcessing(false);
-      }
+    }
   };
 
   const handleClose = () => {
@@ -405,10 +405,14 @@ export default function TradeModal({
                 <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Available Cash</Text>
                 <Text style={[styles.balanceValue, { color: theme.text }]}>{formatCurrency(portfolio.cashBalance)}</Text>
                 {!hasSufficientFunds && tokensCommittedNum > 0 && (
-                  <Text style={styles.errorText}>Insufficient funds</Text>
+                  <Text style={[styles.errorText, { color: theme.error }]}>
+                    You don't have enough cash for this amount
+                  </Text>
                 )}
                 {existingPosition && existingPosition.direction !== direction && (
-                  <Text style={styles.errorText}>You have a {existingPosition.direction} position. Cannot add {direction} tokens. Close it first.</Text>
+                  <Text style={[styles.errorText, { color: theme.warning }]}>
+                    You have a {existingPosition.direction} position. Add to it or close it first.
+                  </Text>
                 )}
               </>
             ) : (

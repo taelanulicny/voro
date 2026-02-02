@@ -9,6 +9,36 @@ import { BASE_PRICE } from './priceCalculationService';
 
 const INITIAL_CASH_BALANCE = 1000;
 
+/** Build transaction item for Put. Never include undefined - marshall() throws on undefined. */
+function buildTransactionItem(
+  transactionId: string,
+  userId: string,
+  timestamp: string,
+  entity: Entity,
+  type: 'buy' | 'sell',
+  quantity: number,
+  pricePerToken: number,
+  totalAmount: number,
+  idempotencyKey?: string
+): Record<string, unknown> {
+  const item: Record<string, unknown> = {
+    transactionId,
+    userId,
+    timestamp,
+    entityId: entity.entityId,
+    entityName: entity.name,
+    type,
+    quantity,
+    pricePerToken,
+    totalAmount,
+    category: entity.category,
+  };
+  if (idempotencyKey !== undefined && idempotencyKey !== '') {
+    item.idempotencyKey = idempotencyKey;
+  }
+  return item;
+}
+
 // DynamoDB client for TransactWriteItems (requires regular client, not document client)
 const dynamoDbClient = new DynamoDBClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -104,7 +134,7 @@ export async function getUserPortfolio(userId: string): Promise<{
   // If it's a new day or no opening value exists, set current value as opening
   if (!openingDate || openingDate !== todayDate || openingPortfolioValue === undefined) {
     openingPortfolioValue = totalValue;
-    
+
     // Update user record with new opening value
     await docClient.send(
       new UpdateCommand({
@@ -160,11 +190,36 @@ export async function executeTrade(
   const totalAmount = quantity * pricePerToken;
   // Generate deterministic transactionId if idempotencyKey provided, otherwise random
   // This allows us to use attribute_not_exists check atomically
-  const transactionId = idempotencyKey 
+  const transactionId = idempotencyKey
     ? `idempotent-${userId}-${idempotencyKey}`
     : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const timestamp = new Date().toISOString();
   const now = new Date().toISOString();
+
+  // Ensure user exists and has cashBalance (fixes OAuth/legacy users created without it)
+  const userResult = await docClient.send(
+    new GetCommand({
+      TableName: TABLE_NAMES.USERS,
+      Key: { userId },
+    })
+  );
+  if (!userResult.Item) {
+    return { success: false, error: 'User account not found. Please complete signup first.' };
+  }
+  const cashBalance = userResult.Item.cashBalance;
+  if (cashBalance === undefined || cashBalance === null) {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.USERS,
+        Key: { userId },
+        UpdateExpression: 'SET cashBalance = :initial, updatedAt = :ua',
+        ExpressionAttributeValues: {
+          ':initial': INITIAL_CASH_BALANCE,
+          ':ua': now,
+        },
+      })
+    );
+  }
 
   try {
     if (type === 'buy') {
@@ -237,25 +292,12 @@ export async function executeTrade(
         portfolioUpdate, // Update or create portfolio holding
         {
           // Record transaction with atomic idempotency check
+          // marshall() throws on undefined - only include idempotencyKey when defined
           Put: {
             TableName: TABLE_NAMES.TRANSACTIONS,
-            Item: marshall({
-              transactionId,
-              userId,
-              timestamp,
-              entityId,
-              entityName: entity.name,
-              type,
-              quantity,
-              pricePerToken,
-              totalAmount,
-              category: entity.category,
-              idempotencyKey: idempotencyKey || undefined,
-            }),
-            // SECURITY: Atomic idempotency check - prevents duplicate transactions with same key
-            // When idempotencyKey is provided, transactionId is deterministic, so this check prevents duplicates
-            ConditionExpression: idempotencyKey 
-              ? 'attribute_not_exists(transactionId)' 
+            Item: marshall(buildTransactionItem(transactionId, userId, timestamp, entity, type, quantity, pricePerToken, totalAmount, idempotencyKey)),
+            ConditionExpression: idempotencyKey
+              ? 'attribute_not_exists(transactionId)'
               : undefined,
           },
         },
@@ -342,23 +384,9 @@ export async function executeTrade(
           // Record transaction with atomic idempotency check
           Put: {
             TableName: TABLE_NAMES.TRANSACTIONS,
-            Item: marshall({
-              transactionId,
-              userId,
-              timestamp,
-              entityId,
-              entityName: entity.name,
-              type,
-              quantity,
-              pricePerToken,
-              totalAmount,
-              category: entity.category,
-              idempotencyKey: idempotencyKey || undefined,
-            }),
-            // SECURITY: Atomic idempotency check - prevents duplicate transactions with same key
-            // When idempotencyKey is provided, transactionId is deterministic, so this check prevents duplicates
-            ConditionExpression: idempotencyKey 
-              ? 'attribute_not_exists(transactionId)' 
+            Item: marshall(buildTransactionItem(transactionId, userId, timestamp, entity, type, quantity, pricePerToken, totalAmount, idempotencyKey)),
+            ConditionExpression: idempotencyKey
+              ? 'attribute_not_exists(transactionId)'
               : undefined,
           },
         },
@@ -384,7 +412,7 @@ export async function executeTrade(
     if (error.name === 'TransactionCanceledException') {
       // Check which condition failed by examining the cancellation reasons
       const reasons = error.CancellationReasons || [];
-      
+
       // Check if this was an idempotency conflict (transaction already exists)
       if (idempotencyKey) {
         for (const reason of reasons) {
@@ -405,7 +433,7 @@ export async function executeTrade(
                   Limit: 1,
                 })
               );
-              
+
               if (existingTransactions.Items && existingTransactions.Items.length > 0) {
                 // Return existing transaction - idempotent response
                 const existingTransaction = existingTransactions.Items[0] as Transaction;
@@ -422,7 +450,7 @@ export async function executeTrade(
           }
         }
       }
-      
+
       // Check for other condition failures (insufficient funds/holdings)
       for (const reason of reasons) {
         if (reason.Code === 'ConditionalCheckFailed') {
@@ -433,10 +461,10 @@ export async function executeTrade(
           }
         }
       }
-      
+
       return { success: false, error: 'Trade failed due to concurrent modification or insufficient resources' };
     }
-    
+
     // Re-throw other errors
     logger.error('Error executing trade', error);
     throw error;
@@ -509,13 +537,17 @@ export async function getEntityPrice(entityId: number): Promise<number | null> {
     }
 
     const entity = entityResult.Item as Entity;
-    
+
     // Use new price calculation service
     const { calculatePriceFromEntity } = await import('./priceCalculationService');
-    return calculatePriceFromEntity(entity);
+    const price = calculatePriceFromEntity(entity);
+
+    // If calculation returned a valid number, use it; otherwise fallback to BASE_PRICE
+    return (price && !isNaN(price)) ? price : BASE_PRICE;
   } catch (error) {
     logger.error('Error getting entity price', error);
-  return null;
+    // Return BASE_PRICE instead of null for entities that exist but have calculation errors
+    return BASE_PRICE;
   }
 }
 
@@ -527,7 +559,7 @@ export async function getAllEntityPrices(): Promise<Record<number, number>> {
   try {
     // Get all entities first
     const entities = await getAllEntities();
-    
+
     // Get prices for all entities in parallel
     const pricePromises = entities.map(async (entity) => {
       const price = await getEntityPrice(entity.entityId);
@@ -536,15 +568,15 @@ export async function getAllEntityPrices(): Promise<Record<number, number>> {
         price: price || BASE_PRICE,
       };
     });
-    
+
     const prices = await Promise.all(pricePromises);
-    
+
     // Convert to record
     const priceMap: Record<number, number> = {};
     prices.forEach(({ entityId, price }) => {
       priceMap[entityId] = price;
     });
-    
+
     return priceMap;
   } catch (error) {
     console.error('Error getting all entity prices:', error);

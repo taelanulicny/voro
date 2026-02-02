@@ -8,6 +8,13 @@ import {
   Animated,
 } from 'react-native';
 
+export interface ThemeForModal {
+  card?: string;
+  text?: string;
+  textSecondary?: string;
+  backgroundTertiary?: string;
+}
+
 interface ConfirmationModalProps {
   visible: boolean;
   title: string;
@@ -18,6 +25,8 @@ interface ConfirmationModalProps {
   onConfirm: () => void;
   onCancel?: () => void;
   showCancel?: boolean;
+  /** Optional theme for modal background and text (e.g. dark mode) */
+  theme?: ThemeForModal;
 }
 
 export default function ConfirmationModal({
@@ -30,6 +39,7 @@ export default function ConfirmationModal({
   onConfirm,
   onCancel,
   showCancel = false,
+  theme: themeOverride,
 }: ConfirmationModalProps) {
   const getIconAndColor = () => {
     switch (type) {
@@ -45,6 +55,11 @@ export default function ConfirmationModal({
   };
 
   const { icon, color, bgColor } = getIconAndColor();
+  const cardBg = themeOverride?.card ?? styles.modalContainer.backgroundColor;
+  const titleColor = themeOverride?.text ?? '#111827';
+  const messageColor = themeOverride?.textSecondary ?? '#6B7280';
+  const secondaryBg = themeOverride?.backgroundTertiary ?? '#F3F4F6';
+  const secondaryText = themeOverride?.text ?? '#374151';
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -54,21 +69,21 @@ export default function ConfirmationModal({
           onPress={onCancel || onConfirm}
           activeOpacity={1}
         />
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: cardBg }]}>
           {/* Icon */}
           <View style={[styles.iconContainer, { backgroundColor: bgColor }]}>
             <Text style={[styles.icon, { color }]}>{icon}</Text>
           </View>
 
           {/* Content */}
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+          <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
+          <Text style={[styles.message, { color: messageColor }]}>{message}</Text>
 
           {/* Buttons */}
           <View style={styles.buttons}>
             {showCancel && onCancel && (
-              <TouchableOpacity style={styles.buttonSecondary} onPress={onCancel}>
-                <Text style={styles.buttonTextSecondary}>{cancelText}</Text>
+              <TouchableOpacity style={[styles.buttonSecondary, { backgroundColor: secondaryBg }]} onPress={onCancel}>
+                <Text style={[styles.buttonTextSecondary, { color: secondaryText }]}>{cancelText}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity

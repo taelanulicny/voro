@@ -14,6 +14,7 @@ interface NewsContextType {
   getNewsByEntity: (entityId: number) => NewsArticle[];
   getNewsByFilter: (filter: NewsFilter) => NewsArticle[];
   markAsRead: (articleId: string) => void;
+  incrementViewCount: (articleId: string) => Promise<void>;
 }
 
 const NewsContext = createContext<NewsContextType | undefined>(undefined);
@@ -86,6 +87,37 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     console.log('Marked as read:', articleId);
   }, []);
 
+  const incrementViewCount = useCallback(async (articleId: string) => {
+    try {
+      // Optimistically update local state
+      setNews(prevNews =>
+        prevNews.map(article =>
+          article.id === articleId
+            ? { ...article, viewCount: article.viewCount + 1 }
+            : article
+        )
+      );
+
+      // TODO: Call backend API to track view count
+      // await apiRequest('/api/news/view', token, {
+      //   method: 'POST',
+      //   body: JSON.stringify({ articleId }),
+      // });
+
+      console.log('View count incremented for article:', articleId);
+    } catch (error) {
+      console.error('Error incrementing view count:', error);
+      // Revert optimistic update on error
+      setNews(prevNews =>
+        prevNews.map(article =>
+          article.id === articleId
+            ? { ...article, viewCount: article.viewCount - 1 }
+            : article
+        )
+      );
+    }
+  }, []);
+
   const value: NewsContextType = {
     news,
     isLoadingNews,
@@ -95,6 +127,7 @@ export function NewsProvider({ children }: { children: ReactNode }) {
     getNewsByEntity,
     getNewsByFilter,
     markAsRead,
+    incrementViewCount,
   };
 
   return <NewsContext.Provider value={value}>{children}</NewsContext.Provider>;

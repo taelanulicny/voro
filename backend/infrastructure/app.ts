@@ -2,6 +2,11 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { MoroBackendStack } from './stack';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load environment variables from .env file
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Pre-deployment validation
 if (!process.env.JWT_SECRET) {
@@ -18,10 +23,15 @@ if (process.env.JWT_SECRET.length < 32) {
 
 const app = new cdk.App();
 
-new MoroBackendStack(app, 'MoroBackendStack', {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
-  },
-});
+// Only pass env when explicitly set; otherwise CDK resolves account/region from AWS credentials
+const stackProps: cdk.StackProps = process.env.CDK_DEFAULT_ACCOUNT
+  ? {
+      env: {
+        account: process.env.CDK_DEFAULT_ACCOUNT,
+        region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
+      },
+    }
+  : {};
+
+new MoroBackendStack(app, 'MoroBackendStack', stackProps);
 

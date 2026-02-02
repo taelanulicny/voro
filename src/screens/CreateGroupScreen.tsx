@@ -163,11 +163,13 @@ export default function CreateGroupScreen() {
       });
 
       if (result.success && result.group) {
-        // Group is already added to state by createGroup function, no need to refresh
+        // Navigate directly to the group detail page
         Alert.alert('Success', 'Group created successfully!', [
           {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
+            text: 'View Group',
+            onPress: () => {
+              navigation.replace('GroupDetail', { groupId: result.group!.groupId });
+            },
           },
         ]);
       } else {

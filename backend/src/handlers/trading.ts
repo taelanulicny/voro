@@ -82,7 +82,10 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       return createErrorResponse(400, `Invalid request: ${errorMessages}`);
     }
 
-    const { entityId, type, quantity, pricePerToken, idempotencyKey } = parseResult.data;
+    const { entityId, type, direction, tokensCommitted, quantity, pricePerToken, idempotencyKey } = parseResult.data;
+
+    // Determine quantity to use: prefer tokensCommitted (new) over quantity (legacy)
+    const tradeQuantity = tokensCommitted || quantity || 0;
 
     // Price slippage protection: Fetch current market price
     const currentMarketPrice = await getEntityPrice(entityId);
@@ -110,7 +113,7 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
 
     // Map 'open'/'close' to legacy 'buy'/'sell' for backwards compatibility
     const legacyType: 'buy' | 'sell' = type === 'open' ? 'buy' : 'sell';
-    const result = await executeTradeService(userId, entityId, legacyType, quantity || 0, executionPrice, idempotencyKey);
+    const result = await executeTradeService(userId, entityId, legacyType, tradeQuantity, executionPrice, idempotencyKey);
 
     if (!result.success) {
       return createErrorResponse(400, result.error || 'Trade execution failed');
@@ -130,7 +133,33 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
       executionDetails,
     });
   } catch (error: unknown) {
-    logger.error('Error executing trade', error);
+    // Log the full error for debugging
+    logger.error('Error executing trade', {
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
+
+    // Provide more specific error messages based on error type
+    if (error instanceof Error) {
+      if (error.name === 'TransactionCanceledException') {
+        return createErrorResponse(400, 'Trade failed: Insufficient funds or position not found');
+      }
+      if (error.name === 'ConditionalCheckFailedException') {
+        return createErrorResponse(400, 'Trade failed: Insufficient funds or position not found');
+      }
+      if (error.name === 'ValidationException') {
+        return createErrorResponse(400, 'Trade failed: Invalid data provided');
+      }
+      if (error.name === 'ResourceNotFoundException') {
+        return createErrorResponse(400, 'Trade failed: User account not properly initialized');
+      }
+      if (error.message?.includes('cashBalance') || error.message?.includes('removeUndefinedValues')) {
+        return createErrorResponse(400, 'Trade failed: Account balance not initialized. Please try logging out and back in.');
+      }
+    }
+
     return createErrorResponse(500, 'Internal server error');
   }
 }
