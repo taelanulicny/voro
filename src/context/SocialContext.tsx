@@ -827,7 +827,12 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.success && response.data?.groups) {
-        setGroups(response.data.groups);
+        // Backend returns groupId; frontend Group type uses id. Normalize so list and detail work.
+        const normalized = response.data.groups.map((g: { groupId?: string; id?: string; [k: string]: unknown }) => ({
+          ...g,
+          id: g.groupId ?? g.id,
+        }));
+        setGroups(normalized);
       }
     } catch (error) {
       console.error('Error fetching groups:', error);
@@ -863,8 +868,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.success && response.data?.group) {
-        // Ensure the creator is marked as a member
-        const newGroup = { ...response.data.group, isMember: true };
+        // Backend returns groupId; frontend uses id. Normalize so navigation to detail works.
+        const raw = response.data.group;
+        const newGroup = {
+          ...raw,
+          id: raw.groupId ?? raw.id,
+          isMember: true,
+        };
         setGroups(prev => [newGroup, ...prev]);
         return { success: true, group: newGroup };
       }

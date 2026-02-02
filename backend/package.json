@@ -9,6 +9,7 @@
     "watch": "tsc -w",
     "test": "jest",
     "deploy": "npm run bundle && cdk deploy",
+    "audit:fix": "npm audit fix",
     "synth": "cdk synth",
     "diff": "cdk diff",
     "seed": "ts-node scripts/seed.ts",

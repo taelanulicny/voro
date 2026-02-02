@@ -238,7 +238,7 @@ export default function EntityScreen() {
   // Get all prices to trigger re-renders when prices update (for open P&L updates)
   const allPrices = getAllEntityPrices();
 
-  // Fetch price history from backend
+  // Fetch price history from backend (optional: chart works with empty data if API fails)
   const fetchPriceHistory = async () => {
     if (!token) return;
 
@@ -249,19 +249,17 @@ export default function EntityScreen() {
         { method: 'GET' }
       );
 
-      if (response.success && response.data) {
-        // Convert backend format to frontend PriceDataPoint format
+      if (response.success && response.data && Array.isArray(response.data)) {
         const historyData: PriceDataPoint[] = response.data.map(point => ({
           timestamp: new Date(point.timestamp).getTime(),
           price: point.price,
         }));
         setPriceHistory(historyData);
       } else {
-        console.log('No price history available for entity', entityId);
         setPriceHistory([]);
       }
-    } catch (error) {
-      console.error('Error fetching price history:', error);
+    } catch {
+      // Backend may be unavailable or PriceHistory table missing; show entity without chart history
       setPriceHistory([]);
     }
   };

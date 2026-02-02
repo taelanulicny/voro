@@ -474,16 +474,9 @@ export default function CategoryScreen() {
       };
     });
     
-    // For People and Teams megacategories, randomize the order
-    // For subcategories, sort by price (descending) - highest price = rank #1
-    let sorted: typeof mappedEntities;
-    if (categoryId === 'People' || categoryId === 'Teams') {
-      // Randomize order for megacategories
-      sorted = [...mappedEntities].sort(() => Math.random() - 0.5);
-    } else {
-      // Sort by price for subcategories
-      sorted = [...mappedEntities].sort((a, b) => b.currentPrice - a.currentPrice);
-    }
+    // Stable sort by price (descending) for all categories so the list doesn't jump on re-renders.
+    // People and Teams used to randomize order, which caused the list to jump when prices updated.
+    const sorted = [...mappedEntities].sort((a, b) => b.currentPrice - a.currentPrice);
     
     // Add rank and position change to each entity
     return sorted.map((entity, index) => {

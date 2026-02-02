@@ -112,7 +112,7 @@ export default function GroupDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<GroupDetailRouteProp>();
   const { groupId } = route.params;
-  const { groups, leaveGroup, deleteGroup, joinGroup, getGroupMembers } = useSocial();
+  const { groups, leaveGroup, deleteGroup, joinGroup, getGroupMembers, refreshGroups } = useSocial();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { portfolio } = useTrading();
@@ -189,8 +189,11 @@ export default function GroupDetailScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deleteGroup(groupId);
-            navigation.goBack();
+            const result = await deleteGroup(groupId);
+            if (result?.success) {
+              await refreshGroups();
+              navigation.goBack();
+            }
           },
         },
       ]
@@ -332,30 +335,30 @@ export default function GroupDetailScreen() {
             ) : (
               <FlatList
                 data={members}
-          renderItem={({ item, index }) => renderMember({ item, index })}
-                keyExtractor={(item) => item.id}
+                renderItem={({ item, index }) => renderMember({ item, index })}
+                keyExtractor={(item, index) => item.userId ?? item.id ?? `member-${index}`}
                 contentContainerStyle={styles.membersList}
                 showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <>
-              {!group.isMember && (
-                <View style={[styles.joinGroupContainer, { backgroundColor: theme.card }]}>
-                  <TouchableOpacity
-                    style={[styles.joinGroupButton, { backgroundColor: theme.primary }]}
-                    onPress={handleJoinGroup}
-                  >
-                    <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.joinGroupText}>Join Group</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              <View style={[styles.membersHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-                <Text style={[styles.membersHeaderText, { color: theme.textSecondary }]}>
-                  Ranked by Account Value
-                </Text>
-              </View>
-            </>
-          }
+                ListHeaderComponent={
+                  <View>
+                    {!group.isMember && (
+                      <View style={[styles.joinGroupContainer, { backgroundColor: theme.card }]}>
+                        <TouchableOpacity
+                          style={[styles.joinGroupButton, { backgroundColor: theme.primary }]}
+                          onPress={handleJoinGroup}
+                        >
+                          <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+                          <Text style={styles.joinGroupText}>Join Group</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    <View style={[styles.membersHeader, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+                      <Text style={[styles.membersHeaderText, { color: theme.textSecondary }]}>
+                        Ranked by Account Value
+                      </Text>
+                    </View>
+                  </View>
+                }
                 ListFooterComponent={
                   group.isMember && (
                     isOwner ? (

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import TradeErrorModal from '../components/TradeErrorModal';
 import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, isBackendConfigured, invalidateCache } from '../config/api';
 import { useAuth } from './AuthContext';
@@ -1310,7 +1309,6 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         clearTradeError,
       }}
     >
-      <TradeErrorModal />
       {children}
     </TradingContext.Provider>
   );

@@ -192,16 +192,12 @@ export default function TradeModal({
             },
           ]}
         >
-          {/* Header */}
+          {/* Header: name at top, price below */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <View style={[styles.handle, { backgroundColor: theme.textTertiary }]} />
             <View style={styles.headerContent}>
-              <View>
-                <Text style={[styles.entityName, { color: theme.text }]}>{entityName}</Text>
-              </View>
-              <View style={styles.priceContainer}>
-                <Text style={[styles.price, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
-              </View>
+              <Text style={[styles.entityName, { color: theme.text }]}>{entityName}</Text>
+              <Text style={[styles.price, { color: theme.textSecondary }]}>{formatCurrency(currentPrice)}</Text>
             </View>
           </View>
 
@@ -492,21 +488,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     alignItems: 'center',
+    gap: 4,
   },
   entityName: {
     fontSize: 24,
     fontWeight: 'bold',
-  },
-  priceContainer: {
-    alignItems: 'flex-end',
+    textAlign: 'center',
   },
   price: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontSize: 18,
+    fontWeight: '600',
   },
   tabs: {
     flexDirection: 'row',

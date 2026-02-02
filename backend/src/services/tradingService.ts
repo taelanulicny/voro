@@ -187,7 +187,8 @@ export async function executeTrade(
   }
 
   const entity = entityResult.Item as Entity;
-  const totalAmount = quantity * pricePerToken;
+  // Round to 2 decimals to avoid floating-point comparison failures (e.g. 1000 >= 1000.0000001 failing in DynamoDB)
+  const totalAmount = Math.round(quantity * pricePerToken * 100) / 100;
   // Generate deterministic transactionId if idempotencyKey provided, otherwise random
   // This allows us to use attribute_not_exists check atomically
   const transactionId = idempotencyKey
@@ -206,7 +207,7 @@ export async function executeTrade(
   if (!userResult.Item) {
     return { success: false, error: 'User account not found. Please complete signup first.' };
   }
-  const cashBalance = userResult.Item.cashBalance;
+  let cashBalance = userResult.Item.cashBalance;
   if (cashBalance === undefined || cashBalance === null) {
     await docClient.send(
       new UpdateCommand({
@@ -219,6 +220,23 @@ export async function executeTrade(
         },
       })
     );
+    cashBalance = INITIAL_CASH_BALANCE;
+  } else if (typeof cashBalance === 'string') {
+    // DynamoDB or another client may have stored cashBalance as string; condition fails on type mismatch
+    const normalized = parseFloat(cashBalance);
+    if (!isNaN(normalized) && normalized >= 0) {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId },
+          UpdateExpression: 'SET cashBalance = :cb, updatedAt = :ua',
+          ExpressionAttributeValues: {
+            ':cb': Math.round(normalized * 100) / 100,
+            ':ua': now,
+          },
+        })
+      );
+    }
   }
 
   try {
@@ -455,6 +473,16 @@ export async function executeTrade(
       for (const reason of reasons) {
         if (reason.Code === 'ConditionalCheckFailed') {
           if (type === 'buy') {
+            // Log for debugging: float/type mismatch can cause condition to fail despite sufficient balance
+            const currentUser = await docClient.send(new GetCommand({ TableName: TABLE_NAMES.USERS, Key: { userId } }));
+            logger.warn('Insufficient funds condition failed', {
+              userId,
+              totalAmount,
+              quantity,
+              pricePerToken,
+              cashBalanceInDb: currentUser.Item?.cashBalance,
+              cashBalanceType: typeof currentUser.Item?.cashBalance,
+            });
             return { success: false, error: 'Insufficient funds' };
           } else {
             return { success: false, error: 'Insufficient holdings or concurrent trade conflict' };
@@ -609,20 +637,26 @@ export async function getPriceHistory(
       break;
   }
 
-  const result = await docClient.send(
-    new QueryCommand({
-      TableName: TABLE_NAMES.PRICE_HISTORY,
-      KeyConditionExpression: 'entityId = :entityId',
-      FilterExpression: 'timestamp >= :cutoff',
-      ExpressionAttributeValues: {
-        ':entityId': entityId,
-        ':cutoff': cutoffTime.toISOString(),
-      },
-      ScanIndexForward: true, // Oldest first for chart display
-      Limit: limit,
-    })
-  );
+  try {
+    const result = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAMES.PRICE_HISTORY,
+        KeyConditionExpression: 'entityId = :entityId',
+        FilterExpression: 'timestamp >= :cutoff',
+        ExpressionAttributeValues: {
+          ':entityId': entityId,
+          ':cutoff': cutoffTime.toISOString(),
+        },
+        ScanIndexForward: true, // Oldest first for chart display
+        Limit: limit,
+      })
+    );
 
-  return (result.Items || []) as PriceHistory[];
+    return (result.Items || []) as PriceHistory[];
+  } catch (error) {
+    // Table may not exist (ResourceNotFoundException) or other DynamoDB error
+    logger.warn('getPriceHistory failed, returning empty', { entityId, error });
+    return [];
+  }
 }
 

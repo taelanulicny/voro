@@ -453,9 +453,9 @@ function GroupsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.recommendedScrollContent}
         >
-          {recommendedGroups.map((group) => (
+          {recommendedGroups.map((group, index) => (
             <TouchableOpacity
-              key={group.id}
+              key={group.id ?? group.groupId ?? `group-${index}`}
               style={[styles.recommendedCard, { backgroundColor: theme.card }]}
               onPress={() => navigation.navigate('GroupDetail', { groupId: group.id })}
             >
@@ -576,14 +576,14 @@ function GroupsScreen() {
       <FlatList
         data={currentGroups}
         renderItem={renderGroupCard}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item.id ?? item.groupId ?? `group-${index}`}
         ListHeaderComponent={
-          <>
+          <View>
             {renderHeader()}
             {renderSearchBar()}
             {renderFilters()}
             {!searchQuery.trim() && selectedCountry === 'Worldwide' && privacyFilter === 'all' && recommendedGroups.length > 0 && renderRecommendedSlider()}
-          </>
+          </View>
         }
         ListEmptyComponent={renderEmptyState}
         refreshControl={

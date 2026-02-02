@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import VideoSplashScreen from './src/components/VideoSplashScreen';
 import PushNotificationManager from './src/components/PushNotificationManager';
+import TradeErrorModal from './src/components/TradeErrorModal';
 import { initializeFeatureFlags } from './src/config/featureFlags';
 import { initializeSentry } from './src/config/sentry';
 
@@ -394,6 +395,7 @@ export default function App() {
             <SocialProvider>
               <NewsProvider>
                 <TradingProvider>
+                  <TradeErrorModal />
                   <WatchlistProvider>
                     <SideMenuProvider>
                     <NavigationContainer ref={navigationRef} linking={linking}>

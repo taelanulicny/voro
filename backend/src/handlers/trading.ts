@@ -12,6 +12,7 @@ import {
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { BASE_PRICE } from '../services/priceCalculationService';
+import type { PriceHistory } from '../models/types';
 
 // Zod schema for trade execution validation
 // Updated to support sentiment-based trading:
@@ -286,7 +287,14 @@ export async function getPriceHistoryHandler(event: APIGatewayProxyEvent): Promi
       return createErrorResponse(400, 'Invalid timeRange. Must be one of: 1D, 1W, 1M, ALL');
     }
 
-    const priceHistory = await getPriceHistory(entityId, timeRange, limit);
+    let priceHistory: PriceHistory[];
+    try {
+      priceHistory = await getPriceHistory(entityId, timeRange, limit);
+    } catch (err) {
+      // Table may not exist or DynamoDB error; return empty so entity screen still loads
+      logger.warn('Price history unavailable, returning empty', { entityId, error: err });
+      priceHistory = [];
+    }
 
     return createResponse(200, {
       success: true,

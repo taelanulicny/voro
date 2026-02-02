@@ -53,7 +53,11 @@ export default {
     web: {
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-apple-authentication'],
+    plugins: [
+      'expo-apple-authentication',
+      '@sentry/react-native',
+      'expo-font',
+    ],
     scheme: 'moro',
     extra: {
       eas: {
