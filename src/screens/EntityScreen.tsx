@@ -220,6 +220,7 @@ export default function EntityScreen() {
   const { theme } = useTheme();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   const { postComments, activityFeed } = useSocial();
+  const { token } = useAuth();
   
   // Generate entity data based on current entityId - updates when entityId changes
   const entityData = useMemo(() => generateEntityData(entityId, categoryId), [entityId, categoryId]);
@@ -237,17 +238,49 @@ export default function EntityScreen() {
   // Get all prices to trigger re-renders when prices update (for open P&L updates)
   const allPrices = getAllEntityPrices();
 
+  // Fetch price history from backend
+  const fetchPriceHistory = async () => {
+    if (!token) return;
+
+    try {
+      const response = await authenticatedRequest<{ timestamp: string; price: number }[]>(
+        `/api/entities/${entityId}/price-history?timeRange=1D&limit=100`,
+        token,
+        { method: 'GET' }
+      );
+
+      if (response.success && response.data) {
+        // Convert backend format to frontend PriceDataPoint format
+        const historyData: PriceDataPoint[] = response.data.map(point => ({
+          timestamp: new Date(point.timestamp).getTime(),
+          price: point.price,
+        }));
+        setPriceHistory(historyData);
+      } else {
+        console.log('No price history available for entity', entityId);
+        setPriceHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching price history:', error);
+      setPriceHistory([]);
+    }
+  };
+
   // Update price history and reset tab whenever entityId changes (ensures we always show Chart when navigating to an entity)
   useEffect(() => {
     setSelectedTab('chart');
-    setPriceHistory([]); // Empty - no graph data
+    setPriceHistory([]); // Clear previous data
     setChartUpdateKey(prev => prev + 1); // Force chart to re-render
+
+    // Fetch real price history from backend
+    fetchPriceHistory();
+
     // Reset scroll position to chart tab
     const timer = setTimeout(() => {
       scrollViewRef.current?.scrollTo({ x: 0, animated: false });
     }, 100);
     return () => clearTimeout(timer);
-  }, [entityId]);
+  }, [entityId, token]);
   
   // Force re-render when prices update (to update open P&L in real-time)
   useEffect(() => {
@@ -672,23 +705,45 @@ export default function EntityScreen() {
   const innerWidth = chartWidth - margin.left - margin.right;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
-  // Convert filteredPriceHistory to chart data format - empty, no graph data
+  // Convert price history to chart data format
   const chartPrices = useMemo(() => {
-    // Return empty array - no data to plot
-    return [];
-  }, []);
+    if (priceHistory.length === 0) return [];
+    return priceHistory.map(p => p.price);
+  }, [priceHistory]);
 
-  // Calculate Y domain - center around current price (100) but no data plotted
+  // Calculate Y domain based on actual price history
   const yDomain = useMemo(() => {
-    const price = currentPrice || 100;
-    const padding = price * 0.1;
-    return { yMin: price - padding, yMax: price + padding, yRange: padding * 2 };
-  }, [currentPrice]);
+    if (chartPrices.length === 0) {
+      const price = currentPrice || 100;
+      const padding = price * 0.1;
+      return { yMin: price - padding, yMax: price + padding, yRange: padding * 2 };
+    }
 
-  // Generate line path - return empty since no data to plot
+    const minPrice = Math.min(...chartPrices);
+    const maxPrice = Math.max(...chartPrices);
+    const padding = (maxPrice - minPrice) * 0.1 || maxPrice * 0.05;
+    return {
+      yMin: minPrice - padding,
+      yMax: maxPrice + padding,
+      yRange: maxPrice - minPrice + padding * 2,
+    };
+  }, [chartPrices, currentPrice]);
+
+  // Generate line path from price history data
   const generateLinePath = () => {
-    // No graph data - return empty path
-    return '';
+    if (chartPrices.length === 0) return '';
+
+    const points = chartPrices.map((price, index) => {
+      const x = margin.left + (index / Math.max(1, chartPrices.length - 1)) * innerWidth;
+      const y = margin.top + innerHeight - ((price - yDomain.yMin) / yDomain.yRange) * innerHeight;
+      return { x, y };
+    });
+
+    const pathData = points.map((point, i) =>
+      i === 0 ? `M ${point.x},${point.y}` : `L ${point.x},${point.y}`
+    ).join(' ');
+
+    return pathData;
   };
 
   // Generate TradingView chart HTML
@@ -747,25 +802,82 @@ export default function EntityScreen() {
 
   const renderChartContent = () => (
     <>
-        {/* TradingView Chart */}
+        {/* Custom Price History Chart */}
         <View style={[styles.tradingViewContainer, { backgroundColor: theme.card }]}>
-          <WebView
-            source={{ html: chartHtml }}
-            style={styles.tradingViewWebView}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            originWhitelist={['*']}
-            scrollEnabled={false}
-            bounces={false}
-            overScrollMode="never"
-            allowsInlineMediaPlayback={true}
-            mediaPlaybackRequiresUserAction={false}
-            onLoadEnd={() => console.log('TradingView chart loaded')}
-            onError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.warn('WebView error:', nativeEvent);
-            }}
-          />
+          {chartPrices.length > 0 ? (
+            <Svg width={chartWidth} height={chartHeight}>
+              <Defs>
+                <LinearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0%" stopColor={theme.primary} stopOpacity="0.3" />
+                  <Stop offset="100%" stopColor={theme.primary} stopOpacity="0.05" />
+                </LinearGradient>
+              </Defs>
+
+              {/* Grid lines */}
+              <G>
+                {[0, 1, 2, 3, 4].map((i) => {
+                  const y = margin.top + (i * innerHeight) / 4;
+                  const price = yDomain.yMax - (i * yDomain.yRange) / 4;
+                  return (
+                    <G key={`grid-${i}`}>
+                      <Line
+                        x1={margin.left}
+                        y1={y}
+                        x2={chartWidth - margin.right}
+                        y2={y}
+                        stroke={theme.border}
+                        strokeWidth="1"
+                        strokeOpacity="0.3"
+                      />
+                      <SvgText
+                        x={chartWidth - margin.right - 5}
+                        y={y - 5}
+                        fill={theme.textSecondary}
+                        fontSize="10"
+                        textAnchor="end"
+                      >
+                        {formatCurrency(price)}
+                      </SvgText>
+                    </G>
+                  );
+                })}
+              </G>
+
+              {/* Area under the line */}
+              <Path
+                d={`${generateLinePath()} L ${chartWidth - margin.right},${margin.top + innerHeight} L ${margin.left},${margin.top + innerHeight} Z`}
+                fill="url(#chartGradient)"
+              />
+
+              {/* Price line */}
+              <Path
+                d={generateLinePath()}
+                stroke={theme.primary}
+                strokeWidth="2"
+                fill="none"
+              />
+
+              {/* Current price indicator */}
+              {chartPrices.length > 0 && (
+                <Ellipse
+                  cx={margin.left + innerWidth}
+                  cy={margin.top + innerHeight - ((chartPrices[chartPrices.length - 1] - yDomain.yMin) / yDomain.yRange) * innerHeight}
+                  rx="4"
+                  ry="4"
+                  fill={theme.primary}
+                />
+              )}
+            </Svg>
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Text style={[styles.noDataText, { color: theme.textSecondary }]}>
+                No price history data available yet
+              </Text>
+              <Text style={[styles.noDataSubtext, { color: theme.textTertiary }]}>
+                Price history will appear as trading activity occurs
+              </Text>
+            </View>
+          )}
         </View>
     </>
   );
@@ -1465,12 +1577,29 @@ const styles = StyleSheet.create({
   },
   tradingViewContainer: {
     width: SCREEN_WIDTH,
-    height: 400,
-    backgroundColor: '#000000',
+    height: 220,
+    paddingVertical: 16,
   },
   tradingViewWebView: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 60,
+  },
+  noDataText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  noDataSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   infoCard: {
     marginHorizontal: 16,
