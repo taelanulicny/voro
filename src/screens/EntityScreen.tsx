@@ -31,6 +31,8 @@ import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
+import { authenticatedRequest } from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
