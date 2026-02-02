@@ -48,7 +48,7 @@ export function NewsProvider({ children }: { children: ReactNode }) {
       // Combine and deduplicate
       const allNews = [...general, ...tech, ...business];
       const uniqueNews = Array.from(
-        new Map(allNews.map(article => [article.url, article])).values()
+        new Map(allNews.map(article => [article.sourceUrl ?? article.id, article])).values()
       );
 
       setNews(uniqueNews);

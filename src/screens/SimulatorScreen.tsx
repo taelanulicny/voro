@@ -227,7 +227,7 @@ export default function SimulatorScreen() {
     navigation.navigate('Entity', { entityId, categoryId: category });
   };
 
-  const sortedHoldings = [...simulatorPortfolio.holdings].sort((a, b) => b.totalValue - a.totalValue);
+  const sortedHoldings = [...simulatorPortfolio.holdings].sort((a, b) => (b.currentPrice ?? 0) - (a.currentPrice ?? 0));
   const recentTransactions = simulatorTransactions.slice(0, 20);
 
   // Performance comparison

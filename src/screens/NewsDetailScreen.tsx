@@ -19,6 +19,7 @@ import { useTheme } from '../context/ThemeContext';
 type NewsDetailRouteProp = RouteProp<RootStackParamList, 'NewsDetail'>;
 
 const { width } = Dimensions.get('window');
+const EXCERPT_MAX_LENGTH = 1600;
 
 export default function NewsDetailScreen() {
   const navigation = useNavigation();
@@ -86,6 +87,21 @@ export default function NewsDetailScreen() {
       case 'medium': return '#775a96';
       case 'low': return '#6B7280';
     }
+  };
+
+  /** Truncate at a sentence or word boundary and end with ellipsis */
+  const truncateGracefully = (text: string, maxLen: number): string => {
+    if (!text || text.length <= maxLen) return text;
+    const cut = text.slice(0, maxLen);
+    const lastSentence = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+    const lastSpace = cut.lastIndexOf(' ');
+    const end =
+      lastSentence >= maxLen * 0.5
+        ? lastSentence + 1
+        : lastSpace > 0
+          ? lastSpace
+          : maxLen;
+    return (end > 0 ? cut.slice(0, end) : cut).trim() + '…';
   };
 
   const handleShare = async () => {
@@ -224,24 +240,26 @@ export default function NewsDetailScreen() {
           <Text style={[styles.summaryText, { color: theme.textSecondary }]}>{article.summary}</Text>
         </View>
 
-        {/* Full Article Content */}
-        <View style={styles.articleContent}>
-          <Text style={[styles.contentSectionTitle, { color: theme.text }]}>Full Article</Text>
-          <Text style={[styles.contentText, { color: theme.text }]}>
-            {isExpanded || article.content.length <= 600
-              ? article.content
-              : `${article.content.substring(0, 600)}...`}
-          </Text>
-          {article.content.length > 600 && !isExpanded && (
-            <TouchableOpacity
-              style={[styles.readMoreButton, { backgroundColor: theme.primaryLight }]}
-              onPress={() => setIsExpanded(true)}
-            >
-              <Text style={[styles.readMoreText, { color: theme.primary }]}>Read full article</Text>
-              <Ionicons name="chevron-down" size={16} color={theme.primary} />
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Full Article Content (in-app excerpt when available) */}
+        {(article.content?.length ?? 0) > 0 && (
+          <View style={styles.articleContent}>
+            <Text style={[styles.contentSectionTitle, { color: theme.text }]}>Excerpt</Text>
+            <Text style={[styles.contentText, { color: theme.text }]}>
+              {isExpanded || (article.content?.length ?? 0) <= EXCERPT_MAX_LENGTH
+                ? article.content
+                : truncateGracefully(article.content, EXCERPT_MAX_LENGTH)}
+            </Text>
+            {(article.content?.length ?? 0) > EXCERPT_MAX_LENGTH && !isExpanded && (
+              <TouchableOpacity
+                style={[styles.readMoreButton, { backgroundColor: theme.primaryLight }]}
+                onPress={() => setIsExpanded(true)}
+              >
+                <Text style={[styles.readMoreText, { color: theme.primary }]}>Show more</Text>
+                <Ionicons name="chevron-down" size={16} color={theme.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Tags */}
         {article.tags?.length > 0 && (

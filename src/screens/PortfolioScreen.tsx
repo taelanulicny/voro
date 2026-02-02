@@ -38,9 +38,9 @@ function PortfolioScreen() {
     navigation.navigate('Entity', { entityId, categoryId: category });
   };
 
-  // Memoize expensive calculations to prevent recalculation on every render
+  // Sort by highest share price (currentPrice) descending
   const sortedHoldings = useMemo(
-    () => [...portfolio.holdings].sort((a, b) => b.totalValue - a.totalValue),
+    () => [...portfolio.holdings].sort((a, b) => (b.currentPrice ?? 0) - (a.currentPrice ?? 0)),
     [portfolio.holdings]
   );
 

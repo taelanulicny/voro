@@ -141,6 +141,15 @@ export const fetchEntityNews = async (entityName: string): Promise<NewsArticle[]
   });
 };
 
+/** Strip NewsAPI truncation text like "+1234 characters" or "[+1234 characters]" from content/summary */
+function stripNewsApiTruncation(text: string): string {
+  return text
+    .replace(/\s*\[\s*\+\d+\s*characters?\s*\]\s*$/i, '')
+    .replace(/\s*\+\d+\s*characters?\s*$/i, '')
+    .replace(/\s*\+\d+\s*chars?\s*$/i, '')
+    .trim();
+}
+
 /**
  * Map NewsAPI articles to app format
  */
@@ -162,21 +171,27 @@ const mapNewsApiArticlesToAppFormat = (articles: NewsApiArticle[]): NewsArticle[
       // Generate consistent ID based only on URL to prevent duplicates across category fetches
       const urlHash = article.url.replace(/[^a-zA-Z0-9]/g, '');
 
+      const rawSummary = article.description || article.content?.substring(0, 200) || 'No summary available';
+      const rawContent = article.content || article.description || '';
+
       return {
         id: `newsapi-${urlHash}`,
         title: article.title,
-        summary: article.description || article.content?.substring(0, 200) || 'No summary available',
-        content: article.content || article.description || '',
+        summary: stripNewsApiTruncation(rawSummary),
+        content: stripNewsApiTruncation(rawContent),
         imageUrl: article.urlToImage || undefined,
         source: article.source.name,
-        url: article.url,
+        sourceUrl: article.url,
         publishedAt: new Date(article.publishedAt).toISOString(),
         category,
         sentiment,
         impactLevel: 'medium' as const,
-        isBreaking: false, // NewsAPI doesn't provide this, could implement custom logic
-        entityId: undefined, // Would need entity matching logic
+        isBreaking: false,
+        entityId: undefined,
         entityName: undefined,
+        tags: [],
+        viewCount: 0,
+        sentimentScore: 0,
       };
     });
 };
