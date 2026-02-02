@@ -489,14 +489,16 @@ export async function apiRequest<T = any>(
   const shouldDeduplicate = retryConfig?.deduplicate !== false;
 
   const makeRequest = async (): Promise<ApiResponse<T>> => {
+    let timeoutId: NodeJS.Timeout | undefined;
+
     try {
       const url = `${API_CONFIG.baseURL}${endpoint}`;
-      
+
       // Check if certificate pinning is enabled and available
       const { getCertificatePinningConfig } = await import('../utils/security');
       const pinConfig = getCertificatePinningConfig();
       const usePinning = sslPinningFetch && pinConfig.enabled && pinConfig.pins && pinConfig.pins.length > 0;
-      
+
       let response: Response;
       
       if (usePinning) {
@@ -537,8 +539,8 @@ export async function apiRequest<T = any>(
       
       // Regular fetch (managed workflow or development)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
-      
+      timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+
       response = await fetch(url, {
         ...options,
         headers: {
@@ -549,6 +551,7 @@ export async function apiRequest<T = any>(
       });
 
       clearTimeout(timeoutId);
+      timeoutId = undefined;
 
       // Handle 401 Unauthorized - return gracefully instead of throwing
       if (response.status === 401) {
@@ -604,8 +607,11 @@ export async function apiRequest<T = any>(
         data: data.data || data,
       };
     } catch (error: any) {
-      clearTimeout(timeoutId);
-      
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+
       // Don't log 404 or 400 errors as errors (client errors - expected)
       if (error.status === 404) {
         // Silently return failure for 404s

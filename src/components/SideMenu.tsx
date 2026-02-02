@@ -160,7 +160,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
               <Text style={[styles.groupsSectionTitle, { color: theme.text }]}>My Groups</Text>
               
               {myGroups.length === 0 ? (
-                <>
+                <React.Fragment key="no-groups">
                   <TouchableOpacity
                     key="join-group"
                     style={styles.groupItem}
@@ -187,9 +187,9 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
                   </TouchableOpacity>
-                </>
+                </React.Fragment>
               ) : (
-                <>
+                <React.Fragment key="has-groups">
                   {myGroups.map((group) => (
                     <TouchableOpacity
                       key={group.id}
@@ -231,7 +231,7 @@ export default function SideMenu({ onClose }: SideMenuProps) {
                     </View>
                     <Text style={[styles.groupItemText, { color: theme.text }]}>Create a group</Text>
                   </TouchableOpacity>
-                </>
+                </React.Fragment>
               )}
             </View>
           </View>

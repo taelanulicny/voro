@@ -609,7 +609,7 @@ export default function CommunityScreen() {
             
             {/* Groups List */}
             {myGroups.length > 0 && (
-              <>
+              <React.Fragment key="my-groups-list">
                 {myGroups.map((group) => (
             <TouchableOpacity
                     key={group.id}
@@ -625,7 +625,7 @@ export default function CommunityScreen() {
                     <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
                 ))}
-              </>
+              </React.Fragment>
             )}
           </View>
 
