@@ -313,8 +313,9 @@ export interface PriceAlert {
 
 export interface WatchlistItem {
   entityId: number;
-  entityName: string;
-  category: string;
+  entityTicker?: string; // optional for backwards compat with old stored items
+  entityName?: string; // optional for backwards compat with old stored items
+  category?: string;
   addedAt: string;
   currentPrice: number;
   change24h: number;

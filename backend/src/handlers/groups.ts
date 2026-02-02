@@ -11,9 +11,13 @@ import {
   deleteGroup,
   isGroupMember,
   getGroupMembers,
+  updateMemberRole,
+  removeMember,
 } from '../services/groupService';
+import { sendGroupMessage, getGroupMessages } from '../services/groupMessageService';
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { GroupMessage } from '../models/types';
 
 export async function createGroupHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
@@ -250,6 +254,161 @@ export async function getGroupMembersHandler(event: APIGatewayProxyEvent): Promi
   } catch (error: any) {
     logger.error('Error in getGroupMembersHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get group members');
+  }
+}
+
+type MessageWithUser = GroupMessage & { username?: string; displayName?: string; avatarUrl?: string; timestamp?: string; id?: string };
+
+async function enrichMessageWithUser(msg: GroupMessage & { username?: string; displayName?: string; avatarUrl?: string }): Promise<MessageWithUser> {
+  try {
+    const userResult = await docClient.send(
+      new GetCommand({ TableName: TABLE_NAMES.USERS, Key: { userId: msg.userId } })
+    );
+    if (userResult.Item) {
+      return {
+        ...msg,
+        username: userResult.Item.username,
+        displayName: userResult.Item.displayName,
+        avatarUrl: userResult.Item.avatarUrl,
+        timestamp: msg.createdAt,
+        id: msg.messageId,
+      } as MessageWithUser;
+    }
+  } catch (e) {
+    logger.warn('Error fetching user for message', { userId: msg.userId });
+  }
+  return { ...msg, timestamp: msg.createdAt, id: msg.messageId } as MessageWithUser;
+}
+
+export async function getGroupMessagesHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const groupId = event.pathParameters?.groupId;
+    if (!groupId) {
+      return createErrorResponse(400, 'Group ID is required');
+    }
+
+    const group = await getGroup(groupId);
+    if (!group) return createErrorResponse(404, 'Group not found');
+
+    const isMember = group.ownerId === auth.event.userId || await isGroupMember(auth.event.userId!, groupId);
+    if (!isMember) {
+      return createErrorResponse(403, 'You must be a member to view group chat');
+    }
+
+    const query = event.queryStringParameters || {};
+    const limit = Math.min(parseInt(query.limit || '50', 10), 100);
+    const beforeMessageId = query.before;
+
+    const result = await getGroupMessages(groupId, limit, beforeMessageId);
+    const enriched = await Promise.all(result.messages.map(enrichMessageWithUser));
+
+    return createResponse(200, {
+      messages: enriched,
+      lastEvaluatedKey: result.lastEvaluatedKey,
+    });
+  } catch (error: any) {
+    logger.error('Error in getGroupMessagesHandler', error);
+    return createErrorResponse(500, error.message || 'Failed to get messages');
+  }
+}
+
+export async function sendGroupMessageHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const groupId = event.pathParameters?.groupId;
+    if (!groupId) {
+      return createErrorResponse(400, 'Group ID is required');
+    }
+
+    const body = JSON.parse(event.body || '{}');
+    const content = typeof body.content === 'string' ? body.content.trim() : '';
+    if (!content) {
+      return createErrorResponse(400, 'Message content is required');
+    }
+
+    const group = await getGroup(groupId);
+    if (!group) return createErrorResponse(404, 'Group not found');
+
+    const isMember = group.ownerId === auth.event.userId || await isGroupMember(auth.event.userId!, groupId);
+    if (!isMember) {
+      return createErrorResponse(403, 'You must be a member to send messages');
+    }
+
+    const result = await sendGroupMessage(groupId, auth.event.userId!, content);
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to send message');
+    }
+
+    const enriched = await enrichMessageWithUser(result.message as GroupMessage);
+    return createResponse(201, { message: enriched });
+  } catch (error: any) {
+    logger.error('Error in sendGroupMessageHandler', error);
+    return createErrorResponse(500, error.message || 'Failed to send message');
+  }
+}
+
+export async function updateMemberRoleHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const groupId = event.pathParameters?.groupId;
+    const targetUserId = event.pathParameters?.userId;
+    if (!groupId || !targetUserId) {
+      return createErrorResponse(400, 'Group ID and user ID are required');
+    }
+
+    const body = JSON.parse(event.body || '{}');
+    const role = body.role === 'admin' || body.role === 'member' ? body.role : undefined;
+    if (!role) {
+      return createErrorResponse(400, 'Valid role (admin or member) is required');
+    }
+
+    const result = await updateMemberRole(auth.event.userId!, groupId, targetUserId, role);
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to update role');
+    }
+
+    return createResponse(200, { success: true });
+  } catch (error: any) {
+    logger.error('Error in updateMemberRoleHandler', error);
+    return createErrorResponse(500, error.message || 'Failed to update role');
+  }
+}
+
+export async function removeMemberHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+
+    const groupId = event.pathParameters?.groupId;
+    const targetUserId = event.pathParameters?.userId;
+    if (!groupId || !targetUserId) {
+      return createErrorResponse(400, 'Group ID and user ID are required');
+    }
+
+    const result = await removeMember(auth.event.userId!, groupId, targetUserId);
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to remove member');
+    }
+
+    return createResponse(200, { success: true });
+  } catch (error: any) {
+    logger.error('Error in removeMemberHandler', error);
+    return createErrorResponse(500, error.message || 'Failed to remove member');
   }
 }
 

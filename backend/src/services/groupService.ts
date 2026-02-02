@@ -1,6 +1,7 @@
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { GetCommand, PutCommand, UpdateCommand, QueryCommand, ScanCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { Group, GroupMember } from '../models/types';
+import { deleteGroupMessages } from './groupMessageService';
 
 export async function createGroup(
   userId: string,
@@ -275,6 +276,8 @@ export async function deleteGroup(userId: string, groupId: string): Promise<{ su
       );
     }
 
+    await deleteGroupMessages(groupId);
+
     // Delete group
     await docClient.send(
       new DeleteCommand({
@@ -321,6 +324,123 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
   } catch (error: any) {
     console.error('Error getting group members:', error);
     return [];
+  }
+}
+
+export async function updateMemberRole(
+  actorUserId: string,
+  groupId: string,
+  targetUserId: string,
+  newRole: 'admin' | 'member'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const group = await getGroup(groupId);
+    if (!group) return { success: false, error: 'Group not found' };
+
+    const actorMember = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.GROUP_MEMBERS,
+        Key: { groupId, userId: actorUserId },
+      })
+    );
+    if (!actorMember.Item) return { success: false, error: 'You are not a member of this group' };
+    const actor = actorMember.Item as GroupMember;
+    if (actor.role !== 'owner' && actor.role !== 'admin') {
+      return { success: false, error: 'Only owner or admin can change roles' };
+    }
+
+    const targetMember = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.GROUP_MEMBERS,
+        Key: { groupId, userId: targetUserId },
+      })
+    );
+    if (!targetMember.Item) return { success: false, error: 'User is not a member' };
+    const target = targetMember.Item as GroupMember;
+
+    if (target.role === 'owner') return { success: false, error: 'Cannot change owner role' };
+    if (actor.role === 'admin' && target.role === 'admin') {
+      return { success: false, error: 'Only owner can change admin role' };
+    }
+
+    const now = new Date().toISOString();
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.GROUP_MEMBERS,
+        Key: { groupId, userId: targetUserId },
+        UpdateExpression: 'SET #role = :role',
+        ExpressionAttributeNames: { '#role': 'role' },
+        ExpressionAttributeValues: { ':role': newRole },
+      })
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating member role:', error);
+    return { success: false, error: error.message || 'Failed to update role' };
+  }
+}
+
+export async function removeMember(
+  actorUserId: string,
+  groupId: string,
+  targetUserId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const group = await getGroup(groupId);
+    if (!group) return { success: false, error: 'Group not found' };
+
+    const targetMember = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.GROUP_MEMBERS,
+        Key: { groupId, userId: targetUserId },
+      })
+    );
+    if (!targetMember.Item) return { success: false, error: 'User is not a member' };
+    const target = targetMember.Item as GroupMember;
+
+    if (target.role === 'owner') return { success: false, error: 'Cannot remove group owner' };
+
+    if (actorUserId === targetUserId) {
+      return leaveGroup(actorUserId, groupId);
+    }
+
+    const actorMember = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.GROUP_MEMBERS,
+        Key: { groupId, userId: actorUserId },
+      })
+    );
+    if (!actorMember.Item) return { success: false, error: 'You are not a member' };
+    const actor = actorMember.Item as GroupMember;
+    if (actor.role !== 'owner' && actor.role !== 'admin') {
+      return { success: false, error: 'Only owner or admin can remove members' };
+    }
+    if (actor.role === 'admin' && target.role === 'admin') {
+      return { success: false, error: 'Only owner can remove an admin' };
+    }
+
+    await docClient.send(
+      new DeleteCommand({
+        TableName: TABLE_NAMES.GROUP_MEMBERS,
+        Key: { groupId, userId: targetUserId },
+      })
+    );
+
+    const now = new Date().toISOString();
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.GROUPS,
+        Key: { groupId },
+        UpdateExpression: 'SET memberCount = memberCount - :dec, updatedAt = :ua',
+        ExpressionAttributeValues: { ':dec': 1, ':ua': now },
+      })
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error removing member:', error);
+    return { success: false, error: error.message || 'Failed to remove member' };
   }
 }
 

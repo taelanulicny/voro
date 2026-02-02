@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Post, Comment, Group, Activity, User } from '../types';
+import { Post, Comment, Group, GroupMessage, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
@@ -57,6 +57,10 @@ interface SocialContextType {
   leaveGroup: (groupId: string) => Promise<{ success: boolean }>;
   deleteGroup: (groupId: string) => Promise<{ success: boolean }>;
   getGroupMembers: (groupId: string) => Promise<{ success: boolean; members?: any[]; error?: string }>;
+  getGroupMessages: (groupId: string, limit?: number, beforeMessageId?: string) => Promise<{ success: boolean; messages?: GroupMessage[]; lastEvaluatedKey?: string; error?: string }>;
+  sendGroupMessage: (groupId: string, content: string) => Promise<{ success: boolean; message?: GroupMessage; error?: string }>;
+  updateMemberRole: (groupId: string, userId: string, role: 'admin' | 'member') => Promise<{ success: boolean; error?: string }>;
+  removeMember: (groupId: string, userId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const SocialContext = createContext<SocialContextType | undefined>(undefined);
@@ -989,6 +993,81 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
+  const getGroupMessages = useCallback(async (groupId: string, limit = 50, beforeMessageId?: string) => {
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    try {
+      const url = beforeMessageId
+        ? `/api/groups/${groupId}/messages?limit=${limit}&before=${encodeURIComponent(beforeMessageId)}`
+        : `/api/groups/${groupId}/messages?limit=${limit}`;
+      const response = await authenticatedRequest(url, token, { method: 'GET' });
+      if (response.success && Array.isArray(response.data?.messages)) {
+        return {
+          success: true,
+          messages: response.data.messages,
+          lastEvaluatedKey: response.data.lastEvaluatedKey,
+        };
+      }
+      return { success: false, error: response.error || 'Failed to fetch messages' };
+    } catch (error) {
+      console.error('Error fetching group messages:', error);
+      return { success: false, error: 'Failed to fetch messages' };
+    }
+  }, [token]);
+
+  const sendGroupMessage = useCallback(async (groupId: string, content: string) => {
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    try {
+      const response = await authenticatedRequest(`/api/groups/${groupId}/messages`, token, {
+        method: 'POST',
+        body: JSON.stringify({ content: (content || '').trim() }),
+      });
+      if (response.success && response.data?.message) {
+        return { success: true, message: response.data.message };
+      }
+      return { success: false, error: response.error || 'Failed to send message' };
+    } catch (error) {
+      console.error('Error sending group message:', error);
+      return { success: false, error: 'Failed to send message' };
+    }
+  }, [token]);
+
+  const updateMemberRole = useCallback(async (groupId: string, userId: string, role: 'admin' | 'member') => {
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    try {
+      const response = await authenticatedRequest(`/api/groups/${groupId}/members/${userId}/role`, token, {
+        method: 'PUT',
+        body: JSON.stringify({ role }),
+      });
+      if (response.success) return { success: true };
+      return { success: false, error: response.error || 'Failed to update role' };
+    } catch (error) {
+      console.error('Error updating member role:', error);
+      return { success: false, error: 'Failed to update role' };
+    }
+  }, [token]);
+
+  const removeMember = useCallback(async (groupId: string, userId: string) => {
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    try {
+      const response = await authenticatedRequest(`/api/groups/${groupId}/members/${userId}`, token, {
+        method: 'DELETE',
+      });
+      if (response.success) return { success: true };
+      return { success: false, error: response.error || 'Failed to remove member' };
+    } catch (error) {
+      console.error('Error removing member:', error);
+      return { success: false, error: 'Failed to remove member' };
+    }
+  }, [token]);
+
   const loadMorePosts = useCallback(async () => {
     if (!hasMorePosts || isLoadingFeed) {
       return;
@@ -1027,6 +1106,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     leaveGroup,
     deleteGroup,
     getGroupMembers,
+    getGroupMessages,
+    sendGroupMessage,
+    updateMemberRole,
+    removeMember,
   };
 
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

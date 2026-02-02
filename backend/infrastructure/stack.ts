@@ -294,6 +294,17 @@ export class MoroBackendStack extends cdk.Stack {
       sortKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
     });
 
+    const groupMessagesTable = new dynamodb.Table(this, 'GroupMessagesTable', {
+      tableName: `${tablePrefix}-GroupMessages`,
+      partitionKey: { name: 'groupId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'messageId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: dynamoDbEncryptionKey,
+    });
+
     // Notifications Table
     const notificationsTable = new dynamodb.Table(this, 'NotificationsTable', {
       tableName: `${tablePrefix}-Notifications`,
@@ -401,6 +412,7 @@ export class MoroBackendStack extends cdk.Stack {
     newsArticlesTable.grantReadWriteData(contentRole);
     groupsTable.grantReadWriteData(contentRole);
     groupMembersTable.grantReadWriteData(contentRole);
+    groupMessagesTable.grantReadWriteData(contentRole);
     entitiesTable.grantReadData(contentRole); // For entity references
 
     // Grant Comprehend permissions to socialRole (for content moderation)
@@ -441,6 +453,7 @@ export class MoroBackendStack extends cdk.Stack {
     purchaseTransactionsTable.grantReadWriteData(lambdaRole);
     groupsTable.grantReadWriteData(lambdaRole);
     groupMembersTable.grantReadWriteData(lambdaRole);
+    groupMessagesTable.grantReadWriteData(lambdaRole);
     notificationsTable.grantReadWriteData(lambdaRole);
     assetsBucket.grantReadWrite(lambdaRole);
     userPool.grant(lambdaRole, 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDeleteUser');
@@ -479,6 +492,7 @@ export class MoroBackendStack extends cdk.Stack {
         PURCHASE_TRANSACTIONS_TABLE: purchaseTransactionsTable.tableName,
         GROUPS_TABLE: groupsTable.tableName,
         GROUP_MEMBERS_TABLE: groupMembersTable.tableName,
+        GROUP_MESSAGES_TABLE: groupMessagesTable.tableName,
         NOTIFICATIONS_TABLE: notificationsTable.tableName,
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,

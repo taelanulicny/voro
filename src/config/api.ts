@@ -630,10 +630,11 @@ export async function apiRequest<T = any>(
       }
       
       // Only log errors if backend is configured (avoid spam when backend isn't running)
-      if (isBackendConfigured()) {
+      // Skip logging AbortError - usually from cancelled requests on navigation/unmount
+      if (isBackendConfigured() && error.name !== 'AbortError') {
         console.error('API Request Error:', error);
       }
-      
+
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
         // Queue non-GET requests that timed out
         const method = options.method || 'GET';

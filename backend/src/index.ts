@@ -268,18 +268,49 @@ export const handler = async (
   }
 
   // Check for group members endpoint FIRST, before other group routes
-  // This must be checked before the general /api/groups check to avoid conflicts
   // Handle paths like /api/groups/:groupId/members or /dev/api/groups/:groupId/members
-  const groupMembersMatch = path.match(/\/(?:[^/]+\/)?api\/groups\/([^/]+)\/members\/?$/);
+  const groupMembersMatch = path.match(/groups\/([^/]+)\/members\/?$/);
   if (groupMembersMatch && method === 'GET') {
     const extractedGroupId = groupMembersMatch[1];
     event.pathParameters = event.pathParameters || {};
     event.pathParameters.groupId = extractedGroupId;
-    logger.debug('[Router] Matched get group members endpoint', { path, groupId: extractedGroupId, method, rawPath: event.path });
+    logger.debug('[Router] Matched get group members endpoint', { path, groupId: extractedGroupId, method });
     return groupHandlers.getGroupMembersHandler(event);
   }
 
-  if (path.includes('/api/groups')) {
+  // Group member role/remove: PUT or DELETE .../groups/:groupId/members/:userId[/role]
+  const groupMemberActionMatch = path.match(/groups\/([^/]+)\/members\/([^/]+)(?:\/role)?\/?$/);
+  if (groupMemberActionMatch) {
+    const extractedGroupId = groupMemberActionMatch[1];
+    const extractedUserId = groupMemberActionMatch[2];
+    event.pathParameters = event.pathParameters || {};
+    event.pathParameters.groupId = extractedGroupId;
+    event.pathParameters.userId = extractedUserId;
+    if (method === 'PUT' && path.endsWith('/role')) {
+      logger.debug('[Router] Matched update member role', { path, groupId: extractedGroupId, userId: extractedUserId });
+      return groupHandlers.updateMemberRoleHandler(event);
+    }
+    if (method === 'DELETE') {
+      logger.debug('[Router] Matched remove member', { path, groupId: extractedGroupId, userId: extractedUserId });
+      return groupHandlers.removeMemberHandler(event);
+    }
+  }
+
+  // Group messages: GET or POST .../groups/:groupId/messages
+  const groupMessagesMatch = path.match(/groups\/([^/]+)\/messages\/?$/);
+  if (groupMessagesMatch && (method === 'GET' || method === 'POST')) {
+    const extractedGroupId = groupMessagesMatch[1];
+    event.pathParameters = event.pathParameters || {};
+    event.pathParameters.groupId = extractedGroupId;
+    if (method === 'GET') {
+      logger.debug('[Router] Matched get group messages', { path, groupId: extractedGroupId });
+      return groupHandlers.getGroupMessagesHandler(event);
+    }
+    logger.debug('[Router] Matched send group message', { path, groupId: extractedGroupId });
+    return groupHandlers.sendGroupMessageHandler(event);
+  }
+
+  if (path.includes('/api/groups') || path.includes('/api/social/groups')) {
     // Skip if this is a members route (already handled above)
     if (path.includes('/members') && method === 'GET') {
       logger.warn('[Router] Members route reached groups block, this should not happen', { path, method });
@@ -316,6 +347,16 @@ export const handler = async (
       event.pathParameters.groupId = extractedGroupId;
       logger.debug('[Router] Matched leave group endpoint', { path, groupId: extractedGroupId });
       return groupHandlers.leaveGroupHandler(event);
+    }
+
+    // Handle delete group: DELETE .../groups/:groupId (extract groupId from path; works with /api/groups/ or /api/social/groups/ or stage prefix)
+    const deleteGroupMatch = path.match(/groups\/([^/]+)\/?$/);
+    if (deleteGroupMatch && method === 'DELETE') {
+      const extractedGroupId = deleteGroupMatch[1];
+      event.pathParameters = event.pathParameters || {};
+      event.pathParameters.groupId = extractedGroupId;
+      logger.debug('[Router] Matched delete group endpoint', { path, groupId: extractedGroupId });
+      return groupHandlers.deleteGroupHandler(event);
     }
 
     const groupId = event.pathParameters?.groupId;

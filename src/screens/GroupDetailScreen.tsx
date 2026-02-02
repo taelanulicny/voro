@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,16 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { RootStackParamList, GroupMember } from '../types';
+import { RootStackParamList, GroupMember, GroupMessage } from '../types';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -112,15 +116,32 @@ export default function GroupDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<GroupDetailRouteProp>();
   const { groupId } = route.params;
-  const { groups, leaveGroup, deleteGroup, joinGroup, getGroupMembers, refreshGroups } = useSocial();
+  const {
+    groups,
+    leaveGroup,
+    deleteGroup,
+    joinGroup,
+    getGroupMembers,
+    refreshGroups,
+    getGroupMessages,
+    sendGroupMessage,
+    updateMemberRole,
+    removeMember,
+  } = useSocial();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { portfolio } = useTrading();
 
   const group = groups.find(g => g.id === groupId);
 
+  const [activeTab, setActiveTab] = useState<'members' | 'chat'>('chat');
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [messages, setMessages] = useState<GroupMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadGroupData();
@@ -177,6 +198,11 @@ export default function GroupDetailScreen() {
   };
 
   const handleDeleteGroup = async () => {
+    const idToDelete = group?.id ?? groupId;
+    if (!idToDelete) {
+      Alert.alert('Error', 'Cannot delete: group ID is missing.');
+      return;
+    }
     Alert.alert(
       'Delete Group',
       `Are you sure you want to delete "${group?.name}"? This action cannot be undone.`,
@@ -189,10 +215,12 @@ export default function GroupDetailScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const result = await deleteGroup(groupId);
+            const result = await deleteGroup(idToDelete);
             if (result?.success) {
               await refreshGroups();
               navigation.goBack();
+            } else {
+              Alert.alert('Could not delete group', result?.error ?? 'Please try again.');
             }
           },
         },
@@ -200,9 +228,94 @@ export default function GroupDetailScreen() {
     );
   };
 
-  // Check if current user is the owner
   const currentUserMember = members.find(m => m.userId === user?.id);
   const isOwner = currentUserMember?.role === 'owner';
+  const isAdmin = isOwner || currentUserMember?.role === 'admin';
+
+  const loadMessages = useCallback(async () => {
+    if (!group?.isMember) return;
+    setMessagesLoading(true);
+    try {
+      const result = await getGroupMessages(groupId, 50);
+      if (result.success && result.messages) {
+        setMessages(result.messages);
+      }
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [groupId, group?.isMember, getGroupMessages]);
+
+  useEffect(() => {
+    if (activeTab === 'chat' && group?.isMember) {
+      loadMessages();
+    }
+  }, [activeTab, group?.isMember, loadMessages]);
+
+  const handleSendMessage = async () => {
+    const content = chatInput.trim();
+    if (!content || sending || !group?.isMember) return;
+    setSending(true);
+    setChatInput('');
+    try {
+      const result = await sendGroupMessage(groupId, content);
+      if (result.success && result.message) {
+        setMessages(prev => [result.message!, ...prev]);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to send message');
+        setChatInput(content);
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadGroupData();
+    if (activeTab === 'chat') await loadMessages();
+    setRefreshing(false);
+  }, [activeTab, loadMessages]);
+
+  const handleUpdateRole = (member: GroupMember, newRole: 'admin' | 'member') => {
+    if (member.role === 'owner') return;
+    Alert.alert(
+      newRole === 'admin' ? 'Make admin' : 'Remove admin',
+      newRole === 'admin'
+        ? `Make ${member.displayName || member.username} an admin? Admins can remove members and manage roles.`
+        : `Remove admin role from ${member.displayName || member.username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            const result = await updateMemberRole(groupId, member.userId, newRole);
+            if (result.success) await loadGroupData();
+            else Alert.alert('Error', result.error);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRemoveMember = (member: GroupMember) => {
+    if (member.role === 'owner') return;
+    Alert.alert(
+      'Remove member',
+      `Remove ${member.displayName || member.username} from the group?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await removeMember(groupId, member.userId);
+            if (result.success) await loadGroupData();
+            else Alert.alert('Error', result.error);
+          },
+        },
+      ]
+    );
+  };
 
   const handleShare = async () => {
     try {
@@ -233,21 +346,38 @@ export default function GroupDetailScreen() {
   const renderMember = ({ item, index }: { item: GroupMember; index: number }) => {
     const isCurrentUser = item.userId === user?.id;
     const rank = index + 1;
+    const canManage = isAdmin && !isCurrentUser && item.role !== 'owner';
+    const displayName = (item.displayName || item.username || 'User').trim();
+    const initial = displayName.charAt(0).toUpperCase() || '?';
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.memberItem, 
-          { 
+          styles.memberItem,
+          {
             backgroundColor: isCurrentUser ? theme.card : theme.backgroundSecondary,
             borderBottomColor: theme.border,
             borderLeftWidth: isCurrentUser ? 3 : 0,
             borderLeftColor: isCurrentUser ? theme.primary : 'transparent',
-          }
+          },
         ]}
-        onPress={() => {
-          navigation.navigate('UserProfile', { userId: item.userId });
-        }}
+        onPress={() => navigation.navigate('UserProfile', { userId: item.userId })}
+        onLongPress={
+          canManage
+            ? () =>
+                Alert.alert(
+                  item.displayName || item.username || 'Member',
+                  'Manage member',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    item.role === 'admin'
+                      ? { text: 'Remove admin', onPress: () => handleUpdateRole(item, 'member') }
+                      : { text: 'Make admin', onPress: () => handleUpdateRole(item, 'admin') },
+                    { text: 'Remove from group', style: 'destructive', onPress: () => handleRemoveMember(item) },
+                  ].filter(Boolean)
+                )
+            : undefined
+        }
         activeOpacity={0.7}
       >
         <View style={styles.memberRank}>
@@ -255,36 +385,34 @@ export default function GroupDetailScreen() {
             #{rank}
           </Text>
         </View>
-      <View style={styles.memberLeft}>
-        <View style={styles.memberAvatar}>
+        <View style={styles.memberLeft}>
+          <View style={styles.memberAvatar}>
             <View style={[styles.avatarContainer, { backgroundColor: isCurrentUser ? theme.primaryLight : theme.backgroundTertiary }]}>
-              <Text style={[styles.avatarInitial, { color: isCurrentUser ? theme.primary : theme.text }]}>
-                {item.displayName.charAt(0).toUpperCase()}
-              </Text>
+              <Text style={[styles.avatarInitial, { color: isCurrentUser ? theme.primary : theme.text }]}>{initial}</Text>
             </View>
-        </View>
-        <View style={styles.memberInfo}>
+          </View>
+          <View style={styles.memberInfo}>
             <View style={styles.memberNameRow}>
               <Text style={[styles.memberName, { color: isCurrentUser ? theme.primary : theme.text }]}>
-                {item.displayName}
+                {displayName}
                 {isCurrentUser && ' (You)'}
               </Text>
             </View>
-          <Text style={[styles.memberUsername, { color: theme.textSecondary }]}>@{item.username}</Text>
+            <Text style={[styles.memberUsername, { color: theme.textSecondary }]}>@{item.username || 'user'}</Text>
+          </View>
         </View>
-      </View>
         <View style={styles.memberRight}>
           <Text style={[styles.accountValue, { color: theme.text }]}>
-            {item.accountValue ? formatCurrency(item.accountValue) : '$0.00'}
+            {item.accountValue != null ? formatCurrency(item.accountValue) : '$0.00'}
           </Text>
-      {item.role !== 'member' && (
-        <View style={[styles.roleBadge, { backgroundColor: theme.primaryLight }]}>
-          <Text style={[styles.roleText, { color: theme.primary }]}>{item.role.toUpperCase()}</Text>
+          {item.role !== 'member' && (
+            <View style={[styles.roleBadge, { backgroundColor: theme.primaryLight }]}>
+              <Text style={[styles.roleText, { color: theme.primary }]}>{item.role.toUpperCase()}</Text>
+            </View>
+          )}
         </View>
-      )}
-        </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
   };
 
   if (!group) {
@@ -327,8 +455,88 @@ export default function GroupDetailScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Tabs: Chat | Members (only if member) */}
+      {group.isMember && (
+        <View style={[styles.tabRow, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'chat' && { borderBottomColor: theme.primary }]}
+            onPress={() => setActiveTab('chat')}
+          >
+            <Ionicons name="chatbubbles" size={20} color={activeTab === 'chat' ? theme.primary : theme.textSecondary} />
+            <Text style={[styles.tabLabel, { color: activeTab === 'chat' ? theme.primary : theme.textSecondary }]}>Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'members' && { borderBottomColor: theme.primary }]}
+            onPress={() => setActiveTab('members')}
+          >
+            <Ionicons name="people" size={20} color={activeTab === 'members' ? theme.primary : theme.textSecondary} />
+            <Text style={[styles.tabLabel, { color: activeTab === 'members' ? theme.primary : theme.textSecondary }]}>Members</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Content */}
-        {isLoading ? (
+        {activeTab === 'chat' && group.isMember ? (
+          <KeyboardAvoidingView
+            style={styles.flex1}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          >
+            {messagesLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.primary} />
+              </View>
+            ) : (
+              <FlatList
+                data={messages}
+                keyExtractor={(item) => item.id || item.timestamp || String(Math.random())}
+                inverted
+                contentContainerStyle={[styles.chatList, { backgroundColor: theme.backgroundSecondary }]}
+                ListEmptyComponent={
+                  <View style={styles.emptyChat}>
+                    <Ionicons name="chatbubbles-outline" size={48} color={theme.textTertiary} />
+                    <Text style={[styles.emptyChatText, { color: theme.textSecondary }]}>No messages yet. Say hi!</Text>
+                  </View>
+                }
+                renderItem={({ item }) => {
+                  const isMe = item.userId === user?.id;
+                  return (
+                    <View style={[styles.messageRow, isMe ? styles.messageRowMe : styles.messageRowOther]}>
+                      <View style={[styles.messageBubble, { backgroundColor: isMe ? theme.primary : theme.card }]}>
+                        <Text style={[styles.messageSender, { color: isMe ? '#fff' : theme.primary }]}>
+                          {item.displayName || item.username || 'User'}
+                        </Text>
+                        <Text style={[styles.messageContent, { color: isMe ? '#fff' : theme.text }]}>{item.content}</Text>
+                        <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.8)' : theme.textTertiary }]}>
+                          {item.timestamp ? new Date(item.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : ''}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+            )}
+            <View style={[styles.chatInputRow, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+              <TextInput
+                style={[styles.chatInput, { color: theme.text, backgroundColor: theme.backgroundSecondary }]}
+                placeholder="Message..."
+                placeholderTextColor={theme.textTertiary}
+                value={chatInput}
+                onChangeText={setChatInput}
+                multiline
+                maxLength={4000}
+                editable={!sending}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, { backgroundColor: theme.primary }]}
+                onPress={handleSendMessage}
+                disabled={!chatInput.trim() || sending}
+              >
+                <Ionicons name="send" size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        ) : isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.primary} />
           </View>
@@ -339,6 +547,9 @@ export default function GroupDetailScreen() {
                 keyExtractor={(item, index) => item.userId ?? item.id ?? `member-${index}`}
                 contentContainerStyle={styles.membersList}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
+                }
                 ListHeaderComponent={
                   <View>
                     {!group.isMember && (
@@ -389,6 +600,97 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  flex1: {
+    flex: 1,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  chatList: {
+    flexGrow: 1,
+    padding: 16,
+    paddingBottom: 8,
+  },
+  emptyChat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyChatText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  messageRow: {
+    marginBottom: 12,
+    maxWidth: '85%',
+  },
+  messageRowMe: {
+    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  messageRowOther: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  messageBubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    maxWidth: '100%',
+  },
+  messageSender: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  messageContent: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  messageTime: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  chatInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 100,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

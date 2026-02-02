@@ -50,17 +50,19 @@ export default function WatchlistScreen() {
   } | null>(null);
   const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
 
-  // Sort and filter watchlist
+  // Sort and filter watchlist (guard undefined watchlist/entityTicker/entityName from old stored data)
   const sortedWatchlist = useMemo(() => {
-    let filtered = watchlist.filter(item =>
-      item.entityTicker.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.entityName.toLowerCase().includes(searchQuery.toLowerCase())
+    const list = watchlist ?? [];
+    const q = (searchQuery ?? '').toLowerCase();
+    let filtered = list.filter(item =>
+      (item.entityTicker ?? '').toLowerCase().includes(q) ||
+      (item.entityName ?? '').toLowerCase().includes(q)
     );
 
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return a.entityName.localeCompare(b.entityName);
+          return (a.entityName ?? '').localeCompare(b.entityName ?? '');
         case 'price_high':
           return b.currentPrice - a.currentPrice;
         case 'price_low':
@@ -117,9 +119,9 @@ export default function WatchlistScreen() {
     const currentPrice = getEntityPrice(item.entityId);
     setTradeEntity({
       id: item.entityId,
-      ticker: item.entityTicker,
-      name: item.entityName,
-      category: item.category,
+      ticker: item.entityTicker ?? '',
+      name: item.entityName ?? '',
+      category: item.category ?? '',
       currentPrice,
     });
     setTradeModalVisible(true);
@@ -128,26 +130,25 @@ export default function WatchlistScreen() {
   const handleQuickSell = (item: typeof sortedWatchlist[0]) => {
     const holding = getHolding(item.entityId);
     if (!holding) {
-      Alert.alert('No Position', `You don't own any ${item.entityTicker}`);
+      Alert.alert('No Position', `You don't own any ${item.entityTicker ?? 'this entity'}`);
       return;
     }
 
     const currentPrice = getEntityPrice(item.entityId);
     setTradeEntity({
       id: item.entityId,
-      ticker: item.entityTicker,
-      name: item.entityName,
-      category: item.category,
+      ticker: item.entityTicker ?? '',
+      name: item.entityName ?? '',
+      category: item.category ?? '',
       currentPrice,
     });
     setTradeModalVisible(true);
   };
 
   const handleEntityPress = (item: typeof sortedWatchlist[0]) => {
-    // Category is already in the correct format (no mapping needed)
     navigation.navigate('Entity', {
       entityId: item.entityId,
-      categoryId: item.category,
+      categoryId: item.category ?? '',
     });
   };
 
@@ -173,20 +174,20 @@ export default function WatchlistScreen() {
         <View style={styles.itemLeft}>
           <View style={[styles.tickerIcon, { backgroundColor: theme.primaryLight }]}>
             <Text style={[styles.tickerIconText, { color: theme.primary }]}>
-              {item.entityName.substring(0, 2).toUpperCase()}
+              {(item.entityName ?? '').substring(0, 2).toUpperCase() || '—'}
             </Text>
           </View>
           <View style={styles.itemInfo}>
             <View style={styles.itemHeader}>
               <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
-                {item.entityName}
+                {item.entityName ?? 'Unknown'}
               </Text>
               {hasAlerts && (
                 <Ionicons name="notifications" size={16} color={theme.primary} style={styles.alertIcon} />
               )}
             </View>
             <Text style={[styles.categoryText, { color: theme.textSecondary }]}>
-              {item.category}
+              {item.category ?? ''}
             </Text>
           </View>
         </View>

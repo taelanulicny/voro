@@ -23,6 +23,7 @@ export const TABLE_NAMES = {
   REPORTS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-Reports`,
   GROUPS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-Groups`,
   GROUP_MEMBERS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-GroupMembers`,
+  GROUP_MESSAGES: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-GroupMessages`,
   NOTIFICATIONS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-Notifications`,
   PURCHASE_TRANSACTIONS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-PurchaseTransactions`,
   PUSH_TOKENS: `${process.env.DYNAMODB_TABLE_PREFIX || 'moro'}-PushTokens`,

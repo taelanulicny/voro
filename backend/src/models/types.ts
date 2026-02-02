@@ -246,6 +246,14 @@ export interface GroupMember {
   joinedAt: string;
 }
 
+export interface GroupMessage {
+  groupId: string;
+  messageId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface Notification {
   notificationId: string;
   userId: string; // Recipient user ID
