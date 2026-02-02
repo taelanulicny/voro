@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSocial } from '../context/SocialContext';
 import { useAuth } from '../context/AuthContext';
@@ -44,6 +45,7 @@ export default function CreatePostModal({
   const { user } = useAuth();
   const { createPost } = useSocial();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [content, setContent] = useState('');
   const [sentiment, setSentiment] = useState<'positive' | 'negative' | 'neutral'>('neutral');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -146,10 +148,11 @@ export default function CreatePostModal({
         )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={[
-            slideFromBottom ? styles.modalContentBottom : styles.modalContent,
-            { backgroundColor: theme.card }
-          ]}
+        style={[
+          slideFromBottom ? styles.modalContentBottom : styles.modalContent,
+          { backgroundColor: theme.card },
+          slideFromBottom && { paddingBottom: insets.bottom },
+        ]}
       >
         <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity
@@ -224,6 +227,7 @@ export default function CreatePostModal({
 
           <ScrollView
             style={styles.content}
+            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
             keyboardShouldPersistTaps="handled"
           >
             {/* User Info */}
@@ -470,6 +474,7 @@ const styles = StyleSheet.create({
   },
   sentimentSection: {
     marginTop: 16,
+    marginBottom: 24,
   },
   sectionLabel: {
     fontSize: 14,

@@ -13,7 +13,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -131,6 +131,7 @@ export default function GroupDetailScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { portfolio } = useTrading();
+  const insets = useSafeAreaInsets();
 
   const group = groups.find(g => g.id === groupId);
 
@@ -516,7 +517,7 @@ export default function GroupDetailScreen() {
                 }}
               />
             )}
-            <View style={[styles.chatInputRow, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+            <View style={[styles.chatInputRow, { backgroundColor: theme.card, borderTopColor: theme.border, paddingBottom: Math.max(insets.bottom, 12) }]}>
               <TextInput
                 style={[styles.chatInput, { color: theme.text, backgroundColor: theme.backgroundSecondary }]}
                 placeholder="Message..."
