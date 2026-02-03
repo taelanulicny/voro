@@ -33,11 +33,12 @@ export default function TradeModal({
   entityName,
   category,
 }: TradeModalProps) {
-  const { portfolio, openPosition, closePosition, getPosition, getEntityPrice, getPositionOpenPnL, getAllEntityPrices } = useTrading();
+  const { portfolio, openPosition, executeTrade, getPosition, getEntityPrice, getPositionOpenPnL, getAllEntityPrices } = useTrading();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'open' | 'close'>('open');
   const [direction, setDirection] = useState<'positive' | 'negative'>('positive');
   const [tokensCommitted, setTokensCommitted] = useState('');
+  const [tokensToSell, setTokensToSell] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [slideAnim] = useState(new Animated.Value(height));
 
@@ -68,6 +69,7 @@ export default function TradeModal({
         setDirection('positive');
       }
       setTokensCommitted('');
+      setTokensToSell('');
     } else {
       Animated.timing(slideAnim, {
         toValue: height,
@@ -76,17 +78,21 @@ export default function TradeModal({
       }).start();
       // Reset when closing
       setTokensCommitted('');
+      setTokensToSell('');
       setActiveTab('open');
       setDirection('positive');
     }
   }, [visible, entityId]);
 
   const tokensCommittedNum = parseFloat(tokensCommitted) || 0;
+  const tokensToSellNum = parseFloat(tokensToSell) || 0;
   const hasSufficientFunds = tokensCommittedNum <= portfolio.cashBalance;
+  const hasSufficientTokens = existingPosition ? tokensToSellNum <= existingPosition.tokensCommitted : false;
+  const isSellingAll = existingPosition ? tokensToSellNum === existingPosition.tokensCommitted : false;
 
   const canOpen = activeTab === 'open' && tokensCommittedNum > 0 && hasSufficientFunds;
   const canAdd = activeTab === 'open' && existingPosition && tokensCommittedNum > 0 && hasSufficientFunds && existingPosition.direction === direction;
-  const canClose = activeTab === 'close' && existingPosition !== null;
+  const canClose = activeTab === 'close' && existingPosition !== null && tokensToSellNum > 0 && hasSufficientTokens;
   const canExecute = canOpen || canAdd || canClose;
 
   const handleTokensChange = (text: string) => {
@@ -98,14 +104,26 @@ export default function TradeModal({
     setTokensCommitted(cleaned);
   };
 
+  const handleTokensToSellChange = (text: string) => {
+    // Only allow numbers and one decimal point
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) return;
+    if (parts[1] && parts[1].length > 2) return;
+    setTokensToSell(cleaned);
+  };
+
   const setPercentage = (percent: number) => {
     if (activeTab === 'open') {
       const maxAffordable = portfolio.cashBalance;
       const tokens = Math.floor((maxAffordable * percent) / 100);
       setTokensCommitted(tokens.toString());
     } else if (existingPosition) {
-      const tokens = Math.floor((existingPosition.tokensCommitted * percent) / 100);
-      setTokensCommitted(tokens.toString());
+      // For close tab, set percentage of current position
+      const tokens = percent === 100
+        ? existingPosition.tokensCommitted // Use exact value for 100%
+        : Math.floor((existingPosition.tokensCommitted * percent) / 100);
+      setTokensToSell(tokens.toString());
     }
   };
 
@@ -125,11 +143,15 @@ export default function TradeModal({
           category
         );
       } else { // activeTab === 'close'
-        success = await closePosition(
-        entityId,
-        entityName,
-        category
-      );
+        // Use executeTrade directly for partial or full close
+        success = await executeTrade(
+          entityId,
+          entityName,
+          'close',
+          existingPosition!.direction,
+          tokensToSellNum,
+          category
+        );
       }
 
       setIsProcessing(false);
@@ -143,16 +165,21 @@ export default function TradeModal({
             message = `Successfully opened ${direction} position with ${tokensCommittedNum} tokens on ${entityName}`;
           }
         } else {
-          message = `Successfully closed your ${existingPosition?.direction} position on ${entityName}`;
+          if (isSellingAll) {
+            message = `Successfully closed your ${existingPosition?.direction} position on ${entityName}`;
+          } else {
+            const remaining = existingPosition!.tokensCommitted - tokensToSellNum;
+            message = `Successfully sold ${tokensToSellNum} tokens from your ${existingPosition?.direction} position on ${entityName}. Remaining: ${remaining} tokens.`;
+          }
         }
-        
+
         Alert.alert(
           'Trade Executed',
           message,
           [{ text: 'OK', onPress: () => handleClose() }]
         );
       } else {
-        // Error message shown by openPosition/closePosition functions
+        // Error message shown by executeTrade function
         // No need to show generic error here
       }
     } catch (error) {
@@ -164,6 +191,7 @@ export default function TradeModal({
 
   const handleClose = () => {
     setTokensCommitted('');
+    setTokensToSell('');
     setActiveTab('open');
     setDirection('positive');
     onClose();
@@ -230,7 +258,7 @@ export default function TradeModal({
                 disabled={!existingPosition}
             >
                 <Text style={[styles.tabText, { color: activeTab === 'close' ? theme.text : theme.textSecondary }]}>
-                  Close
+                  Sell
                 </Text>
               </TouchableOpacity>
             </View>
@@ -360,6 +388,40 @@ export default function TradeModal({
             </View>
           )}
 
+          {/* Tokens to Sell Input (only for Close) */}
+          {activeTab === 'close' && existingPosition && (
+            <View style={styles.inputSection}>
+              <Text style={[styles.inputLabel, { color: theme.text }]}>Tokens to Sell</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                  value={tokensToSell}
+                  onChangeText={handleTokensToSellChange}
+                  keyboardType="decimal-pad"
+                  maxLength={10}
+                />
+                <Text style={[styles.inputSuffix, { color: theme.textSecondary }]}>tokens</Text>
+              </View>
+
+              {/* Quick Percentage Buttons */}
+              <View style={styles.percentButtons}>
+                {[25, 50, 75, 100].map((percent) => (
+                  <TouchableOpacity
+                    key={percent}
+                    style={[styles.percentButton, { backgroundColor: theme.backgroundTertiary }]}
+                    onPress={() => setPercentage(percent)}
+                  >
+                    <Text style={[styles.percentButtonText, { color: theme.text }]}>
+                      {percent === 100 ? 'All' : `${percent}%`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Close Summary */}
           {activeTab === 'close' && existingPosition && (
             <View style={[styles.summary, { backgroundColor: theme.backgroundSecondary }]}>
@@ -370,29 +432,37 @@ export default function TradeModal({
                 </Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Tokens Committed</Text>
-                <Text style={[styles.summaryValue, { color: theme.text }]}>{existingPosition.tokensCommitted}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Your Position</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{existingPosition.tokensCommitted} tokens</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Tokens to Sell</Text>
+                <Text style={[styles.summaryValue, { color: theme.text }]}>{tokensToSellNum || 0} tokens</Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Current Price</Text>
                 <Text style={[styles.summaryValue, { color: theme.text }]}>{formatCurrency(currentPrice)}</Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Open P&L</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Open P&L (full position)</Text>
                 <Text style={[styles.summaryValue, { color: openPnL >= 0 ? '#10B981' : '#EF4444' }]}>
                   {openPnL >= 0 ? '+' : ''}{formatCurrency(openPnL)}
                 </Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabelBold, { color: theme.text }]}>Will Close Position</Text>
-                <Text style={[styles.summaryValueBold, { color: theme.text }]}>All tokens</Text>
-              </View>
-              <Text style={[styles.summaryNote, { color: theme.textSecondary }]}>
-                P&L will be calculated based on ratio change since entry
+                <Text style={[styles.summaryLabelBold, { color: theme.text }]}>After Selling</Text>
+                <Text style={[styles.summaryValueBold, { color: theme.text }]}>
+                  {isSellingAll ? 'Position closed' : `${existingPosition.tokensCommitted - tokensToSellNum} tokens remaining`}
                 </Text>
               </View>
-            )}
+              {!hasSufficientTokens && tokensToSellNum > 0 && (
+                <Text style={[styles.errorText, { color: theme.error, marginTop: 8 }]}>
+                  Cannot sell more tokens than you own
+                </Text>
+              )}
+            </View>
+          )}
 
           {/* Available Balance / Position Info */}
           <View style={[styles.balanceInfo, { backgroundColor: theme.backgroundSecondary }]}>
@@ -413,9 +483,9 @@ export default function TradeModal({
               </>
             ) : (
               <>
-                <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Current Position</Text>
+                <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Available to Sell</Text>
                 <Text style={[styles.balanceValue, { color: theme.text }]}>
-                  {existingPosition ? `${existingPosition.tokensCommitted} tokens (${existingPosition.direction})` : 'None'}
+                  {existingPosition ? `${existingPosition.tokensCommitted} tokens` : 'No position'}
                 </Text>
               </>
             )}
@@ -440,11 +510,11 @@ export default function TradeModal({
               disabled={!canExecute || isProcessing}
             >
               <Text style={styles.buttonTextPrimary}>
-                {isProcessing 
-                  ? 'Processing...' 
-                  : activeTab === 'open' 
+                {isProcessing
+                  ? 'Processing...'
+                  : activeTab === 'open'
                     ? (existingPosition ? 'Add to Position' : 'Open Position')
-                    : 'Close Position'}
+                    : (isSellingAll ? 'Close Position' : 'Sell Tokens')}
               </Text>
             </TouchableOpacity>
           </View>

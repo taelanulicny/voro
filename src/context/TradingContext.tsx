@@ -872,51 +872,89 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
       return true;
     } else {
-      // CLOSE position
+      // CLOSE position (full or partial)
       const position = currentPositions[entityId];
       if (!position) {
         throw new Error('No position: You do not have an open position for this entity.');
       }
 
       const positionDirection = position.direction;
-      const tranches = position.tranches;
+      const tranches = [...position.tranches]; // Copy to avoid mutation
 
-      // Calculate total tokens committed (sum of all tranches)
-      const totalTokensCommitted = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
+      // Calculate total tokens in position
+      const totalPositionTokens = tranches.reduce((sum, tranche) => sum + tranche.tokensCommitted, 0);
 
-      // Remove ALL user tokens from pool FIRST
-      const newP = positionDirection === 'positive' ? Math.max(0, p - totalTokensCommitted) : p;
-      const newN = positionDirection === 'negative' ? Math.max(0, n - totalTokensCommitted) : n;
+      // Determine how many tokens to close (use parameter, capped at total position)
+      const tokensToClose = Math.min(tokensCommitted, totalPositionTokens);
+      const isFullClose = tokensToClose >= totalPositionTokens;
 
-      // Calculate exitRatio AFTER removing all tokens
+      // Remove tokens from pool
+      const newP = positionDirection === 'positive' ? Math.max(0, p - tokensToClose) : p;
+      const newN = positionDirection === 'negative' ? Math.max(0, n - tokensToClose) : n;
+
+      // Calculate exitRatio AFTER removing tokens
       const exitRatio = calculateSentimentRatio(newP, newN);
 
-      // Calculate PnL per tranche using reverse simulation
-      let simulatedP = newP;
-      let simulatedN = newN;
+      // For partial close, use LIFO (Last In, First Out) - sell newest tranches first
+      // Calculate PnL for the tokens being sold
+      let remainingToClose = tokensToClose;
       let totalProfitLoss = 0;
+      const updatedTranches: PositionTranche[] = [];
 
-      for (let i = tranches.length - 1; i >= 0; i--) {
+      // Process tranches from newest to oldest for LIFO
+      for (let i = tranches.length - 1; i >= 0 && remainingToClose > 0; i--) {
         const tranche = tranches[i];
-        const effectiveExitRatio = calculateSentimentRatio(simulatedP, simulatedN);
-        const deltaR = effectiveExitRatio - tranche.entryRatio;
-        let tranchePnL = tranche.tokensCommitted * deltaR;
+        const tokensFromThisTranche = Math.min(tranche.tokensCommitted, remainingToClose);
 
+        // Calculate PnL for tokens sold from this tranche
+        const deltaR = exitRatio - tranche.entryRatio;
+        let tranchePnL = tokensFromThisTranche * deltaR;
         if (positionDirection === 'negative') {
           tranchePnL = -tranchePnL;
         }
-
         totalProfitLoss += tranchePnL;
 
-        if (positionDirection === 'positive') {
-          simulatedP += tranche.tokensCommitted;
+        remainingToClose -= tokensFromThisTranche;
+
+        // If tranche is partially used, keep the remainder
+        if (tokensFromThisTranche < tranche.tokensCommitted) {
+          updatedTranches.unshift({
+            tokensCommitted: tranche.tokensCommitted - tokensFromThisTranche,
+            entryRatio: tranche.entryRatio,
+          });
+        }
+      }
+
+      // Add remaining tranches that weren't touched
+      for (let i = tranches.length - 1 - (tranches.length - updatedTranches.length); i >= 0; i--) {
+        if (i < tranches.length - updatedTranches.length) {
+          // This tranche wasn't processed, keep it as-is
+        }
+      }
+
+      // Rebuild updatedTranches properly - keep untouched older tranches
+      const finalTranches: PositionTranche[] = [];
+      remainingToClose = tokensToClose;
+      for (let i = tranches.length - 1; i >= 0; i--) {
+        const tranche = tranches[i];
+        if (remainingToClose <= 0) {
+          // Haven't started closing yet, keep this tranche
+          finalTranches.unshift(tranche);
+        } else if (remainingToClose >= tranche.tokensCommitted) {
+          // Fully close this tranche
+          remainingToClose -= tranche.tokensCommitted;
         } else {
-          simulatedN += tranche.tokensCommitted;
+          // Partially close this tranche
+          finalTranches.unshift({
+            tokensCommitted: tranche.tokensCommitted - remainingToClose,
+            entryRatio: tranche.entryRatio,
+          });
+          remainingToClose = 0;
         }
       }
 
       // Calculate total tokens returned
-      const tokensReturned = Math.max(0, totalTokensCommitted + totalProfitLoss);
+      const tokensReturned = Math.max(0, tokensToClose + totalProfitLoss);
 
       // Update pools immediately (optimistic update)
       setEntityPools(prev => ({
@@ -924,12 +962,24 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         [entityId]: { positiveTokens: newP, negativeTokens: newN }
       }));
 
-      // Remove position (close it)
-      setUserPositions(prev => {
-        const updated = { ...prev };
-        delete updated[entityId];
-        return updated;
-      });
+      // Update or remove position
+      if (isFullClose || finalTranches.length === 0) {
+        // Full close - remove position entirely
+        setUserPositions(prev => {
+          const updated = { ...prev };
+          delete updated[entityId];
+          return updated;
+        });
+      } else {
+        // Partial close - update position with remaining tranches
+        setUserPositions(prev => ({
+          ...prev,
+          [entityId]: {
+            direction: positionDirection,
+            tranches: finalTranches,
+          }
+        }));
+      }
 
       // Recalculate price immediately using new pools
       const newPrice = calculatePrice(newP, newN);
@@ -945,7 +995,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         entityId,
         entityName,
         type: 'close',
-        tokensCommitted: totalTokensCommitted,
+        tokensCommitted: tokensToClose,
         pricePerToken: exitRatio,
         totalAmount: tokensReturned,
         timestamp: new Date().toISOString(),
@@ -968,7 +1018,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             body: JSON.stringify({
               entityId,
               type: 'close',
-              quantity: totalTokensCommitted,
+              tokensCommitted: tokensToClose,
             }),
           });
 

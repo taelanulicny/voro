@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.moro.mobile",
-      "buildNumber": "34",
+      "buildNumber": "35",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -38,7 +38,7 @@
         "backgroundColor": "#423352"
       },
       "package": "com.moro.mobile",
-      "versionCode": 34,
+      "versionCode": 35,
       "intentFilters": [
         {
           "action": "VIEW",

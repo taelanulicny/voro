@@ -109,21 +109,21 @@ export async function executeTrade(event: APIGatewayProxyEvent): Promise<APIGate
     // Use current market price to prevent any slippage
     const executionPrice = currentMarketPrice;
 
-    // For 'open' type with tokensCommitted: frontend sends tokensCommitted as DOLLAR AMOUNT to spend (total cost),
-    // not as share quantity. So we derive share quantity = tokensCommitted / price so that totalAmount = quantity * price = tokensCommitted.
+    // For both 'open' and 'close' types with tokensCommitted: frontend sends tokensCommitted as DOLLAR AMOUNT,
+    // not as share quantity. So we derive share quantity = tokensCommitted / price.
     // Legacy: when quantity is provided (no tokensCommitted), treat as share count.
     let tradeQuantity: number;
-    if (type === 'open' && tokensCommitted !== undefined && tokensCommitted > 0) {
-      const totalAmountToSpend = Math.round(tokensCommitted * 100) / 100;
+    if (tokensCommitted !== undefined && tokensCommitted > 0) {
+      const dollarAmount = Math.round(tokensCommitted * 100) / 100;
       if (executionPrice <= 0) {
         return createErrorResponse(400, 'Invalid market price for this entity');
       }
-      tradeQuantity = Math.round((totalAmountToSpend / executionPrice) * 10000) / 10000;
+      tradeQuantity = Math.round((dollarAmount / executionPrice) * 10000) / 10000;
       if (tradeQuantity <= 0) {
         return createErrorResponse(400, 'Token amount too small for current price. Increase amount or try another entity.');
       }
     } else {
-      tradeQuantity = tokensCommitted ?? quantity ?? 0;
+      tradeQuantity = quantity ?? 0;
     }
 
     // Map 'open'/'close' to legacy 'buy'/'sell' for backwards compatibility
