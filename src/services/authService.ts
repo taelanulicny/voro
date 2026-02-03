@@ -160,13 +160,13 @@ export async function loginWithOAuth(data: OAuthLoginData): Promise<{
       };
     }
 
-    const data = response.data as { token?: string; refreshToken?: string; user?: AuthResponse['user']; isNewUser?: boolean };
+    const responseData = response.data as { token?: string; refreshToken?: string; user?: AuthResponse['user']; isNewUser?: boolean };
     return {
       success: true,
-      token: data.token,
-      refreshToken: data.refreshToken,
-      user: data.user,
-      isNewUser: data.isNewUser,
+      token: responseData.token,
+      refreshToken: responseData.refreshToken,
+      user: responseData.user,
+      isNewUser: responseData.isNewUser,
     };
   } catch (error: any) {
     return {

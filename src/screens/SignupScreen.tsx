@@ -205,7 +205,7 @@ export default function SignupScreen() {
                   placeholderTextColor="#9CA3AF"
                   value={displayName}
                   onChangeText={setDisplayName}
-                  autoCapitalize="words"
+                  autoCapitalize="none"
                   textContentType="name"
                   editable={!isLoading}
                 />

@@ -323,6 +323,7 @@ export default function EditProfileScreen() {
               onChangeText={setDisplayName}
               placeholder="Enter your display name"
               placeholderTextColor={theme.textTertiary}
+              autoCapitalize="none"
               maxLength={50}
             />
             <Text style={[styles.helperText, { color: theme.textSecondary }]}>

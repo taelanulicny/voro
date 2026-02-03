@@ -183,6 +183,7 @@ export default function CompleteProfileModal() {
               onChangeText={setDisplayName}
               placeholder="How you want to be shown"
               placeholderTextColor={theme.textTertiary}
+              autoCapitalize="none"
               maxLength={50}
             />
           </View>

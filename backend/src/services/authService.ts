@@ -217,6 +217,7 @@ export async function getUserById(userId: string): Promise<User | null> {
       new GetCommand({
         TableName: TABLE_NAMES.USERS,
         Key: { userId },
+        ConsistentRead: true,
       })
     );
 
