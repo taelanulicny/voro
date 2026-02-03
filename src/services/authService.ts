@@ -132,17 +132,19 @@ export async function loginWithOAuth(data: OAuthLoginData): Promise<{
   token?: string;
   refreshToken?: string;
   user?: AuthResponse['user'];
+  isNewUser?: boolean;
 }> {
   try {
-    // Normalize email to lowercase for consistency
-    const normalizedEmail = data.email.toLowerCase().trim();
+    // Normalize email when present; Apple may omit email on subsequent logins
+    const rawEmail = data.email != null ? String(data.email) : '';
+    const normalizedEmail = rawEmail ? rawEmail.toLowerCase().trim() : '';
 
     const endpoint = data.provider === 'google' ? '/api/auth/google' : '/api/auth/apple';
 
     const response = await apiRequest<AuthResponse & { refreshToken?: string }>(endpoint, {
       method: 'POST',
       body: JSON.stringify({
-        email: normalizedEmail,
+        email: normalizedEmail || undefined,
         providerId: data.id,
         name: data.name,
         photo: data.photo,
@@ -158,11 +160,13 @@ export async function loginWithOAuth(data: OAuthLoginData): Promise<{
       };
     }
 
+    const data = response.data as { token?: string; refreshToken?: string; user?: AuthResponse['user']; isNewUser?: boolean };
     return {
       success: true,
-      token: response.data.token,
-      refreshToken: response.data.refreshToken,
-      user: response.data.user,
+      token: data.token,
+      refreshToken: data.refreshToken,
+      user: data.user,
+      isNewUser: data.isNewUser,
     };
   } catch (error: any) {
     return {

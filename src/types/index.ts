@@ -46,7 +46,7 @@ export type MainTabParamList = {
   Groups: undefined;
   Portfolio: undefined;
   Watchlist: undefined;
-  Categories: undefined;
+  Categories: { categoryId?: string } | undefined;
   SeasonalCompetition: undefined;
   Profile: undefined;
 };

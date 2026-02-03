@@ -62,9 +62,10 @@ export async function updateProfileHandler(event: APIGatewayProxyEvent): Promise
     const userId = auth.event.userId!;
     const body = JSON.parse(event.body || '{}');
 
-    const { displayName, bio, avatarUrl } = body;
+    const { username, displayName, bio, avatarUrl } = body;
 
     const result = await updateUserProfile(userId, {
+      username,
       displayName,
       bio,
       avatarUrl,

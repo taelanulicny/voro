@@ -10,6 +10,7 @@ import { setTryRefreshTokenCallback } from '../config/api';
 const SECURE_AUTH_TOKEN_KEY = 'moro_auth_token';
 const SECURE_REFRESH_TOKEN_KEY = 'moro_refresh_token';
 const ASYNC_USER_KEY = 'moro_user'; // User profile data (not sensitive)
+const NEEDS_PROFILE_COMPLETION_KEY = 'moro_needs_profile_completion';
 
 export interface User {
   id: string;
@@ -28,12 +29,14 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (data: { email: string; password: string; username: string; displayName: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  loginWithGoogle: (email: string, id: string, name: string, photo?: string, idToken?: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithApple: (email: string, id: string, name: string, identityToken?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (email: string, id: string, name: string, photo?: string, idToken?: string) => Promise<{ success: boolean; error?: string; isNewUser?: boolean }>;
+  loginWithApple: (email: string, id: string, name: string, identityToken?: string) => Promise<{ success: boolean; error?: string; isNewUser?: boolean }>;
   refreshUser: () => Promise<void>;
   tryRefreshToken: () => Promise<boolean>; // Try to refresh token if near expiry
   getToken: () => string | null; // Get current token (for authenticatedRequest)
   skipAuth: () => Promise<void>; // Skip authentication (dev only)
+  needsProfileCompletion: boolean;
+  setProfileComplete: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,10 +45,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsProfileCompletion, setNeedsProfileCompletionState] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
   const [sessionWarningShown, setSessionWarningShown] = useState(false);
 
   const isAuthenticated = !!user && !!token;
+
+  const setProfileComplete = useCallback(async () => {
+    setNeedsProfileCompletionState(false);
+    try {
+      await AsyncStorage.removeItem(NEEDS_PROFILE_COMPLETION_KEY);
+    } catch (e) {
+      console.error('Error clearing profile completion flag', e);
+    }
+  }, []);
 
   // Session timeout configuration (30 minutes of inactivity)
   const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
@@ -126,9 +139,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const verification = await verifyToken(savedToken);
         
         if (verification.success && verification.user) {
-          // Token is valid, use verified user data
           setToken(savedToken);
           setUser(verification.user);
+          const savedNeedsCompletion = await AsyncStorage.getItem(NEEDS_PROFILE_COMPLETION_KEY);
+          if (savedNeedsCompletion === 'true') {
+            setNeedsProfileCompletionState(true);
+          }
         } else {
           // Token is invalid, clear stored data
           await clearAuthData();
@@ -162,14 +178,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearAuthData = async () => {
     try {
-      // Clear tokens from secure storage
       await SecureStore.deleteItemAsync(SECURE_AUTH_TOKEN_KEY);
       await SecureStore.deleteItemAsync(SECURE_REFRESH_TOKEN_KEY);
-      // Clear user from async storage
       await AsyncStorage.removeItem(ASYNC_USER_KEY);
-      
+      await AsyncStorage.removeItem(NEEDS_PROFILE_COMPLETION_KEY);
       setToken(null);
       setUser(null);
+      setNeedsProfileCompletionState(false);
     } catch (error) {
       console.error('Error clearing auth data:', error);
     }
@@ -246,7 +261,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (result.success && result.token && result.user) {
         await saveAuthData(result.token, result.user, result.refreshToken);
-        return { success: true };
+        const isNew = !!(result as { isNewUser?: boolean }).isNewUser;
+        if (isNew) {
+          setNeedsProfileCompletionState(true);
+          try {
+            await AsyncStorage.setItem(NEEDS_PROFILE_COMPLETION_KEY, 'true');
+          } catch (e) {
+            console.error('Error saving profile completion flag', e);
+          }
+        }
+        return { success: true, isNewUser: isNew };
       }
       
       return { 
@@ -274,7 +298,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (result.success && result.token && result.user) {
         await saveAuthData(result.token, result.user, result.refreshToken);
-        return { success: true };
+        const isNew = !!(result as { isNewUser?: boolean }).isNewUser;
+        if (isNew) {
+          setNeedsProfileCompletionState(true);
+          try {
+            await AsyncStorage.setItem(NEEDS_PROFILE_COMPLETION_KEY, 'true');
+          } catch (e) {
+            console.error('Error saving profile completion flag', e);
+          }
+        }
+        return { success: true, isNewUser: isNew };
       }
       
       return { 
@@ -415,6 +448,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     tryRefreshToken,
     getToken,
     skipAuth,
+    needsProfileCompletion,
+    setProfileComplete,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

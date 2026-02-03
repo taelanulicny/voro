@@ -149,10 +149,15 @@ const BasketballIcon: React.FC<BasketballIconProps> = ({ size, color }) => {
   );
 };
 
-export default function CategoryScreen() {
+interface CategoryScreenProps {
+  /** When opening from Categories tab (slide over), category is passed as prop */
+  initialCategoryId?: string;
+}
+
+export default function CategoryScreen({ initialCategoryId }: CategoryScreenProps = {}) {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CategoryRouteProp>();
-  const { categoryId } = route.params;
+  const categoryId = initialCategoryId ?? route.params?.categoryId ?? '';
   const { getEntityPrice, getAllEntityPrices, getPosition, getPositionOpenPnL } = useTrading();
   const { theme } = useTheme();
   const { activityFeed } = useSocial();

@@ -195,6 +195,10 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
   const priceUpdateDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingPriceUpdatesRef = useRef<Record<number, number>>({});
 
+  // After a trade, don't let polling overwrite this entity's price (stops old/new price flashing)
+  const TRADE_PRICE_COOLDOWN_MS = 20000;
+  const recentlyTradedAtRef = useRef<Record<number, number>>({});
+
   // Global entity prices - calculated from sentiment pools
   const [entityPrices, setEntityPrices] = useState<Record<number, number>>(() => {
     // Initialize all prices to 100 (from P=0, N=0)
@@ -352,9 +356,17 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         setTodayChange(response.data.todayChange);
         setTodayChangePercent(response.data.todayChangePercent);
 
-        // Update entity prices from holdings
+        // Update entity prices from holdings (skip recently traded entities to avoid old/new price flashing)
+        const now = Date.now();
         const prices: Record<number, number> = {};
         response.data.holdings.forEach((holding) => {
+          const tradedAt = recentlyTradedAtRef.current[holding.entityId];
+          if (tradedAt != null && now - tradedAt < TRADE_PRICE_COOLDOWN_MS) {
+            return; // keep local price for this entity during cooldown
+          }
+          if (tradedAt != null && now - tradedAt >= TRADE_PRICE_COOLDOWN_MS) {
+            delete recentlyTradedAtRef.current[holding.entityId];
+          }
           prices[holding.entityId] = holding.currentPrice;
         });
         setEntityPrices((prev) => ({ ...prev, ...prices }));
@@ -415,12 +427,21 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     priceUpdateDebounceTimerRef.current = setTimeout(() => {
       const updates = { ...pendingPriceUpdatesRef.current };
       pendingPriceUpdatesRef.current = {};
+      const now = Date.now();
 
       if (Object.keys(updates).length > 0) {
         setEntityPrices(prev => {
           const updated = { ...prev };
           Object.keys(updates).forEach(entityIdStr => {
-            updated[parseInt(entityIdStr, 10)] = updates[parseInt(entityIdStr, 10)];
+            const entityId = parseInt(entityIdStr, 10);
+            const tradedAt = recentlyTradedAtRef.current[entityId];
+            if (tradedAt != null && now - tradedAt < TRADE_PRICE_COOLDOWN_MS) {
+              return; // keep local price during cooldown
+            }
+            if (tradedAt != null && now - tradedAt >= TRADE_PRICE_COOLDOWN_MS) {
+              delete recentlyTradedAtRef.current[entityId];
+            }
+            updated[entityId] = updates[entityId];
           });
           return updated;
         });
@@ -690,6 +711,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
         // Recalculate price immediately using new pools
         const newPrice = calculatePrice(newP, newN);
         setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+        recentlyTradedAtRef.current[entityId] = Date.now();
 
         // Update cash balance (deduct tokens committed)
         setCashBalance(prev => Math.max(0, prev - tokensCommitted));
@@ -788,6 +810,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       // Recalculate price immediately using new pools
       const newPrice = calculatePrice(newP, newN);
       setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+      recentlyTradedAtRef.current[entityId] = Date.now();
 
       // Update cash balance (deduct tokens committed)
       setCashBalance(prev => Math.max(0, prev - tokensCommitted));
@@ -911,6 +934,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       // Recalculate price immediately using new pools
       const newPrice = calculatePrice(newP, newN);
       setEntityPrices(prev => ({ ...prev, [entityId]: newPrice }));
+      recentlyTradedAtRef.current[entityId] = Date.now();
 
       // Update cash balance (add tokens returned)
       setCashBalance(prev => prev + tokensReturned);

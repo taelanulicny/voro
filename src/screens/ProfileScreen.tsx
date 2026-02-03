@@ -98,10 +98,7 @@ export default function ProfileScreen() {
       )}
         <TouchableOpacity
           style={styles.editProfileButton}
-          onPress={() => {
-            // TODO: Navigate to edit profile screen or open edit modal
-            console.log('Edit profile pressed');
-          }}
+          onPress={() => navigation.navigate('EditProfile')}
         >
           <Ionicons name="pencil-outline" size={16} color={theme.text} />
           <Text style={[styles.editProfileText, { color: theme.text }]}>Edit Profile</Text>
@@ -237,6 +234,7 @@ export default function ProfileScreen() {
       <CreatePostModal
         visible={showCreatePost}
         onClose={() => setShowCreatePost(false)}
+        slideFromBottom={true}
       />
     </SafeAreaView>
   );

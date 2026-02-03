@@ -29,6 +29,7 @@ export default function EditProfileScreen() {
   const { user, token, refreshUser } = useAuth();
   const { theme } = useTheme();
   
+  const [username, setUsername] = useState(user?.username || '');
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl || null);
@@ -166,6 +167,11 @@ export default function EditProfileScreen() {
       return;
     }
 
+    const trimmedUsername = username.trim().toLowerCase().replace(/[^a-z0-9._]/g, '');
+    if (trimmedUsername.length < 3) {
+      Alert.alert('Error', 'Username must be at least 3 characters (letters, numbers, dots, underscores).');
+      return;
+    }
     if (!displayName.trim()) {
       Alert.alert('Error', 'Display name is required.');
       return;
@@ -192,9 +198,9 @@ export default function EditProfileScreen() {
         avatarUrl = undefined;
       }
 
-      // Update profile (backend uses authenticated user ID, not path param)
       const updateResponse = await authenticatedRequest<{
         id: string;
+        username: string;
         displayName: string;
         bio?: string;
         avatarUrl?: string;
@@ -204,6 +210,7 @@ export default function EditProfileScreen() {
         {
           method: 'PUT',
           body: JSON.stringify({
+            username: trimmedUsername,
             displayName: displayName.trim(),
             bio: bio.trim() || undefined,
             avatarUrl,
@@ -343,11 +350,18 @@ export default function EditProfileScreen() {
 
           <View style={styles.fieldContainer}>
             <Text style={[styles.label, { color: theme.text }]}>Username</Text>
-            <View style={[styles.readOnlyField, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }]}>
-              <Text style={[styles.readOnlyText, { color: theme.textSecondary }]}>@{user?.username}</Text>
-            </View>
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.backgroundSecondary, color: theme.text, borderColor: theme.border }]}
+              value={username}
+              onChangeText={setUsername}
+              placeholder="e.g. johndoe"
+              placeholderTextColor={theme.textTertiary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={30}
+            />
             <Text style={[styles.helperText, { color: theme.textSecondary }]}>
-              Username cannot be changed
+              3+ characters, letters, numbers, . _
             </Text>
           </View>
         </View>

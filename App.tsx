@@ -51,6 +51,7 @@ import ContactSupportScreen from './src/screens/ContactSupportScreen';
 import LegalDocumentScreen from './src/screens/LegalDocumentScreen';
 import AboutScreen from './src/screens/AboutScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import CompleteProfileModal from './src/components/CompleteProfileModal';
 import TradingPreferencesScreen from './src/screens/TradingPreferencesScreen';
 import PrivacySettingsScreen from './src/screens/PrivacySettingsScreen';
 import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
@@ -121,13 +122,14 @@ const linking = {
 };
 
 function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, needsProfileCompletion } = useAuth();
 
   if (isLoading) {
     return null; // Or a loading screen
   }
 
   return (
+    <>
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
         <>
@@ -340,6 +342,8 @@ function RootNavigator() {
         </>
       )}
     </Stack.Navigator>
+    {isAuthenticated && needsProfileCompletion && <CompleteProfileModal />}
+    </>
   );
 }
 

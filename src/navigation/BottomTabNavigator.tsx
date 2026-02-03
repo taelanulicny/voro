@@ -16,8 +16,10 @@ import GroupsScreen from '../screens/GroupsScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
 import WatchlistScreen from '../screens/WatchlistScreen';
 import DiscoverScreen from '../screens/DiscoverScreen';
+import CategoryScreen from '../screens/CategoryScreen';
 import SeasonalCompetitionScreen from '../screens/SeasonalCompetitionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import { useRoute, RouteProp } from '@react-navigation/native';
 
 // Component wrappers to properly use hooks
 function HomeScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: BottomTabNavigationProp<MainTabParamList>) => void }) {
@@ -63,6 +65,16 @@ function GroupsScreenWrapper({ setTabNavigation }: { setTabNavigation: (nav: Bot
 }
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+/** When a category is passed (e.g. from Home), show that category; otherwise show Discover. */
+function CategoriesTabContent() {
+  const route = useRoute<RouteProp<MainTabParamList, 'Categories'>>();
+  const categoryId = route.params?.categoryId;
+  if (categoryId) {
+    return <CategoryScreen initialCategoryId={categoryId} />;
+  }
+  return <DiscoverScreen />;
+}
 
 // Context to share navigation
 const TabNavigationContext = createContext<{
@@ -197,7 +209,7 @@ export default function BottomTabNavigator() {
           <Tab.Screen name="Categories">
             {() => (
               <ErrorBoundary>
-                <DiscoverScreen />
+                <CategoriesTabContent />
               </ErrorBoundary>
             )}
           </Tab.Screen>

@@ -20,6 +20,7 @@ import { RootStackParamList } from '../types';
 import { loginWithApple, OAuthResult } from '../services/oauthService';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -33,25 +34,37 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  
-  // Use placeholder if env var is missing to prevent crash
-  // The handleGoogleLogin function will check and show an error if not configured
+  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const isGoogleConfigured = !!googleClientId && !googleClientId.includes('placeholder');
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: googleClientId || 'placeholder-client-id.apps.googleusercontent.com',
     iosClientId: googleClientId || 'placeholder-client-id.apps.googleusercontent.com',
     webClientId: googleClientId || 'placeholder-client-id.apps.googleusercontent.com',
   });
 
+  // Log redirect URI in dev so you can add it to Google Cloud Console → OAuth client → Authorized redirect URIs
+  React.useEffect(() => {
+    if (__DEV__ && request) {
+      const redirectUri = (request as { redirectUri?: string }).redirectUri ?? AuthSession.makeRedirectUri({});
+      console.log('[Google OAuth] Add this redirect URI to Google Cloud Console → APIs & Services → Credentials → your OAuth client → Authorized redirect URIs:');
+      console.log(redirectUri);
+      console.log('[Google OAuth] If using Expo auth proxy, also add: https://auth.expo.io/@moro-systems-llc/moro-mobile');
+    }
+  }, [request]);
+
   React.useEffect(() => {
     if (response?.type === 'success') {
       const { authentication } = response;
       if (authentication?.accessToken) {
-        handleGoogleLoginSuccess(authentication.accessToken);
+        // Backend requires idToken for verification; accessToken is only for fetching user info
+        const idToken = authentication?.idToken ?? (response as any).params?.id_token ?? undefined;
+        handleGoogleLoginSuccess(authentication.accessToken, idToken);
       }
     } else if (response?.type === 'error') {
       setIsGoogleLoading(false);
-      Alert.alert('Google Login Failed', 'An error occurred during sign in.');
+      const errMsg = (response as any).error?.message ?? (response as any).params?.error_description ?? 'An error occurred during sign in.';
+      Alert.alert('Google Login Failed', errMsg);
     } else if (response?.type === 'dismiss') {
       setIsGoogleLoading(false);
     }
@@ -86,7 +99,7 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleLoginSuccess = async (accessToken: string) => {
+  const handleGoogleLoginSuccess = async (accessToken: string, idToken?: string) => {
     try {
       // Fetch user info using the access token
       const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
@@ -95,37 +108,57 @@ export default function LoginScreen() {
 
       const userInfo = await userInfoResponse.json();
 
+      // Backend requires idToken for verification; access token cannot be used
+      if (!idToken) {
+        Alert.alert(
+          'Google Sign In',
+          'Could not get a sign-in token from Google. Try again, or use a development build (Expo Go may not return an ID token in some cases).'
+        );
+        return;
+      }
+
       const authResult = await authLoginWithGoogle(
         userInfo.email,
         userInfo.id,
         userInfo.name,
         userInfo.picture,
-        accessToken // Using access token as ID token/proof for now
+        idToken
       );
 
       if (!authResult.success) {
         Alert.alert('Google Login Failed', authResult.error || 'Unable to sign in with Google');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch user data from Google');
+    } catch (error: any) {
+      Alert.alert('Google Login Failed', error?.message || 'Failed to complete sign in');
     } finally {
       setIsGoogleLoading(false);
     }
   };
 
-  const handleGoogleLogin = () => {
-    if (!googleClientId) {
+  const handleGoogleLogin = async () => {
+    if (!isGoogleConfigured) {
       Alert.alert(
         'Google Sign-In Not Configured',
-        'Google Sign-In is not set up. Please configure EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in your .env file.'
+        'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to your .env file (from Google Cloud Console → APIs & Services → Credentials). Restart Expo after changing .env.'
       );
       return;
     }
+    if (!request) {
+      Alert.alert('Google Sign-In', 'Sign-in is still loading. Please wait a moment and try again.');
+      return;
+    }
     setIsGoogleLoading(true);
-    promptAsync().catch((err) => {
+    try {
+      await promptAsync();
+    } catch (err: any) {
       setIsGoogleLoading(false);
-      Alert.alert('Error', 'Failed to start Google Sign In');
-    });
+      const message = err?.message || err?.error?.message || String(err);
+      console.error('[Google Sign-In]', err);
+      Alert.alert(
+        'Google Sign-In Error',
+        message || 'Could not open sign-in. Check that your Client ID and redirect URI are set in Google Cloud Console.'
+      );
+    }
   };
 
   const handleAppleLogin = async () => {
@@ -134,11 +167,11 @@ export default function LoginScreen() {
       const result: OAuthResult = await loginWithApple();
 
       if (result.success && result.user) {
-        // Call AuthContext to handle the login with identity token
+        // Call AuthContext to handle the login with identity token (Apple may omit email on subsequent logins)
         const authResult = await authLoginWithApple(
-          result.user.email,
+          result.user.email ?? '',
           result.user.id,
-          result.user.name,
+          result.user.name ?? '',
           result.identityToken
         );
 
@@ -255,9 +288,13 @@ export default function LoginScreen() {
             <View style={styles.socialContainer}>
               {/* Google Login */}
               <TouchableOpacity
-                style={[styles.socialButton, styles.googleButton, isGoogleLoading && styles.buttonDisabled]}
+                style={[
+                  styles.socialButton,
+                  styles.googleButton,
+                  (isGoogleLoading || !request || !isGoogleConfigured) && styles.buttonDisabled,
+                ]}
                 onPress={handleGoogleLogin}
-                disabled={isGoogleLoading}
+                disabled={isGoogleLoading || !request || !isGoogleConfigured}
               >
                 {isGoogleLoading ? (
                   <ActivityIndicator color="#111827" />

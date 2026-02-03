@@ -29,6 +29,7 @@ export async function getUserProfile(userId: string): Promise<User | null> {
 export async function updateUserProfile(
   userId: string,
   updates: {
+    username?: string;
     displayName?: string;
     bio?: string;
     avatarUrl?: string;
@@ -38,6 +39,15 @@ export async function updateUserProfile(
     const now = new Date().toISOString();
     const updateExpressions: string[] = [];
     const expressionAttributeValues: Record<string, any> = { ':ua': now };
+
+    if (updates.username !== undefined) {
+      const trimmed = updates.username.trim().toLowerCase().replace(/[^a-z0-9._]/g, '');
+      if (trimmed.length < 3) {
+        return { success: false, error: 'Username must be at least 3 characters' };
+      }
+      updateExpressions.push('username = :username');
+      expressionAttributeValues[':username'] = trimmed;
+    }
 
     if (updates.displayName !== undefined) {
       updateExpressions.push('displayName = :displayName');

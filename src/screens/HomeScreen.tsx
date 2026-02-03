@@ -894,11 +894,10 @@ export default function HomeScreen() {
               style={styles.categoryButton}
               onPress={() => {
                 if (category === 'For You') {
-                  // Keep "For You" on the home page
                   setSelectedCategory(category);
                 } else {
-                  // Navigate to the Category screen for other categories
-                  navigation.navigate('Category', { categoryId: category });
+                  // Switch to Categories tab with this category (slide over, no new screen)
+                  navigation.navigate('Categories', { categoryId: category });
                 }
               }}
             >
@@ -966,7 +965,7 @@ export default function HomeScreen() {
                         People on Moro - Top 3
                       </Text>
                         <TouchableOpacity
-                          onPress={() => navigation.navigate('Category', { categoryId: 'People' })}
+                          onPress={() => navigation.navigate('Categories', { categoryId: 'People' })}
                           style={styles.headerArrowButton}
                         >
                           <Ionicons name="chevron-forward" size={20} color={theme.text} />
@@ -1406,9 +1405,7 @@ export default function HomeScreen() {
                 };
 
                 const handleCategoryPress = (categoryId: string) => {
-                  navigation.navigate('Category', {
-                    categoryId,
-                  });
+                  navigation.navigate('Categories', { categoryId });
                 };
 
                 return (

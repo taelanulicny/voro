@@ -114,11 +114,11 @@ export default function SignupScreen() {
       const result: OAuthResult = await loginWithApple();
 
       if (result.success && result.user) {
-        // Call AuthContext to handle the signup/login with identity token
+        // Call AuthContext to handle the signup/login with identity token (Apple may omit email on subsequent logins)
         const authResult = await authLoginWithApple(
-          result.user.email,
+          result.user.email ?? '',
           result.user.id,
-          result.user.name,
+          result.user.name ?? '',
           result.identityToken
         );
         setIsAppleLoading(false);

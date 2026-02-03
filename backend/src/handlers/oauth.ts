@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createResponse, createErrorResponse } from '../middleware/auth';
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
-import { PutCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { User } from '../models/types';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,7 +34,7 @@ interface AppleTokenPayload {
   email?: string;
   email_verified?: boolean;
   is_private_email?: boolean;
-  auth_time: number;
+  auth_time?: number;
 }
 
 // Google JWKS client with caching
@@ -88,12 +88,15 @@ const appleJwksClient = jwksClient({
   jwksRequestsPerMinute: 10,
 });
 
-// Apple bundle identifier (audience) - should match app.json iOS bundleIdentifier
+// Apple bundle identifiers (audience) - main app and Expo Go so dev works on device
 const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID || 'com.moro.mobile';
+const APPLE_BUNDLE_IDS = process.env.APPLE_BUNDLE_IDS || `${APPLE_CLIENT_ID},host.exp.Exponent`;
+const APPLE_AUDIENCE_LIST = APPLE_BUNDLE_IDS.split(',').map((s) => s.trim()).filter(Boolean);
 
 /**
  * Verify Apple identity token with cryptographic signature verification
- * Verifies the token signature against Apple's JWKS (JSON Web Key Set)
+ * Verifies the token signature against Apple's JWKS (JSON Web Key Set).
+ * Accepts both app bundle ID (com.moro.mobile) and Expo Go (host.exp.Exponent) as audience.
  */
 async function verifyAppleToken(identityToken: string): Promise<AppleTokenPayload | null> {
   try {
@@ -110,11 +113,16 @@ async function verifyAppleToken(identityToken: string): Promise<AppleTokenPayloa
     const publicKey = key.getPublicKey();
 
     // Verify the token signature, issuer, audience, and expiration
+    // audience: jsonwebtoken types expect tuple for array; Expo Go uses host.exp.Exponent
+    const audience: [string, ...string[]] | string =
+      APPLE_AUDIENCE_LIST.length > 0
+        ? (APPLE_AUDIENCE_LIST as [string, ...string[]])
+        : APPLE_CLIENT_ID;
     const payload = jwt.verify(identityToken, publicKey, {
       algorithms: ['RS256'],
       issuer: 'https://appleid.apple.com',
-      audience: APPLE_CLIENT_ID, // Verify the token was issued for our app
-    }) as AppleTokenPayload;
+      audience,
+    }) as unknown as AppleTokenPayload;
 
     return payload;
   } catch (error) {
@@ -124,24 +132,23 @@ async function verifyAppleToken(identityToken: string): Promise<AppleTokenPayloa
 }
 
 /**
- * Find user by provider ID (Google or Apple sub)
+ * Find user by provider ID (Google or Apple sub) so returning users sign into existing account.
  */
 async function findUserByProviderId(providerId: string, provider: 'google' | 'apple'): Promise<User | null> {
   try {
-    // We'll store provider IDs in the user record
-    // For now, scan the table (in production, use a GSI on providerId)
+    const attr = provider === 'google' ? 'googleId' : 'appleId';
     const result = await docClient.send(
-      new QueryCommand({
+      new ScanCommand({
         TableName: TABLE_NAMES.USERS,
-        IndexName: 'email-index', // We'll search by email as a workaround
-        KeyConditionExpression: 'email = :email',
-        ExpressionAttributeValues: {
-          ':email': providerId, // This won't work - we need to search differently
-        },
+        FilterExpression: `#attr = :pid`,
+        ExpressionAttributeNames: { '#attr': attr },
+        ExpressionAttributeValues: { ':pid': providerId },
+        Limit: 1,
       })
     );
-
-    // For now, return null - we'll create users if they don't exist
+    if (result.Items && result.Items.length > 0) {
+      return result.Items[0] as User;
+    }
     return null;
   } catch (error) {
     logger.error('Error finding user by provider ID', error);
@@ -180,16 +187,21 @@ async function findUserByEmail(email: string): Promise<User | null> {
 
 /**
  * Create or update user from OAuth
+ * For Apple, email may be omitted on subsequent logins; use a placeholder when missing.
  */
 async function createOrUpdateOAuthUser(
-  email: string,
+  email: string | undefined,
   name: string,
   providerId: string,
   provider: 'google' | 'apple',
   avatarUrl?: string
 ): Promise<{ user: User; isNew: boolean }> {
-  // Try to find existing user by email
-  let existingUser = await findUserByEmail(email);
+  const resolvedEmail = email || (providerId ? `${providerId}@privaterelay.appleid.com` : '');
+  // Find existing user by provider ID first (so returning Apple/Google users sign into same account)
+  let existingUser = await findUserByProviderId(providerId, provider);
+  if (!existingUser && resolvedEmail) {
+    existingUser = await findUserByEmail(resolvedEmail);
+  }
 
   if (existingUser) {
     // Update the user with provider info if not already set
@@ -216,12 +228,12 @@ async function createOrUpdateOAuthUser(
   const now = new Date().toISOString();
   
   // Generate username from email or name
-  const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+  const baseUsername = resolvedEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
   const username = `${baseUsername}${Math.floor(Math.random() * 1000)}`;
 
   const newUser: User = {
     userId,
-    email,
+    email: resolvedEmail,
     username,
     displayName: name || username,
     avatarUrl,
@@ -259,7 +271,7 @@ function generateSessionToken(user: User): string {
   // Create a simple JWT token (in production, use proper signing)
   const payload = {
     sub: user.userId,
-    email: user.email,
+    email: user.email ?? '',
     username: user.username,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 7), // 7 days
@@ -415,7 +427,7 @@ export async function appleLogin(event: APIGatewayProxyEvent): Promise<APIGatewa
         token,
         user: {
           id: user.userId,
-          email: user.email,
+          email: user.email ?? '',
           username: user.username,
           displayName: user.displayName,
           avatarUrl,
