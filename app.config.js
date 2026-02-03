@@ -6,7 +6,7 @@ export default {
     owner: 'moro-systems-llc',
     name: 'Moro',
     slug: 'moro-mobile',
-    version: '10.1.9',
+    version: '10.2.1',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -19,7 +19,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.moro.mobile',
-      buildNumber: '34',
+      buildNumber: '35',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
@@ -31,7 +31,7 @@ export default {
         backgroundColor: '#423352',
       },
       package: 'com.moro.mobile',
-      versionCode: 34,
+      versionCode: 35,
       intentFilters: [
         {
           action: 'VIEW',
