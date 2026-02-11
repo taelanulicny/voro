@@ -472,3 +472,23 @@ export async function getCategoryVolumes(): Promise<CategoryVolume[]> {
   }
 }
 
+/** Matchup/versus data for live games (e.g. Chiefs vs Bills). Server-authoritative; can be wired to a live feed later. */
+export interface MatchupItem {
+  categoryId: string;
+  teamId: number;
+  teamName: string;
+  opponentId: number;
+  opponentName: string;
+  teamScore: number;
+  opponentScore: number;
+  quarter: string;
+  time: string;
+  status: string;
+  isAway: boolean;
+}
+
+export async function getMatchups(categoryId?: string): Promise<MatchupItem[]> {
+  // Placeholder: return empty so UI uses server data. Can be replaced with real sports API or DB.
+  return [];
+}
+

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { login as apiLogin, signup as apiSignup, loginWithOAuth, verifyToken, logout as apiLogout, refreshToken as apiRefreshToken } from '../services/authService';
 import { isTokenExpiredOrNearExpiry } from '../utils/jwt';
-import { setTryRefreshTokenCallback } from '../config/api';
+import { setTryRefreshTokenCallback, invalidateCache } from '../config/api';
 
 // Keys for secure storage (tokens) and async storage (non-sensitive data)
 const SECURE_AUTH_TOKEN_KEY = 'moro_auth_token';
@@ -19,6 +19,8 @@ export interface User {
   displayName: string;
   avatarUrl?: string;
   bio?: string;
+  /** True when Apple-only user has not yet set a password (must complete account before changing password) */
+  needsCompleteAccount?: boolean;
 }
 
 interface AuthContextType {
@@ -38,6 +40,8 @@ interface AuthContextType {
   skipAuth: () => Promise<void>; // Skip authentication (dev only)
   needsProfileCompletion: boolean;
   setProfileComplete: () => void;
+  /** True when Apple-only user must add email + set password before they can change password */
+  needsCompleteAccount: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -143,8 +147,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setToken(savedToken);
           setUser(verification.user);
           const savedNeedsCompletion = await AsyncStorage.getItem(NEEDS_PROFILE_COMPLETION_KEY);
-          if (savedNeedsCompletion === 'true') {
+          const userNeedsCompletion = !(verification.user as any).username?.trim() || !(verification.user as any).displayName?.trim();
+          if (savedNeedsCompletion === 'true' || userNeedsCompletion) {
             setNeedsProfileCompletionState(true);
+            if (userNeedsCompletion && savedNeedsCompletion !== 'true') {
+              await AsyncStorage.setItem(NEEDS_PROFILE_COMPLETION_KEY, 'true');
+            }
           }
         } else {
           // Token is invalid, clear stored data
@@ -186,6 +194,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       setUser(null);
       setNeedsProfileCompletionState(false);
+      // Clear all API cache so next user does not see previous user's data
+      invalidateCache();
+      // Clear known user-scoped storage keys so no data leaks between accounts
+      const userScopedKeys = [
+        '@api:cache',
+        '@social:activityFeed',
+        '@social:postComments',
+        '@trading:entityPools',
+        '@trading:userPositions',
+        '@trading:cashBalance',
+        '@trading:transactions',
+      ];
+      await Promise.all(userScopedKeys.map((k) => AsyncStorage.removeItem(k).catch(() => {})));
     } catch (error) {
       console.error('Error clearing auth data:', error);
     }
@@ -444,6 +465,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await saveAuthData(mockToken, mockUser);
   };
 
+  const needsCompleteAccount = !!user?.needsCompleteAccount;
+
   const value: AuthContextType = {
     user,
     token,
@@ -461,6 +484,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     skipAuth,
     needsProfileCompletion,
     setProfileComplete,
+    needsCompleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -63,6 +63,9 @@ export const handler = async (
     if (path.endsWith('/me') && method === 'GET') {
       return authHandlers.getMe(event);
     }
+    if (path.endsWith('/set-password') && method === 'POST') {
+      return authHandlers.setPassword(event);
+    }
     if (path.endsWith('/change-password') && method === 'POST') {
       return authHandlers.changePassword(event);
     }
@@ -397,6 +400,9 @@ export const handler = async (
     if (volumesMatch && method === 'GET') {
       logger.debug('[Router] Matched category volumes endpoint', { path, method, rawPath: event.path });
       return categoryHandlers.getCategoryVolumesHandler(event);
+    }
+    if (path.includes('/matchups') && method === 'GET') {
+      return categoryHandlers.getMatchupsHandler(event);
     }
     if (path.includes('/trending') && method === 'GET') {
       return categoryHandlers.getTrendingHandler(event);

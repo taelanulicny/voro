@@ -252,6 +252,13 @@ export default function GroupDetailScreen() {
     }
   }, [activeTab, group?.isMember, loadMessages]);
 
+  // Poll for new messages while chat tab is open so all members see updates
+  useEffect(() => {
+    if (activeTab !== 'chat' || !group?.isMember) return;
+    const interval = setInterval(loadMessages, 4000);
+    return () => clearInterval(interval);
+  }, [activeTab, group?.isMember, loadMessages]);
+
   const handleSendMessage = async () => {
     const content = chatInput.trim();
     if (!content || sending || !group?.isMember) return;

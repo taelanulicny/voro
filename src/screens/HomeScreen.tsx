@@ -30,6 +30,8 @@ import { useWatchlist } from '../context/WatchlistContext';
 import { useSideMenu } from '../context/SideMenuContext';
 import { useSocial } from '../context/SocialContext';
 import { useFeatureFlags } from '../context/FeatureFlagsContext';
+import { useAuth } from '../context/AuthContext';
+import { authenticatedRequest } from '../config/api';
 import { formatCurrency, getChangeColor, TOKEN_SYMBOL } from '../utils/dataGenerator';
 import { getEntityById, getAllEntities, ENTITIES, getEntitiesByCategory } from '../utils/entities';
 import { BASE_PRICE } from '../utils/sentimentTrading';
@@ -52,6 +54,7 @@ export default function HomeScreen() {
   const { isVisible: sideMenuVisible, setIsVisible: setSideMenuVisible } = useSideMenu();
   const { activityFeed } = useSocial();
   const { flags } = useFeatureFlags();
+  const { user, token, refreshUser } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [referralModalVisible, setReferralModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('For You');
@@ -61,9 +64,15 @@ export default function HomeScreen() {
   // Declared early so it can be used in useMemo hooks below
   const [updateKey, setUpdateKey] = useState(0);
 
-  // Load added categories from AsyncStorage on mount and when focused
+  // Load added categories: from user preferences when logged in, else AsyncStorage
   useEffect(() => {
-    const loadAddedCategories = async () => {
+    const homeLayout = (user as any)?.homeLayout;
+    if (user && homeLayout !== undefined) {
+      const list = Array.isArray(homeLayout?.addedCategories) ? homeLayout.addedCategories : [];
+      setAddedCategories(list);
+      return;
+    }
+    const loadLocal = async () => {
       try {
         const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         const stored = await AsyncStorage.getItem('addedCategories');
@@ -74,13 +83,19 @@ export default function HomeScreen() {
         console.error('Error loading added categories:', error);
       }
     };
-    loadAddedCategories();
-  }, []);
+    loadLocal();
+  }, [user]);
 
-  // Reload when screen is focused (in case category was added from CategoryScreen)
+  // Reload when screen is focused (in case category was added from CategoryScreen or user refreshed)
   useFocusEffect(
     useCallback(() => {
-      const loadAddedCategories = async () => {
+      const homeLayout = (user as any)?.homeLayout;
+      if (user && homeLayout !== undefined) {
+        const list = Array.isArray(homeLayout?.addedCategories) ? homeLayout.addedCategories : [];
+        setAddedCategories(list);
+        return;
+      }
+      const loadLocal = async () => {
         try {
           const AsyncStorage = require('@react-native-async-storage/async-storage').default;
           const stored = await AsyncStorage.getItem('addedCategories');
@@ -91,8 +106,8 @@ export default function HomeScreen() {
           console.error('Error loading added categories:', error);
         }
       };
-      loadAddedCategories();
-    }, [])
+      loadLocal();
+    }, [user])
   );
 
   // Swipeable section state
@@ -570,10 +585,34 @@ export default function HomeScreen() {
     };
   }, [topInfluencers, getEntityPrice, updateKey]);
 
+  // Persist added categories to server (or AsyncStorage when not logged in)
+  const persistAddedCategories = useCallback(async (updated: string[]) => {
+    if (token && user) {
+      try {
+        await authenticatedRequest('/api/user/preferences', token, {
+          method: 'PUT',
+          body: JSON.stringify({ homeLayout: { addedCategories: updated } }),
+        });
+        refreshUser?.();
+      } catch (error) {
+        console.error('Error saving home layout:', error);
+      }
+    } else {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.setItem('addedCategories', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error saving added categories:', error);
+      }
+    }
+  }, [token, user, refreshUser]);
+
   // Handle adding a category to home screen
   const handleAddCategory = (category: string) => {
     if (!addedCategories.includes(category)) {
-      setAddedCategories([...addedCategories, category]);
+      const updated = [...addedCategories, category];
+      setAddedCategories(updated);
+      persistAddedCategories(updated);
     }
   };
 
@@ -581,13 +620,7 @@ export default function HomeScreen() {
   const handleRemoveCategory = async (category: string) => {
     const updated = addedCategories.filter(c => c !== category);
     setAddedCategories(updated);
-    // Persist to AsyncStorage
-    try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      await AsyncStorage.setItem('addedCategories', JSON.stringify(updated));
-    } catch (error) {
-      console.error('Error saving added categories:', error);
-    }
+    await persistAddedCategories(updated);
   };
 
   // Get top 3 most liked posts of the day (only posts with entityId)
@@ -1832,8 +1865,11 @@ export default function HomeScreen() {
         })}
 
         {/* Customize Section */}
-        <View style={[styles.section, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Customize Your Home Screen</Text>
+        <View style={[styles.section, styles.customizeSection, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Customize your home</Text>
+          <Text style={[styles.customizeSubtitle, { color: theme.textSecondary }]}>
+            Tap to add categories above; tap again to remove.
+          </Text>
           <View style={styles.widgetIconsContainer}>
             {customizableCategories.map((category) => {
               const isAdded = addedCategories.includes(category);
@@ -1848,13 +1884,12 @@ export default function HomeScreen() {
                       handleAddCategory(category);
                     }
                   }}
-                  disabled={isAdded}
                 >
-                  <View style={[styles.widgetIcon, { borderColor: isAdded ? theme.textTertiary : theme.primary, opacity: isAdded ? 0.5 : 1 }]}>
+                  <View style={[styles.widgetIcon, { borderColor: isAdded ? theme.textTertiary : theme.primary, opacity: isAdded ? 0.6 : 1 }]}>
                     {renderCategoryIcon(category, isAdded ? theme.textTertiary : theme.primary)}
                   </View>
-                  <Text style={[styles.widgetLabel, { color: isAdded ? theme.textTertiary : theme.text }]}>
-                    {isAdded ? '✓ Added' : `+ ${category}`}
+                  <Text style={[styles.widgetLabel, { color: isAdded ? theme.textTertiary : theme.text }]} numberOfLines={2}>
+                    {isAdded ? '✓ Added' : category}
                   </Text>
                 </TouchableOpacity>
               );
@@ -2512,34 +2547,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  customizeSection: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  customizeSubtitle: {
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 4,
+  },
   widgetIconsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 16,
+    gap: 4,
   },
   widgetItem: {
     width: '23%',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   widgetIcon: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   widgetIconText: {
     fontSize: 14,
     fontWeight: '600',
   },
   widgetLabel: {
-    fontSize: 12,
-    marginTop: 8,
+    fontSize: 11,
+    marginTop: 4,
     textAlign: 'center',
   },
   trendingCard: {

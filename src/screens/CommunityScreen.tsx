@@ -564,19 +564,11 @@ export default function CommunityScreen() {
     );
   };
 
-  // Get recommended groups (groups user is not a member of)
+  // Recommended groups: groups user is not a member of (real data only, no mock names)
   const recommendedGroups = useMemo(() => {
-    const recommendedNames = ['Brown University', 'Top NYC Traders', 'Influencer Focused'];
-    const recommendedMemberCounts = [714, undefined, undefined] as const;
-
     return groups
       .filter(group => !group.isMember)
-      .slice(0, recommendedNames.length)
-      .map((group, index) => ({
-        ...group,
-        name: recommendedNames[index] ?? group.name,
-        memberCount: recommendedMemberCounts[index] ?? group.memberCount,
-      }));
+      .slice(0, 10);
   }, [groups]);
 
   // Generate color based on category for visual consistency

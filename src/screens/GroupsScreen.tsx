@@ -51,6 +51,7 @@ function GroupsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { 
     groups, 
+    myGroups,
     isLoadingGroups, 
     refreshGroups, 
     refreshUserGroups,
@@ -440,6 +441,48 @@ function GroupsScreen() {
     </Modal>
   );
 
+  const renderMyGroupsSection = () => {
+    if (!myGroups.length) return null;
+    return (
+      <View style={[styles.recommendedSection, { borderBottomColor: theme.border }]}>
+        <View style={styles.recommendedHeader}>
+          <Text style={[styles.recommendedTitle, { color: theme.text }]}>My Groups</Text>
+        </View>
+        {myGroups.map((group, index) => (
+          <TouchableOpacity
+            key={group.id ?? group.groupId ?? `my-${index}`}
+            style={[styles.groupCard, { backgroundColor: theme.card, marginHorizontal: 16, marginBottom: 8 }]}
+            onPress={() => navigation.navigate('GroupDetail', { groupId: group.id ?? group.groupId })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.groupHeader}>
+              {group.coverImage ? (
+                <Image source={{ uri: group.coverImage }} style={styles.groupIcon} />
+              ) : (
+                <View style={[styles.groupIcon, { backgroundColor: theme.primaryLight }]}>
+                  <Ionicons name="people" size={32} color={theme.primary} />
+                </View>
+              )}
+              <View style={styles.groupInfo}>
+                <View style={styles.groupTitleRow}>
+                  <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
+                  {group.isPrivate && (
+                    <Ionicons name="lock-closed" size={14} color={theme.textSecondary} />
+                  )}
+                </View>
+                <Text style={[styles.groupCategory, { color: theme.primary }]}>{group.category}</Text>
+                <Text style={[styles.groupMembers, { color: theme.textSecondary }]}>
+                  {group.memberCount.toLocaleString()} members
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   const renderRecommendedSlider = () => {
     if (recommendedGroups.length === 0) return null;
     
@@ -582,6 +625,7 @@ function GroupsScreen() {
             {renderHeader()}
             {renderSearchBar()}
             {renderFilters()}
+            {renderMyGroupsSection()}
             {!searchQuery.trim() && selectedCountry === 'Worldwide' && privacyFilter === 'all' && recommendedGroups.length > 0 && renderRecommendedSlider()}
           </View>
         }

@@ -8,6 +8,7 @@ import {
   getDiscoverEntities,
   getForYouEntities,
   getCategoryVolumes,
+  getMatchups,
 } from '../services/categoryService';
 import { getCategoryPosts } from '../services/socialService';
 
@@ -135,6 +136,21 @@ export async function getCategoryVolumesHandler(event: APIGatewayProxyEvent): Pr
   } catch (error: any) {
     logger.error('Error in getCategoryVolumesHandler', error);
     return createErrorResponse(500, error.message || 'Failed to get category volumes');
+  }
+}
+
+export async function getMatchupsHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const categoryId = event.queryStringParameters?.category;
+    const matchups = await getMatchups(categoryId);
+
+    return createResponse(200, {
+      success: true,
+      matchups,
+    });
+  } catch (error: any) {
+    logger.error('Error in getMatchupsHandler', error);
+    return createErrorResponse(500, error.message || 'Failed to get matchups');
   }
 }
 

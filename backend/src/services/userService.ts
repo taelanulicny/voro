@@ -67,6 +67,15 @@ export async function updateUserProfile(
       if (trimmed.length < 3) {
         return { success: false, error: 'Username must be at least 3 characters' };
       }
+      // Reserved words (cannot be used as username)
+      const RESERVED = new Set(['admin', 'support', 'moderator', 'moro', 'official', 'null', 'undefined']);
+      if (RESERVED.has(trimmed)) {
+        return { success: false, error: 'This username is not available' };
+      }
+      const existing = await getUserByUsername(trimmed);
+      if (existing && existing.userId !== userId) {
+        return { success: false, error: 'Username is already taken' };
+      }
       updateExpressions.push('username = :username');
       expressionAttributeValues[':username'] = trimmed;
     }
@@ -170,6 +179,9 @@ export async function updateUserPreferences(
       showTradePreview?: boolean;
       enableSlippageWarning?: boolean;
     };
+    homeLayout?: {
+      addedCategories?: string[];
+    };
   }
 ): Promise<{ success: boolean; user?: User; error?: string }> {
   try {
@@ -205,6 +217,13 @@ export async function updateUserPreferences(
       const mergedTrading = { ...currentTrading, ...preferences.tradingPreferences };
       updateExpressions.push('tradingPreferences = :tradingPreferences');
       expressionAttributeValues[':tradingPreferences'] = mergedTrading;
+    }
+
+    if (preferences.homeLayout) {
+      const currentHome = currentUser.homeLayout || {};
+      const mergedHome = { ...currentHome, ...preferences.homeLayout };
+      updateExpressions.push('homeLayout = :homeLayout');
+      expressionAttributeValues[':homeLayout'] = mergedHome;
     }
 
     if (updateExpressions.length === 0) {

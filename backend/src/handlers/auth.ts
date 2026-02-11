@@ -110,6 +110,8 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
       avatarUrl = presignedUrl || avatarUrl; // Fallback to key if generation fails
     }
 
+    const needsCompleteAccount = !!(user.appleId && !user.hasPassword);
+
     return createResponse(200, {
       success: true,
       data: {
@@ -126,6 +128,8 @@ export async function getMe(event: APIGatewayProxyEvent): Promise<APIGatewayProx
         privacySettings: user.privacySettings,
         notificationSettings: user.notificationSettings,
         tradingPreferences: user.tradingPreferences,
+        homeLayout: user.homeLayout,
+        needsCompleteAccount,
       },
     });
   } catch (error: any) {
@@ -142,6 +146,14 @@ export async function changePassword(event: APIGatewayProxyEvent): Promise<APIGa
     }
 
     const userId = auth.event.userId!;
+    const user = await getUserById(userId);
+    if (!user) {
+      return createErrorResponse(404, 'User not found');
+    }
+    if (user.appleId && !user.hasPassword) {
+      return createErrorResponse(400, 'Set a password first. Complete your account with an email and password before you can change it.');
+    }
+
     const body = JSON.parse(event.body || '{}');
     const { currentPassword, newPassword } = body;
 
@@ -162,7 +174,6 @@ export async function changePassword(event: APIGatewayProxyEvent): Promise<APIGa
       return createErrorResponse(400, 'Password must contain uppercase, lowercase, and numbers');
     }
 
-    // Import the changePassword service function
     const { changePassword: changePasswordService } = await import('../services/authService');
     const result = await changePasswordService(userId, currentPassword, newPassword);
 
@@ -177,6 +188,30 @@ export async function changePassword(event: APIGatewayProxyEvent): Promise<APIGa
   } catch (error: any) {
     logger.error('Error in changePassword handler', error);
     return createErrorResponse(500, 'Internal server error', error);
+  }
+}
+
+export async function setPassword(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  try {
+    const auth = await authenticateRequest(event);
+    if (!auth.authenticated || !auth.event) {
+      return createErrorResponse(401, 'Unauthorized');
+    }
+    const userId = auth.event.userId!;
+    const body = JSON.parse(event.body || '{}');
+    const { email, newPassword } = body;
+    if (!email || !newPassword) {
+      return createErrorResponse(400, 'Missing required fields: email, newPassword');
+    }
+    const { setPassword: setPasswordService } = await import('../services/authService');
+    const result = await setPasswordService(userId, email, newPassword);
+    if (!result.success) {
+      return createErrorResponse(400, result.error || 'Failed to set password');
+    }
+    return createResponse(200, { success: true, message: 'Password set. You can now change it from Security settings.' });
+  } catch (error: any) {
+    logger.error('Error in setPassword handler', error);
+    return createErrorResponse(500, 'Internal server error');
   }
 }
 

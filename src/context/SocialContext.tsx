@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Post, Comment, Group, GroupMessage, Activity, User } from '../types';
 import { useAuth } from './AuthContext';
-import { authenticatedRequest, isBackendConfigured } from '../config/api';
+import { authenticatedRequest, isBackendConfigured, invalidateCache } from '../config/api';
 
 interface SocialContextType {
   // Posts state
@@ -311,16 +311,17 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data) {
         setActivityFeed(prev =>
           prev.map(post =>
-      post.id === postId 
+            post.id === postId
               ? {
                   ...post,
                   isLiked: response.data!.isLiked,
                   likes: response.data!.isLiked ? post.likes + 1 : post.likes - 1,
                 }
-        : post
+              : post
           )
         );
-    return { success: true };
+        invalidateCache('social/feed');
+        return { success: true };
       }
 
       return { success: false };
@@ -621,8 +622,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       );
 
       if (response.success && response.data) {
-      const responseData = response.data as any; // Backend may return commentId instead of id
-      const newComment: Comment = {
+        const responseData = response.data as any;
+        const newComment: Comment = {
           id: responseData.commentId || responseData.id,
           postId: responseData.postId,
           userId: responseData.userId,
@@ -631,27 +632,26 @@ export function SocialProvider({ children }: { children: ReactNode }) {
           avatarUrl: responseData.avatarUrl,
           content: responseData.content,
           likes: responseData.likes || 0,
-      isLiked: false,
+          isLiked: false,
           timestamp: responseData.timestamp,
-    };
-    
-    setPostComments(prev => ({
-      ...prev,
-      [postId]: [...(prev[postId] || []), newComment],
-    }));
-    
+        };
+
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), newComment],
+        }));
         setActivityFeed(prev =>
           prev.map(post => (post.id === postId ? { ...post, comments: post.comments + 1 } : post))
         );
-    
-    return { success: true, comment: newComment };
+        getComments(postId);
+        return { success: true, comment: newComment };
       }
 
       return { success: false };
     } catch (error) {
       return { success: false };
     }
-  }, [token, user]);
+  }, [token, user, getComments]);
 
   const toggleLikeComment = useCallback(async (postId: string, commentId: string) => {
     if (!token) {

@@ -481,13 +481,18 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, isAuthenticated, debouncedPriceUpdate]);
 
-  // Load portfolio and transactions on mount and when auth changes
+  // Load portfolio and transactions on mount; clear trading state on logout so next user doesn't see previous user's data
   useEffect(() => {
     if (isAuthenticated && token) {
-      // Wrap in try-catch to prevent app crashes
       fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
       fetchTransactions().catch(err => console.error('Error fetching transactions:', err));
       fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
+    } else {
+      setHoldings([]);
+      setTransactions([]);
+      setCashBalance(0);
+      setTodayChange(0);
+      setTodayChangePercent(0);
     }
   }, [isAuthenticated, token, fetchPortfolio, fetchTransactions, fetchEntityPrices]);
 
@@ -1035,6 +1040,25 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       // Try to execute trade on backend if available
       if (token && isBackendConfigured()) {
         try {
+          // Backend is authoritative: fetch latest portfolio so we send correct quantity (avoids "insufficient holdings")
+          let backendHolding = holdings.find(h => h.entityId === entityId);
+          if (!backendHolding?.quantity) {
+            const portfolioRes = await authenticatedRequest<{ holdings: Holding[] }>('/api/portfolio', token, { method: 'GET' });
+            const freshHoldings = portfolioRes.data?.holdings ?? [];
+            backendHolding = freshHoldings.find((h: Holding) => h.entityId === entityId);
+          }
+          const sellQuantity = backendHolding?.quantity != null && backendHolding.quantity > 0
+            ? (tokensToClose >= totalPositionTokens ? backendHolding.quantity : Math.max(0, Math.round((tokensToClose / totalPositionTokens) * backendHolding.quantity * 10000) / 10000))
+            : undefined;
+          const body: Record<string, unknown> = {
+            entityId,
+            type: 'close',
+            direction,
+            tokensCommitted: tokensToClose,
+          };
+          if (sellQuantity != null && sellQuantity > 0) {
+            body.quantity = sellQuantity;
+          }
           const response = await authenticatedRequest<{
             cashBalance: number;
             holdings: Holding[];
@@ -1043,12 +1067,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             todayChangePercent: number;
           }>('/api/trade/execute', token, {
             method: 'POST',
-            body: JSON.stringify({
-              entityId,
-              type: 'close',
-              direction,
-              tokensCommitted: tokensToClose,
-            }),
+            body: JSON.stringify(body),
           });
 
           if (response.success && response.data) {
@@ -1074,7 +1093,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
 
       return true;
     }
-  }, [token, fetchTransactions]);
+  }, [token, fetchTransactions, holdings]);
 
   // Store executeTradeInternal in ref so processTradeQueue can access it
   useEffect(() => {

@@ -31,7 +31,7 @@ import TradeModal from '../components/TradeModal';
 import NewsCard from '../components/NewsCard';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
-import { authenticatedRequest } from '../config/api';
+import { authenticatedRequest, apiRequest, isBackendConfigured } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 
 type EntityScreenRouteProp = RouteProp<RootStackParamList, 'Entity'>;
@@ -233,6 +233,7 @@ export default function EntityScreen() {
   const [chartUpdateKey, setChartUpdateKey] = useState(0); // Force chart re-render
   const [selectedTab, setSelectedTab] = useState<'chart' | 'about' | 'feed' | 'news'>('chart');
   const [refreshing, setRefreshing] = useState(false);
+  const [liveMatchups, setLiveMatchups] = useState<Array<{ teamId: number; teamName: string; opponentId: number; opponentName: string; teamScore: number; opponentScore: number; quarter: string; time: string; status: string; isAway: boolean; sportCategory: string }>>([]);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Get all prices to trigger re-renders when prices update (for open P&L updates)
@@ -279,6 +280,41 @@ export default function EntityScreen() {
     }, 100);
     return () => clearTimeout(timer);
   }, [entityId, token]);
+
+  // Fetch live matchups from backend for NFL/NBA so entity can show current game
+  useEffect(() => {
+    if (!isBackendConfigured() || (categoryId !== 'NFL Teams' && categoryId !== 'NBA Teams')) {
+      setLiveMatchups([]);
+      return;
+    }
+    const fetchMatchups = async () => {
+      try {
+        const res = await apiRequest<{ matchups?: Array<{ teamId: number; teamName: string; opponentId: number; opponentName: string; teamScore: number; opponentScore: number; quarter: string; time: string; status: string; isAway: boolean; categoryId: string }> }>(
+          `/api/categories/matchups?category=${encodeURIComponent(categoryId)}`,
+          { method: 'GET' }
+        );
+        const list = res.success && res.data?.matchups ? res.data.matchups : [];
+        setLiveMatchups(list.map((m: any) => ({
+          teamId: m.teamId,
+          teamName: m.teamName,
+          opponentId: m.opponentId,
+          opponentName: m.opponentName,
+          teamScore: m.teamScore ?? 0,
+          opponentScore: m.opponentScore ?? 0,
+          quarter: m.quarter ?? '',
+          time: m.time ?? '',
+          status: m.status ?? 'LIVE',
+          isAway: m.isAway ?? true,
+          sportCategory: m.categoryId || categoryId,
+        })));
+      } catch {
+        setLiveMatchups([]);
+      }
+    };
+    fetchMatchups();
+    const interval = setInterval(fetchMatchups, 60000);
+    return () => clearInterval(interval);
+  }, [categoryId]);
   
   // Force re-render when prices update (to update open P&L in real-time)
   useEffect(() => {
@@ -350,96 +386,25 @@ export default function EntityScreen() {
     })
     .join(' ');
 
-  // Generate mock live game data for top 5 NFL and NBA teams
+  // Live game data from backend matchups (server-authoritative; no hardcoded matchups)
   const liveGameData = useMemo(() => {
-    if ((categoryId !== 'NFL Teams' && categoryId !== 'NBA Teams') || !entity || !entityData?.entity) return null;
-    
-    if (categoryId === 'NFL Teams') {
-      // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
-      const top5TeamIds = [100, 114, 116, 127, 101];
-      
-      // Check if current entity is in top 5
-      if (!top5TeamIds.includes(entityId)) return null;
-      
-      // Get all top 5 teams with their info
-      const top5Teams = [
-        { id: 100, name: 'Kansas City Chiefs' },
-        { id: 114, name: 'Dallas Cowboys' },
-        { id: 116, name: 'Philadelphia Eagles' },
-        { id: 127, name: 'San Francisco 49ers' },
-        { id: 101, name: 'Buffalo Bills' },
-      ];
-      
-      // Create matchups for each top 5 team
-      const matchups: Record<number, { opponent: typeof top5Teams[0], teamScore: number, opponentScore: number, quarter: string, time: string, status: string, isAway: boolean }> = {
-        100: { opponent: top5Teams[4], teamScore: 24, opponentScore: 21, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: true }, // Chiefs at Bills
-        114: { opponent: top5Teams[3], teamScore: 31, opponentScore: 28, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: true }, // Cowboys at 49ers
-        116: { opponent: top5Teams[0], teamScore: 17, opponentScore: 14, quarter: 'Q2', time: '5:32', status: 'LIVE', isAway: true }, // Eagles at Chiefs
-        127: { opponent: top5Teams[1], teamScore: 28, opponentScore: 31, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: false }, // 49ers vs Cowboys (home)
-        101: { opponent: top5Teams[0], teamScore: 21, opponentScore: 24, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: false }, // Bills vs Chiefs (home)
-      };
-      
-      const game = matchups[entityId];
-      if (!game) return null;
-      
-      return {
-        teamName: entity?.name || '',
-        teamId: entityId,
-        teamScore: game.teamScore,
-        opponentName: game.opponent.name,
-        opponentId: game.opponent.id,
-        opponentScore: game.opponentScore,
-        quarter: game.quarter,
-        time: game.time,
-        status: game.status,
-        isAway: game.isAway,
-        sportCategory: 'NFL Teams',
-      };
-    } else if (categoryId === 'NBA Teams') {
-      // Top 5 NBA teams by basePrice: Celtics (200), Bucks (201), Nuggets (202), Suns (203), Lakers (204)
-      const top5TeamIds = [200, 201, 202, 203, 204];
-      
-      // Check if current entity is in top 5
-      if (!top5TeamIds.includes(entityId)) return null;
-      
-      // Get all top 5 teams with their info
-      const top5Teams = [
-        { id: 200, name: 'Boston Celtics' },
-        { id: 201, name: 'Milwaukee Bucks' },
-        { id: 202, name: 'Denver Nuggets' },
-        { id: 203, name: 'Phoenix Suns' },
-        { id: 204, name: 'Los Angeles Lakers' },
-      ];
-      
-      // Create matchups for each top 5 team (matching CategoryScreen)
-      const matchups: Record<number, { opponent: typeof top5Teams[0], teamScore: number, opponentScore: number, quarter: string, time: string, status: string, isAway: boolean }> = {
-        200: { opponent: top5Teams[4], teamScore: 112, opponentScore: 108, quarter: 'Q4', time: '3:24', status: 'LIVE', isAway: true }, // Celtics at Lakers
-        201: { opponent: top5Teams[2], teamScore: 98, opponentScore: 105, quarter: 'Q3', time: '7:15', status: 'LIVE', isAway: true }, // Bucks at Nuggets
-        202: { opponent: top5Teams[3], teamScore: 124, opponentScore: 118, quarter: 'Q4', time: '2:18', status: 'LIVE', isAway: false }, // Nuggets vs Suns (home)
-        203: { opponent: top5Teams[0], teamScore: 119, opponentScore: 115, quarter: 'Q4', time: '1:42', status: 'LIVE', isAway: true }, // Suns at Celtics
-        204: { opponent: top5Teams[1], teamScore: 102, opponentScore: 109, quarter: 'Q3', time: '5:33', status: 'LIVE', isAway: false }, // Lakers vs Bucks (home)
-      };
-      
-      const game = matchups[entityId];
-      if (!game) return null;
-      
-      return {
-        teamName: entity?.name || '',
-        teamId: entityId,
-        teamScore: game.teamScore,
-        opponentName: game.opponent.name,
-        opponentId: game.opponent.id,
-        opponentScore: game.opponentScore,
-        quarter: game.quarter,
-        time: game.time,
-        status: game.status,
-        isAway: game.isAway,
-        sportCategory: 'NBA Teams',
-      };
-    }
-    
-    return null;
-  }, [entityId, categoryId, entity]);
+    if ((categoryId !== 'NFL Teams' && categoryId !== 'NBA Teams') || !entity) return null;
+    const m = liveMatchups.find(g => g.teamId === entityId);
+    if (!m) return null;
+    return {
+      teamName: m.teamName || entity?.name || '',
+      teamId: m.teamId,
+      teamScore: m.teamScore,
+      opponentName: m.opponentName,
+      opponentId: m.opponentId,
+      opponentScore: m.opponentScore,
+      quarter: m.quarter,
+      time: m.time,
+      status: m.status,
+      isAway: m.isAway,
+      sportCategory: m.sportCategory || categoryId,
+    };
+  }, [entityId, categoryId, entity, liveMatchups]);
 
   // Helper function to convert team name to camelCase format for @tag
   const formatTeamTag = (teamName: string): string => {

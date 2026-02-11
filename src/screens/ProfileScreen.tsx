@@ -11,18 +11,23 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { useSocial } from '../context/SocialContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTrading } from '../context/TradingContext';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, MainTabParamList } from '../types';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
 import { formatCurrency } from '../utils/dataGenerator';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RootStackParamList>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -193,10 +198,13 @@ export default function ProfileScreen() {
           <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Following</Text>
         </TouchableOpacity>
         <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() => navigation.navigate('Groups')}
+        >
           <Text style={[styles.statValue, { color: theme.text }]}>{groupsCount}</Text>
           <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Groups</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );

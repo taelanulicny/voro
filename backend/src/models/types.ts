@@ -37,9 +37,15 @@ export interface User {
     showTradePreview?: boolean;
     enableSlippageWarning?: boolean;
   };
+  homeLayout?: {
+    addedCategories?: string[];
+  };
   // OAuth provider IDs
   googleId?: string;
   appleId?: string;
+  // Apple-only: set when user completes account with email + password (so they can change password later)
+  hasPassword?: boolean;
+  passwordHash?: string;
   // Email change fields
   pendingEmail?: string;
   emailVerificationToken?: string;

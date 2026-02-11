@@ -34,6 +34,21 @@ export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promis
       return createErrorResponse(404, 'User not found');
     }
 
+    // Privacy: if profile is private, only allow self or followers to see it
+    const isPrivate = user.privacySettings?.profileVisibility === 'private';
+    if (isPrivate) {
+      const auth = await authenticateRequest(event);
+      const requesterId = auth.authenticated && auth.event ? auth.event.userId : null;
+      const isSelf = requesterId === user.userId;
+      if (!isSelf) {
+        const { isFollowingUser } = await import('../services/socialService');
+        const allowed = requesterId && (await isFollowingUser(requesterId, user.userId));
+        if (!allowed) {
+          return createErrorResponse(404, 'User not found');
+        }
+      }
+    }
+
     // Generate presigned URL for avatar (avatars are private, accessed via presigned URLs)
     let avatarUrl = user.avatarUrl;
     if (avatarUrl && !avatarUrl.startsWith('http')) {
@@ -160,12 +175,13 @@ export async function updatePreferencesHandler(event: APIGatewayProxyEvent): Pro
     const userId = auth.event.userId!;
     const body = JSON.parse(event.body || '{}');
 
-    const { privacySettings, notificationSettings, tradingPreferences } = body;
+    const { privacySettings, notificationSettings, tradingPreferences, homeLayout } = body;
 
     const result = await updateUserPreferences(userId, {
       privacySettings,
       notificationSettings,
       tradingPreferences,
+      homeLayout,
     });
 
     if (!result.success) {

@@ -17,7 +17,7 @@ import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
 export default function SecurityScreen({ navigation }: any) {
   const { theme } = useTheme();
-  const { user, token } = useAuth();
+  const { user, token, needsCompleteAccount, refreshUser } = useAuth();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -26,6 +26,12 @@ export default function SecurityScreen({ navigation }: any) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const [completeEmail, setCompleteEmail] = useState(user?.email || '');
+  const [completePassword, setCompletePassword] = useState('');
+  const [completeConfirm, setCompleteConfirm] = useState('');
+  const [showCompletePassword, setShowCompletePassword] = useState(false);
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
 
   const dynamicStyles = {
     container: {
@@ -90,6 +96,56 @@ export default function SecurityScreen({ navigation }: any) {
     const hasNumber = /[0-9]/.test(password);
 
     return minLength && hasUpperCase && hasLowerCase && hasNumber;
+  };
+
+  const handleSetPassword = async () => {
+    if (!completeEmail.trim()) {
+      Alert.alert('Error', 'Please enter your email');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(completeEmail.trim())) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+    if (!completePassword || completePassword.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return;
+    }
+    if (completePassword !== completeConfirm) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (!validatePassword(completePassword)) {
+      Alert.alert('Invalid Password', 'Password must contain uppercase, lowercase, and numbers');
+      return;
+    }
+    if (!isBackendConfigured() || !token) {
+      Alert.alert('Error', 'Backend required to set password');
+      return;
+    }
+    setIsSettingPassword(true);
+    try {
+      const response = await authenticatedRequest('/api/auth/set-password', token, {
+        method: 'POST',
+        body: JSON.stringify({ email: completeEmail.trim(), newPassword: completePassword }),
+      });
+      if (response.success) {
+        Alert.alert('Success', 'Password set. You can now change it from this screen.', [
+          { text: 'OK', onPress: async () => {
+            setCompletePassword('');
+            setCompleteConfirm('');
+            await refreshUser();
+          } },
+        ]);
+      } else {
+        Alert.alert('Error', response.error || 'Failed to set password');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to set password');
+    } finally {
+      setIsSettingPassword(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -177,7 +233,70 @@ export default function SecurityScreen({ navigation }: any) {
       </View>
 
       <ScrollView style={dynamicStyles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Change Password Section */}
+        {/* Complete account (Apple-only: add email + set password before they can change password) */}
+        {needsCompleteAccount && (
+          <View style={dynamicStyles.section}>
+            <Text style={dynamicStyles.sectionTitle}>COMPLETE YOUR ACCOUNT</Text>
+            <Text style={[dynamicStyles.helpText, { marginBottom: 12 }]}>
+              Add an email and set a password so you can sign in with email or change your password later.
+            </Text>
+            <View style={styles.inputGroup}>
+              <Text style={dynamicStyles.label}>Email</Text>
+              <View style={dynamicStyles.inputContainer}>
+                <TextInput
+                  style={dynamicStyles.input}
+                  value={completeEmail}
+                  onChangeText={setCompleteEmail}
+                  placeholder="your@email.com"
+                  placeholderTextColor={theme.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={dynamicStyles.label}>Password</Text>
+              <View style={dynamicStyles.inputContainer}>
+                <TextInput
+                  style={dynamicStyles.input}
+                  value={completePassword}
+                  onChangeText={setCompletePassword}
+                  placeholder="At least 8 characters, upper, lower, number"
+                  placeholderTextColor={theme.textTertiary}
+                  secureTextEntry={!showCompletePassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowCompletePassword(!showCompletePassword)} style={styles.eyeIcon}>
+                  <Ionicons name={showCompletePassword ? 'eye-outline' : 'eye-off-outline'} size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={dynamicStyles.label}>Confirm Password</Text>
+              <View style={dynamicStyles.inputContainer}>
+                <TextInput
+                  style={dynamicStyles.input}
+                  value={completeConfirm}
+                  onChangeText={setCompleteConfirm}
+                  placeholder="Confirm password"
+                  placeholderTextColor={theme.textTertiary}
+                  secureTextEntry={!showCompletePassword}
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+            <TouchableOpacity
+              style={completeEmail.trim() && completePassword && completeConfirm && !isSettingPassword ? dynamicStyles.saveButton : dynamicStyles.saveButtonDisabled}
+              onPress={handleSetPassword}
+              disabled={!completeEmail.trim() || !completePassword || !completeConfirm || isSettingPassword}
+            >
+              {isSettingPassword ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>Set Password</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Change Password Section (hidden or disabled until account complete for Apple-only) */}
+        {!needsCompleteAccount && (
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>CHANGE PASSWORD</Text>
 
@@ -278,6 +397,7 @@ export default function SecurityScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
         </View>
+        )}
 
         {/* Security Tips */}
         <View style={[dynamicStyles.section, { marginTop: 24 }]}>

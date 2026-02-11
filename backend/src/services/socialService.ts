@@ -118,7 +118,28 @@ export async function getFeed(
       })
     );
 
-    const posts = (scanResult.Items || []) as Post[];
+    let posts = (scanResult.Items || []) as Post[];
+
+    // Privacy: exclude posts from private users unless viewer is author or follows author
+    const authorIds = [...new Set(posts.map(p => p.userId))];
+    const authorUsers: Record<string, User> = {};
+    for (const uid of authorIds) {
+      const u = await docClient.send(new GetCommand({ TableName: TABLE_NAMES.USERS, Key: { userId: uid } }));
+      if (u.Item) authorUsers[uid] = u.Item as User;
+    }
+    const privateAuthorIds = new Set(
+      authorIds.filter(uid => authorUsers[uid]?.privacySettings?.profileVisibility === 'private')
+    );
+    if (privateAuthorIds.size > 0) {
+      const followingSet = new Set<string>();
+      for (const uid of privateAuthorIds) {
+        const following = await isFollowingUser(userId, uid);
+        if (following) followingSet.add(uid);
+      }
+      posts = posts.filter(
+        p => p.userId === userId || !privateAuthorIds.has(p.userId) || followingSet.has(p.userId)
+      );
+    }
 
     // Sort by timestamp descending (in-memory sort of the scanned batch)
     posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -452,6 +473,24 @@ export async function editComment(
   } catch (error: any) {
     console.error('Error editing comment:', error);
     return { success: false, error: error.message || 'Failed to edit comment' };
+  }
+}
+
+/**
+ * Check if viewer follows target user (for privacy: private profiles visible to followers)
+ */
+export async function isFollowingUser(viewerId: string, targetUserId: string): Promise<boolean> {
+  if (viewerId === targetUserId) return true;
+  try {
+    const result = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAMES.FOLLOWS,
+        Key: { userId: viewerId, followingUserId: targetUserId },
+      })
+    );
+    return !!result.Item;
+  } catch (e) {
+    return false;
   }
 }
 

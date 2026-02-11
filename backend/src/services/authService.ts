@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {
   CognitoIdentityProviderClient,
   SignUpCommand,
@@ -14,6 +15,23 @@ import { docClient, TABLE_NAMES } from '../utils/dynamodb';
 import { PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { User } from '../models/types';
 import { logger } from '../utils/logger';
+
+const PBKDF2_ITERATIONS = 100000;
+const SALT_LEN = 16;
+const KEY_LEN = 64;
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(SALT_LEN).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_LEN, 'sha256').toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hash] = stored.split(':');
+  if (!salt || !hash) return false;
+  const computed = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_LEN, 'sha256').toString('hex');
+  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(computed, 'hex'));
+}
 
 const cognitoClient = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -229,7 +247,55 @@ export async function getUserById(userId: string): Promise<User | null> {
 }
 
 /**
- * Change user password using Cognito
+ * Set password for Apple-only users (complete account). Stores hash in DynamoDB.
+ */
+export async function setPassword(
+  userId: string,
+  email: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await getUserById(userId);
+    if (!user) return { success: false, error: 'User not found' };
+    if (!user.appleId) return { success: false, error: 'Only Apple sign-in accounts can set a password here' };
+    if (user.hasPassword) return { success: false, error: 'Password already set. Use Change password instead.' };
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) return { success: false, error: 'Invalid email format' };
+    if (newPassword.length < 8) return { success: false, error: 'Password must be at least 8 characters' };
+    const hasUpperCase = /[A-Z]/.test(newPassword);
+    const hasLowerCase = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
+      return { success: false, error: 'Password must contain uppercase, lowercase, and numbers' };
+    }
+
+    const passwordHash = hashPassword(newPassword);
+    const now = new Date().toISOString();
+    await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAMES.USERS,
+        Key: { userId },
+        UpdateExpression: 'SET passwordHash = :ph, hasPassword = :hp, email = :email, updatedAt = :ua',
+        ExpressionAttributeValues: {
+          ':ph': passwordHash,
+          ':hp': true,
+          ':email': normalizedEmail,
+          ':ua': now,
+        },
+      })
+    );
+    logger.info('Password set for Apple user', { userId });
+    return { success: true };
+  } catch (error: any) {
+    logger.error('Error setting password', { error, userId });
+    return { success: false, error: error.message || 'Failed to set password' };
+  }
+}
+
+/**
+ * Change user password. Supports (1) Cognito users, (2) Apple users who have set a password (hash in DynamoDB).
  */
 export async function changePassword(
   userId: string,
@@ -237,13 +303,35 @@ export async function changePassword(
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Get user to find their username
     const user = await getUserById(userId);
-    if (!user) {
-      return { success: false, error: 'User not found' };
+    if (!user) return { success: false, error: 'User not found' };
+
+    if (user.appleId && user.hasPassword && user.passwordHash) {
+      if (!verifyPassword(currentPassword, user.passwordHash)) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+      if (newPassword.length < 8) return { success: false, error: 'New password must be at least 8 characters' };
+      const hasUpperCase = /[A-Z]/.test(newPassword);
+      const hasLowerCase = /[a-z]/.test(newPassword);
+      const hasNumber = /[0-9]/.test(newPassword);
+      if (!hasUpperCase || !hasLowerCase || !hasNumber) {
+        return { success: false, error: 'New password must contain uppercase, lowercase, and numbers' };
+      }
+      const passwordHash = hashPassword(newPassword);
+      const now = new Date().toISOString();
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId },
+          UpdateExpression: 'SET passwordHash = :ph, updatedAt = :ua',
+          ExpressionAttributeValues: { ':ph': passwordHash, ':ua': now },
+        })
+      );
+      logger.info('Password changed (Apple user)', { userId });
+      return { success: true };
     }
 
-    // First, authenticate to get access token
+    // Cognito flow
     const authCommand = new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: CLIENT_ID,
@@ -267,7 +355,6 @@ export async function changePassword(
       throw authError;
     }
 
-    // Now change the password using the access token
     const changePasswordCommand = new ChangePasswordCommand({
       PreviousPassword: currentPassword,
       ProposedPassword: newPassword,
@@ -275,19 +362,16 @@ export async function changePassword(
     });
 
     await cognitoClient.send(changePasswordCommand);
-
     logger.info('Password changed successfully', { userId });
     return { success: true };
   } catch (error: any) {
     logger.error('Error changing password', { error, userId });
-
     if (error.name === 'InvalidPasswordException') {
       return { success: false, error: 'New password does not meet requirements' };
     }
     if (error.name === 'LimitExceededException') {
       return { success: false, error: 'Too many attempts. Please try again later' };
     }
-
     return { success: false, error: 'Failed to change password' };
   }
 }

@@ -21,7 +21,7 @@ import { useTheme } from '../context/ThemeContext';
 import { authenticatedRequest, isBackendConfigured } from '../config/api';
 
 export default function CompleteProfileModal() {
-  const { user, token, setProfileComplete, refreshUser } = useAuth();
+  const { user, token, setProfileComplete, refreshUser, updateUser } = useAuth();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState(user?.username?.replace(/\d+$/, '') || '');
@@ -113,6 +113,7 @@ export default function CompleteProfileModal() {
         }
       );
       if (updateRes.success) {
+        updateUser({ username: u, displayName: displayName.trim(), bio: bio.trim() || undefined, avatarUrl });
         await setProfileComplete();
         await refreshUser();
       } else {

@@ -29,6 +29,7 @@ import { useSocial } from '../context/SocialContext';
 import PostCard from '../components/PostCard';
 import CreatePostModal from '../components/CreatePostModal';
 import { BASE_PRICE } from '../utils/sentimentTrading';
+import { apiRequest, isBackendConfigured } from '../config/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type CategoryRouteProp = RouteProp<RootStackParamList, 'Category'>;
@@ -166,6 +167,19 @@ export default function CategoryScreen({ initialCategoryId }: CategoryScreenProp
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentGamePageIndex, setCurrentGamePageIndex] = useState(0);
   const gamesScrollRef = useRef<ScrollView>(null);
+  const [liveMatchups, setLiveMatchups] = useState<Array<{
+    teamName: string;
+    teamId: number;
+    teamScore: number;
+    opponentName: string;
+    opponentId: number;
+    opponentScore: number;
+    quarter: string;
+    time: string;
+    status: string;
+    isAway: boolean;
+    sportCategory: string;
+  }>>([]);
   const [shareOpinionModalVisible, setShareOpinionModalVisible] = useState(false);
   const [positionsModalVisible, setPositionsModalVisible] = useState(false);
 
@@ -538,7 +552,7 @@ export default function CategoryScreen({ initialCategoryId }: CategoryScreenProp
   };
 
   // Render a single live game module
-  const renderLiveGameModule = (game: typeof allLiveGames[0]) => {
+  const renderLiveGameModule = (game: typeof liveMatchups[0]) => {
     const awayTeamTag = `@${formatTeamTag(game.isAway ? game.teamName : game.opponentName)}`;
     const homeTeamTag = `@${formatTeamTag(game.isAway ? game.opponentName : game.teamName)}`;
     const fullTitle = `${awayTeamTag} at ${homeTeamTag}`;
@@ -650,6 +664,39 @@ export default function CategoryScreen({ initialCategoryId }: CategoryScreenProp
     return () => clearTimeout(timer);
   }, [categoryId]);
 
+  // Fetch live matchups from backend (near real-time; poll when category is NFL/NBA Teams)
+  useEffect(() => {
+    if (!isBackendConfigured() || (categoryId !== 'NFL Teams' && categoryId !== 'NBA Teams')) {
+      setLiveMatchups([]);
+      return;
+    }
+    const fetchMatchups = async () => {
+      try {
+        const url = `/api/categories/matchups?category=${encodeURIComponent(categoryId)}`;
+        const res = await apiRequest<{ matchups?: Array<{ categoryId: string; teamId: number; teamName: string; opponentId: number; opponentName: string; teamScore: number; opponentScore: number; quarter: string; time: string; status: string; isAway: boolean }> }>(url, { method: 'GET' });
+        const list = res.success && res.data?.matchups ? res.data.matchups : [];
+        setLiveMatchups(list.map((m: any) => ({
+          teamName: m.teamName,
+          teamId: m.teamId,
+          teamScore: m.teamScore ?? 0,
+          opponentName: m.opponentName,
+          opponentId: m.opponentId,
+          opponentScore: m.opponentScore ?? 0,
+          quarter: m.quarter ?? '',
+          time: m.time ?? '',
+          status: m.status ?? 'LIVE',
+          isAway: m.isAway ?? true,
+          sportCategory: m.categoryId || categoryId,
+        })));
+      } catch {
+        setLiveMatchups([]);
+      }
+    };
+    fetchMatchups();
+    const interval = setInterval(fetchMatchups, 60000);
+    return () => clearInterval(interval);
+  }, [categoryId]);
+
   const handleTabChange = (tab: 'entities' | 'about' | 'feed' | 'news') => {
     setSelectedTab(tab);
     const tabIndex = tab === 'entities' ? 0 : tab === 'about' ? 1 : tab === 'feed' ? 2 : 3;
@@ -693,77 +740,6 @@ export default function CategoryScreen({ initialCategoryId }: CategoryScreenProp
       categoryId: sportCategory,
     });
   };
-
-  // Generate all live game data for top 5 teams (NFL or NBA)
-  const allLiveGames = useMemo(() => {
-    if (categoryId === 'NFL Teams') {
-      // Top 5 NFL teams by basePrice: Chiefs (100), Cowboys (114), Eagles (116), 49ers (127), Bills (101)
-      const top5Teams = [
-        { id: 100, name: 'Kansas City Chiefs' },
-        { id: 114, name: 'Dallas Cowboys' },
-        { id: 116, name: 'Philadelphia Eagles' },
-        { id: 127, name: 'San Francisco 49ers' },
-        { id: 101, name: 'Buffalo Bills' },
-      ];
-      
-      // Create matchups for each top 5 team
-      const matchups = [
-        { team: top5Teams[0], opponent: top5Teams[4], teamScore: 24, opponentScore: 21, quarter: 'Q3', time: '8:45', status: 'LIVE', isAway: true }, // Chiefs at Bills
-        { team: top5Teams[1], opponent: top5Teams[3], teamScore: 31, opponentScore: 28, quarter: 'Q4', time: '2:15', status: 'LIVE', isAway: true }, // Cowboys at 49ers
-        { team: top5Teams[2], opponent: top5Teams[0], teamScore: 17, opponentScore: 14, quarter: 'Q2', time: '5:32', status: 'LIVE', isAway: true }, // Eagles at Chiefs
-      ];
-      
-      // Return all games
-      return matchups.map(game => ({
-        teamName: game.team.name,
-        teamId: game.team.id,
-        teamScore: game.teamScore,
-        opponentName: game.opponent.name,
-        opponentId: game.opponent.id,
-        opponentScore: game.opponentScore,
-        quarter: game.quarter,
-        time: game.time,
-        status: game.status,
-        isAway: game.isAway,
-        sportCategory: 'NFL Teams',
-      }));
-    } else if (categoryId === 'NBA Teams') {
-      // Top 5 NBA teams by basePrice: Celtics (200), Bucks (201), Nuggets (202), Suns (203), Lakers (204)
-      const top5Teams = [
-        { id: 200, name: 'Boston Celtics' },
-        { id: 201, name: 'Milwaukee Bucks' },
-        { id: 202, name: 'Denver Nuggets' },
-        { id: 203, name: 'Phoenix Suns' },
-        { id: 204, name: 'Los Angeles Lakers' },
-      ];
-      
-      // Create matchups with realistic NBA scores (typically 90-130 range)
-      const matchups = [
-        { team: top5Teams[0], opponent: top5Teams[4], teamScore: 112, opponentScore: 108, quarter: 'Q4', time: '3:24', status: 'LIVE', isAway: true }, // Celtics at Lakers
-        { team: top5Teams[1], opponent: top5Teams[2], teamScore: 98, opponentScore: 105, quarter: 'Q3', time: '7:15', status: 'LIVE', isAway: true }, // Bucks at Nuggets
-        { team: top5Teams[3], opponent: top5Teams[0], teamScore: 119, opponentScore: 115, quarter: 'Q4', time: '1:42', status: 'LIVE', isAway: true }, // Suns at Celtics
-        { team: top5Teams[4], opponent: top5Teams[1], teamScore: 102, opponentScore: 109, quarter: 'Q3', time: '5:33', status: 'LIVE', isAway: false }, // Lakers vs Bucks (home)
-        { team: top5Teams[2], opponent: top5Teams[3], teamScore: 124, opponentScore: 118, quarter: 'Q4', time: '2:18', status: 'LIVE', isAway: false }, // Nuggets vs Suns (home)
-      ];
-      
-      // Return all games
-      return matchups.map(game => ({
-        teamName: game.team.name,
-        teamId: game.team.id,
-        teamScore: game.teamScore,
-        opponentName: game.opponent.name,
-        opponentId: game.opponent.id,
-        opponentScore: game.opponentScore,
-        quarter: game.quarter,
-        time: game.time,
-        status: game.status,
-        isAway: game.isAway,
-        sportCategory: 'NBA Teams',
-      }));
-    }
-    
-    return [];
-  }, [categoryId]);
 
   const renderEntity = ({ item }: { item: typeof entities[0] }) => {
     // Get initials from name (first 2 letters)
@@ -989,7 +965,7 @@ export default function CategoryScreen({ initialCategoryId }: CategoryScreenProp
         {/* News Tab */}
         <View style={{ width: SCREEN_WIDTH }}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {(categoryId === 'NFL Teams' || categoryId === 'NBA Teams') && allLiveGames.length > 0 && (
+            {(categoryId === 'NFL Teams' || categoryId === 'NBA Teams') && liveMatchups.length > 0 && (
               <View>
                 {/* Swipeable Games Section */}
                 <View style={styles.gamesSwipeableContainer}>
@@ -1003,7 +979,7 @@ export default function CategoryScreen({ initialCategoryId }: CategoryScreenProp
                     style={styles.gamesScrollView}
                     contentContainerStyle={styles.gamesScrollContent}
                   >
-                    {allLiveGames.map((game, index) => (
+                    {liveMatchups.map((game, index) => (
                       <View key={`${game.teamId}-${game.opponentId}`} style={styles.gamePage}>
                         {renderLiveGameModule(game)}
                       </View>
@@ -1012,7 +988,7 @@ export default function CategoryScreen({ initialCategoryId }: CategoryScreenProp
                   
                   {/* Page Indicator Dots */}
                   <View style={styles.pageIndicatorContainer}>
-                    {allLiveGames.map((_, index) => (
+                    {liveMatchups.map((_, index) => (
                       <View
                         key={index}
                         style={[

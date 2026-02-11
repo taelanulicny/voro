@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { createResponse, createErrorResponse } from '../middleware/auth';
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
-import { PutCommand, GetCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { User } from '../models/types';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
@@ -186,8 +186,10 @@ async function findUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
- * Create or update user from OAuth
- * For Apple, email may be omitted on subsequent logins; use a placeholder when missing.
+ * Create or update user from OAuth.
+ * - Look up by provider ID first so returning users always sign into the same account.
+ * - For Apple: do NOT match by email (avoids duplicate accounts when relay/hidden email changes).
+ * - New Apple users get blank username/displayName so they must complete profile.
  */
 async function createOrUpdateOAuthUser(
   email: string | undefined,
@@ -197,18 +199,17 @@ async function createOrUpdateOAuthUser(
   avatarUrl?: string
 ): Promise<{ user: User; isNew: boolean }> {
   const resolvedEmail = email || (providerId ? `${providerId}@privaterelay.appleid.com` : '');
-  // Find existing user by provider ID first (so returning Apple/Google users sign into same account)
+  // Always find by provider ID first so one Apple/Google identity = one account
   let existingUser = await findUserByProviderId(providerId, provider);
-  if (!existingUser && resolvedEmail) {
+  // For Google only: fallback to email so legacy accounts still work. For Apple, never match by email (avoids duplicates).
+  if (!existingUser && provider === 'google' && resolvedEmail) {
     existingUser = await findUserByEmail(resolvedEmail);
   }
 
   if (existingUser) {
-    // Update the user with provider info if not already set
     const updateFields: Partial<User> = {
       updatedAt: new Date().toISOString(),
     };
-
     if (provider === 'google' && !existingUser.googleId) {
       updateFields.googleId = providerId;
     }
@@ -218,24 +219,49 @@ async function createOrUpdateOAuthUser(
     if (avatarUrl && !existingUser.avatarUrl) {
       updateFields.avatarUrl = avatarUrl;
     }
-
-    // Return existing user
+    if (Object.keys(updateFields).length > 1) {
+      const updates: string[] = ['updatedAt = :ua'];
+      const values: Record<string, any> = { ':ua': new Date().toISOString() };
+      if (updateFields.googleId) {
+        updates.push('googleId = :gid');
+        values[':gid'] = updateFields.googleId;
+      }
+      if (updateFields.appleId) {
+        updates.push('appleId = :aid');
+        values[':aid'] = updateFields.appleId;
+      }
+      if (updateFields.avatarUrl) {
+        updates.push('avatarUrl = :av');
+        values[':av'] = updateFields.avatarUrl;
+      }
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAMES.USERS,
+          Key: { userId: existingUser.userId },
+          UpdateExpression: `SET ${updates.join(', ')}`,
+          ExpressionAttributeValues: values,
+        })
+      );
+    }
     return { user: existingUser, isNew: false };
   }
 
-  // Create new user
+  // Create new user (idempotent: only one account per provider id)
   const userId = uuidv4();
   const now = new Date().toISOString();
-  
-  // Generate username from email or name
-  const baseUsername = resolvedEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-  const username = `${baseUsername}${Math.floor(Math.random() * 1000)}`;
+  // Apple: leave username and displayName blank so user must set them in onboarding
+  const isApple = provider === 'apple';
+  const username = isApple ? '' : (() => {
+    const base = resolvedEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'user';
+    return `${base}${Math.floor(Math.random() * 1000)}`;
+  })();
+  const displayName = isApple ? '' : (name || username);
 
   const newUser: User = {
     userId,
     email: resolvedEmail,
     username,
-    displayName: name || username,
+    displayName,
     avatarUrl,
     followersCount: 0,
     followingCount: 0,
