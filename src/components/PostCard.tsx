@@ -661,7 +661,7 @@ export default function PostCard({ post, onPress, isCategoryFeed = false, catego
               }}
             >
               <Text style={[styles.viewAllCommentsText, { color: theme.textSecondary }]}>
-                All Comments >
+                All Comments {'>'}
               </Text>
             </TouchableOpacity>
           )}

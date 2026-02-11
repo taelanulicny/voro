@@ -67,23 +67,40 @@ export function useDiscoverData() {
   /**
    * Compute Trending entities (highest volume)
    * Entities with the most trading activity
+   * Falls back to all entities sorted by name when no volume data exists
    */
   const trending = useMemo(() => {
-    return [...enrichedEntities]
-      .filter((entity) => entity.volume24h > 0) // Only entities with volume
+    const withVolume = [...enrichedEntities]
+      .filter((entity) => entity.volume24h > 0)
       .sort((a, b) => b.volume24h - a.volume24h)
-      .slice(0, 10); // Top 10 trending
+      .slice(0, 10);
+
+    // Fallback: show entities sorted alphabetically if no volume data
+    if (withVolume.length === 0) {
+      return [...enrichedEntities]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 10);
+    }
+    return withVolume;
   }, [enrichedEntities]);
 
   /**
    * Compute Biggest Movers (highest absolute price change %)
    * Entities with the most significant price movements
+   * Falls back to a subset of entities when no price movement has occurred
    */
   const movers = useMemo(() => {
-    return [...enrichedEntities]
-      .filter((entity) => entity.changePercent24h !== 0) // Only entities with price movement
+    const withMovement = [...enrichedEntities]
+      .filter((entity) => entity.changePercent24h !== 0)
       .sort((a, b) => Math.abs(b.changePercent24h) - Math.abs(a.changePercent24h))
-      .slice(0, 10); // Top 10 movers
+      .slice(0, 10);
+
+    if (withMovement.length === 0) {
+      return [...enrichedEntities]
+        .sort((a, b) => b.name.localeCompare(a.name))
+        .slice(0, 10);
+    }
+    return withMovement;
   }, [enrichedEntities]);
 
   /**

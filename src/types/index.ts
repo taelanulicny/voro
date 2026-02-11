@@ -25,8 +25,7 @@ export type RootStackParamList = {
   CreateAlert: { entityId: number; entityName: string; currentPrice: number; change24h: number; changePercent24h: number };
   CommentReplies: { postId: string; commentId: string; commentUsername: string; commentContent: string };
   AllComments: { postId: string; post: Post };
-  CastYourVote: undefined;
-  Simulator: undefined;
+Simulator: undefined;
   EditProfile: undefined;
   TradingPreferences: undefined;
   PrivacySettings: undefined;

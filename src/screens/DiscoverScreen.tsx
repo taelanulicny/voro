@@ -260,7 +260,7 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
+      style={[styles.container, { backgroundColor: theme.backgroundSecondary }]}
       edges={['top']}
     >
       {/* Header */}

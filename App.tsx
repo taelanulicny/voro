@@ -42,7 +42,7 @@ import TradeHistoryScreen from './src/screens/TradeHistoryScreen';
 import CreateAlertScreen from './src/screens/CreateAlertScreen';
 import CommentRepliesScreen from './src/screens/CommentRepliesScreen';
 import AllCommentsScreen from './src/screens/AllCommentsScreen';
-import CastYourVoteScreen from './src/screens/CastYourVoteScreen';
+
 import SimulatorScreen from './src/screens/SimulatorScreen';
 import SecurityScreen from './src/screens/SecurityScreen';
 import EmailScreen from './src/screens/EmailScreen';
@@ -243,15 +243,7 @@ function RootNavigator() {
               animation: 'slide_from_right',
             }}
           />
-          <Stack.Screen
-            name="CastYourVote"
-            component={CastYourVoteScreen}
-            options={{
-              presentation: 'card',
-              animation: 'slide_from_right',
-            }}
-          />
-          <Stack.Screen
+<Stack.Screen
             name="Simulator"
             component={SimulatorScreen}
             options={{

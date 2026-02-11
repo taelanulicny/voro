@@ -12,7 +12,7 @@ import { RootStackParamList } from '../types';
 import { reportError } from '../services/errorReporting';
 
 interface PushNotificationManagerProps {
-  navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList>>;
+  navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>;
 }
 
 /**

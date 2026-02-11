@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,8 +26,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, logout } = useAuth();
-  const { activityFeed, followedUsers } = useSocial();
+  const { user, logout, refreshUser } = useAuth();
+  const { activityFeed, followedUsers, myGroups } = useSocial();
   const { theme } = useTheme();
   const { portfolio } = useTrading();
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -39,7 +40,14 @@ export default function ProfileScreen() {
   const followersCount = 0; // Mock count
   const followingCount = followedUsers.size;
   const postsCount = userPosts.length;
-  const groupsCount = 0; // Mock count - will be replaced with actual data later
+  const groupsCount = myGroups.length;
+
+  // Refresh user when profile tab is focused (keeps avatar and display name in sync)
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshUser();
+    }, [refreshUser])
+  );
 
   // Load account value visibility preference
   useEffect(() => {
@@ -70,9 +78,13 @@ export default function ProfileScreen() {
   const renderHeader = () => (
     <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
       <View style={styles.headerTop}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={40} color="#FFFFFF" />
-        </View>
+        {user?.avatarUrl ? (
+          <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
+            <Ionicons name="person" size={40} color="#FFFFFF" />
+          </View>
+        )}
         <View style={styles.headerRightButtons}>
           <TouchableOpacity
             style={styles.headerAddPostButton}

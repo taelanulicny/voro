@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   ActivityIndicator,
   Alert,
   Modal,
@@ -128,7 +129,7 @@ export default function CommentSection({ postId, autoFocus = false, focusTrigger
     level: number = 0,
     isReply: boolean = false
   ) => {
-    const isOwnComment = user?.userId === comment.userId;
+    const isOwnComment = user?.id === comment.userId;
     const hasReplies = comment.replies && comment.replies.length > 0;
     const isExpanded = expandedReplies.has(comment.id);
     const maxDepth = 5; // Limit nesting depth
@@ -289,7 +290,11 @@ export default function CommentSection({ postId, autoFocus = false, focusTrigger
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      scrollEnabled={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Comments List - Only show if not in showOnlyMostRecent mode */}
       {!showOnlyMostRecent && (
         comments.length > 0 ? (
@@ -299,6 +304,7 @@ export default function CommentSection({ postId, autoFocus = false, focusTrigger
             keyExtractor={(item) => item.id}
             style={styles.commentsList}
             scrollEnabled={false}
+            keyboardShouldPersistTaps="handled"
           />
         ) : (
           <View style={styles.emptyState}>
@@ -473,7 +479,7 @@ export default function CommentSection({ postId, autoFocus = false, focusTrigger
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 

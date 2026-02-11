@@ -32,6 +32,7 @@ interface AuthContextType {
   loginWithGoogle: (email: string, id: string, name: string, photo?: string, idToken?: string) => Promise<{ success: boolean; error?: string; isNewUser?: boolean }>;
   loginWithApple: (email: string, id: string, name: string, identityToken?: string) => Promise<{ success: boolean; error?: string; isNewUser?: boolean }>;
   refreshUser: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<void>; // Update user state directly (e.g. after profile edit)
   tryRefreshToken: () => Promise<boolean>; // Try to refresh token if near expiry
   getToken: () => string | null; // Get current token (for authenticatedRequest)
   skipAuth: () => Promise<void>; // Skip authentication (dev only)
@@ -414,6 +415,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token, tryRefreshToken]);
 
+  const updateUser = useCallback(async (userData: Partial<User>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...userData };
+      AsyncStorage.setItem(ASYNC_USER_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   // Expose getToken function for authenticatedRequest
   const getToken = useCallback(() => token, [token]);
 
@@ -445,6 +455,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loginWithGoogle,
     loginWithApple,
     refreshUser,
+    updateUser,
     tryRefreshToken,
     getToken,
     skipAuth,

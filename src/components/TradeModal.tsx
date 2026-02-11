@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  PanResponder,
 } from 'react-native';
 import { useTrading } from '../context/TradingContext';
 import { useTheme } from '../context/ThemeContext';
@@ -41,6 +42,32 @@ export default function TradeModal({
   const [tokensToSell, setTokensToSell] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [slideAnim] = useState(new Animated.Value(height));
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+          handleClose();
+        } else {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const existingPosition = getPosition(entityId);
   const currentPrice = getEntityPrice(entityId);
@@ -206,8 +233,9 @@ export default function TradeModal({
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.overlay}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
         <TouchableOpacity style={styles.backdrop} onPress={handleClose} activeOpacity={1} />
 
@@ -221,7 +249,7 @@ export default function TradeModal({
           ]}
         >
           {/* Header: name at top, price below */}
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]} {...panResponder.panHandlers}>
             <View style={[styles.handle, { backgroundColor: theme.textTertiary }]} />
             <View style={styles.headerContent}>
               <Text style={[styles.entityName, { color: theme.text }]}>{entityName}</Text>

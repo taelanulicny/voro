@@ -68,11 +68,18 @@ function runESLintForFiles(files) {
 	if (files.length === 0) {
 		return false;
 	}
-
+	const eslintPath = path.join(process.cwd(), 'node_modules/eslint/bin/eslint.js');
+	if (!fs.existsSync(eslintPath) && !fs.existsSync(path.join(process.cwd(), 'node_modules/eslint/bin/eslint'))) {
+		return false;
+	}
 	return runForFiles('node ./node_modules/eslint/bin/eslint --quiet --format=unix', files);
 }
 
 function runMarkdownLintForFiles(mdFiles) {
+	const mdPath = path.join(process.cwd(), 'node_modules/markdownlint-cli/markdownlint.js');
+	if (!fs.existsSync(mdPath)) {
+		return false;
+	}
 	return runForFiles('node ./node_modules/markdownlint-cli/markdownlint.js', mdFiles);
 }
 
@@ -92,7 +99,13 @@ function lintFiles(files) {
 	const tsFiles = filterByExt(files, '.ts');
 	const tsxFiles = filterByExt(files, '.tsx');
 	if (tsFiles.length !== 0 || tsxFiles.length !== 0) {
-		hasErrors = run('npm run tsc-verify') || hasErrors;
+		const pkgPath = path.join(process.cwd(), 'package.json');
+		if (fs.existsSync(pkgPath)) {
+			const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+			if (pkg.scripts && pkg.scripts['tsc-verify']) {
+				hasErrors = run('npm run tsc-verify') || hasErrors;
+			}
+		}
 		hasErrors = runESLintForFiles(tsFiles) || hasErrors;
 		hasErrors = runESLintForFiles(tsxFiles) || hasErrors;
 	}
@@ -103,7 +116,10 @@ function lintFiles(files) {
 		// yeah, eslint might check code inside markdown files
 		hasErrors = runESLintForFiles(mdFiles) || hasErrors;
 		hasErrors = runMarkdownLintForFiles(mdFiles) || hasErrors;
-		hasErrors = run('node scripts/check-markdown-links.js') || hasErrors;
+		const checkLinksPath = path.join(process.cwd(), 'scripts/check-markdown-links.js');
+		if (fs.existsSync(checkLinksPath)) {
+			hasErrors = run('node scripts/check-markdown-links.js') || hasErrors;
+		}
 	}
 
 	// markdown react

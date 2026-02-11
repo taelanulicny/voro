@@ -2,21 +2,33 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { authenticateRequest, createResponse, createErrorResponse } from '../middleware/auth';
 import {
   getUserProfile,
+  getUserByUsername,
   updateUserProfile,
   generateAvatarUploadUrl,
   updateUserPreferences,
 } from '../services/userService';
 import { logger } from '../utils/logger';
 
+function getUserIdFromEvent(event: APIGatewayProxyEvent): string | null {
+  const fromParams = event.pathParameters?.userId;
+  if (fromParams) return fromParams;
+  const path = event.path || '';
+  const match = path.match(/\/api\/user\/([^/]+)\/?$/);
+  return match ? match[1] : null;
+}
+
 export async function getUserProfileHandler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
-    const userId = event.pathParameters?.userId;
+    const identifier = getUserIdFromEvent(event);
 
-    if (!userId) {
+    if (!identifier) {
       return createErrorResponse(400, 'Missing userId');
     }
 
-    const user = await getUserProfile(userId);
+    let user = await getUserProfile(identifier);
+    if (!user && !identifier.includes('-') && identifier.length >= 3) {
+      user = await getUserByUsername(identifier);
+    }
 
     if (!user) {
       return createErrorResponse(404, 'User not found');

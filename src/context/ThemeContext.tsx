@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance, ColorSchemeName } from 'react-native';
+import { Appearance, ColorSchemeName, View } from 'react-native';
 
 export interface Theme {
   // Background colors
@@ -54,7 +54,7 @@ export const lightTheme: Theme = {
 };
 
 export const darkTheme: Theme = {
-  background: '#000000',
+  background: '#121212',
   backgroundSecondary: '#1C1C1E',
   backgroundTertiary: '#2C2C2E',
   
@@ -92,13 +92,14 @@ const THEME_STORAGE_KEY = '@moro_theme_mode';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
+  const [isThemeLoaded, setIsThemeLoaded] = useState(false);
   const [systemColorScheme, setSystemColorScheme] = useState<ColorSchemeName>(
     Appearance.getColorScheme()
   );
 
   // Determine if we should use dark theme
-  const isDark = 
-    themeMode === 'dark' || 
+  const isDark =
+    themeMode === 'dark' ||
     (themeMode === 'auto' && systemColorScheme === 'dark');
 
   const theme = isDark ? darkTheme : lightTheme;
@@ -106,7 +107,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Load saved theme preference
   useEffect(() => {
     loadThemePreference();
-    
+
     // Listen for system theme changes
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       setSystemColorScheme(colorScheme);
@@ -123,6 +124,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error loading theme preference:', error);
+    } finally {
+      setIsThemeLoaded(true);
     }
   };
 
@@ -147,6 +150,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeMode,
     toggleTheme,
   };
+
+  if (!isThemeLoaded) {
+    return <View style={{ flex: 1, backgroundColor: theme.background }} />;
+  }
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

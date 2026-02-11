@@ -299,6 +299,7 @@ export async function isGroupMember(userId: string, groupId: string): Promise<bo
       new GetCommand({
         TableName: TABLE_NAMES.GROUP_MEMBERS,
         Key: { groupId, userId },
+        ConsistentRead: true,
       })
     );
 
@@ -443,4 +444,3 @@ export async function removeMember(
     return { success: false, error: error.message || 'Failed to remove member' };
   }
 }
-

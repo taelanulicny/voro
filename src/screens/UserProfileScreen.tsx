@@ -56,6 +56,8 @@ function UserProfileScreen() {
   const fetchUserProfile = useCallback(async () => {
     setIsLoading(true);
     
+    let profileLoaded = false;
+
     // If backend is configured, fetch from API
     if (isBackendConfigured() && token && isAuthenticated && !isOwnProfile) {
       try {
@@ -69,19 +71,21 @@ function UserProfileScreen() {
 
         if (response.success && response.data) {
           setProfileUser(response.data);
+          profileLoaded = true;
           // Get groups count
           const groupsResponse = await getUserGroups(userId);
           if (groupsResponse.success && groupsResponse.data) {
             setGroupsCount(groupsResponse.data.length);
           }
-          // Account value visibility - default to true, but could be from user settings
           setAccountValueVisible(true);
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
       }
-    } else {
-      // Use mock data - find user in activity feed or create mock profile
+    }
+
+    // Fallback to mock data from activity feed if backend didn't load
+    if (!profileLoaded) {
       const userPost = activityFeed.find(post => post.userId === userId);
       if (userPost) {
         const mockProfile: UserProfile = {
@@ -99,10 +103,7 @@ function UserProfileScreen() {
         };
         setProfileUser(mockProfile);
       }
-      
-      // Get groups count from local groups data
-      // For mock mode, we'll need to check group members
-      // For now, try to get from API if available, otherwise use 0
+
       if (isBackendConfigured() && token) {
         try {
           const groupsResponse = await getUserGroups(userId);
@@ -115,8 +116,6 @@ function UserProfileScreen() {
           setGroupsCount(0);
         }
       } else {
-        // In mock mode without backend, we can't determine membership easily
-        // Could check if user appears in any group's member list, but for now use 0
         setGroupsCount(0);
       }
       setAccountValueVisible(true);

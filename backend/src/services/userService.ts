@@ -1,5 +1,5 @@
 import { docClient, TABLE_NAMES } from '../utils/dynamodb';
-import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { User } from '../models/types';
@@ -23,6 +23,27 @@ export async function getUserProfile(userId: string): Promise<User | null> {
     return (result.Item as User) || null;
   } catch (error) {
     console.error('Error getting user profile:', error);
+    return null;
+  }
+}
+
+/** Look up user by username (fallback when identifier might be username) */
+export async function getUserByUsername(username: string): Promise<User | null> {
+  try {
+    const normalized = username.trim().toLowerCase().replace(/[^a-z0-9._]/g, '');
+    if (!normalized || normalized.length < 3) return null;
+    const result = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAMES.USERS,
+        FilterExpression: 'username = :u',
+        ExpressionAttributeValues: { ':u': normalized },
+        Limit: 1,
+      })
+    );
+    const item = result.Items?.[0];
+    return (item as User) || null;
+  } catch (error) {
+    console.error('Error getting user by username:', error);
     return null;
   }
 }

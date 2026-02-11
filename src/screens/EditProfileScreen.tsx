@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -26,7 +27,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function EditProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, updateUser, refreshUser } = useAuth();
   const { theme } = useTheme();
   
   const [username, setUsername] = useState(user?.username || '');
@@ -218,8 +219,15 @@ export default function EditProfileScreen() {
         }
       );
 
-      if (updateResponse.success) {
-        // Refresh user data
+      if (updateResponse.success && updateResponse.data) {
+        // Update local user state from server response so it persists everywhere
+        await updateUser({
+          username: updateResponse.data.username ?? trimmedUsername,
+          displayName: updateResponse.data.displayName ?? displayName.trim(),
+          bio: bio.trim() || undefined,
+          avatarUrl: updateResponse.data.avatarUrl ?? avatarUrl,
+        });
+        // Sync with server so getMe/verifyToken returns same data (e.g. avatar presigned URL)
         await refreshUser();
         Alert.alert('Success', 'Profile updated successfully!', [
           { text: 'OK', onPress: () => navigation.goBack() },
@@ -261,10 +269,17 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {/* Avatar Section */}
         <View style={[styles.avatarSection, { backgroundColor: theme.card, borderBottomColor: theme.backgroundSecondary }]}>
@@ -367,6 +382,7 @@ export default function EditProfileScreen() {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

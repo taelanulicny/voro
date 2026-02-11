@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Portfolio, Holding, UserTransaction } from '../types';
 import { authenticatedRequest, isBackendConfigured, invalidateCache } from '../config/api';
@@ -432,6 +433,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
       if (Object.keys(updates).length > 0) {
         setEntityPrices(prev => {
           const updated = { ...prev };
+          let hasChanges = false;
           Object.keys(updates).forEach(entityIdStr => {
             const entityId = parseInt(entityIdStr, 10);
             const tradedAt = recentlyTradedAtRef.current[entityId];
@@ -441,13 +443,17 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             if (tradedAt != null && now - tradedAt >= TRADE_PRICE_COOLDOWN_MS) {
               delete recentlyTradedAtRef.current[entityId];
             }
-            updated[entityId] = updates[entityId];
+            // Only update if price actually changed
+            if (updated[entityId] !== updates[entityId]) {
+              updated[entityId] = updates[entityId];
+              hasChanges = true;
+            }
           });
-          return updated;
+          return hasChanges ? updated : prev;
         });
         setLastPriceUpdateTime(Date.now());
       }
-    }, 300); // 300ms debounce delay
+    }, 500); // 500ms debounce delay
   }, []);
 
   // Fetch entity prices with debouncing
@@ -485,20 +491,42 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated, token, fetchPortfolio, fetchTransactions, fetchEntityPrices]);
 
-  // Poll for price updates every 1 second (only if backend is configured)
-  // More frequent updates for real-time trading experience
-  // Debouncing is handled in fetchEntityPrices
+  // Poll for price updates (only if backend is configured)
+  // Uses AppState to poll faster when foreground, stop when backgrounded
   useEffect(() => {
     if (!isAuthenticated || !token || !isBackendConfigured()) return;
 
-    const interval = setInterval(() => {
-      fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
-      fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
-    }, 1000); // 1 second for real-time price updates
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = (intervalMs: number) => {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = setInterval(() => {
+        fetchEntityPrices().catch(err => console.error('Error fetching entity prices:', err));
+        fetchPortfolio().catch(err => console.error('Error fetching portfolio:', err));
+      }, intervalMs);
+    };
+
+    // Start with foreground polling interval
+    startPolling(15000); // 15 seconds
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // App came to foreground - fetch immediately and resume polling
+        fetchEntityPrices().catch(() => {});
+        fetchPortfolio().catch(() => {});
+        startPolling(15000);
+      } else {
+        // App went to background - stop polling
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+    });
 
     return () => {
-      clearInterval(interval);
-      // Cleanup debounce timer on unmount
+      if (intervalId) clearInterval(intervalId);
+      subscription.remove();
       if (priceUpdateDebounceTimerRef.current) {
         clearTimeout(priceUpdateDebounceTimerRef.current);
       }
@@ -1018,6 +1046,7 @@ export const TradingProvider = ({ children }: { children: ReactNode }) => {
             body: JSON.stringify({
               entityId,
               type: 'close',
+              direction,
               tokensCommitted: tokensToClose,
             }),
           });

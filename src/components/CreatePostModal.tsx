@@ -153,6 +153,7 @@ export default function CreatePostModal({
           { backgroundColor: theme.card },
           slideFromBottom && { paddingBottom: insets.bottom },
         ]}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
         <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <TouchableOpacity
@@ -227,8 +228,9 @@ export default function CreatePostModal({
 
           <ScrollView
             style={styles.content}
-            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}
+            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24), flexGrow: 1 } as any}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             {/* User Info */}
             <View style={styles.userInfo}>
@@ -396,7 +398,7 @@ const styles = StyleSheet.create({
     right: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '50%',
+    maxHeight: '85%',
   },
   header: {
     flexDirection: 'row',

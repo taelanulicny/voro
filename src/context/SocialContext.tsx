@@ -910,6 +910,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
               : group
           )
         );
+        refreshGroups().catch(() => {});
         return { success: true };
       }
 
@@ -918,7 +919,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       console.error('Error joining group:', error);
       return { success: false, error: 'Failed to join group' };
     }
-  }, [token]);
+  }, [token, refreshGroups]);
 
   const leaveGroup = useCallback(async (groupId: string) => {
     if (!token) {
@@ -1020,7 +1021,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     if (!token) {
       return { success: false, error: 'Not authenticated' };
     }
-    try {
+
+    const attemptSend = async (): Promise<{ success: boolean; message?: GroupMessage; error?: string }> => {
       const response = await authenticatedRequest(`/api/groups/${groupId}/messages`, token, {
         method: 'POST',
         body: JSON.stringify({ content: (content || '').trim() }),
@@ -1029,6 +1031,19 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         return { success: true, message: response.data.message };
       }
       return { success: false, error: response.error || 'Failed to send message' };
+    };
+
+    try {
+      const result = await attemptSend();
+      if (result.success) return result;
+
+      // Retry once after a short delay (handles eventual consistency after join)
+      if (result.error?.includes('member') || result.error?.includes('403')) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return await attemptSend();
+      }
+
+      return result;
     } catch (error) {
       console.error('Error sending group message:', error);
       return { success: false, error: 'Failed to send message' };

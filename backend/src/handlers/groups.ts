@@ -411,4 +411,3 @@ export async function removeMemberHandler(event: APIGatewayProxyEvent): Promise<
     return createErrorResponse(500, error.message || 'Failed to remove member');
   }
 }
-
